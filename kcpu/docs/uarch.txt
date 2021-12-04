@@ -1,0 +1,540 @@
+The implementation is going to follow a relatively simple pipeline implementation with the following stages:
+
+- FETCH unit with BRANCH PREDICTION
+- DECODE
+- EXECUTE (target computation for memory/branch)
+- MEMORY (bypassed if not used)
+- WRITE-BACK
+
+The following units around the main pipeline support the efficient execution of the instruction stream:
+
+- ICACHE
+- DCACHE
+- MMU
+
+BRANCH PREDICTION
+=================
+
+Branches are easy to identify: inst[3:0] == 0x0 | inst[3:0] == 0xf, that is, the bottom four bits are either all set or all cleared.
+
+This actually mis-categorizes XMOV and WFLUSH and TPC load/stores. That's not a big deal, none of these are terribly often
+used instructions. All that happens is that they take up BTB entries and might get mis-predicted in case of a BTB collision.
+
+We will have BTB, containing:
+
+31-bit target address (16-bit aligned)
+1-bit TASK v. SCHEDULER
+1-bit match.
+
+On every branch, during execution, we store the target address and check it against the already stored value.
+If the value match, we set the match bit. If the value doesn't we clear it.
+
+During fetch, if a branch is encountered, we look up it's BTB entry (based on PC hash). If the match bit is set,
+we predict the branch taken to the address in the BTB, otherwise we predict not taken.
+
+This means that two consequtive branch to the same address will trigger prediction.
+
+We can combine this behavior with predicting (even in case of match==0) the branch taken for
+conditional branches (inst[3:0] == 0xf) with negative relative offset (most likely back-edges in loops).
+
+This store could have however many entries we want, but needs two read ports *and* a write port:
+- 1 read port to get the values in the predictor during fetch
+- 1 read port to read the stored target address for branches during execute
+- 1 write port to write back the target address and the match bit during execute
+This would still give us 2 cycle update latency, but at least we could update on every cycle.
+
+   If we think that back-to-back branches are rare, or take two cycles to fetch anyway (which is true probably for
+   conditional branches but not all computed branches), we could take the hit of a two-cycle update and cut the BRAM
+   usage in half. I think I won't take this approach initially.
+
+In case of a 2-cycle write latency (read-modify-write) and back-to-back branches that collide on the BTB entry,
+we will have to be a bit careful, though I think any implementation will be OK-ish. It's probably best
+if the read gets the old value, and the corresponding write will stomp on the one preciding it.
+
+NOTE: back-to-back branches should almost never collide on the BTB entry: adjacent branches should never
+hash to the same entry. We would need one jump that is taken, predicted taken, was possible to fetch
+in a single cycle, and hash to the same BTB entry. And even then, the worst case is that we mis-set the
+match bit.
+
+So, 2 BRAMs would give us 256 entries. The entries are direct-mapped, based on a hash of the PC and its type
+(that is the TASK/SCHEDULER bit). The simplest has is the lower N bits of PC, which is probably good enough.
+
+Of course mis-predicts are harmless in terms of accuracy, they only cause stalls.
+
+NOTE: since we're predicting if the target is in SCHEDULER or TASK mode, we'll have to make sure that we truly
+don't ever leak SCHEDULER context into TASK mode, we can correctly predict FILL, BREAK, SYSCALL instructions.
+STU will probably mis-predict, as we usually would not return to the same address in TASK mode, thus the match
+bit would never be set.
+
+NOTE: branch prediction will have to take instruction length into consideration and keep predicting the next
+address for a 48-bit instruction, even on a predicted taken branch.
+
+NOTE: branch prediction will also have to work around the mismatch between the 32-bit ingest port from ICACHE
+and the 16/48-bit instruction length. It also has to take into account the fact that the PC is incremented
+in 16-bit quantities.
+
+MMU
+===========
+We would need a traditional two-level MMU, nothing really fancy. The page table address would need to be
+selected based on SCHEDULER v. TASK mode.
+
+There are two kinds of pages: 4MB super pages and 4kb (regular) pages. All pages are naturally aligned,
+that is super pages are 4MB aligned while regular pages are 4kb aligned.
+
+Page table entries are 32 bits long with only 24 bits used by the HW:
+
++---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---+
+|                                   P_PA_ADDR                                   | C |   MODE    |               .               |
++---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---+
+
+MODE   MNEMONIC   EXPLANATION
+-----------------------------
+0      INV        entry is not valid (or no access). Any access generates an exception
+1      R          entry is readable
+2       W         entry is writable
+3      RW         entry is readable and writeable
+4        X        entry is executable
+5      R X        entry is read/executable
+6      LINK       entry is link to 2nd level page table, if appears in the 1st level page table
+6       WX        entry is writable and executable, if appears in the 2nd level page table
+7      RWX        entry has all access rights
+
+NOTE: every MODE other than 6 (LINK) is considered a super page in the 1st level TLB table. This includes mode 0 (INV) as well.
+
+The C bit is set to 1 for cacheable entries, set to 0 for non-cacheable ones.
+
+P_PA_ADDR  - top 20 bits of 4kB aligned physical address. Either for 2nd level page tables or for physical memory. For super-pages
+             the bottom 10 bits are ignored.
+
+NOTE: Most MMU implementations have D and A bits. These are redundant: one could start with a page being invalid. Any access would
+      raise an exception, at which point, the OS can set the page to read-only. If a write is attempted, another exception is fired,
+      at which point the page can be set with permissions. All the time, the exception handler can keep track of accessed and dirty 
+      pages. The D and A bits are only useful of the HW sets them automatically, but I don't intend to do that: that makes the MMU
+      implementation super complicated.
+
+NOTE: Most MMU implementations have a 'G' or global bit. With this MMU, we almost never globally invalidate the TLBs, so the global
+      bit on a page is not really useful. In fact it's also rather dangerous as any mistake in setting the global bit on a page will
+      potentially cause a TLB corruption and result in hard to find crashes and vulnerabilities.
+
+The MMU can be programmed through the following (memory-mapped) registers:
+
+SBASE/TBASE:
+---------------
+
+The physical page where the 1st level page tables are found for SCHEDULER and TASK modes respectively.
+
++---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---+
+|                                   ADDR                                        |                     .                         |
++---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---+
+
+They default to 0 upon reset. See notes about how to boot the system.
+
+TLB_LA1:
+-------------------
+
+Logical address for 1st level TLB updates
+
++---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---+
+|                ADDR                   |                                     .                                                 |
++---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---+
+
+The bottom 22 bits are ignored on write and read 0.
+
+TLB_LA2:
+-------------------
+
+Logical address for 2st level TLB updates
+
++---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---+
+|                                     ADDR                                      |                       .                       |
++---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---+
+
+The bottom 12 bits are ignored on write and read 0.
+
+
+TLB_DATA1/TLB_DATA2:
+----------------------
+
+Associated TLB entry for the given logical address in TLB_LA1/TLB_LA2 respectively. The layout follows the page table entry format.
+
+These are *write only* registers. Upon write, the value is entered to the TLB entry for the associated logical address stored
+in TLB_LA1/TLB_LA2.
+
+NOTE: since the TLB is a cache of the page tables and since page table updates are not snooped by the MMU, the OS is required 
+to either copy any page updates into the TLB or invalidate the TLB.
+
+NOTE: if the 1st level page entry is updated (such that it changes where the 2nd level page is pointed to) that operations
+potentially invalidates a whole lot of 2nd level TLB entries. It's impossible to know how many of those 2nd level entries
+were in deed cached in the TLB, and individually updating them (all 1024 of them) would certainly completely trash the TLB,
+the recommended action is that if a 1st level page entry is changed in such a way that the 2nd level page address is changed,
+the whole 2nd level TLB is invalidated. !!!!!!!!!!!!!!! I DONT THINK THIS IS TRUE ANYMORE !!!!!!!!!!!!!!!
+
+TLB_INV:
+-------------
+
+Write only register to invalidate the entire TLB.
+
+EX_ADDR:
+---------
+
+Contalins the LA of the last excepting operation
+
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+|                                                       ADDR                                                                    |
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+NOTE: this is not the PC for the excepting instruction (that's in PPC). This is the address of the access that caused the exception.
+
+EX_OP:
+--------
+
+Contalins the operation attempted for the last excepting operation
+
++---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---+
+|                                                                                   | X | W | R |                               |
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+TLBs:
+-------
+
+There are two TLBs. One for first-level entries and one for second-level ones. TLBs are direct-mapped caches, using LA[29:22] 
+for the 1st level and LA[19:12] for the 2nd level TLB as index.
+
+Each TLB consists of 256 entries, containing 24 bits of data and a 24-bit tag.
+
+The 32-bit tag contains:
++---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#
+|                                 TLB_P_PA_ADDR                                 |LA_TAG |VERSION|
++---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#
+
+For the 1st level TLB:
+    TLB_P_PA_ADDR contains the page table address for the entry. In 1st the level TLB, this is either the contents of 
+              SBASE or TBASE based on the execution context.
+
+    LA_TAG contains LA[31:30]
+
+For the 2st level TLB:
+    TLB_P_PA_ADDR contains the page table address for the 1st level table that this entry belongs to.
+    LA_TAG contains LA[21:20]
+
+The version number is used the same way as in the I and D cache tags to quickly invalidate the whole table.
+
+The entry itself contains the top 24 bits of the the page table entry.
+
+MMU operation:
+--------------
+
+When a memory access is initiated, two operations are performed:
+- Address translation
+- Permission check
+
+MMU operation starts by reading both the 1st and 2nd level TLBs, using the appropriate sections of the LA as index.
+
+For the 1st level entry, the read-back LA_TAG is compared to LA[31:30] while TLB_P_PA_ADDR is compared the the active 
+SBASE/TBASE register. The VERSION field is compared to the internally maintained TLB_VERSION register.
+If all fields match, we declare a 1st-level TLB hit, otherwise, we declare a 1st level TLB miss, and initiate a fill operation.
+
+For the 2nd level entry, the read-back LA_TAG is compared to LA[21:20] while TLB_P_PA_ADDR is compared to the P_PA_ADDR field
+of the 1st level TLB entry (or the value that is used to fill the entry in case of a miss). The VERSION field is compared to
+the internally maintained TLB_VERSION register.
+If the 1st level TLB entry is a super page, we ignore any hit or miss test on the 2nd level TLB.
+Otherwise, if all fields match, we declare a 2st-level TLB hit or a 2st level TLB miss, and initiate a fill operation.
+
+At the end of the process we have either an up-to-date 1st level TLB entry with a super page or up-to-date 1st and 2nd level TLB entries.
+
+The TLB entry used for address translation and permission check is the data from the 1st level TLB entry in case of a super page or
+the 2nd level TLB entry otherwise. This entry is called the PAGE_DESC from now on.
+
+The PAGE_DESC is used for both address translation and permission check.
+
+Address translation takes the P_PA_ADDR and concatenates it with LA[11:0] to generate the full PA.
+Permission check ANDs the request operation mask (XWR bits) with the MODE bits in PAGE_DESC. The result is reduction-AND-ed together.
+If the result is '1', the operation is permitted, otherwise it is denied.
+
+NOTE: in other words, all request operation bits must be set for the operation to be permitted. Normally, only one of the three bits
+      will be set.
+      
+NOTE: PAGE_DESC can't contain LINK mode anymore: that is only a valid entry in the 1st level page table, and if that were the case,
+      PAGE_DESC would be a copy of the 2nd level entry. mode 6 is always interpreted as WX and checked against that.
+
+If the permission check fails, an MAV exception is raised.
+
+Coordination with I/D caches:
+-----------------------------
+
+Address translation is done in parallel with cache accesses. Caches are logically addressed but physically tagged, so if there is
+a hit in the cache, the associated P_PA_ADDR is also know. This P_PA_ADDR is compared with the result of the address translation
+(PAGE_DESC.P_PA_ADDR). In case of a miss-compare, the cache hit is overridden to a miss and a cache fill is initiated.
+
+If the translation shows the address to be non-cacheable, the cache hit (if any) is overriden to a miss, but no cache fill is initiated.
+
+In case the translation results in an exception, the memory operation (instruction fetch or load/store) is aborted and the exception
+generation mechanism is initiated.
+
+MMU exceptions:
+----------------------
+
+Since the MMU handles two operations in parallel (one fetch and one memory access), it's possible that both of them
+generate exceptions in the same cycle. If that's the case, the fetch exception is suppressed and the memory access
+exception is raised.
+
+Upon an MMU exception, the logical address for the excepting operation is stored in the EX_ADDR register. The bit-pattern
+associated with the attempted operation is stored in the EX_OP register. To simplify OS operation, the TLB_LAx registers
+are also updated with the appropriate sections of the failing LA.
+
+TLB invalidation:
+-----------------
+For TLB invalidation, a 2-bit TLB_VERSION and a 2-bit LAST_FULL_INVALIDATE_VERSION value is maintained. Any TLB entry with a 
+VERSION field that doesn't match TLB_VERSION is considered invalid. When the TLB is invalidated, the TLB_VERSION is incremented 
+and the invalidation state-machine starts (or re-starts if already active). The state-machine goes through each TLB entry 
+and writes the TAG with TLB_VERSION-1. Once the state-machine is done, it updates LAST_FULL_INVALIDATE_VERSION to TLB_VERSION-1.
+
+The invaldation state-machine usually operates in the background (using free cycles on the TLB memory ports). However,
+if LAST_FULL_INVALIDATE_VERSION == TLB_VERSION, that indicates that there are entries in the TLB that would alias as valid even
+though their VERSION field is from a previous generation. So, if a TLB invalidation results in 
+LAST_FULL_INVALIDATE_VERSION == TLB_VERSION, the MMU is stalled until the invalidation state-machine is done (which clears the
+condition automatically).
+
+TLB memories:
+--------------
+The TLB has two port: one towards instruction fetch and one towards the load-store unit. Each port corresponds to a read/write 
+port on both the 1st and 2nd level TLB memories.
+
+Each memory port handles lookups for their associated units as well as writes for fills in case of misses.
+
+The memory ports that are connected to the load-store unit are also the ones that the invalidation state-machine uses.
+
+TLB updates through the TLB_DATA1/TLB_DATA2 registers go through the memory ports that are connected to the load-store unit.
+
+NOTE: since TLB_DATA1/TLB_DATA2 are memory mapped, these stores are sitting in the write queue just like any other write.
+Consequently they become effective when the write queue 'gets to them' or the write queue is flushed. Since reads flush
+the write queue, it is not possible that a TLB lookup for a read can interfere with a write to TLB_DATA1/TLB_DATA2.
+It is possible however that a TLB lookup for a write interferes with a previous write to TLB_DATA1/TLB_DATA2 that just
+entered the head of the write-queue. In this instance, the TLB lookup takes priority and the write is delayed (the interconnect
+should already be ready to deal with this kind of thing). Worst case, we have a ton of writes back-to-back, so the
+TLB_DATA1/TLB_DATA2 write keeps getting delayed, but eventually the write-queue gets full, the CPU is stalled, which allows
+the TLB_DATA1/TLB_DATA2 write to proceed and the lock is resolved.
+
+Accesses to the TLB have the following priority (in decreasing order):
+1. TLB lookups
+2. TLB fills (these can't happen at the same time as lookups)
+3. Writes through TLB_DATA1/TLB_DATA2 (only happens on the port towards the load-store unit)
+4. Invalidation state-machine (only happens on the port towards the load-store unit)
+
+Since we have two MMU ports, this translates to two read-write TLB ports on each of the TLB memories. It's possible in theory
+that we encounter simultanious writes to TLB entries from both ports, and into the same address. In that case, the fetch port wins.
+
+NOTE: in order for this to work, all TLB updates need to be single-cycle and atomic. That is, both the TAG and the DATA for the
+TLB entry will need to be written in one cycle. This is doable, as long as we don't play tricks, such as try to fill adjacent
+TLB entries with a read burst.
+
+NOTE: the write collision is actually theoretical, at least for TLB fills. Since both fills would come from main memory and
+      main memory will not provide read responses (through the interconnect) to both fill requests in the same cycle, the
+      corresponding TLB writes would never actually coinside. What is possible though is that a fetch TLB fill comes back
+      at the same time as a TLB_DATA1/TLB_DATA2 write - if the interconnect is powerful enough - and it's certainly possible
+      that a TLB fill coinsides with an invalidation state-machine write. If we were to handle these situations fully, it's
+      possible to simply disallow these two low-priority writes until the complete TLB fill on the fetch port is done. This
+      setup would allow for burst-fills of the TLBs.
+
+
+
+EXECPTION AND INTERRUPT NOTES:
+==============================
+
+
+
+
+
+
+
+Exeption handling
+-----------------
+
+The exceptions are precise, which is to say that all the side-effects of all previous instructions have fully taken
+effect and none of the side-effects of the excepting instruction or anything following it did.
+
+Exception sources can only generate exceptions while the processor is in TASK mode.
+
+In TASK mode, the source of the exception is stored in the ECAUSE register and the address of the last executed
+instruction is in TPC. The write-queue is NOT flushed before the exception mechanism is invoked. The processor
+is switched to SCHEDULER mode and executing continues from the current SPC address. The MMU or the caches are not
+invalidated.
+
+In SCHEDULER mode, exceptions are not possible. If one is raised, the source is stored in the RCAUSE register, while
+the address of the excepting instruction is stored in RADDR. After this, the processor is reset.
+
+
+
+
+The following precise exceptions are supported:
+
+- MIP: MMU Exception on the instruction port (details are in EX_ADDR_I/EX_OP_I)
+- MDP: MMU Exception on the data port (details are in EX_ADDR_D/EX_OP_D)
+- STF: FILL instruction
+- STB: BREAK instruction
+- STS: SYSCALL instruction
+- SII: invalid instruction
+- SUA: unaligned access
+
+Since we do posted writes (or at least should supported it), we can't really do precise bus error exceptions. So, those are not precise:
+
+- IAV: interconnect access violation
+- IIA: interconnect invalid address (address decode failure)
+- ITF: interconnect target fault (target signaled failure)
+
+These - being imprecise - can't be retried, so if they occur in TASK mode, the only recourse is to terminate the app, and if they happen in SCHEDULER mode, they will reboot, after setting RCAUSE and, if possible, RADDR.
+
+All these sources are mapped into the ECAUSE and RCAUSE registers:
+
++---+---+---+---+---+---+---+---+---+---+
+|IAV|IIA|ITF|MIP|MDP|STF|STB|STS|SII|SUA|
++---+---+---+---+---+---+---+---+---+---+
+
+There's only a single (level-sensitive) external interrupt source (though we could have a bunch more, since we have a whole register for it):
+
+- EXI
+
+This gets to trigger a transition from TASK to SCHEDULER mode, or gets ignored during SCHEDULER mode (if it's not cleared, it will trigger as soon as the CPU returns to TASK mode).
+
+The IADDR/RADDR registers contain the PC where the interrupt/exception occured.
+
+NOTE: we can use bit-set bit-clear jumps to jump on the first 12 bits of any register, and we have exactly 12 exception sources. Bit 0 (SII) is highest priority, Bit 12 (EXI) is lowest.
+
+NOTE: one can argue that SII/STS/STB/STF should be binary encoded instead of 1-hot encoded. Similarly IAV/IIA/ITF cannot happen at the same time. This could save us 3 bits, but would reduced
+      our ability to use the bit-test jumps to quickly get to the handlers. So, I think it's fine as is. If more sources are needed, we're still better off, as a single shift can get us to
+      the next 12 bits, which we can continue to branch upon. Really, the interrupt router code is something like this:
+
+	R5 = ECAUSE
+	if R5[0] PC = SUA_handler
+	h1: if R5[1] PC = SII_handler
+	h11: if R5[11] PC = STS_handler
+	...
+	// if more sources are needed
+	R5 >>= 12
+	h12: if R5[0] PC = whatever1_handler
+	h13: if R5[0] PC = whatever2_handler
+	...
+	// we don't have any more exception sources: check for interrupts
+	// handle return to the appropriate TASK code
+	exi_loop:
+	R5 = ICAUSE
+	if R5 == 0 PC = exi_done
+	PC = EXI_handler
+	PC = exi_loop
+	exi_done:
+	...
+	
+	
+	// handler code
+	STS_handler:
+	// do the things we need to do
+	// ...
+	// jump back to test for next handler
+	PC = h2
+
+We could heve inlined all the handlers and invert the tests, but then in most cases we would do a lot of far jumps (not many bits are set at the same time, usually), which probably
+would cause a lot of cache misses.
+
+PERF COUNTERS:
+==============
+
+We have 4 performance counters, but lots of events. For now, the following ones are defined:
+
+	ICACHE_MISS
+	DCACHE_MISS
+	ICACHE_INVALIDATE
+	DCACHE_INVALIDATE
+	TLB_MISS
+	TLB_MISS_1ST_LEVEL
+	TLB_MISS_2ND_LEVEL
+	INST_FETCH
+	PIPELINE_STALL_RAW_HAZARD
+	PIPELINE_STALL_WRITE_QUEUE_FLUSH
+	PIPELINE_STALL_READ
+	PIPELINE_STALL_BRANCH
+	PIPELINE_STALL_FETCH
+	PIPELINE_STALL_MMU
+	PIPELINE_STALL_DCACHE_MISS
+	PIPELINE_STALL_MEM_READ
+	BRANCH_MIS_PREDICT
+	BRANCH_TAKEN
+	BRANCH_NOT_TAKEN
+
+WRITE QUEUE
+===========
+There is a WFLUSH instruction to explicitely flush the write queue. In this implementation, the write queue
+is also flushed by any read (because we don't want to be in the business of testing all WQ entries for a read-match).
+WFLUSH is there for more complex implementations, where reads can bypass writes in the write-queue.
+
+We also have to think about how the write queue and DCACHE (write-through or write-back) interact.
+
+LOAD-STORE UNIT
+===============
+The load-store unit handles LA-->PA translation. Thus, the write queue only stores PA and write-related exceptions are 
+precise and happen during the execution phase of the instruction.
+
+INSTRUCTION FETCH
+=================
+
+ICACHE
+======
+
+DCACHE
+======
+
+
+SCREEN NOTES:
+==============
+We can utilize my old-old VGA core here. It at least have been tested, though it's probably due for a proper re-write.
+
+Supported resolutions (needs 120kByte of memory, 7.2MBps @ 60Hz):
+1280x768 - monochrome
+640x384 - 4-bit colors
+320x192 - 16-bit colors
+
+Maybe we can support (needs 150kByte of memory, 9MBps @ 60Hz):
+1280x960 - monochrome
+640x480 - 4-bit colors
+320x240 - 16-bit colors
+
+The system should use a shared memory architecture, where the video controller simply DMAs out of main memory, so overall memory size doesn't matter, only bandwidth needed.
+At 60Hz update rate, we will need to allocate about 10MBps of bandwidth to the video subsystem, and we would need to support scan-line replication in a scan-line memory of 1kBytes large.
+
+If the CPU is running at 100MHz, it would need about 200MBps of bandwidth, which is 16-bit SDR DRAM territory. Even with that we can only really sustain these rates with a cache implementation.
+
+At any rate, back to the display controller:
+
+Sprite support:
+Sprites should fit in a single BRAM of 1kByte, which gives us:
+64x64 in 1-bit colors (2nd bit is for transparency)
+32x32 in 4-bit colors (5th bit is for transparency)
+16x16 in 15-bit colors (16th bit is for transparency)
+
+Now, of course sprites could live in main memory as well, the only problem is that they would need to be read, potentially at the same time, increasing the (burst) datarate needed by the video subsystem.
+That way however pretty much arbitrary number of sprites with arbitrary sizes could be supported.
+
+2D DMA with descriptor-chaining support:
+This thing comes very handy, especially for GUI operations: off-screen sections could be copied over to the main screen and with descriptor chains, even overlapping windows could be refreshed with ease.
+If source and destination increments are individually controlled, even rudimentary re-scaling could be supported, at the very minimum fill with specific color can be accomplished.
+NOTE: this is only true for 16-bit mode. If lesser modes, the DMA works on pixel banks, not individual pixels!!!
+
+MULTI-CORE NOTES:
+==================
+This is very hard for the same reason that the J90 is hard: unless we have per-core caches, the interconnect gets overloaded and with per-core caches, the coherency protocol becomes a nightmare, unless
+that is delegated to SW, which is a completely different kind of nightmare.
+
+If every core implements a write-through cache, things are a little easier as at least the ground truth is always in main memory. So, every cache simply has to snoop the interconnect and invalidate, or update on a hit.
+However this logic involves two lookup ports in the tags (one for the CPU, one for the snoop logic), which is problematic though shouldn't be impossible. Races still exist, but they are not any more problematic than races
+in general.
+
+The next problem is that of atomic updates or other synchronization primitives. At this point we'd better be on an AXI interconnect, which doesn't really support test-and-set type locked transactions, it's
+more of a try-set type setup.
+
+##################################
+### Overall, this makes no sense.
+##################################
+
+At this point we're much better off using a commercial core and ISA.
+
+The furthest it's worth taking this core to is to have a relatively fast implementation with only on-chip memories (no cache) or a relatively slow version with off-chip memory (no cache still).
+
