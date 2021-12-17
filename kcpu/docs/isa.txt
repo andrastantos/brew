@@ -167,26 +167,41 @@ Form B (group CBD):
   CBAD             OP_CODE   OPERATION
 -----------------------------------------
 0x0.f.             R_D = R_B ^ VALUE
-0x1.f.             R_D = R_B | VALUE                 R_B becomes 0 (that is load immediate) if B == F
+0x0ff.             R_D = VALUE                       R_B becomes 0 (that is load immediate)
+0x1.f.             R_D = R_B | VALUE
+0x1ff.             R_D = VALUE                       R_B becomes 0 (that is load immediate) if B == F. if D == 0, target is TPC
 0x2.f.             R_D = R_B & VALUE
+0x2ff.             SII
 0x3.f.             R_D = R_B - VALUE
-0x4.f.             R_D = R_B + VALUE                 R_B becomes 0 (that is load immediate) if B == F. if D == 0, target is TPC
+0x3ff.             SII
+0x4.f.             R_D = R_B + VALUE
+0x4ff.             SII
 0x5.f.             R_D = R_B << VALUE
+0x5ff.             SII
 0x6.f.             R_D = R_B >> VALUE
+0x6ff.             SII
 0x7.f.             SR_D = SR_B >> VALUE              signed right shift
+0x7ff.             SII
 0x8.f.             R_D = SR_B * VALUE                signed multiply, lower half
+0x8ff.             SII
 0x9.f.             R_D = R_B * VALUE                 unsigned multiply, lower half
+0x9ff.             SII
 0xa.f.             R_D = UPPER SR_B * VALUE          signed multiply, upper half
+0xaff.             SII
 0xb.f.             R_D = UPPER R_B * VALUE           unsigned multiply, upper half
+0xbff.             SII
 0xc.f.             FR_D = FR_B + VALUE         ^ special cases:
 0xc.f0             SII
 0xc0f.             SII
+0xcff.             SII
 0xd.f.             FR_D = FR_B - VALUE         ^^ special cases:
 0xd.f0             SII
 0xd0f.             SII
+0xdff.             SII
 0xe.f.             FR_D = FR_B * VALUE         ^^^ special cases:
 0xe.f0             SII
 0xe0f.             SII
+0xeff.             SII
 
 
 Form C (group CAD):
