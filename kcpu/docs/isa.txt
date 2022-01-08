@@ -32,6 +32,9 @@ There are a few ideas to explore in this processor design:
   (as PULL would require two writes into the register file).
 - The ISA doesn't have CALL/RETURN primitives either (again, return would require two writes).
 
+TODO: if we have floating-point support, we need condition-code registers! See gcc/config/brew/brew.h AVOID_CCMODE_COPIES and how Moxie does it!
+TODO: we probably want a +2;+4 and a -2;-4 variant as well if we can find a 16-bit slots for them.
+
 INSTRUCTION ENCODING
 =============================================
 
@@ -114,7 +117,7 @@ Form A (group CBAD):
 0x0110             BREAK                          enters privileged mode, disables interrupts - used for SW breakpoints; TPC points to the next instruction
 0x0220             SYSCALL                        enters privileged mode, disables interrupts - used for SYSCALL-s; TPC points to the next instruction
 0x0330             STU                            enters user mode, enables interrupts; SPC points to the next instruction
-0x0440:0x0cc0      SII
+0x0440:0x0cc0      SII                            enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the CURRENT instruction
 0x0dd0             FENCE                          ensures that all memory references are completed before continuing
 0x0ee0             WFENCE                         ensures the write queue is fully flushed before continuing
 0x1...             R_D = R_B | R_A             **special cases:
@@ -130,27 +133,33 @@ Form A (group CBAD):
 0x9...             R_D = R_B * R_A             unsigned multiply, lower half   ##special cases:
 0x90..             R_D = R_A + 1                  R_D = R_A + 1
 0x9.0.             R_D = R_B - 1                  R_D = R_B - 1
+0x9..0             SII
 0x900.             SII
 0xa...             SR_D = UPPER SR_B * SR_A    signed multiply, upper half     ###special cases:
 0xa0..             R_D = -R_A                     R_D = -R_A (neg)
 0xa.0.             R_D = ~R_B                     R_D = ~R_B (not)
+0xa..0             SII
 0xa00.             SII
 0xb...             R_D = UPPER SR_B * SR_A     unsigned multiply, upper half   ####special cases:
 0xb0..             R_D = BSWAP R_A                R_D = {R_A[7:0], R_A[15:8], R_A[23:16], R_A[31:24]}
 0xb.0.             R_D = WSWAP R_B                R_D = {R_B[15:0], R_B[31:16]}
+0xb..0             SII
 0xb00.             SII
 0xc...             FR_D = FR_B + FR_A          ^ special cases:
 0xc..0             SII
-0xc.0.             SII
-0xc0..             SII
+0xc.0.             R_D = WSI R_B                  sign-extend a byte value in R_B into R_D
+0xc0..             R_D = BSI R_A                  word-extend a word value in R_A into R_D
+0xc00.             SII            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! THIS IS NEW !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 0xd...             FR_D = FR_B - FR_A          ^^ special cases:
 0xd..0             SII
 0xd.0.             FR_D = SR_B                    (signed) integer to float conversion
 0xd0..             SR_D = FLOOR FR_A              float to (signed) integer conversion with truncation
+0xd00.             SII            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! THIS IS NEW !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 0xe...             FR_D = FR_B * FR_A          ^^^ special cases:
 0xe..0             SII
 0xe.0.             FR_D = 1 / sqrt(FR_B)
 0xe0..             FR_D = 1 / FR_A
+0xe00.             SII            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! THIS IS NEW !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
 Pseudo instructions:
@@ -174,7 +183,7 @@ Form B (group CBD):
 0x2ff.             SII
 0x3.f.             R_D = R_B - VALUE
 0x3ff.             SII
-0x4.f.             R_D = R_B + VALUE
+0x4.f.             R_D = R_B + VALUE <-------- !!!!!!!!!!!!!!!! THIS IS REDUNDANT (it can be replaced with - where VALUE is negated)
 0x4ff.             SII
 0x5.f.             R_D = R_B << VALUE
 0x5ff.             SII
@@ -400,12 +409,12 @@ Form C (parts of group BD, group ., group D and group B): Load/store R_D from [V
 
   INST        OP_CODE                   OPERATION
 --------------------------------------------------------------
-0xf8f.        SR_D = SMEM8[VALUE]       8-bit signed load from MEM[VALUE] into R_D
-0xf8ff        STPC = MEM8[VALUE]        8-bit signed load from MEM[VALUE] into TPC
+0xf8f.        SR_D = MEM8[VALUE]       8-bit signed load from MEM[VALUE] into R_D
+0xf8ff        STPC = MEM8[VALUE]        8-bit signed load from MEM[VALUE] into TPC <-- NO GAS SUPPORT AT THE MOMENT!!!!
 0xf9f.        R_D = MEM8[VALUE]         8-bit unsigned load from MEM[VALUE] into R_D
 0xf9ff        TPC = MEM8[VALUE]         8-bit unsigned load from MEM[VALUE] into TPC
 0xfaf.        SR_D = MEM16[VALUE]       16-bit signed load from MEM[VALUE] into R_D
-0xfaff        STPC = MEM16[VALUE]       16-bit signed load from MEM[VALUE] into TPC
+0xfaff        STPC = MEM16[VALUE]       16-bit signed load from MEM[VALUE] into TPC <-- NO GAS SUPPORT AT THE MOMENT!!!!
 0xfbf.        R_D = MEM16[VALUE]        16-bit unsigned load from MEM[VALUE] into R_D
 0xfbff        TPC = MEM16[VALUE]        16-bit unsigned load from MEM[VALUE] into TPC
 0xfcf.        R_D = MEM[32][VALUE]      32-bit load from MEM[VALUE] into R_D
@@ -426,12 +435,12 @@ Form D (parts of group BAD, group BA, group AD and group A): Load/store R_D from
 
   INST        OP_CODE                         OPERATION
 --------------------------------------------------------------
-0xf8..        SR_D = SMEM8[R_A+VALUE]         8-bit signed load from MEM[R_A+VALUE] into R_D
-0xf8.f        STPC = MEM8[R_A+VALUE]          8-bit signed load from MEM[R_A+VALUE] into TPC
+0xf8..        SR_D = MEM8[R_A+VALUE]         8-bit signed load from MEM[R_A+VALUE] into R_D
+0xf8.f        STPC = MEM8[R_A+VALUE]          8-bit signed load from MEM[R_A+VALUE] into TPC <-- NO GAS SUPPORT AT THE MOMENT!!!!
 0xf9..        R_D = MEM8[R_A+VALUE]           8-bit unsigned load from MEM[R_A+VALUE] into R_D
 0xf9.f        TPC = MEM8[R_A+VALUE]           8-bit unsigned load from MEM[R_A+VALUE] into TPC
 0xfa..        SR_D = MEM16[R_A+VALUE]         16-bit signed load from MEM[R_A+VALUE] into R_D
-0xfa.f        STPC = MEM16[R_A+VALUE]         16-bit signed load from MEM[R_A+VALUE] into TPC
+0xfa.f        STPC = MEM16[R_A+VALUE]         16-bit signed load from MEM[R_A+VALUE] into TPC <-- NO GAS SUPPORT AT THE MOMENT!!!!
 0xfb..        R_D = MEM16[R_A+VALUE]          16-bit unsigned load from MEM[R_A+VALUE] into R_D
 0xfb.f        TPC = MEM16[R_A+VALUE]          16-bit unsigned load from MEM[R_A+VALUE] into TPC
 0xfc..        R_D = MEM[32][R_A+VALUE]        32-bit load from MEM[R_A+VALUE] into R_D
@@ -517,15 +526,15 @@ Branches can be identified by:
 NOTE:
 ========
 CALLs can be implemented by:
-R5 = PC+12    // calculate return address - NEW INSTRUCTION
-[SP+xxx] = R5 // put return address into stack-frame - WOULD BE NEEDED ANYWAY (if link register needs saving)
+R3 = PC+12    // calculate return address - NEW INSTRUCTION
+[SP+xxx] = R3 // put return address into stack-frame - WOULD BE NEEDED ANYWAY (if link register needs saving)
 SP = SP+xxx   // finalize stack-frame - WOULD BE NEEDED ANYWAY (if any arguments are passed on the stack)
 PC = yyy      // jump to the subroutine - WOULD BE NEEDED ANYWAY
 
 // return:
-R5 = [SP]     // load return address - WOULD BE NEEDED ANYWAY (if link register needs saving)
+R3 = [SP]     // load return address - WOULD BE NEEDED ANYWAY (if link register needs saving)
 SP = SP-xxx   // free stack-frame - WOULD BE NEEDED ANYWAY
-PC = R5       // return - WOULD BE NEEDED ANYWAY
+PC = R3       // return - WOULD BE NEEDED ANYWAY
 
 Notice how this is only one instructions longer than the link approach as the stack-adjustment and the save/restore of the link register
 would be there in most cases anyways.
