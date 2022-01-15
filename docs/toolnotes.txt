@@ -1,0 +1,33 @@
+HOW TO BUILD THE TOOLSET?
+=========================
+
+TARGET=brew-none-elf
+PREFIX=~/brew-toolset
+export PATH=$PATH:$PREFIX/bin
+
+1. binutils:
+  mkdir brew-binutils-build
+  cd brew-binutils-build
+  ../brew-binutils-gdb/configure --target=$TARGET --prefix=$PREFIX --no-recursion
+  make
+  make install
+2. gcc phase 1:
+  mkdir brew-gcc-build1
+  cd brew-gcc-build1
+  ../brew-gcc/configure --target=$TARGET --prefix=$PREFIX --enable-languages=c --without-headers --with-newlib --disable-shared --disable-libssp
+  make
+  make install
+3. newlib
+  mkdir brew-newlib-build
+  cd brew-newlib-build
+  ../brew-newlib/configure --target=$TARGET --prefix=$PREFIX
+  make
+  make install
+4. gcc phase 2:
+  mkdir brew-gcc-build
+  cd brew-gcc-build
+  ../brew-gcc/configure --target=$TARGET --prefix=$PREFIX --enable-languages="c,c++" --without-headers --with-newlib --disable-shared --disable-libssp
+  make
+  make install
+
+Once newlib build is done, gcc phase 1 build is no longer necessary: since the newlib headers are in place, the phase 2 GCC build should succeed, even for a clean build.

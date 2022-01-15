@@ -1,0 +1,101 @@
+The following register usage is defined:
+
+$r0 = $pc (this is the only thing that the HW restricts)
+$r1 = $sp This is the stack pointer
+$r2 = $fp This is the frame pointer (we need it for alloca)
+$r3       Generic register that is not maintained across calls
+$r4       argument/result register 0;
+$r5       argument/result register 1;
+$r6       argument/result register 3;
+$r7       argument/result register 4;
+$r8..$r14 Generic registers that are maintained across calls
+
+FUNCTION ARGUMENTS:
+
+Parameters are passed in registers, iff there's enough registers
+left to *completely* fit the parameter. Parameters always consume
+integral number of registers. So, the first argument consumes $r4
+completely, even if it's a char or a short. Return value handled
+the same way. 
+
+SYSCALLS:
+
+Syscalls follow the same calling convention, except that $pc of course
+is not saved on the stack prior the call and the SYSCALL instruction
+is used to transfer control to the executive. The syscall number is stored
+as a 16-bit code after the SYSCALL instruction, in the instruction-stream.
+(NOTE: 16-bit so we don't have alignment problems reading it). Upon entering
+scheduler mode, $TPC points to the *next* instruction, which is to say, it
+points to the syscall number. The scheduler needs to increment $TPC by 2
+before returning execution to task mode.
+
+Stack is pre-decrement for push, and post-increment for pop.
+This means that $sp points to the last valid value.
+NOTE: since the stack is SW managed, pushes and pops are not
+      atomic. Interrupt handlers can't assume that $sp actually
+      points to the top of the stack.
+
+Stack frame layout:
+  <arg 0>
+  <arg 1>
+  ...
+  <arg n>
+  <reg addr> <-- $sp
+upon enter, $fp is saved on the stack, then $fp <- $sp, and finally locals are allocated. So after all of that, we have this:
+  <arg 0>
+  <arg 1>
+  ...
+  <arg n>
+  <reg addr> <-- $fp
+  <old $fp>
+  <local 0>
+  <local 1>
+  ...
+  <local n> <-- $sp
+
+Function prolog normally uses $r3 to set up $sp the proper way (since we lack call/return instructions) 
+
+Exception handling returns are in $r4...$r7 (described in EH_RETURN_DATA_REGNO)
+
+TRAMPOLINE
+==========
+
+Trampolines are used to call nested functions through a function pointer. Most of the machinery for that
+is handled by GCC, but there's a little piece of code that's needed:
+
+The static chain is maintained in $r14 (STATIC_CHAIN_REGNUM).
+
+The trampoline is a little piece of code that's copied into a memory buffer then modified.
+The template for it is the following:
+
+    $r14 <- mem[.Lstatic_chain]
+    $pc <- mem[.Lfunc_address]
+  .Lstatic_chain:
+    .long 0
+  .Lfunc_address:
+    .long 0
+
+This template is first copied to a memory buffer, .Lstatic_chain and .Lfunc_address are then filled
+in with the correct value and finally a jump is generated to the beginning of the buffer.
+
+Now, for this functionality to work, we'll need to flush the icache (once we have such a thing) and
+the dcache (if it's write-back) to ensure proper execution. We have self-modifying code here...
+
+
+
+
+
+
+
+
+
+
+We'll need to make sure we use sign-extend loads appropriately: apparently Moxie didn't have sign-extend loads
+
+TODO: brew.opt needs to be updated to actually generate mfloat and mno-float options.
+
+TODO: add floating point instructions (probably for something like fastmath only)
+
+TODO: figure out signed/unsigned multiplication as well as the proper usage of 'upper' multiplies.
+
+
