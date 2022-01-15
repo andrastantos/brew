@@ -128,19 +128,20 @@ Form A (group CBAD):
 0x5...             R_D = R_B << R_A
 0x6...             R_D = R_B >> R_A
 0x7...             SR_D = SR_B >> R_A          signed right shift
-0x8...             SR_D = SR_B * SR_A          signed multiply, lower half     #special cases:
+0x8...             R_D = R_B * R_A             unsigned multiply, lower half   ##special cases:
 0x80..             TPC = R_A or R_D = TPC         R_D = R_A, but A and D references TPC instead of PC, when set to 0.
-0x9...             R_D = R_B * R_A             unsigned multiply, lower half   ##special cases:
+0x8.0.             SII
+0x9...             SR_D = SR_B * SR_A          signed multiply, lower half     #special cases:
 0x90..             R_D = R_A + 1                  R_D = R_A + 1
 0x9.0.             R_D = R_B - 1                  R_D = R_B - 1
 0x9..0             SII
 0x900.             SII
-0xa...             SR_D = UPPER SR_B * SR_A    signed multiply, upper half     ###special cases:
+0xa...             R_D = UPPER R_B * R_A       unsigned multiply, upper half   ####special cases:
 0xa0..             R_D = -R_A                     R_D = -R_A (neg)
 0xa.0.             R_D = ~R_B                     R_D = ~R_B (not)
 0xa..0             SII
 0xa00.             SII
-0xb...             R_D = UPPER SR_B * SR_A     unsigned multiply, upper half   ####special cases:
+0xb...             SR_D = UPPER SR_B * SR_A    signed multiply, upper half     ###special cases:
 0xb0..             R_D = BSWAP R_A                R_D = {R_A[7:0], R_A[15:8], R_A[23:16], R_A[31:24]}
 0xb.0.             R_D = WSWAP R_B                R_D = {R_B[15:0], R_B[31:16]}
 0xb..0             SII
@@ -157,7 +158,7 @@ Form A (group CBAD):
 0xd00.             SII            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! THIS IS NEW !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 0xe...             FR_D = FR_B * FR_A          ^^^ special cases:
 0xe..0             SII
-0xe.0.             FR_D = 1 / sqrt(FR_B)
+0xe.0.             FR_D = RSQRT FR_B
 0xe0..             FR_D = 1 / FR_A
 0xe00.             SII            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! THIS IS NEW !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -178,7 +179,7 @@ Form B (group CBD):
 0x0.f.             R_D = R_B ^ VALUE
 0x0ff.             R_D = VALUE                       R_B becomes 0 (that is load immediate)
 0x1.f.             R_D = R_B | VALUE
-0x1ff.             R_D = VALUE                       R_B becomes 0 (that is load immediate) if B == F. if D == 0, target is TPC
+0x1ff.             SII               <-------- !!!! THIS COULD BE: R_D = VALUE                       R_B becomes 0 (that is load immediate) if B == F. if D == 0, target is TPC
 0x2.f.             R_D = R_B & VALUE
 0x2ff.             SII
 0x3.f.             R_D = R_B - VALUE
@@ -191,13 +192,20 @@ Form B (group CBD):
 0x6ff.             SII
 0x7.f.             SR_D = SR_B >> VALUE              signed right shift
 0x7ff.             SII
-0x8.f.             R_D = SR_B * VALUE                signed multiply, lower half
+0x8.f.             R_D = R_B * VALUE                 unsigned multiply, lower half
+0x80f.             R_D = VALUE                       if D == 0, target is TPC
 0x8ff.             SII
-0x9.f.             R_D = R_B * VALUE                 unsigned multiply, lower half
+0x9.f.             SR_D = SR_B * VALUE               signed multiply, lower half
+0x90f.             SII
+0x9f0.             SII
 0x9ff.             SII
-0xa.f.             R_D = UPPER SR_B * VALUE          signed multiply, upper half
+0xa.f.             SR_D = UPPER SR_B * VALUE         unsigned multiply, upper half
+0xa0f.             SII
+0xaf0.             SII
 0xaff.             SII
-0xb.f.             R_D = UPPER R_B * VALUE           unsigned multiply, upper half
+0xb.f.             SR_D = UPPER R_B * VALUE          signed multiply, upper half
+0xb0f.             SII
+0xbf0.             SII
 0xbff.             SII
 0xc.f.             FR_D = FR_B + VALUE         ^ special cases:
 0xc.f0             SII
@@ -222,11 +230,12 @@ Form C (group CAD):
   CBAD             OP_CODE                       OPERATION
 ------------------------------------------------------------------------
 0x0f..             SII
+0x1f..             SII
 0x2f..             SII
 0x3f..             R_D = VALUE - R_A
 0x4f..             SII
-0x5f..             R_D = VALUE >> R_A
-0x6f..             R_D = VALUE << R_A
+0x5f..             R_D = VALUE << R_A
+0x6f..             R_D = VALUE >> R_A
 0x7f..             SR_D = VALUE >> R_A           signed right shift
 0x8f..             SII
 0x9f..             SII
@@ -273,7 +282,16 @@ Form A (group CBA):
 0x0.3f            PC [+]= OFFSET IF SR_B >= 0                signed compare
 0x0.4f            PC [+]= OFFSET IF SR_B > 0                 signed compare
 0x0.5f            PC [+]= OFFSET IF SR_B <= 0                signed compare
-0x0.6f:0x0.ef     SII
+0x0.6f            SII
+0x0.7f            SII
+0x0.8f            SII
+0x0.9f            SII
+0x0.af            SII
+0x0.bf            PC [+]= OFFSET IF FR_B < 0
+0x0.cf            PC [+]= OFFSET IF FR_B >= 0
+0x0.df            PC [+]= OFFSET IF FR_B > 0
+0x0.ef            PC [+]= OFFSET IF FR_B <= 0
+
 0x1..f            PC [+]= OFFSET IF R_B == R_A
 0x2..f            PC [+]= OFFSET IF R_B != R_A
 0x3..f            PC [+]= OFFSET IF SR_B < SR_A              signed compare
@@ -286,8 +304,8 @@ Form A (group CBA):
 0xa..f            SII
 0xb..f            SII
 0xc..f            SII
-0xd..f            PC [+]= OFFSET IF FR_B < FR_B
-0xe..f            PC [+]= OFFSET IF FR_B >= FR_B
+0xd..f            PC [+]= OFFSET IF FR_B < FR_A
+0xe..f            PC [+]= OFFSET IF FR_B >= FR_A
 
 NOTE: there are a lot of pseudo-op-codes that can be created here. For instance:
       - unconditional branch (B) is possible with OP=0, A = B
