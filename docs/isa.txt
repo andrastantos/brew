@@ -150,17 +150,17 @@ Form A (group CBAD):
 0xc..0             SII
 0xc.0.             R_D = WSI R_B                  sign-extend a byte value in R_B into R_D
 0xc0..             R_D = BSI R_A                  word-extend a word value in R_A into R_D
-0xc00.             SII            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! THIS IS NEW !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+0xc00.             SII
 0xd...             FR_D = FR_B - FR_A          ^^ special cases:
 0xd..0             SII
 0xd.0.             FR_D = SR_B                    (signed) integer to float conversion
 0xd0..             SR_D = FLOOR FR_A              float to (signed) integer conversion with truncation
-0xd00.             SII            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! THIS IS NEW !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+0xd00.             SII
 0xe...             FR_D = FR_B * FR_A          ^^^ special cases:
 0xe..0             SII
 0xe.0.             FR_D = RSQRT FR_B
 0xe0..             FR_D = 1 / FR_A
-0xe00.             SII            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! THIS IS NEW !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+0xe00.             SII
 
 
 Pseudo instructions:
@@ -196,14 +196,17 @@ Form B (group CBD):
 0x80f.             R_D = VALUE                       if D == 0, target is TPC
 0x8ff.             SII
 0x9.f.             SR_D = SR_B * VALUE               signed multiply, lower half
+0x9.f0             SII
 0x90f.             SII
 0x9f0.             SII
 0x9ff.             SII
 0xa.f.             SR_D = UPPER SR_B * VALUE         unsigned multiply, upper half
+0xa.f0             SII
 0xa0f.             SII
 0xaf0.             SII
 0xaff.             SII
 0xb.f.             SR_D = UPPER R_B * VALUE          signed multiply, upper half
+0xb.f0             SII
 0xb0f.             SII
 0xbf0.             SII
 0xbff.             SII
@@ -323,17 +326,17 @@ NOTE: there's almost *almost* enough room to make 16-bit-offset branches possibl
      BTW: there's another (rather unpalatable) way as well: shift offset right by one, put the R bit into MSB and if set, make it 16-bit.
 
 
-PESUDO OPS:
+PSEUDO OPS:
 
 PC [+]= OFFSET
-PC {+]= OFFSET IF SR_B >= SR_A
-PC {+]= OFFSET IF SR_B < SR_A
-PC {+]= OFFSET IF R_B >= R_A
-PC {+]= OFFSET IF R_B < R_A
-PC {+]= OFFSET IF SR_B == SR_A
-PC {+]= OFFSET IF SR_B != SR_A
-PC {+]= OFFSET IF FR_B == FR_A
-PC {+]= OFFSET IF FR_B != FR_A
+PC [+]= OFFSET IF SR_B >= SR_A
+PC [+]= OFFSET IF SR_B < SR_A
+PC [+]= OFFSET IF R_B >= R_A
+PC [+]= OFFSET IF R_B < R_A
+PC [+]= OFFSET IF SR_B == SR_A
+PC [+]= OFFSET IF SR_B != SR_A
+PC [+]= OFFSET IF FR_B == FR_A
+PC [+]= OFFSET IF FR_B != FR_A
 
 R: relative jump. Set to 0 for absolute jump, if set to 1, PC-relative jump
 
