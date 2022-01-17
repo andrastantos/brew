@@ -130,7 +130,7 @@ Form A (group CBAD):
 0x7...             SR_D = SR_B >> R_A          signed right shift
 0x8...             R_D = R_B * R_A             unsigned multiply, lower half   ##special cases:
 0x80..             TPC = R_A or R_D = TPC         R_D = R_A, but A and D references TPC instead of PC, when set to 0.
-0x8.0.             SII
+0x8.00             SII
 0x9...             SR_D = SR_B * SR_A          signed multiply, lower half     #special cases:
 0x90..             R_D = R_A + 1                  R_D = R_A + 1
 0x9.0.             R_D = R_B - 1                  R_D = R_B - 1
@@ -147,19 +147,19 @@ Form A (group CBAD):
 0xb..0             SII
 0xb00.             SII
 0xc...             FR_D = FR_B + FR_A          ^ special cases:
-0xc..0             SII
-0xc.0.             R_D = WSI R_B                  sign-extend a byte value in R_B into R_D
 0xc0..             R_D = BSI R_A                  word-extend a word value in R_A into R_D
+0xc.0.             R_D = WSI R_B                  sign-extend a byte value in R_B into R_D
+0xc..0             SII
 0xc00.             SII
 0xd...             FR_D = FR_B - FR_A          ^^ special cases:
-0xd..0             SII
-0xd.0.             FR_D = SR_B                    (signed) integer to float conversion
 0xd0..             SR_D = FLOOR FR_A              float to (signed) integer conversion with truncation
+0xd.0.             FR_D = SR_B                    (signed) integer to float conversion
+0xd..0             SII
 0xd00.             SII
 0xe...             FR_D = FR_B * FR_A          ^^^ special cases:
-0xe..0             SII
-0xe.0.             FR_D = RSQRT FR_B
 0xe0..             FR_D = 1 / FR_A
+0xe.0.             FR_D = RSQRT FR_B
+0xe..0             SII
 0xe00.             SII
 
 
