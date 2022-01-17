@@ -131,7 +131,7 @@ Form A (group CBAD):
 0x8...             R_D = R_B * R_A             unsigned multiply, lower half   ##special cases:
 0x80..             TPC = R_A or R_D = TPC         R_D = R_A, but A and D references TPC instead of PC, when set to 0.
 0x8.00             SII
-0x9...             SR_D = SR_B * SR_A          signed multiply, lower half     #special cases:
+0x9...             SII                        !!!! THIS IS A BIG GIANT HOLE IN THE ISA !!!!  #special cases:
 0x90..             R_D = R_A + 1                  R_D = R_A + 1
 0x9.0.             R_D = R_B - 1                  R_D = R_B - 1
 0x9..0             SII
