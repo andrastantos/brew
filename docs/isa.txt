@@ -184,7 +184,7 @@ Form B (group CBD):
 0x2ff.             SII
 0x3.f.             R_D = R_B - VALUE
 0x3ff.             SII
-0x4.f.             R_D = R_B + VALUE <-------- !!!!!!!!!!!!!!!! THIS IS REDUNDANT (it can be replaced with - where VALUE is negated)
+0x4.f.             R_D = R_B + VALUE <-------- !!!!!!!!!!!!!!!! THIS IS REDUNDANT (it can be replaced with - where VALUE is negated) we can use %n<digit> to generate a negated constant in the .md file
 0x4ff.             SII
 0x5.f.             R_D = R_B << VALUE
 0x5ff.             SII
