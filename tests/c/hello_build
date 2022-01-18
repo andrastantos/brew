@@ -1,0 +1,3 @@
+#!/bin/sh
+brew-none-elf-gcc hello.c -lc -lbrew -lm -o hello.elf
+brew-none-elf-objdump -dr --prefix-address --show-raw-ins hello.elf > hello.dmp

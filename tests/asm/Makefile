@@ -8,3 +8,6 @@
 
 %.bin: %.elf
 	brew-none-elf-objcopy --strip-all --output-target binary $^ $@
+
+%.o: %.S
+	brew-none-elf-gcc -c $^ -o $@
