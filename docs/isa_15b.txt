@@ -151,7 +151,7 @@ Form A (group CBAD):
 0xe9..             $frD <- $srB                    (signed) integer to float conversion
 0xea..             $frD <- 1 / $frA
 0xeb..             $frD <- RSQRT $frB
-0xec..
+0xec..             $rD <- $pc + FIELD_B            this is to make calls short: this single instruction sets up the return address in the link register
 0xed..
 0xee..
 
@@ -518,17 +518,18 @@ Branches can be identified by:
 
 NOTE:
 ========
-CALLs can be implemented by:
-R3 = PC+12    // calculate return address - NEW INSTRUCTION
-[SP+xxx] = R3 // put return address into stack-frame - WOULD BE NEEDED ANYWAY (if link register needs saving)
-SP = SP+xxx   // finalize stack-frame - WOULD BE NEEDED ANYWAY (if any arguments are passed on the stack)
-PC = yyy      // jump to the subroutine - WOULD BE NEEDED ANYWAY
+CALLs use link registers:
+$r3 <- $pc+8
+$pc <- <callee>
 
-// return:
-R3 = [SP]     // load return address - WOULD BE NEEDED ANYWAY (if link register needs saving)
-SP = SP-xxx   // free stack-frame - WOULD BE NEEDED ANYWAY
-PC = R3       // return - WOULD BE NEEDED ANYWAY
+Upon entry callee saves $r3 if needed (along with all other callee-saved registers per the ABI)
+Upon return, all saved registers (including $r3) are restored, then:
 
-Notice how this is only one instructions longer than the link approach as the stack-adjustment and the save/restore of the link register
-would be there in most cases anyways.
+RETURN:
+$pc <- $r3
+
+Notice how this is only one instructions longer than the traditional link approach as the 
+stack-adjustment and the save/restore of the link register would be there in most cases anyways.
+The splitting of the link into two instruction allows us to not have two forms of all possible
+branches, and so all possible branches *can* be calls as well.
 
