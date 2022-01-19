@@ -3,7 +3,7 @@ The following register usage is defined:
 $r0 = $pc (this is the only thing that the HW restricts)
 $r1 = $sp This is the stack pointer
 $r2 = $fp This is the frame pointer (we need it for alloca)
-$r3       Generic register that is not maintained across calls
+$r3       return address (link register)
 $r4       argument/result register 0;
 $r5       argument/result register 1;
 $r6       argument/result register 3;
@@ -20,8 +20,8 @@ the same way.
 
 SYSCALLS:
 
-Syscalls follow the same calling convention, except that $pc of course
-is not saved on the stack prior the call and the SYSCALL instruction
+Syscalls follow the same calling convention, except that $r3 contains
+a syscall-dependent pointer (usually pointer to errno). The SYSCALL instruction
 is used to transfer control to the executive. The syscall number is stored
 as a 16-bit code after the SYSCALL instruction, in the instruction-stream.
 (NOTE: 16-bit so we don't have alignment problems reading it). Upon entering
@@ -29,31 +29,33 @@ scheduler mode, $TPC points to the *next* instruction, which is to say, it
 points to the syscall number. The scheduler needs to increment $TPC by 2
 before returning execution to task mode.
 
+STACK:
+
 Stack is pre-decrement for push, and post-increment for pop.
 This means that $sp points to the last valid value.
 NOTE: since the stack is SW managed, pushes and pops are not
       atomic. Interrupt handlers can't assume that $sp actually
       points to the top of the stack.
 
-Stack frame layout:
+Stack frame layout upon enter to function:
   <arg 0>
   <arg 1>
   ...
-  <arg n>
-  <reg addr> <-- $sp
+  <arg n> <-- $sp
 upon enter, $fp is saved on the stack, then $fp <- $sp, and finally locals are allocated. So after all of that, we have this:
   <arg 0>
   <arg 1>
   ...
-  <arg n>
-  <reg addr> <-- $fp
+  <arg n> <-- $fp
   <old $fp>
   <local 0>
   <local 1>
   ...
   <local n> <-- $sp
 
-Function prolog normally uses $r3 to set up $sp the proper way (since we lack call/return instructions) 
+Function prolog/epilog is responsible for saving any registers (including $r3) that need to be preserved across calls or for returns.
+
+Function epilog restores return address in $r3, $sp and finally returns by executing $pc <- $r3.
 
 Exception handling returns are in $r4...$r7 (described in EH_RETURN_DATA_REGNO)
 
@@ -96,6 +98,7 @@ TODO: brew.opt needs to be updated to actually generate mfloat and mno-float opt
 
 TODO: add floating point instructions (probably for something like fastmath only)
 
-TODO: figure out signed/unsigned multiplication as well as the proper usage of 'upper' multiplies.
+TODO: figure out if we really need 'upper' version of multiplies and how to efficiently use them. Right now 64-bit multiplies are borken, I think.
+
 
 
