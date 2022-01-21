@@ -35,6 +35,23 @@ There are a few ideas to explore in this processor design:
 TODO: if we have floating-point support, we need condition-code registers! See gcc/config/brew/brew.h AVOID_CCMODE_COPIES and how Moxie does it!
 TODO: we probably want a +2;+4 and a -2;-4 variant as well if we can find a 16-bit slots for them.
 
+TYPES
+==============
+Types are hard.
+
+There are scalar types (int, fract and float) and there are vector types.
+Then, there's the element size, which could be 8- 16- or 32- bits.
+Then, there's the fractional point location that can be anywhere, theoretically.
+Now, of the ISA, only the multiply cares about the fractional point, if all operand types must match.
+If not, both add/sub/mul care.
+In this later implementation, we essentially have block-floats. That is to say, that the type info has three parts:
+  1. signed-ness (1 bit)
+  2. element size (2 bits)
+  3. block exponent (5 bits?)
+That doesn't even account for the floating-point types.
+
+All these bits would need to be somehow set during load. On top of that, we would also need lane-load/store operations.
+
 INSTRUCTION ENCODING
 =============================================
 
@@ -131,27 +148,28 @@ Form A (group CBAD):
 0x4...             $rD <- $rB - $rA
 0x5...             $rD <- $rB << $rA
 0x6...             $rD <- $rB >> $rA
-0x7...             $srD = $srB >> $rA          signed right shift
-0x8...             $rD <- $rB * $rA             unsigned multiply, lower half
-0x9...             $rD <- UPPER $rB * $rA       unsigned multiply, upper half
-0xa...             $srD <- UPPER $srB * $srA    signed multiply, upper half
-0xb...             $frD <- $frB + $frA
-0xc...             $frD <- $frB - $frA 
-0xd...             $frD <- $frB * $frA
+0x7...             $rD <- $rB * $rA             unsigned multiply, lower half
+0x8...             $rD <- UPPER $rB * $rA       unsigned multiply, upper half
+0x9tT.             set type of $rD to tT (if bit11 of inst-code is clear). Allows for 7-bit type info
+0x9tT.             convert $rD to type tT (if bit11 of inst-code is set). Allows for 7-bit type info
+0xa...
+0xb...
+0xc...
+0xd...
 
 0xe0..             $rD <- $rA + 1                  $rD <- $rA + 1
 0xe1..             $rD <- $rB - 1                  $rD <- $rB - 1
 0xe2..             $rD <- -$rA                     $rD <- -$rA (neg)
 0xe3..             $rD <- ~$rB                     $rD <- ~$rB (not)
 0xe4..             $rD <- BSWAP $rA                $rD <- {$rA[7:0], $rA[15:8], $rA[23:16], $rA[31:24]}
-0xe5..             $rD <- WSWAP $rB                $rD <- {$rB[15:0], $rB[31:16]}
-0xe6..             $rD <- BSI $rA                  word-extend a word value in $rA into $rD
-0xe7..             $rD <- WSI $rB                  sign-extend a byte value in $rB into $rD
-0xe8..             $srD <- FLOOR $frA              float to (signed) integer conversion with truncation
-0xe9..             $frD <- $srB                    (signed) integer to float conversion
-0xea..             $frD <- 1 / $frA
-0xeb..             $frD <- RSQRT $frB
-0xec..             $rD <- $pc + FIELD_B            this is to make calls short: this single instruction sets up the return address in the link register
+0xe5..             $rD <- BSI $rA                  word-extend a word value in $rA into $rD
+0xe6..             $rD <- WSI $rB                  sign-extend a byte value in $rB into $rD
+0xe7..             $rD <- 1 / $rA
+0xe8..             $rD <- RSQRT $rB
+0xe9..             $rD <- $pc + FIELD_B            this is to make calls short: this single instruction sets up the return address in the link register
+0xea..
+0xeb..
+0xec..
 0xed..
 0xee..
 
@@ -182,20 +200,15 @@ Form B (group CBD):
 0x5ff.             SII
 0x6.f.             $rD <- $rB >> VALUE
 0x6ff.             SII
-0x7.f.             $srD = $srB >> VALUE              signed right shift
+0x7.f.             $rD <- $rB * VALUE                 unsigned multiply, lower half
 0x7ff.             SII
-0x8.f.             $rD <- $rB * VALUE                 unsigned multiply, lower half
+0x8.f.             $srD = UPPER $rB * VALUE          signed multiply, upper half
 0x8ff.             SII
-0x9.f.             $srD = UPPER $srB * VALUE         unsigned multiply, upper half
-0x9ff.             SII
-0xa.f.             $srD = UPPER $rB * VALUE          signed multiply, upper half
-0xaff.             SII
-0xb.f.             $frD = $frB + VALUE
-0xbff.             SII
-0xc.f.             $frD = $frB - VALUE
-0xcff.             SII
-0xd.f.             $frD = $frB * VALUE
-0xdff.             SII
+0x9.f.             SII
+0xa.f.
+0xb.f.
+0xc.f.
+0xd.f.
 0xe.f.
 
 
@@ -214,13 +227,13 @@ Form C (group CAD):
 0x4f..             $rD <- VALUE - $rA
 0x5f..             $rD <- VALUE << $rA
 0x6f..             $rD <- VALUE >> $rA
-0x7f..             $srD <- VALUE >> $rA           signed right shift
+0x7f..             SII
 0x8f..             SII
 0x9f..             SII
-0xaf..             SII
-0xbf..             SII
-0xcf..             $frD <- VALUE - $frB
-0xdf..             SII
+0xaf..             
+0xbf..             
+0xcf..             
+0xdf..             
 0xef..
 
 NOTE: there are a number of combinations that don't make sense:
@@ -253,34 +266,34 @@ Form A (group CBA):
 ------------------------------------------------------------------------------
 0x0.0f            if $rB == 0  $pc <- [$pc +] OFFSET
 0x0.1f            if $rB != 0  $pc <- [$pc +] OFFSET
-0x0.2f            if $srB < 0  $pc <- [$pc +] OFFSET                signed compare
-0x0.3f            if $srB >= 0 $pc <- [$pc +] OFFSET                signed compare
-0x0.4f            if $srB > 0  $pc <- [$pc +] OFFSET                signed compare
-0x0.5f            if $srB <= 0 $pc <- [$pc +] OFFSET                signed compare
+0x0.2f            if $rB < 0   $pc <- [$pc +] OFFSET
+0x0.3f            if $rB >= 0  $pc <- [$pc +] OFFSET
+0x0.4f            if $rB > 0   $pc <- [$pc +] OFFSET
+0x0.5f            if $rB <= 0  $pc <- [$pc +] OFFSET
 0x0.6f            SII
 0x0.7f            SII
 0x0.8f            SII
 0x0.9f            SII
 0x0.af            SII
-0x0.bf            if $frB < 0  $pc <- [$pc +] OFFSET
-0x0.cf            if $frB >= 0 $pc <- [$pc +] OFFSET
-0x0.df            if $frB > 0  $pc <- [$pc +] OFFSET
-0x0.ef            if $frB <= 0 $pc <- [$pc +] OFFSET
+0x0.bf            SII
+0x0.cf            SII
+0x0.df            SII
+0x0.ef            SII
 
 0x1..f            if $rB == $rA   $pc <- [$pc +] OFFSET
 0x2..f            if $rB != $rA   $pc <- [$pc +] OFFSET
-0x3..f            if $srB < $srA  $pc <- [$pc +] OFFSET             signed compare
-0x4..f            if $srB >= $srA $pc <- [$pc +] OFFSET             signed compare
-0x5..f            if $rB < $rA    $pc <- [$pc +] OFFSET
-0x6..f            if $rB >= $rA   $pc <- [$pc +] OFFSET
+0x3..f            if $rB < $rA    $pc <- [$pc +] OFFSET
+0x4..f            if $rB >= $rA   $pc <- [$pc +] OFFSET
+0x5..f            SII
+0x6..f            SII
 0x7..f            SII
 0x8..f            SII
 0x9..f            SII
 0xa..f            SII
 0xb..f            SII
 0xc..f            SII
-0xd..f            if $frB < $frA  $pc <- [$pc +] OFFSET
-0xe..f            if $frB >= $frA $pc <- [$pc +] OFFSET
+0xd..f            SII
+0xe..f            SII
 
 NOTE: there are a lot of pseudo-op-codes that can be created here. For instance:
       - unconditional branch (B) is possible with OP=0, A = B
@@ -385,8 +398,7 @@ Form A (parts of group BAD): Load/store $rD from [$rB]
 0xf1..        $rD <- MEM8[$rA]           8-bit unsigned load from MEM[$rA] into $rD
 0xf2..        $srD <- MEM16[$rA]         16-bit signed load from MEM[$rA] into $rD
 0xf3..        $rD <- MEM16[$rA]          16-bit unsigned load from MEM[$rA] into $rD
-0xf4..        $rD <- MEM[32][$rA]        32-bit load from MEM[$rA] into $rD
-0xf5..        MEM8[$rA] <- $rD           8-bit store to MEM[$rA] from $rD
+0xf4..        $rD <- MEM[32][$rA]        32-bit load from MEM[$rA] into $rDa0xf5..        MEM8[$rA] <- $rD           8-bit store to MEM[$rA] from $rD
 0xf6..        MEM16[$rA] <- $rD          16-bit store to MEM[$rA] from $rD
 0xf7..        MEM[32][$rA] <- $rD        32-bit store to MEM[$rA] from $rD
 

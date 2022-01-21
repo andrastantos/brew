@@ -102,3 +102,16 @@ TODO: figure out if we really need 'upper' version of multiplies and how to effi
 
 
 
+TODO: we probably want to control register allocation order:
+
+/* The order in which registers should be allocated.
+   It is better to use the registers the caller need not save.
+   Allocate r0 through r3 in reverse order since r3 is least likely
+   to contain a function parameter; in addition results are returned
+   in r0.  It is quite good to use lr since other calls may clobber
+   it anyway.  */
+#define REG_ALLOC_ORDER						\
+
+TODO: we should also use this:
+
+CALL_REALLY_USED_REGISTERS instead of CALL_USED_REGISTERS -> that's legacy.
