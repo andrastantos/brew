@@ -14,9 +14,3 @@ int main(void)
     printf("Hello world\n");
     return 0;
 }
-
-long
-__modsi3 (long a, long b)
-{
-    return 0;
-}
