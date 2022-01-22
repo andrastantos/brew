@@ -115,3 +115,5 @@ TODO: we probably want to control register allocation order:
 TODO: we should also use this:
 
 CALL_REALLY_USED_REGISTERS instead of CALL_USED_REGISTERS -> that's legacy.
+
+TODO: there's a GCC macro: __REGISTER_PREFIX__. If there's a GAS equivalent, maybe we can coerce GAS expression parser to stop at register names?
