@@ -1,6 +1,8 @@
 HOW TO BUILD THE TOOLSET?
 =========================
 
+To run tests, we need dejagnu and autogen.
+
 TARGET=brew-none-elf
 PREFIX=~/brew-toolset
 export PATH=$PATH:$PREFIX/bin
@@ -31,3 +33,9 @@ export PATH=$PATH:$PREFIX/bin
   make install
 
 Once newlib build is done, gcc phase 1 build is no longer necessary: since the newlib headers are in place, the phase 2 GCC build should succeed, even for a clean build.
+
+To run the gcc tests:
+
+make check RUNTESTFLAGS="--target_board=brew-sim"
+
+But for that we need to copy brew-sim.exp to /usr/share/dejagnu/baseboards
