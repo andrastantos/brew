@@ -1,24 +1,56 @@
 The following register usage is defined:
 
-$r0 = $pc (this is the only thing that the HW restricts)
-$r1 = $sp This is the stack pointer
-$r2 = $fp This is the frame pointer (we need it for alloca)
-$r3       return address (link register)
-$r4       argument/result register 0;
-$r5       argument/result register 1;
-$r6       argument/result register 3;
-$r7       argument/result register 4;
-$r8..$r14 Generic registers that are maintained across calls
+   $pc  - a.k.a. $r0 - program counter.
+   $sp  - a.k.a. $r1 - stack pointer.
+   $fp  - a.k.a. $r2 - frame pointer.
+   $r3  - link register.
+   $r4  - first argument/return value register.
+   $r5  - second argument/return value register.
+   $r6  - third argument/return value register; EH_RETURN_DATA_REGNO
+   $r7  - fourth argument/return value register; EH_RETURN_DATA_REGNO
+   $r8  - general purpose caller-saved 32-bit register; EH_RETURN_DATA_REGNO; 
+   $r9  - general purpose caller-saved 32-bit register; EH_RETURN_DATA_REGNO
+   $r10 - general purpose caller-saved 32-bit register; EH_RETURN_STACKADJ_RTX BREW_STACKADJ_REG
+   $r11 - general purpose callee-saved 32-bit register. 
+   $r12 - general purpose callee-saved 32-bit register.
+   $r13 - general purpose callee-saved 32-bit register.
+   $r14 - general purpose callee-saved 32-bit register; static chain register
 
-FUNCTION ARGUMENTS:
+NOTE: we should review this! We probably can get away with EH_RETURN_DATA_REGNO start from $r4.
+      we probably could also get away with EH_RETURN_STACKADJ_RTX being the static chain register (what is that anyway???)
+      finally, we should have the same number of caller and callee-saved registers.
 
-Parameters are passed in registers, iff there's enough registers
-left to *completely* fit the parameter. Parameters always consume
-integral number of registers. So, the first argument consumes $r4
-completely, even if it's a char or a short. Return value handled
-the same way. 
+FUNCTION ARGUMENTS
+==================
 
-SYSCALLS:
+Arguments (and return values) are passed, first in registers,
+then on the stack. Stack area is reserved for all arguments
+independent of their storage location.
+Arguments can span multiple registers, but always start at
+a register boundary. On the stack, they are also aligned
+(and in cases where it makes sense promoted) to 32-bit boundaries.
+It's also possible for an argument to be partially in registers
+and partially on the stack.
+
+NOTE: the only reason an argument is partially in registers is if
+there isn't enough registers left to keep them in registers.
+Similarly, an argument is placed on the stack only if we completely
+ran out of argument-passing registers. Consequently, if an
+argument is partially or fully on the stack, all subsequent arguments 
+are fully on the stack.
+
+!!! TODO: what exactly!!! Some arguments are passed by reference
+no matter what. These should be 'large' or unknown sized
+arguments. In those cases, a pointer to them is put on the stack
+or in registers, whichever makes sense by the previous rules.
+
+The registers used for argument passing in increasing register
+index are: $r4, $r5, $r6 and $r7.
+
+Return values are handled the same way.
+
+SYSCALLS
+========
 
 Syscalls follow the same calling convention, except that $r3 contains
 a syscall-dependent pointer (usually pointer to errno). The SYSCALL instruction
@@ -29,7 +61,8 @@ scheduler mode, $TPC points to the *next* instruction, which is to say, it
 points to the syscall number. The scheduler needs to increment $TPC by 2
 before returning execution to task mode.
 
-STACK:
+STACK
+=====
 
 Stack is pre-decrement for push, and post-increment for pop.
 This means that $sp points to the last valid value.
@@ -84,7 +117,15 @@ Now, for this functionality to work, we'll need to flush the icache (once we hav
 the dcache (if it's write-back) to ensure proper execution. We have self-modifying code here...
 
 
-
+MEMORY LAYOUT
+=============
+Page 0 is reserved (to catch NULL-ptr dereference)
+Entry point is at 0x1000
+Stack starts at 0x40000000
+  This is set in interp.c in sim_open as the highest addressable memory address
+  This is also defined in the linker scripts through the .stack section, which
+  is ultimately set in ld/emulparams/elf32brew.sh.
+Heap starts at the end of 'static data'.
 
 
 
