@@ -39,3 +39,6 @@ set_board_info ldflags "[libgloss_link_flags] [newlib_link_flags]"
 # And, it can't do arguments, and doesn't have real signals.
 set_board_info noargs 1
 set_board_info gdb,nosignals 1
+
+# Increase default timeout to 1200 seconds (the simulator is slow)
+set_board_info gcc,timeout 1200
