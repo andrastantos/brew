@@ -6,19 +6,37 @@ The following register usage is defined:
    $r3  - link register.
    $r4  - first argument/return value register.
    $r5  - second argument/return value register.
-   $r6  - third argument/return value register; EH_RETURN_DATA_REGNO
-   $r7  - fourth argument/return value register; EH_RETURN_DATA_REGNO
-   $r8  - general purpose caller-saved 32-bit register; EH_RETURN_DATA_REGNO; 
-   $r9  - general purpose caller-saved 32-bit register; EH_RETURN_DATA_REGNO
+   $r6  - third argument/return value register; 
+   $r7  - fourth argument/return value register;
+   $r8  - general purpose caller-saved 32-bit register; static chain register
+   $r9  - general purpose caller-saved 32-bit register; used in thunks for virtual inheritance. Must be call-clobbered
    $r10 - general purpose caller-saved 32-bit register; EH_RETURN_STACKADJ_RTX BREW_STACKADJ_REG
    $r11 - general purpose callee-saved 32-bit register. 
    $r12 - general purpose callee-saved 32-bit register.
-   $r13 - general purpose callee-saved 32-bit register.
-   $r14 - general purpose callee-saved 32-bit register; static chain register
+   $r13 - general purpose callee-saved 32-bit register; EH_RETURN_DATA_REGNO
+   $r14 - general purpose callee-saved 32-bit register; EH_RETURN_DATA_REGNO;
 
-NOTE: we should review this! We probably can get away with EH_RETURN_DATA_REGNO start from $r4.
-      we probably could also get away with EH_RETURN_STACKADJ_RTX being the static chain register (what is that anyway???)
-      finally, we should have the same number of caller and callee-saved registers.
+NOTE: we should review this!
+      EH_RETURN_STACKADJ_RTX:
+        This is a register that is used to communicate to the epilog
+        of functions that might have exception handlers in them that
+        they need to adjust $sp by more than the usual amount.
+        It is 0-ed out for normal control-flow, and filled in with a
+        potentially non-0 value for the exception path.
+      EH_RETURN_DATA_REGNO[0]: 'exc_ptr_reg' for the region
+      EH_RETURN_DATA_REGNO[0]: 'filter_reg' for the region
+        These are used in the landing pad (the catch block) to finish
+        the unwinding of the frame
+      static chain register: funny name, but essentially contains the
+        frame pointer for the outer functions' frame inside a nested
+        function. What's going on here is that the nested function,
+        independent of it's own frame needs to have access to variables
+        stored in the outer functions frame. This becomes especially
+        tricky when the nested function is called through a function
+        pointer from outside the outer function. This is what mostly
+        trampolines are for.
+
+TODO: we should have the same number of caller and callee-saved registers.
 
 FUNCTION ARGUMENTS
 ==================
@@ -158,3 +176,63 @@ TODO: we should also use this:
 CALL_REALLY_USED_REGISTERS instead of CALL_USED_REGISTERS -> that's legacy.
 
 TODO: there's a GCC macro: __REGISTER_PREFIX__. If there's a GAS equivalent, maybe we can coerce GAS expression parser to stop at register names?
+
+EXCEPTIONS
+==========
+
+The documentation is wrong in several key points. First:
+
+We HAVE TO MAKE SURE that if a function calls __builtin_eh_return, it saves and restores on the stack
+both the return address (the link register for us) and the registers in EH_RETURN_DATA_REGNO.
+
+The Dwarf-based exception handling works by patching in the values for these registers in the stack
+frame, then going through the epilog.
+
+Second: the documentation says that architectures have to provide at least two EH_RETURN_DATA_REGNO registers,
+but can provide more. While that's techincally correct, there's no reason to provide more than two.
+Especially combined with the first point, it just makes for more pushes and pops from the stack.
+
+Third: the documentation says that it's best if the EH_RETURN_DATA_REGNO registers are call-clobbered.
+That, I don't think is correct, in fact, the reverse is better: it's best if these registers are caller-saved.
+The reason for that is point 1: since they need to be saved and restored in functions calling __builtin_eh_return,
+we have the best chances of having them already in the frame, if they are caller-saved. In fact, it's probably
+best if we reserved the first two caller-saved registers for this purpose.
+
+Many architectures use (a subset of) the argument/return value registers for EH_RETURN_DATA_REGNO. This is WRONG
+in most cases, though probably doesn't actually cause problems: the generated stack-frame will potentially destroy
+the original return value on non-exception paths. The reson it is mostly a benign problem is that functions
+that call __builtin_eh_return (at least in the runtime) tend to return a single integer. So, as long as it's not
+the first return value register that we use as EH_RETURN_DATA_REGNO, we're good.
+
+In epilog generation we need to know if we have to save the afforementioned registers. We can consult
+    
+    crtl->calls_eh_return
+
+to determine that.
+
+With that, right now I'm using $r13 and $r14 for EH_RETURN_DATA_REGNO, but later I should probably use lower-ordered ones,
+or change the allocation priority to go from top down. This doesn't seem to be documented, but there's a simple way of
+ensuring this:
+
+        /* We need this on CRIS, because call-used regs should be used first,
+        (so we don't need to push).  Else start using registers from r0 and up.
+            This preference is mainly because if we put call-used-regs from r0
+        and up, then we can't use movem to push the rest, (which have to be
+        saved if we use them, and movem has to start with r0).
+        Change here if you change which registers to use as call registers.
+
+        The actual need to explicitly prefer call-used registers improved the
+        situation a lot for 2.1, but might not actually be needed anymore.
+        Still, this order reflects what GCC should find out by itself, so it
+        probably does not hurt.
+
+        Order of preference: Call-used-regs first, then r0 and up, last fp &
+        sp & pc as fillers.
+        Call-used regs in opposite order, so they will cause less conflict if
+        a function has few args (<= 3) and it wants a scratch reg.
+            Use struct-return address first, since very few functions use
+        structure return values so it is likely to be available.  */
+        #define REG_ALLOC_ORDER \
+            {9, 13, 12, 11, 10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 14, 15, 17, 16, 18, 19, 20}
+
+            
