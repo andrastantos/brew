@@ -167,6 +167,11 @@
  *                      time in 1/HZ seconds, with HZ = 60 for most systems.
  *                      CHECK YOUR SYSTEM DESCRIPTION BEFORE YOU JUST APPLY
  *                      A VALUE.
+ *              -DSIM
+ *                      Prepares for running in simulator:
+ *                      No printfs, no statistics collection, just running
+ *                      the kernel. We would rely on the simulator to extract
+ *                      performance metrics.
  *
  ***************************************************************************
  *
@@ -345,7 +350,7 @@
  */
 
 /* Compiler and system dependent definitions: */
-
+#ifndef SIM
 #ifndef TIME
 #undef TIMES
 #define TIMES
@@ -369,6 +374,7 @@
 
 #define Mic_secs_Per_Second     1000000
                 /* Berkeley UNIX C returns process times in seconds/HZ */
+#endif /* SIM */
 
 #ifdef  NOSTRUCTASSIGN
 #define structassign(d, s)      memcpy(&(d), &(s), sizeof(d))
@@ -429,3 +435,10 @@ typedef struct record
       } Rec_Type, *Rec_Pointer;
 
 
+extern void Proc_6 (Enumeration Enum_Val_Par, Enumeration *Enum_Ref_Par);
+extern void Proc_7(One_Fifty Int_1_Par_Val, One_Fifty Int_2_Par_Val, One_Fifty *Int_Par_Ref);
+extern void Proc_8(Arr_1_Dim Arr_1_Par_Ref, Arr_2_Dim Arr_2_Par_Ref, int Int_1_Par_Val, int Int_2_Par_Val);
+
+extern Enumeration Func_1(Capital_Letter Ch_1_Par_Val, Capital_Letter Ch_2_Par_Val);
+extern Boolean Func_2(Str_30 Str_1_Par_Ref, Str_30 Str_2_Par_Ref);
+extern Boolean Func_3(Enumeration Enum_Par_Val);
