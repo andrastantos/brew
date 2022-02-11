@@ -10,7 +10,7 @@ export PATH=$PATH:$PREFIX/bin
 1. binutils:
   mkdir brew-binutils-build
   cd brew-binutils-build
-  ../brew-binutils-gdb/configure --target=$TARGET --prefix=$PREFIX --no-recursion
+  ../brew-binutils-gdb/configure --target=$TARGET --prefix=$PREFIX --no-recursion --enable-sim-profile=yes
   make
   make install
 2. gcc phase 1:
@@ -36,6 +36,34 @@ Once newlib build is done, gcc phase 1 build is no longer necessary: since the n
 
 To run the gcc tests:
 
-make check RUNTESTFLAGS="--target_board=brew-sim"
+    make check RUNTESTFLAGS="--target_board=brew-sim"
+
+To run a single test, add the folowing to RUNTESTFLAGS:
+    --tool <gcc or g++> <exp file name>=<test name>
+  for instance:
+    --tool gcc dg.exp=20000108-1.c
 
 But for that we need to copy brew-sim.exp to /usr/share/dejagnu/baseboards
+
+HOW TO FORK REPOS?
+==================
+
+If a repo is not on github:
+
+git clone <original>
+git remote rename origin upstream
+git remote add origin <github fork>
+git push origin --all
+
+
+
+HOW TO CROSS COMPILE?
+=====================
+
+HOST=brew-none-elf
+PREFIX=$PWD/result
+PATH=$PATH:$PREFIX/bin
+mkdir build
+mkdir result
+cd build
+../<package>/configure --host=$HOST --prefix=$PREFIX 
