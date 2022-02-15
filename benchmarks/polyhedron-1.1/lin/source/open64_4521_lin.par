@@ -1,0 +1,1 @@
+openf95 -Ofast %n.f90 -o %n
