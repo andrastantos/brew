@@ -1,25 +1,5 @@
 .PRECIOUS: %.o %.elf %.sdmp %.dmp %.bdmp %.trace %.host %.host.out
 
-
-ifndef TARGET
-TARGET=brew-none-elf
-endif
-
-ifeq ($(TARGET), brew-none-elf)
-CF=-DSIM
-LF=-lbrew
-else
-ifeq ($(TARGET), moxie-none-elf)
-CF=-DSIM
-LF=-T sim.ld
-else
-ifeq ($(TARGET), cris-none-elf)
-CF=-DSIM
-LF=-lsyssim
-endif
-endif
-endif
-
 all: dhry.elf
 
 SRC = dhry_1.o dhry_2.o
@@ -28,20 +8,20 @@ SRC += strcmp.o
 endif
 
 
-%.o: %.s
+%.o: ../%.s
 	$(TARGET)-as $^ -o $@
+
+%.o: ../%.S
+	$(TARGET)-gcc -c $^ $(CF) -o $@
+
+%.o: ../%.c
+	$(TARGET)-gcc $(CF) $(CF) -c $^ -o $@
+
+%.o: ../%.cc
+	$(TARGET)-gcc $(CF) $(CF) -c $^ -o $@
 
 %.bin: %.elf
 	$(TARGET)-objcopy --strip-all --output-target binary $^ $@
-
-%.o: %.S
-	$(TARGET)-gcc -c $^ $(CF) -o $@
-
-%.o: %.c
-	$(TARGET)-gcc $(CF) $(CF) -c $^ -o $@
-
-%.o: %.cc
-	$(TARGET)-gcc $(CF) $(CF) -c $^ -o $@
 
 %.sdmp: %.c
 	$(TARGET)-gcc $(CF) $(CF) -S $^ -o $@
