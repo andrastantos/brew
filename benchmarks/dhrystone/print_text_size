@@ -4,8 +4,8 @@ for d in *; do
     if [ -d "$d" ]; then
 	elf=$d/$obj_file
 	if [ -r "$elf" ]; then
-	    echo $d
-	    echo "     " `objdump -h $elf -j .text | grep .text | awk '{print $3}'`
+	    hex_text_size=`objdump -h $elf -j .text | grep .text | awk '{print $3}'`
+	    printf "%-15s     %d\n" $d 0x$hex_text_size
 	fi
     fi
 done
