@@ -1,0 +1,11 @@
+#!/bin/bash
+obj_file=$1
+for d in *; do
+    if [ -d "$d" ]; then
+	elf=$d/$obj_file
+	if [ -r "$elf" ]; then
+	    echo $d
+	    echo "     " `objdump -h $elf -j .text | grep .text | awk '{print $3}'`
+	fi
+    fi
+done
