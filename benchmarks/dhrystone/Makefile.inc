@@ -7,6 +7,7 @@ ifeq ($(TARGET), riscv-none-elf)
 SRC += strcmp.o
 endif
 
+CF+= -O2
 
 %.o: ../%.s
 	$(TARGET)-as $^ -o $@
