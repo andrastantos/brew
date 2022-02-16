@@ -4,6 +4,8 @@ HOW TO BUILD THE TOOLSET?
 To run tests, we need dejagnu and autogen.
 
 TARGET=brew-none-elf
+or
+TARGET=brew-linux-newlib
 PREFIX=~/brew-toolset
 export PATH=$PATH:$PREFIX/bin
 
@@ -16,19 +18,20 @@ export PATH=$PATH:$PREFIX/bin
 2. gcc phase 1:
   mkdir brew-gcc-build1
   cd brew-gcc-build1
-  ../brew-gcc/configure --target=$TARGET --prefix=$PREFIX --enable-languages=c --without-headers --with-newlib --disable-shared --disable-libssp
+  ../brew-gcc/configure --target=$TARGET --prefix=$PREFIX --enable-languages=c --without-headers --with-newlib --disable-shared --disable-libssp --disable-threads --disable-libgomp --disable-libatomic
   make
   make install
 3. newlib
   mkdir brew-newlib-build
   cd brew-newlib-build
   ../brew-newlib/configure --target=$TARGET --prefix=$PREFIX
+  for linux: ../brew-newlib/configure --target=$TARGET --prefix=$PREFIX --enable-newlib-multithread
   make
   make install
 4. gcc phase 2:
   mkdir brew-gcc-build
   cd brew-gcc-build
-  ../brew-gcc/configure --target=$TARGET --prefix=$PREFIX --enable-languages="c,c++" --without-headers --with-newlib --disable-shared --disable-libssp
+  ../brew-gcc/configure --target=$TARGET --prefix=$PREFIX --enable-languages="c,c++" --without-headers --with-newlib --disable-shared --disable-libssp --disable-threads --disable-libgomp --disable-libatomic
   make
   make install
 
@@ -66,4 +69,28 @@ PATH=$PATH:$PREFIX/bin
 mkdir build
 mkdir result
 cd build
-../<package>/configure --host=$HOST --prefix=$PREFIX 
+../<package>/configure --host=$HOST --prefix=$PREFIX
+
+
+
+NEWLIB
+-------
+The host is: x86_64-pc-linux-gnu, but that doesn't build at all. Neither does i386-pc-linux-gnu
+So, in general, the linux targets are busted, I think. And I'm not in the mood of fixing them.
+
+There are two other libc alternatives to try: musl and uclibc. Which one should I try?
+
+That should depend on which targets I want to compare against.
+
+The support matrix (for -none-elf or similar):
+
+  ARCH                      MUSL           UCLIBC       NEWLIB    SIM      done?
+=================================================================================
+ nios2-none-elf              no             yes          yes       no      yes
+ microblaze-none-elf         no             yes          yes       yes     yes
+ riscv-none-elf              64-bit         64-bit       yes       yes     yes
+ arm-none-eabi               yes            yes          yes       yes     yes
+ i386-elf-gnu                yes            yes          yes?      no
+
+So, it seems, I'm still better off with newlib. Another approach would
+be to try and find the right benchmarks to use.
