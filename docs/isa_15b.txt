@@ -155,7 +155,7 @@ Unary group:
 0x0a..             $frD <- $srA                    (signed) integer to float conversion
 0x0b..             $frD <- 1 / $frA
 0x0c..             $frD <- RSQRT $frA
-0x0d..             $rD <- $pc + FIELD_A            Link register preparation for calls. FIELD_B is sign-extended to 31 bits and shifted left by 1 before addition.
+0x0d..             $rD <- $pc + FIELD_A*2          Link register preparation for calls. FIELD_A is zero-extended to 31 bits and shifted left by 1 before addition.
 0x0e..             SII                             TODO: maybe this should be zero-extend word?
 
 0x1...             $rD <- $rA ^ $rB
@@ -397,9 +397,9 @@ SII
 
 Form D: Inidirect offset load/store
 
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-| 1 | 1 | 1 | 1 | 1 |    SOP    |       A       |       D       |  |                                                             VALUE                                                             |
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+| 1 | 1 | 1 | 1 | 1 |    SOP    |       A       |       D       |  |                           VALUE                               |
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   INST        OP_CODE                         OPERATION
 --------------------------------------------------------------
@@ -412,10 +412,11 @@ Form D: Inidirect offset load/store
 0xfe..        MEM16[$rA+VALUE] = $rD          16-bit store to MEM[$rA+VALUE] from $rD
 0xff..        MEM[32][$rA+VALUE] = $rD        32-bit store to MEM[$rA+VALUE] from $rD
 
+NOTE: VALUE is sign-extended before addition
 
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-| 1 | 1 | 1 | 1 | 1 |    SOP    |       A       | 1 | 1 | 1 | 1 |  |                                                             VALUE                                                             |
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+| 1 | 1 | 1 | 1 | 1 |    SOP    |       A       | 1 | 1 | 1 | 1 |  |                           VALUE                               |
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   INST        OP_CODE                         OPERATION
 --------------------------------------------------------------
@@ -427,6 +428,8 @@ Form D: Inidirect offset load/store
 0xfd.f        SII
 0xfe.f        SII
 0xff.f        SII
+
+NOTE: VALUE is sign-extended before addition
 
 Form C: Direct load/store
 
@@ -467,8 +470,8 @@ DECODE NOTES:
 Instruction encoding is such that the following condition can be used to determine if the FIELD_E is needed or not:
   &inst[15:11] | &inst[11:8] | &inst[7:4] | &inst[3:0]
   
-The size of FIELD_E can be determined by:
-  &inst[15:11] | (&inst[7:4] & !&inst[3:0])
+The size of FIELD_E == 32 if:
+  &inst[15:11] ? &inst[7:4] : (&inst[7:4] & !&inst[3:0])
 
 The first register file read port address of the register file comes from:
   FIELD_A
