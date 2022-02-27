@@ -122,13 +122,18 @@ Form A:
 -----------------------------------------
 
 Exception group
-0x0000             FILL                            enters privileged mode, disables interrupts - used to fill unused code-pages; TPC points to the next instruction
-0x0001             BREAK                           enters privileged mode, disables interrupts - used for SW breakpoints; TPC points to the next instruction
-0x0002             SYSCALL                         enters privileged mode, disables interrupts - used for SYSCALL-s; TPC points to the next instruction
-0x0003             STU                             enters user mode, enables interrupts; SPC points to the next instruction
-0x0004             SII                             enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the CURRENT instruction
-0x0005             WOI                             wake on interrupt
-0x0006:0x000e      SII
+0x0000             FILL     SWI0                   enters privileged mode, disables interrupts - used to fill unused code-pages; TPC points to the current instruction
+0x0001             BREAK    SWI1                   enters privileged mode, disables interrupts - used for SW breakpoints; TPC points to the current instruction
+0x0002             SYSCALL  SWI2                   enters privileged mode, disables interrupts - used for SYSCALL-s; TPC points to the current instruction
+0x0003                      SWI3                   enters privileged mode, disables interrupts - used for sotware interrupts; TPC points to the current instruction
+0x0004                      SWI4                   enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the current instruction
+0x0005                      SWI5                   enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the current instruction
+0x0006             SII      SWI6                   enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the current instruction
+0x0007             HWI      SWI7                   enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the current instruction
+
+0x0008             STU                             enters user mode, enables interrupts; SPC points to the NEXT instruction
+0x0009             WOI                             wake on interrupt
+0x000a:0x000e      SII
 
 Atomic group
 0x0010             FENCE                           ensures that all memory references are completed before continuing
