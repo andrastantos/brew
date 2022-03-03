@@ -131,7 +131,7 @@ Exception group
 0x0006             SII      SWI6                   enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the current instruction
 0x0007             HWI      SWI7                   enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the current instruction
 
-0x0008             STU                             enters user mode, enables interrupts; SPC points to the NEXT instruction
+0x0008             STM                             enters task mode, enables interrupts; SPC points to the NEXT instruction
 0x0009             WOI                             wake on interrupt
 0x000a:0x000e      SII
 
@@ -175,7 +175,7 @@ Unary group:
 0xa...             $rD <- UPPER $rA * $rB          unsigned multiply, upper half
 0xb...             $srD <- UPPER $srA * $srB       signed multiply, upper half
 0xc...             $frD <- $frA + $frB
-0xd...             $frD <- $frA - $frB 
+0xd...             $frD <- $frA - $frB
 0xe...             $frD <- $frA * $frB
 
 Pseudo instructions:
@@ -474,13 +474,13 @@ DECODE NOTES:
 
 Instruction encoding is such that the following condition can be used to determine if the FIELD_E is needed or not:
   &inst[15:11] | &inst[11:8] | &inst[7:4] | &inst[3:0]
-  
+
 The size of FIELD_E == 32 if:
   &inst[15:11] ? &inst[7:4] : (&inst[7:4] & !&inst[3:0])
 
 The first register file read port address of the register file comes from:
   FIELD_A
-  
+
 The second register file read port address of the register file comes from:
   &inst[15:12] | ~|inst[15:8] ? FIELD_D : &inst[11:8] ? FIELD_A : FIELD_B
 
@@ -515,7 +515,7 @@ Upon return, all saved registers (including $r2) are restored, then:
 RETURN:
 $pc <- $r2
 
-Notice how this is only one instructions longer than the traditional link approach as the 
+Notice how this is only one instructions longer than the traditional link approach as the
 stack-adjustment and the save/restore of the link register would be there in most cases anyways.
 The splitting of the link into two instruction allows us to not have two forms of all possible
 branches, and so all possible branches *can* be calls as well.
