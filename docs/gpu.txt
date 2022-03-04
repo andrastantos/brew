@@ -2,3 +2,5 @@ How to get to a GPU?
 ====================
 
 Someone is already doing this based on RiscV: https://vortex.cc.gatech.edu/publications/vortex_micro21_final.pdf
+
+POCL is an open-source (and claimed to be portable) OpenCL implementation: http://portablecl.org/

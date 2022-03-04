@@ -154,8 +154,8 @@ Unary group:
 0x04..             $rD <- ~$rA                     $rD <- ~$rB (not)
 0x05..             $rD <- BSWAP $rA                $rD <- {$rA[7:0], $rA[15:8], $rA[23:16], $rA[31:24]}
 0x06..             $rD <- WSWAP $rA                $rD <- {$rB[15:0], $rB[31:16]} TODO: maybe better if this is zero-extend byte?
-0x07..             $rD <- BSI $rA                  sign-extend a word value in $rA into $rD
-0x08..             $rD <- WSI $rA                  sign-extend a byte value in $rB into $rD
+0x07..             $srD <- BSI $rA                 sign-extend a word value in $rA into $rD
+0x08..             $srD <- WSI $rA                 sign-extend a byte value in $rB into $rD
 0x09..             $srD <- FLOOR $frA              float to (signed) integer conversion with truncation
 0x0a..             $frD <- $srA                    (signed) integer to float conversion
 0x0b..             $frD <- 1 / $frA
