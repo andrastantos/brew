@@ -1,0 +1,4 @@
+How to get to a GPU?
+====================
+
+Someone is already doing this based on RiscV: https://vortex.cc.gatech.edu/publications/vortex_micro21_final.pdf
