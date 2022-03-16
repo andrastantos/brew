@@ -12,7 +12,7 @@ There are a few ideas to explore in this processor design:
   This is where the naming of the two contexts are coming from: SCHEDULER mode is used for - essentially -
   task switching only, and all useful work (including OS functionality) happens in various TASK contexts.
 - Each context has it's own program counter (TPC and SPC).
-- Switcing between contexts happens using interrupts (TASK -> SCHEDULER), exceptions (TASK -> SCHEDULER)
+- Switching between contexts happens using interrupts (TASK -> SCHEDULER), exceptions (TASK -> SCHEDULER)
   and instructions (switches either way).
 - Every instruction can be executed with the exact same semantics in both TASK and SCHEDULER mode. Protection
   is achieved by two key concepts:
@@ -34,11 +34,12 @@ There are a few ideas to explore in this processor design:
 
 TODO: if we have floating-point support, we need condition-code registers! See gcc/config/brew/brew.h AVOID_CCMODE_COPIES and how Moxie does it!
 TODO: we probably want a +2;+4 and a -2;-4 variant as well if we can find a 16-bit slots for them.
+TODO: I NEED A 16-BIT LOAD IMMEDIATE!!!!!
 
 INSTRUCTION ENCODING
 =============================================
 
-There are two encoding variants:
+There are three encoding variants:
 
 16-bit instructions:
 
@@ -46,50 +47,57 @@ There are two encoding variants:
 |    FIELD_C    |    FIELD_B    |    FIELD_A    |    FIELD_D    |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
+32-bit instructions:
+
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+|    FIELD_C    |    FIELD_B    |    FIELD_A    |    FIELD_D    |  |                         FIELD_E                               |
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
 48-bit instructions:
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-|    FIELD_C    |    FIELD_B    |    FIELD_A    |    FIELD_D    |  |                                                            FIELD_I                                                            |
+|    FIELD_C    |    FIELD_B    |    FIELD_A    |    FIELD_D    |  |                                                            FIELD_E                                                            |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 FIELD_C normally contains the instruction op-code
 FIELD_B normally contains the register index of the second operand
 FIELD_A normally contains the register index of the first operand
 FIELD_D normally contains the register index of the destination
-FIELD_I normally contains an immediate or a memory offset
+FIELD_E normally contains an immediate or a memory offset
 
 The whole 16 bit instruction is referred to as the INST.
 The '[]' operator represents sub-fields in verilog notation.
 The '{}' operator represents concatenation in verilog notation.
 The ':' operator represents range (when that context make sense)
 
-Each of fields C,B,A,D can be 0xf or some other value. This gives us 16 instruction groups. These groups are named by the fields which are not 0xf.
-So, for instance group BA would be a group where both FIELD_C and FIELD_D are 0xf, while neither FIELD_B and FIELD_A are.
-
 Register indexes:
 
-0x0:  current mode PC (TPC or SPC depending on the mode0
-0x1:  R1
-0x2:  R2
-0x3:  R3
-0x4:  R4
-0x5:  R5
-0x6:  R6
-0x7:  R7
-0x8:  R8
-0x9:  R9
-0xa:  Ra
-0xb:  Rb
-0xc:  Rc
-0xd:  Rd
-0xe:  Re
+0x0:  $r0
+0x1:  $r1
+0x2:  $r2
+0x3:  $r3
+0x4:  $r4
+0x5:  $r5
+0x6:  $r6
+0x7:  $r7
+0x8:  $r8
+0x9:  $r9
+0xa:  $ra
+0xb:  $rb
+0xc:  $rc
+0xd:  $rd
+0xe:  $re
 0xf:  reserved
 
 Register aliases:
-    SRx: signed version of Rx
-    FRx: floating point version of Rx
+    $srX: signed version of $rX
+    $frX: floating point version of $rX
+    $sp:  alias to $r0
+    $fp:  alias to $r1
+    $lr:  alias to $r2
+NOTE: none of these aliases have anything to do with HW and only make assembly unambigous and/or easier to read
 
-NOTE: PC is a 31-bit register: the LSB is ignored on write and always reads as 0.
+NOTE: $pc and $tpc are 31-bit registers: the LSB is ignored on write and always reads as 0.
 
 INSTRUCTION SET
 =============================================
@@ -103,7 +111,7 @@ In the following tables
 ALU operations:
 -------------------------------
 
-Form A (group CBAD):
+Form A:
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 |       C       |       B       |       A       |       D       |
@@ -112,63 +120,70 @@ Form A (group CBAD):
   FIELD
   CBAD             OP_CODE   OPERATION
 -----------------------------------------
-0x0...             R_D = R_B ^ R_A             *special cases:
-0x0000             FILL                           enters privileged mode, disables interrupts - used to fill unused code-pages; TPC points to the next instruction
-0x0110             BREAK                          enters privileged mode, disables interrupts - used for SW breakpoints; TPC points to the next instruction
-0x0220             SYSCALL                        enters privileged mode, disables interrupts - used for SYSCALL-s; TPC points to the next instruction
-0x0330             STU                            enters user mode, enables interrupts; SPC points to the next instruction
-0x0440:0x0cc0      SII                            enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the CURRENT instruction
-0x0dd0             FENCE                          ensures that all memory references are completed before continuing
-0x0ee0             WFENCE                         ensures the write queue is fully flushed before continuing
-0x1...             R_D = R_B | R_A             **special cases:
-0x1000             WOI                            wake on interrupt (program visible behavior is the same as PC=PC or PC, can apply power saving)
-0x2...             R_D = R_B & R_A
-0x3...             R_D = R_B - R_A
-0x4...             R_D = R_B + R_A
-0x5...             R_D = R_B << R_A
-0x6...             R_D = R_B >> R_A
-0x7...             SR_D = SR_B >> R_A          signed right shift
-0x8...             R_D = R_B * R_A             unsigned multiply, lower half   ##special cases:
-0x80..             TPC = R_A or R_D = TPC         R_D = R_A, but A and D references TPC instead of PC, when set to 0.
-0x8.00             SII
-0x9...             SII                        !!!! THIS IS A BIG GIANT HOLE IN THE ISA !!!!  #special cases:
-0x90..             R_D = R_A + 1                  R_D = R_A + 1
-0x9.0.             R_D = R_B - 1                  R_D = R_B - 1
-0x9..0             SII
-0x900.             SII
-0xa...             R_D = UPPER R_B * R_A       unsigned multiply, upper half   ####special cases:
-0xa0..             R_D = -R_A                     R_D = -R_A (neg)
-0xa.0.             R_D = ~R_B                     R_D = ~R_B (not)
-0xa..0             SII
-0xa00.             SII
-0xb...             SR_D = UPPER SR_B * SR_A    signed multiply, upper half     ###special cases:
-0xb0..             R_D = BSWAP R_A                R_D = {R_A[7:0], R_A[15:8], R_A[23:16], R_A[31:24]}
-0xb.0.             R_D = WSWAP R_B                R_D = {R_B[15:0], R_B[31:16]}
-0xb..0             SII
-0xb00.             SII
-0xc...             FR_D = FR_B + FR_A          ^ special cases:
-0xc0..             R_D = BSI R_A                  word-extend a word value in R_A into R_D
-0xc.0.             R_D = WSI R_B                  sign-extend a byte value in R_B into R_D
-0xc..0             SII
-0xc00.             SII
-0xd...             FR_D = FR_B - FR_A          ^^ special cases:
-0xd0..             SR_D = FLOOR FR_A              float to (signed) integer conversion with truncation
-0xd.0.             FR_D = SR_B                    (signed) integer to float conversion
-0xd..0             SII
-0xd00.             SII
-0xe...             FR_D = FR_B * FR_A          ^^^ special cases:
-0xe0..             FR_D = 1 / FR_A
-0xe.0.             FR_D = RSQRT FR_B
-0xe..0             SII
-0xe00.             SII
 
+Exception group
+0x0000             FILL     SWI0                   enters privileged mode, disables interrupts - used to fill unused code-pages; TPC points to the current instruction
+0x0001             BREAK    SWI1                   enters privileged mode, disables interrupts - used for SW breakpoints; TPC points to the current instruction
+0x0002             SYSCALL  SWI2                   enters privileged mode, disables interrupts - used for SYSCALL-s; TPC points to the current instruction
+0x0003                      SWI3                   enters privileged mode, disables interrupts - used for sotware interrupts; TPC points to the current instruction
+0x0004                      SWI4                   enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the current instruction
+0x0005                      SWI5                   enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the current instruction
+0x0006             SII      SWI6                   enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the current instruction
+0x0007             HWI      SWI7                   enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the current instruction
+
+0x0008             STM                             enters task mode, enables interrupts; SPC points to the NEXT instruction
+0x0009             WOI                             wake on interrupt
+0x000a:0x000e      SII
+
+Atomic group
+0x0010             FENCE                           ensures that all memory references are completed before continuing
+0x0011             WFENCE                          ensures the write queue is fully flushed before continuing
+0x0012:0x001e      SII
+
+Branch group
+0x002.             $pc <- $rD                      <------- indirect jump: we probably want to encode it to something that's easier to recognize by the branch predictor
+0x003.             $tpc <- $rD
+0x004.             $rD <- $pc
+0x005.             $rD <- $tpc
+0x006.:0x00e.      SII
+
+Unary group:
+0x01..             $rD <- $rA + 1                  $rD <- $rA + 1
+0x02..             $rD <- $rA - 1                  $rD <- $rB - 1
+0x03..             $rD <- -$rA                     $rD <- -$rA (neg)
+0x04..             $rD <- ~$rA                     $rD <- ~$rB (not)
+0x05..             $rD <- BSWAP $rA                $rD <- {$rA[7:0], $rA[15:8], $rA[23:16], $rA[31:24]}
+0x06..             $rD <- WSWAP $rA                $rD <- {$rB[15:0], $rB[31:16]} TODO: maybe better if this is zero-extend byte?
+0x07..             $srD <- BSI $rA                 sign-extend a word value in $rA into $rD
+0x08..             $srD <- WSI $rA                 sign-extend a byte value in $rB into $rD
+0x09..             $srD <- FLOOR $frA              float to (signed) integer conversion with truncation
+0x0a..             $frD <- $srA                    (signed) integer to float conversion
+0x0b..             $frD <- 1 / $frA
+0x0c..             $frD <- RSQRT $frA
+0x0d..             $rD <- $pc + FIELD_A*2          Link register preparation for calls. FIELD_A is zero-extended to 31 bits and shifted left by 1 before addition.
+0x0e..             $rD <- FIELD_A - 7              TODO: maybe this should be zero-extend word? <-------- THIS IS NEW!!!!!
+
+0x1...             $rD <- $rA ^ $rB
+0x2...             $rD <- $rA | $rB
+0x3...             $rD <- $rA & $rB
+0x4...             $rD <- $rA + $rB
+0x5...             $rD <- $rA - $rB
+0x6...             $rD <- $rA << $rB
+0x7...             $rD <- $rA >> $rB
+0x8...             $srD <- $srA >> $rB             signed right shift
+0x9...             $rD <- $rA * $rB                unsigned multiply, lower half
+0xa...             $rD <- UPPER $rA * $rB          unsigned multiply, upper half
+0xb...             $srD <- UPPER $srA * $srB       signed multiply, upper half
+0xc...             $frD <- $frA + $frB
+0xd...             $frD <- $frA - $frB
+0xe...             $frD <- $frA * $frB
 
 Pseudo instructions:
-NOP: encodes to 0x1111, which is R1 = R1 | R1
-R_z = 0: encodes to 0x000z which is R_D = R0 ^ R0
-R_z = R_s: encodes to 0x1ssz
+NOP: encodes to 0x2222, which is $r2 = $r2 | $r2
+$rD = 0: encodes to 0x1eeD which is $rD <- $r14 ^ $r14
+$rD = $rS: encodes to 0x2SSD
 
-Form B (group CBD):
+Form B:
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 |       C       |       B       | 1 | 1 | 1 | 1 |       D       |  |                                                             VALUE                                                             |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -176,232 +191,187 @@ Form B (group CBD):
   FIELD
   CBAD             OP_CODE   OPERATION
 -----------------------------------------
-0x0.f.             R_D = R_B ^ VALUE
-0x0ff.             R_D = VALUE                       R_B becomes 0 (that is load immediate)
-0x1.f.             R_D = R_B | VALUE
-0x1ff.             SII               <-------- !!!! THIS COULD BE: R_D = VALUE                       R_B becomes 0 (that is load immediate) if B == F. if D == 0, target is TPC
-0x2.f.             R_D = R_B & VALUE
-0x2ff.             SII
-0x3.f.             R_D = R_B - VALUE
-0x3ff.             SII
-0x4.f.             R_D = R_B + VALUE <-------- !!!!!!!!!!!!!!!! THIS IS REDUNDANT (it can be replaced with - where VALUE is negated) we can use %n<digit> to generate a negated constant in the .md file
-0x4ff.             SII
-0x5.f.             R_D = R_B << VALUE
-0x5ff.             SII
-0x6.f.             R_D = R_B >> VALUE
-0x6ff.             SII
-0x7.f.             SR_D = SR_B >> VALUE              signed right shift
-0x7ff.             SII
-0x8.f.             R_D = R_B * VALUE                 unsigned multiply, lower half
-0x80f.             R_D = VALUE                       if D == 0, target is TPC
-0x8ff.             SII
-0x9.f.             SR_D = SR_B * VALUE               signed multiply, lower half
-0x9.f0             SII
-0x90f.             SII
-0x9f0.             SII
-0x9ff.             SII
-0xa.f.             SR_D = UPPER SR_B * VALUE         unsigned multiply, upper half
-0xa.f0             SII
-0xa0f.             SII
-0xaf0.             SII
-0xaff.             SII
-0xb.f.             SR_D = UPPER R_B * VALUE          signed multiply, upper half
-0xb.f0             SII
-0xb0f.             SII
-0xbf0.             SII
-0xbff.             SII
-0xc.f.             FR_D = FR_B + VALUE         ^ special cases:
-0xc.f0             SII
-0xc0f.             SII
-0xcff.             SII
-0xd.f.             FR_D = FR_B - VALUE         ^^ special cases:
-0xd.f0             SII
-0xd0f.             SII
-0xdff.             SII
-0xe.f.             FR_D = FR_B * VALUE         ^^^ special cases:
-0xe.f0             SII
-0xe0f.             SII
-0xeff.             SII
+0x00f.             $rD  <- VALUE                       NOTE: this is the unary operator space normally.
+0x01f.             $pc  <- VALUE
+0x02f.:0xef.       SII
+0x1.f.             $rD  <- VALUE ^ $rB
+0x2.f.             $rD  <- VALUE | $rB
+0x3.f.             $rD  <- VALUE & $rB
+0x4.f.             $rD  <- VALUE + $rB
+0x5.f.             $rD  <- VALUE - $rB
+0x6.f.             $rD  <- VALUE << $rB
+0x7.f.             $rD  <- VALUE >> $rB
+0x8.f.             $srD <- VALUE >> $rB               signed right shift
+0x9.f.             $rD  <- VALUE * $rB                unsigned multiply, lower half
+0xa.f.             $srD <- UPPER VALUE * $srB         unsigned multiply, upper half
+0xb.f.             $srD <- UPPER VALUE * $rB          signed multiply, upper half
+0xc.f.             $frD <- VALUE + $frB
+0xd.f.             $frD <- VALUE - $frB
+0xe.f.             $frD <- VALUE * $frB
 
+NOTE: << and >> operations where opB is constant can be simulated by multiplies. Because of that, these operations only have one form.
+      This does mean though, that the constant needed for certain shifts is larger than what would normally be required
+      (i.e. 32-bit instead of 16).
 
-Form C (group CAD):
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-|       C       | 1 | 1 | 1 | 1 |       A       |       D       |  |                                                             VALUE                                                             |
+|       C       | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |       D       |  |                                                             VALUE                                                             |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   FIELD
-  CBAD             OP_CODE                       OPERATION
-------------------------------------------------------------------------
-0x0f..             SII
-0x1f..             SII
-0x2f..             SII
-0x3f..             R_D = VALUE - R_A
-0x4f..             SII
-0x5f..             R_D = VALUE << R_A
-0x6f..             R_D = VALUE >> R_A
-0x7f..             SR_D = VALUE >> R_A           signed right shift
-0x8f..             SII
-0x9f..             SII
-0xaf..             SII
-0xbf..             SII
+  CBAD             OP_CODE   OPERATION
+-----------------------------------------
+0x.ff.             SII
+
+
+Form C:
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+|       C       | 1 | 1 | 1 | 1 |       A       |       D       |  |                         VALUE                                 |
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  FIELD
+  CBAD             OP_CODE   OPERATION
+-----------------------------------------
+0x0f0.             $rD  <- short VALUE                     NOTE: this is the unary operator space normally.
+0x0f1.             SII                                     NOTE: this would be a short, unconditional jump, something that already is possible using conditional branches
+0x0f2.:0xfe.       SII
+0x1f..             $rD  <- short VALUE ^ $rA
+0x2f..             $rD  <- short VALUE | $rA
+0x3f..             $rD  <- short VALUE & $rA
+0x4f..             $rD  <- short VALUE + $rA
+0x5f..             $rD  <- short VALUE - $rA
+0x6f..             $rD  <- short VALUE << $rA
+0x7f..             $rD  <- short VALUE >> $rA
+0x8f..             $srD <- short VALUE >> $rA              signed right shift
+0x9f..             $rD  <- short VALUE * $rA               unsigned multiply, lower half
+0xaf..             $srD <- short UPPER VALUE * $srA        unsigned multiply, upper half
+0xbf..             $srD <- short UPPER VALUE * $rA         signed multiply, upper half
 0xcf..             SII
-0xdf..             FR_D = VALUE - FR_B           special cases:
-0xdf.0             SII
-0xdf0.             SII
+0xdf..             SII
 0xef..             SII
 
+VALUE is *always* sign-extended to 32-bits before applying it to the operation.
+TODO: we might want to zero-extend for certain operations, such as logical ops.
+NOTE: sign-extending a 16-bit constant, then treating it as a float almost certainly don't make any sense.
+TODO: These three op-codes could be used for something else, such as the missing shifts though...
 
-NOTE: there are a number of combinations that don't make sense:
-    - R_A xor R_B with PC as target
-    - R_A and R_B where A == B (that is a move, which can be accompished by or)
-    - R_A - R_B where A == B (that's zero, which can be accompished by xor)
-    - R_A*R_B with A == 0 or B == 0 (PC)
-    - shl, shr, sar with B == 0 (PC)
-    - or, and, xor, + * in form C (these are symmetrical operations, so form B is sufficiant)
-    There might be others as well.
-    Many of these combinations are used as holes to sneak in a few odd-ball instructions
-    that otherwise would eat up encoding space. This complicates instruction decode, but
-    hopefully not by much: in most cases, both the base and the alternate operation
-    can procede, and selected upon write-back (giving us at least one extra decode cycle).
-
-NOTE: there are no 8- or 16-bit variants of these instructions. Use 0- or sign-extend during loads to achive type-conversion.
-NOTE: encoding is such that OP-code 0 is FILL
 
 Branches:
 -------------------------------
 
-Form A (group CBA):
+Form A:
 
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-|       C       |       B       |       A       | 1 | 1 | 1 | 1 |  |                                                            OFFSET                                                         | R |
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+|       C       |       B       |       A       | 1 | 1 | 1 | 1 |  |                          OFFSET                               |
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   FIELD
   CBAD            OP_CODE                                    NOTES
 ------------------------------------------------------------------------------
-0x0.0f            PC [+]= OFFSET IF R_B == 0
-0x0.1f            PC [+]= OFFSET IF R_B != 0
-0x0.2f            PC [+]= OFFSET IF SR_B < 0                 signed compare
-0x0.3f            PC [+]= OFFSET IF SR_B >= 0                signed compare
-0x0.4f            PC [+]= OFFSET IF SR_B > 0                 signed compare
-0x0.5f            PC [+]= OFFSET IF SR_B <= 0                signed compare
-0x0.6f            SII
-0x0.7f            SII
-0x0.8f            SII
-0x0.9f            SII
-0x0.af            SII
-0x0.bf            PC [+]= OFFSET IF FR_B < 0
-0x0.cf            PC [+]= OFFSET IF FR_B >= 0
-0x0.df            PC [+]= OFFSET IF FR_B > 0
-0x0.ef            PC [+]= OFFSET IF FR_B <= 0
+0x00.f            if $rA == 0  $pc <- $pc + unmunge(OFFSET)
+0x01.f            if $rA != 0  $pc <- $pc + unmunge(OFFSET)
+0x02.f            if $srA < 0  $pc <- $pc + unmunge(OFFSET)                signed compare
+0x03.f            if $srA >= 0 $pc <- $pc + unmunge(OFFSET)                signed compare
+0x04.f            if $srA > 0  $pc <- $pc + unmunge(OFFSET)                signed compare
+0x05.f            if $srA <= 0 $pc <- $pc + unmunge(OFFSET)                signed compare
+0x06.f            SII
+0x07.f            SII
+0x08.f            SII
+0x09.f            SII
+0x0a.f            SII
+0x0b.f            if $frA < 0  $pc <- $pc + unmunge(OFFSET)
+0x0c.f            if $frA >= 0 $pc <- $pc + unmunge(OFFSET)
+0x0d.f            if $frA > 0  $pc <- $pc + unmunge(OFFSET)
+0x0e.f            if $frA <= 0 $pc <- $pc + unmunge(OFFSET)
 
-0x1..f            PC [+]= OFFSET IF R_B == R_A
-0x2..f            PC [+]= OFFSET IF R_B != R_A
-0x3..f            PC [+]= OFFSET IF SR_B < SR_A              signed compare
-0x4..f            PC [+]= OFFSET IF SR_B >= SR_A             signed compare
-0x5..f            PC [+]= OFFSET IF R_B < R_A
-0x6..f            PC [+]= OFFSET IF R_B >= R_A
+0x1..f            if $rB == $rA   $pc <- $pc + unmunge(OFFSET)
+0x2..f            if $rB != $rA   $pc <- $pc + unmunge(OFFSET)
+0x3..f            if $srB < $srA  $pc <- $pc + unmunge(OFFSET)             signed compare
+0x4..f            if $srB >= $srA $pc <- $pc + unmunge(OFFSET)             signed compare
+0x5..f            if $rB < $rA    $pc <- $pc + unmunge(OFFSET)
+0x6..f            if $rB >= $rA   $pc <- $pc + unmunge(OFFSET)
 0x7..f            SII
 0x8..f            SII
 0x9..f            SII
 0xa..f            SII
 0xb..f            SII
 0xc..f            SII
-0xd..f            PC [+]= OFFSET IF FR_B < FR_A
-0xe..f            PC [+]= OFFSET IF FR_B >= FR_A
-
-NOTE: there are a lot of pseudo-op-codes that can be created here. For instance:
-      - unconditional branch (B) is possible with OP=0, A = B
-      - branch if less-than (BLT and BLTS) can be achieved by BGT and BGTS and swapping A and B fields
-      - branch if greater-than-equal (BGTE and BGTES) can be achieved by BLTE and BLTES and swapping A and B fields
-      - branch if unsigned greater than zero (BGTZ) is the same as BNEZ
-      - branch if unsigned less then or equal to zero (BLEZ) BEQZ
-
-NOTE: there's almost *almost* enough room to make 16-bit-offset branches possible. For that:
-     1. Kill floating-point compares
-     2. Make MSB of FIELD_C the 16-bit/32-bit determination, except if FIELD_C == 0, in which case the top bit of FIELD_A does the same
-     3. Make 0xf..f also a conditional jump as well (right now it's reserved)
-     This is all very speculative though: it would complicate instruction fetch and for what?
-     A slight reduction in code-size for relative jumps within a function.
-     BTW: there's another (rather unpalatable) way as well: shift offset right by one, put the R bit into MSB and if set, make it 16-bit.
-
+0xd..f            if $frB < $frA  $pc <- $pc + unmunge(OFFSET)
+0xe..f            if $frB >= $frA $pc <- $pc + unmunge(OFFSET)
 
 PSEUDO OPS:
+    $pc <- $pc + unmunge(OFFSET)
+    if $srB >= $srA $pc <- $pc + unmunge(OFFSET)
+    if $srB < $srA  $pc <- $pc + unmunge(OFFSET)
+    if $rB >= $rA   $pc <- $pc + unmunge(OFFSET)
+    if $rB < $rA    $pc <- $pc + unmunge(OFFSET)
+    if $srB == $srA $pc <- $pc + unmunge(OFFSET)
+    if $srB != $srA $pc <- $pc + unmunge(OFFSET)
+    if $frB == $frA $pc <- $pc + unmunge(OFFSET)
+    if $frB != $frA $pc <- $pc + unmunge(OFFSET)
 
-PC [+]= OFFSET
-PC [+]= OFFSET IF SR_B >= SR_A
-PC [+]= OFFSET IF SR_B < SR_A
-PC [+]= OFFSET IF R_B >= R_A
-PC [+]= OFFSET IF R_B < R_A
-PC [+]= OFFSET IF SR_B == SR_A
-PC [+]= OFFSET IF SR_B != SR_A
-PC [+]= OFFSET IF FR_B == FR_A
-PC [+]= OFFSET IF FR_B != FR_A
-
-R: relative jump. Set to 0 for absolute jump, if set to 1, PC-relative jump
+unmunge: move LSB to bit position 17, replace LSB with 0 and sign-extend to 32 bits.
 
 Form B (group CA):
 
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-|       C       | 1 | 1 | 1 | 1 |       A       | 1 | 1 | 1 | 1 |  |                                                            OFFSET                                                         | R |
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+|       C       | 1 | 1 | 1 | 1 |       A       | 1 | 1 | 1 | 1 |  |                          OFFSET                               |
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   FIELD
   CBAD        OP_CODE                             OPERATION
 --------------------------------------------------------------
-0x0f.f        PC [+]= OFFSET IF R_A[0] == 1
-0x1f.f        PC [+]= OFFSET IF R_A[1] == 1
-0x2f.f        PC [+]= OFFSET IF R_A[2] == 1
-0x3f.f        PC [+]= OFFSET IF R_A[3] == 1
-0x4f.f        PC [+]= OFFSET IF R_A[4] == 1
-0x5f.f        PC [+]= OFFSET IF R_A[5] == 1
-0x6f.f        PC [+]= OFFSET IF R_A[6] == 1
-0x7f.f        PC [+]= OFFSET IF R_A[7] == 1
-0x8f.f        PC [+]= OFFSET IF R_A[8] == 1
-0x9f.f        PC [+]= OFFSET IF R_A[9] == 1
-0xaf.f        PC [+]= OFFSET IF R_A[a] == 1
-0xbf.f        PC [+]= OFFSET IF R_A[b] == 1
-0xcf.f        PC [+]= OFFSET IF R_A[c] == 1
-0xdf.f        PC [+]= OFFSET IF R_A[d] == 1
-0xef.f        PC [+]= OFFSET IF R_A[e] == 1
+0x0f.f        if $rA[0]  == 1 $pc <- $pc + unmunge(OFFSET)
+0x1f.f        if $rA[1]  == 1 $pc <- $pc + unmunge(OFFSET)
+0x2f.f        if $rA[2]  == 1 $pc <- $pc + unmunge(OFFSET)
+0x3f.f        if $rA[3]  == 1 $pc <- $pc + unmunge(OFFSET)
+0x4f.f        if $rA[4]  == 1 $pc <- $pc + unmunge(OFFSET)
+0x5f.f        if $rA[5]  == 1 $pc <- $pc + unmunge(OFFSET)
+0x6f.f        if $rA[6]  == 1 $pc <- $pc + unmunge(OFFSET)
+0x7f.f        if $rA[7]  == 1 $pc <- $pc + unmunge(OFFSET)
+0x8f.f        if $rA[8]  == 1 $pc <- $pc + unmunge(OFFSET)
+0x9f.f        if $rA[9]  == 1 $pc <- $pc + unmunge(OFFSET)
+0xaf.f        if $rA[14] == 1 $pc <- $pc + unmunge(OFFSET)
+0xbf.f        if $rA[15] == 1 $pc <- $pc + unmunge(OFFSET)
+0xcf.f        if $rA[16] == 1 $pc <- $pc + unmunge(OFFSET)
+0xdf.f        if $rA[30] == 1 $pc <- $pc + unmunge(OFFSET)
+0xef.f        if $rA[31] == 1 $pc <- $pc + unmunge(OFFSET)
 
-R: relative jump. Set to 0 for absolute jump, if set to 1, PC-relative jump
+OFFSET is sign-extended to 31 bits, shifted left by one before addition.
 
 Form C (group CB):
 
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-|       C       |       B       | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |  |                                                            OFFSET                                                         | R |
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+|       C       |       B       | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |  |                          OFFSET                               |
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   FIELD
   CBAD        OP_CODE                             OPERATION
 --------------------------------------------------------------
-0x0.ff        PC [+]= OFFSET IF R_A[0] == 0
-0x1.ff        PC [+]= OFFSET IF R_A[1] == 0
-0x2.ff        PC [+]= OFFSET IF R_A[2] == 0
-0x3.ff        PC [+]= OFFSET IF R_A[3] == 0
-0x4.ff        PC [+]= OFFSET IF R_A[4] == 0
-0x5.ff        PC [+]= OFFSET IF R_A[5] == 0
-0x6.ff        PC [+]= OFFSET IF R_A[6] == 0
-0x7.ff        PC [+]= OFFSET IF R_A[7] == 0
-0x8.ff        PC [+]= OFFSET IF R_A[8] == 0
-0x9.ff        PC [+]= OFFSET IF R_A[9] == 0
-0xa.ff        PC [+]= OFFSET IF R_A[a] == 0
-0xb.ff        PC [+]= OFFSET IF R_A[b] == 0
-0xc.ff        PC [+]= OFFSET IF R_A[c] == 0
-0xd.ff        PC [+]= OFFSET IF R_A[d] == 0
-0xe.ff        PC [+]= OFFSET IF R_A[e] == 0
+0x0.ff        if $rB[0]  == 0 $pc <- $pc + unmunge(OFFSET)
+0x1.ff        if $rB[1]  == 0 $pc <- $pc + unmunge(OFFSET)
+0x2.ff        if $rB[2]  == 0 $pc <- $pc + unmunge(OFFSET)
+0x3.ff        if $rB[3]  == 0 $pc <- $pc + unmunge(OFFSET)
+0x4.ff        if $rB[4]  == 0 $pc <- $pc + unmunge(OFFSET)
+0x5.ff        if $rB[5]  == 0 $pc <- $pc + unmunge(OFFSET)
+0x6.ff        if $rB[6]  == 0 $pc <- $pc + unmunge(OFFSET)
+0x7.ff        if $rB[7]  == 0 $pc <- $pc + unmunge(OFFSET)
+0x8.ff        if $rB[8]  == 0 $pc <- $pc + unmunge(OFFSET)
+0x9.ff        if $rB[9]  == 0 $pc <- $pc + unmunge(OFFSET)
+0xa.ff        if $rB[14] == 0 $pc <- $pc + unmunge(OFFSET)
+0xb.ff        if $rB[15] == 0 $pc <- $pc + unmunge(OFFSET)
+0xc.ff        if $rB[16] == 0 $pc <- $pc + unmunge(OFFSET)
+0xd.ff        if $rB[30] == 0 $pc <- $pc + unmunge(OFFSET)
+0xe.ff        if $rB[31] == 0 $pc <- $pc + unmunge(OFFSET)
 
-R: relative jump. Set to 0 for absolute jump, if set to 1, PC-relative jump
+OFFSET is sign-extended to 31 bits, shifted left by one before addition.
 
-NOTE: over- and under-flows wrap during relative address calculations.
-NOTE: in the branch predictor, relative jumps with negative OFFSET VALUE can be assumed to be taken by default. Compilers are encouraged to encode back-edges of loops in this encoding to improve
-      branch prediction.
+NOTE: in the branch predictor, relative jumps with negative OFFSET VALUE can be assumed to be taken by default.
+      Compilers are encouraged to encode back-edges of loops in this encoding to improve branch prediction.
 
 Load/Store
 ----------
 
-Form A (parts of group BAD): Load/store R_D from [R_B]
+Form A: Indirect load/store
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 | 1 | 1 | 1 | 1 | 0 |    SOP    |       A       |       D       |
@@ -409,20 +379,64 @@ Form A (parts of group BAD): Load/store R_D from [R_B]
 
   INST        OP_CODE                   OPERATION
 --------------------------------------------------------------
-0xf0..        SR_D = MEM8[R_A]          8-bit signed load from MEM[R_A] into R_D
-0xf1..        R_D = MEM8[R_A]           8-bit unsigned load from MEM[R_A] into R_D
-0xf2..        SR_D = MEM16[R_A]         16-bit signed load from MEM[R_A] into R_D
-0xf3..        R_D = MEM16[R_A]          16-bit unsigned load from MEM[R_A] into R_D
-0xf4..        R_D = MEM[32][R_A]        32-bit load from MEM[R_A] into R_D
-0xf5..        MEM8[R_A] = R_D           8-bit store to MEM[R_A] from R_D
-0xf6..        MEM16[R_A] = R_D          16-bit store to MEM[R_A] from R_D
-0xf7..        MEM[32][R_A] = R_D        32-bit store to MEM[R_A] from R_D
+0xf0..        $srD <- MEM8[$rA]          8-bit signed load from MEM[$rA] into $rD
+0xf1..        $rD <- MEM8[$rA]           8-bit unsigned load from MEM[$rA] into $rD
+0xf2..        $srD <- MEM16[$rA]         16-bit signed load from MEM[$rA] into $rD
+0xf3..        $rD <- MEM16[$rA]          16-bit unsigned load from MEM[$rA] into $rD
+0xf4..        $rD <- MEM[32][$rA]        32-bit load from MEM[$rA] into $rD
+0xf5..        MEM8[$rA] <- $rD           8-bit store to MEM[$rA] from $rD
+0xf6..        MEM16[$rA] <- $rD          16-bit store to MEM[$rA] from $rD
+0xf7..        MEM[32][$rA] <- $rD        32-bit store to MEM[$rA] from $rD
 
-NOTE: op-codes with D=0xf have confusing decode: on the one hand, they would logically mean load/store from MEM[R_A] to TPC. On the other, since the D field is 0xf, they would
-      signal a 48-bit instruction. To resolve this problem - and leave instruction length decode simple - these operations generate an SII
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+| 1 | 1 | 1 | 1 | 0 |    SOP    |       A       | 1 | 1 | 1 | 1 |
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+| 1 | 1 | 1 | 1 | 0 |    SOP    | 1 | 1 | 1 | 1 |       D       |
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+| 1 | 1 | 1 | 1 | 0 |    SOP    | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
+SII
 
-Form C (parts of group BD, group ., group D and group B): Load/store R_D from [VALUE]
+Form D: Inidirect offset load/store
+
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+| 1 | 1 | 1 | 1 | 1 |    SOP    |       A       |       D       |  |                           VALUE                               |
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  INST        OP_CODE                         OPERATION
+--------------------------------------------------------------
+0xf8..        $srD = MEM8[$rA+VALUE]          8-bit signed load from MEM[$rA+VALUE] into $rD
+0xf9..        $rD <- MEM8[$rA+VALUE]          8-bit unsigned load from MEM[$rA+VALUE] into $rD
+0xfa..        $srD = MEM16[$rA+VALUE]         16-bit signed load from MEM[$rA+VALUE] into $rD
+0xfb..        $rD <- MEM16[$rA+VALUE]         16-bit unsigned load from MEM[$rA+VALUE] into $rD
+0xfc..        $rD <- MEM[32][$rA+VALUE]       32-bit load from MEM[$rA+VALUE] into $rD
+0xfd..        MEM8[$rA+VALUE] = $rD           8-bit store to MEM[$rA+VALUE] from $rD
+0xfe..        MEM16[$rA+VALUE] = $rD          16-bit store to MEM[$rA+VALUE] from $rD
+0xff..        MEM[32][$rA+VALUE] = $rD        32-bit store to MEM[$rA+VALUE] from $rD
+
+NOTE: VALUE is sign-extended before addition
+
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+| 1 | 1 | 1 | 1 | 1 |    SOP    |       A       | 1 | 1 | 1 | 1 |  |                           VALUE                               |
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  INST        OP_CODE                         OPERATION
+--------------------------------------------------------------
+0xf8.f        SII
+0xf9.f        SII
+0xfa.f        SII
+0xfb.f        SII
+0xfc.f        $pc <- MEM[32][$rA+VALUE]       32-bit load from MEM[$rA+VALUE] into PC
+0xfd.f        SII
+0xfe.f        SII
+0xff.f        SII
+
+NOTE: VALUE is sign-extended before addition
+
+Form C: Direct load/store
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 | 1 | 1 | 1 | 1 | 1 |    SOP    | 1 | 1 | 1 | 1 |       D       |  |                                                             VALUE                                                             |
@@ -430,133 +444,79 @@ Form C (parts of group BD, group ., group D and group B): Load/store R_D from [V
 
   INST        OP_CODE                   OPERATION
 --------------------------------------------------------------
-0xf8f.        SR_D = MEM8[VALUE]       8-bit signed load from MEM[VALUE] into R_D
-0xf8ff        STPC = MEM8[VALUE]        8-bit signed load from MEM[VALUE] into TPC <-- NO GAS SUPPORT AT THE MOMENT!!!!
-0xf9f.        R_D = MEM8[VALUE]         8-bit unsigned load from MEM[VALUE] into R_D
-0xf9ff        TPC = MEM8[VALUE]         8-bit unsigned load from MEM[VALUE] into TPC
-0xfaf.        SR_D = MEM16[VALUE]       16-bit signed load from MEM[VALUE] into R_D
-0xfaff        STPC = MEM16[VALUE]       16-bit signed load from MEM[VALUE] into TPC <-- NO GAS SUPPORT AT THE MOMENT!!!!
-0xfbf.        R_D = MEM16[VALUE]        16-bit unsigned load from MEM[VALUE] into R_D
-0xfbff        TPC = MEM16[VALUE]        16-bit unsigned load from MEM[VALUE] into TPC
-0xfcf.        R_D = MEM[32][VALUE]      32-bit load from MEM[VALUE] into R_D
-0xfcff        TPC = MEM[32][VALUE]      32-bit load from MEM[VALUE] into TPC
-0xfdf.        MEM8[VALUE] = R_D         8-bit store to MEM[VALUE] from R_D
-0xfdff        MEM8[VALUE] = TPC         8-bit store to MEM[VALUE] from TPC
-0xfef.        MEM16[VALUE] = R_D        16-bit store to MEM[VALUE] from R_D
-0xfeff        MEM16[VALUE] = TPC        16-bit store to MEM[VALUE] from TPC
-0xfff.        MEM[32][VALUE] = R_D      32-bit store to MEM[VALUE] from R_D
-0xffff        MEM[32][VALUE] = TPC      32-bit store to MEM[VALUE] from TPC
-
-
-Form D (parts of group BAD, group BA, group AD and group A): Load/store R_D from [VALUE+R_B]
+0xf8f.        $srD <- MEM8[VALUE]       8-bit signed load from MEM[VALUE] into $rD
+0xf9f.        $rD <- MEM8[VALUE]        8-bit unsigned load from MEM[VALUE] into $rD
+0xfaf.        $srD = MEM16[VALUE]       16-bit signed load from MEM[VALUE] into $rD
+0xfbf.        $rD <- MEM16[VALUE]       16-bit unsigned load from MEM[VALUE] into $rD
+0xfcf.        $rD <- MEM[32][VALUE]     32-bit load from MEM[VALUE] into $rD
+0xfdf.        MEM8[VALUE] = $rD         8-bit store to MEM[VALUE] from $rD
+0xfef.        MEM16[VALUE] = $rD        16-bit store to MEM[VALUE] from $rD
+0xfff.        MEM[32][VALUE] = $rD      32-bit store to MEM[VALUE] from $rD
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-| 1 | 1 | 1 | 1 | 1 |    SOP    |       A       |       D       |  |                                                             VALUE                                                             |
+| 1 | 1 | 1 | 1 | 1 |    SOP    | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |  |                                                             VALUE                                                             |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-  INST        OP_CODE                         OPERATION
+  INST        OP_CODE                   OPERATION
 --------------------------------------------------------------
-0xf8..        SR_D = MEM8[R_A+VALUE]         8-bit signed load from MEM[R_A+VALUE] into R_D
-0xf8.f        STPC = MEM8[R_A+VALUE]          8-bit signed load from MEM[R_A+VALUE] into TPC <-- NO GAS SUPPORT AT THE MOMENT!!!!
-0xf9..        R_D = MEM8[R_A+VALUE]           8-bit unsigned load from MEM[R_A+VALUE] into R_D
-0xf9.f        TPC = MEM8[R_A+VALUE]           8-bit unsigned load from MEM[R_A+VALUE] into TPC
-0xfa..        SR_D = MEM16[R_A+VALUE]         16-bit signed load from MEM[R_A+VALUE] into R_D
-0xfa.f        STPC = MEM16[R_A+VALUE]         16-bit signed load from MEM[R_A+VALUE] into TPC <-- NO GAS SUPPORT AT THE MOMENT!!!!
-0xfb..        R_D = MEM16[R_A+VALUE]          16-bit unsigned load from MEM[R_A+VALUE] into R_D
-0xfb.f        TPC = MEM16[R_A+VALUE]          16-bit unsigned load from MEM[R_A+VALUE] into TPC
-0xfc..        R_D = MEM[32][R_A+VALUE]        32-bit load from MEM[R_A+VALUE] into R_D
-0xfc.f        TPC = MEM[32][R_A+VALUE]        32-bit load from MEM[R_A+VALUE] into TPC
-0xfd..        MEM8[R_A+VALUE] = R_D           8-bit store to MEM[R_A+VALUE] from R_D
-0xfd.f        MEM8[R_A+VALUE] = TPC           8-bit store to MEM[R_A+VALUE] from TPC
-0xfe..        MEM16[R_A+VALUE] = R_D          16-bit store to MEM[R_A+VALUE] from R_D
-0xfe.f        MEM16[R_A+VALUE] = TPC          16-bit store to MEM[R_A+VALUE] from TPC
-0xff..        MEM[32][R_A+VALUE] = R_D        32-bit store to MEM[R_A+VALUE] from R_D
-0xff.f        MEM[32][R_A+VALUE] = TPC        32-bit store to MEM[R_A+VALUE] from TPC
+0xf8ff        SII
+0xf9ff        SII
+0xfaff        SII
+0xfbff        SII
+0xfcff        $pc <- MEM[32][VALUE]      32-bit load from MEM[VALUE] into PC
+0xfdff        SII
+0xfeff        SII
+0xffff        SII
 
-
-NOTE: form A with D==0xf is invalid to simplify instruction (length) decode. This combination generates SII
-      This means that load/store TPC from register offset can only be achieved using fomr D and VALUE==0
-
-
-UNUSED:
--------------------------------
-
-parts of group BA:
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-| 1 | 1 | 1 | 1 | 0 |                           | 1 | 1 | 1 | 1 |  |                                                             VALUE                                                             |
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-group C:
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-|               | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |  |                                                             VALUE                                                             |
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-group CD:
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-|               | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |               |  |                                                             VALUE                                                             |
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-| 1 | 1 | 1 | 1 | 0 |    SOP    | 1 | 1 | 1 | 1 |       D       |  |                                                             VALUE                                                             |
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-
-These generate SII operations to allow for further expansion
-
-INSTRUCTION GROUP SUMMARY:
-==========================
-
-group CBAD: ALU and special function
-group CBD: ALU
-group CAD: ALU
-group CBA: conditional branch
-group CB: bit test branch
-group CA: bit test branch
-group BAD: load/store
-group BA: load/store (some reserved)
-group AD: load/store
-group BD: load/store
-group B: load/store
-group A: load/store
-group D: load/store
-group .: load/store
-group C: reserved
-group CD: reserved
 
 DECODE NOTES:
 =============
 
-Instruction encoding is such that the following condition can be used to determine if the extra 32-bits are needed or not:
+Instruction encoding is such that the following condition can be used to determine if the FIELD_E is needed or not:
   &inst[15:11] | &inst[11:8] | &inst[7:4] | &inst[3:0]
 
-The first read port address of the register file comes from:
-  &inst[15:12] ? inst[3:0] : inst[11:8]
+The size of FIELD_E == 32 if:
+  &inst[15:11] ? &inst[7:4] : (&inst[7:4] & !&inst[3:0])
 
-The second read port address of the register file comes from:
-  inst[7:4]
+The first register file read port address of the register file comes from:
+  FIELD_A
 
-The write port address of the register file comes from:
-  inst[3:0]
-  NOTE: TPC and SPC are special and needs special decoding logic: they are written by all sort of weird combos of bit-fields
+The second register file read port address of the register file comes from:
+  &inst[15:12] | ~|inst[15:8] ? FIELD_D : &inst[11:8] ? FIELD_A : FIELD_B
+
+The register file write port address of the register file comes from:
+  FIELD_D
+  NOTE: TPC and SPC are special and needs special decoding logic: they are written by all sort of weird combos of bit-fields,
+        potentially conditionally in case of conditional branches.
+
+NOTE: these port assignments are rather permissive: in many cases they read values that are then not used by the instruction.
+
+NOTE: the read port logic is a bit asymmetrical: port B has a 3-way mux, while port A has a direct connection to the instruction bits.
+      this can be mitigated - if needed - by pre-decoding the mux selection and store it as an extra 4 bits long with the instruction
+      either in the instruction queue (when reading from ICache) or during ICache line fills.
 
 Branches can be identified by:
-  inst[3:0] == 0x0 | inst[3:0] == 0xf
-  NOTE: this mis-identifies XMOV, WFLUSH and TPC load/stores as branches, but that's a harmless mistake.
+  inst[15:4] = 0x000 | inst[15:4] = 0x002 | (inst[15:12] != 0xf && inst[3:0] == 0xf) | (inst[15:12] == 0x1f && inst[3:0] == 0xf)
+  This formula catches a little more than needed, but the rest are SII operations.
+  There are quite a lot of simplifcations that can be done here which makes the overall formula less scary:
+  ~(|inst[15:6] | inst[4]) | &inst[3:0]
 
 NOTE:
 ========
-CALLs can be implemented by:
-R3 = PC+12    // calculate return address - NEW INSTRUCTION
-[SP+xxx] = R3 // put return address into stack-frame - WOULD BE NEEDED ANYWAY (if link register needs saving)
-SP = SP+xxx   // finalize stack-frame - WOULD BE NEEDED ANYWAY (if any arguments are passed on the stack)
-PC = yyy      // jump to the subroutine - WOULD BE NEEDED ANYWAY
+CALLs use link registers:
+$r2 <- $pc+<offset>
+$pc <- <callee>
 
-// return:
-R3 = [SP]     // load return address - WOULD BE NEEDED ANYWAY (if link register needs saving)
-SP = SP-xxx   // free stack-frame - WOULD BE NEEDED ANYWAY
-PC = R3       // return - WOULD BE NEEDED ANYWAY
+<offset> could be 8, 6 or 4, depending on the encoding size of the call.
 
-Notice how this is only one instructions longer than the link approach as the stack-adjustment and the save/restore of the link register
-would be there in most cases anyways.
+Upon entry callee saves $r2 if needed (along with all other callee-saved registers per the ABI)
+Upon return, all saved registers (including $r2) are restored, then:
+
+RETURN:
+$pc <- $r2
+
+Notice how this is only one instructions longer than the traditional link approach as the
+stack-adjustment and the save/restore of the link register would be there in most cases anyways.
+The splitting of the link into two instruction allows us to not have two forms of all possible
+branches, and so all possible branches *can* be calls as well.
 
