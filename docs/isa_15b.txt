@@ -161,7 +161,7 @@ Unary group:
 0x0b..             $frD <- 1 / $frA
 0x0c..             $frD <- RSQRT $frA
 0x0d..             $rD <- $pc + FIELD_A*2          Link register preparation for calls. FIELD_A is zero-extended to 31 bits and shifted left by 1 before addition.
-0x0e..             SII                             TODO: maybe this should be zero-extend word?
+0x0e..             $rD <- FIELD_A - 7              TODO: maybe this should be zero-extend word? <-------- THIS IS NEW!!!!!
 
 0x1...             $rD <- $rA ^ $rB
 0x2...             $rD <- $rA | $rB
