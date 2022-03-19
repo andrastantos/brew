@@ -32,6 +32,8 @@ __pycache__
 *.trace
 *.elf
 *.map
+*.dmp
+*.out
 
 .deps
 .libs
