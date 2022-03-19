@@ -41,7 +41,7 @@
  *       Results appended to a text file (Linpack.txt)
  *
  *  Roy Longbottom  101323.2241@compuserve.com    14 September 1996
- * 
+ *
  ************************************************************************
  *
  *                             Timing
@@ -96,9 +96,9 @@
  *       10 times   0.71 seconds
  *       20 times   1.38 seconds
  *       40 times   2.80 seconds
- *       80 times   5.66 seconds      
+ *       80 times   5.66 seconds
  *
- *      Passes used         70 
+ *      Passes used         70
  *
  *  This is followed by output of the normal data for dgefa, dges1,
  *  total, Mflops, unit and ratio with five sets of results for each.
@@ -120,10 +120,10 @@
  * OptLevel          -zp4 -otexan -fp5 -5r -dDP -dROLL
  * Run by            Roy Longbottom
  * From              UK
- * Mail              101323.2241@compuserve.com 
+ * Mail              101323.2241@compuserve.com
  *
- * Rolling            Rolled 
- * Precision          Double 
+ * Rolling            Rolled
+ * Precision          Double
  * norm. resid                     0.4
  * resid               7.41628980e-014
  * machep              1.00000000e-015             (8.88178420e-016 NON OPT)
@@ -153,7 +153,7 @@
  *
  *                     Examples of Results
  *
- *  Precompiled codes were produced via a Watcom C/C++ 10.5 compiler. 
+ *  Precompiled codes were produced via a Watcom C/C++ 10.5 compiler.
  *  Versions are available for DOS, Windows 3/95 and NT/Win 95. Both
  *  non-optimised and optimised programs are available. The latter has
  *  options as in the above example. Although these options can place
@@ -183,17 +183,17 @@
  *   80486DX2    66     128K    2.3     1.9   Escom SIS chipset       NT/W95
  *   80486DX2    66     128K    2.8     2.0   Escom SIS chipset      Dos/Dos
  *   Pentium    100     256K    11      4.2   Escom Neptune chipset  Win/W95
- *   Pentium    100     256K    11      5.5   Escom Neptune chipset   NT/W95 
+ *   Pentium    100     256K    11      5.5   Escom Neptune chipset   NT/W95
  *   Pentium    100     256K    12      4.4   Escom Neptune chipset  Dos/Dos
  *
  *  The results are as produced when compiled as Linpack.cpp. Compiling as
  *  Linpack.c gives similar speeds but the code is a little different.
- * 
+ *
  ***************************************************************************
 */
 
 /* Include -dDP or -dSP and -dROLL or -dUNROLL */
- 
+
 
 #define UNROLL
 #define DP
@@ -220,7 +220,7 @@
 #endif
 
  /*COMPILER COMPILER COMPILER COMPILER COMPILER COMPILER COMPILER*/
-               
+
  #ifdef COW
     #define compiler  "Watcom C/C++ 10.5 Win386"
     #define options   "  -otexan -zp8 -fp5 -5r"
@@ -258,13 +258,11 @@
 
 #include <stdio.h>
 #include <math.h>
-#include <conio.h>
+//#include <conio.h>
 #include <stdlib.h>
 
 
 static REAL atime[9][15];
-static char this_month;
-static int this_year;
 
 void print_time (int row);
 void matgen (REAL a[], int lda, int n, REAL b[], REAL *norma);
@@ -280,7 +278,7 @@ REAL ddot (int n, REAL dx[], int incx, REAL dy[], int incy);
 /* TIME TIME TIME TIME TIME TIME TIME TIME TIME TIME TIME TIME TIME */
    #include <time.h>  /* for following time functions only */
    REAL second()
-     {        
+     {
         REAL secs;
         clock_t Time;
         Time = clock();
@@ -288,29 +286,9 @@ REAL ddot (int n, REAL dx[], int incx, REAL dy[], int incy);
         return secs ;
      }
 
-/* DATE DATE DATE DATE DATE DATE DATE DATE DATE DATE DATE DATE DATE */
-   #include <dos.h>   /* for following date functions only */
-   void what_date()
-     {
-         /*   Watcom   */         
-         struct dosdate_t adate;
-         _dos_getdate( &adate );
-         this_month = adate.month;
-         this_year = adate.year;
-         
-         /*   Borland
-         struct date adate;
-         getdate( &adate );
-         this_month = adate.da_mon;
-         this_year = adate.da_year;
-         */         
-         return;
-     }
-
-
-main (int argc, char *argv[])
+void main (int argc, char *argv[])
 {
-        static REAL aa[200*200],a[200*201],b[200],x[200];       
+        static REAL aa[200*200],a[200*201],b[200],x[200];
         REAL cray,ops,total,norma,normx;
         REAL resid,residn,eps,t1,tm2,epsn,x1,x2;
         REAL mflops;
@@ -318,53 +296,26 @@ main (int argc, char *argv[])
         int endit, pass, loop;
         REAL overhead1, overhead2, time1, time2;
         FILE    *outfile;
-        char general[9][80] = {" "};
-        int  getinput = 1;
- 
-        if (argc > 1)
-         {
-           switch (argv[1][0])
-            {
-                case 'N':
-                   getinput = 0;
-                   break;
-                case 'n':
-                   getinput = 0;
-                   break;
-            }
-         }
-         
-        outfile = fopen("Linpack.txt","a+");
+
+        outfile = fopen("linpack.txt","wt");
         if (outfile == NULL)
         {
             printf ("Cannot open results file \n\n");
             printf("Press any key\n");
-            endit = getch();
             exit (0);
         }
 
 /************************************************************************
  *           Enter details of compiler and options used                 *
  ************************************************************************/
-    
+
         lda = 201;
         ldaa = 200;
-        cray = .056; 
+        cray = .056;
         n = 100;
 
         fprintf(stdout,ROLLING);fprintf(stdout,PREC);
         fprintf(stdout,"Precision Linpack Benchmark - PC Version in 'C/C++'\n\n");
-        if (getinput == 0)
-         {
-            printf ("No run time input data\n\n");
-         }
-        else
-         {
-            printf ("With run time input data\n\n");
-         }
-
-        fprintf(stdout,"Compiler     %s\n",compiler);
-        fprintf(stdout,"Optimisation %s\n\n",options);
 
         ops = (2.0e0*(n*n*n))/3.0 + 2.0*(n*n);
 
@@ -377,7 +328,7 @@ main (int argc, char *argv[])
         atime[1][0] = second() - t1;
         total = atime[0][0] + atime[1][0];
 
-/*     compute a residual to verify results.  */ 
+/*     compute a residual to verify results.  */
 
         for (i = 0; i < n; i++) {
                 x[i] = b[i];
@@ -390,9 +341,9 @@ main (int argc, char *argv[])
         resid = 0.0;
         normx = 0.0;
         for (i = 0; i < n; i++) {
-                resid = (resid > fabs((double)b[i])) 
+                resid = (resid > fabs((double)b[i]))
                         ? resid : fabs((double)b[i]);
-                normx = (normx > fabs((double)x[i])) 
+                normx = (normx > fabs((double)x[i]))
                         ? normx : fabs((double)x[i]);
         }
         eps = epslon(ONE);
@@ -400,11 +351,11 @@ main (int argc, char *argv[])
         epsn = eps;
         x1 = x[0] - 1;
         x2 = x[n-1] - 1;
-        
+
         printf("norm resid      resid           machep");
         printf("         x[0]-1          x[n-1]-1\n");
         printf("%6.1f %17.8e%17.8e%17.8e%17.8e\n\n",
-               (double)residn, (double)resid, (double)epsn, 
+               (double)residn, (double)resid, (double)epsn,
                (double)x1, (double)x2);
 
         fprintf(stderr,"Times are reported for matrices of order        %5d\n",n);
@@ -424,20 +375,20 @@ main (int argc, char *argv[])
             atime[4][0] = 0.0;
         }
         atime[5][0] = total/cray;
-       
+
         print_time(0);
 
 /************************************************************************
  *       Calculate overhead of executing matgen procedure              *
  ************************************************************************/
-       
+
         fprintf (stderr,"\nCalculating matgen overhead\n");
         pass = -20;
         loop = NTIMES;
         do
         {
             time1 = second();
-            pass = pass + 1;        
+            pass = pass + 1;
             for ( i = 0 ; i < loop ; i++)
             {
                  matgen(a,lda,n,b,&norma);
@@ -462,7 +413,7 @@ main (int argc, char *argv[])
             }
         }
         while (pass < 0);
-        
+
         overhead1 = overhead1 / (double)loop;
 
         fprintf (stderr,"Overhead for 1 matgen %12.5f seconds\n\n", overhead1);
@@ -470,14 +421,14 @@ main (int argc, char *argv[])
 /************************************************************************
  *           Calculate matgen/dgefa passes for 5 seconds                *
  ************************************************************************/
-       
+
         fprintf (stderr,"Calculating matgen/dgefa passes for 5 seconds\n");
         pass = -20;
         ntimes = NTIMES;
         do
         {
             time1 = second();
-            pass = pass + 1;        
+            pass = pass + 1;
             for ( i = 0 ; i < ntimes ; i++)
             {
                 matgen(a,lda,n,b,&norma);
@@ -502,25 +453,25 @@ main (int argc, char *argv[])
             }
         }
         while (pass < 0);
-        
+
         ntimes =  5.0 * (double)ntimes / time2;
         if (ntimes == 0) ntimes = 1;
 
         fprintf (stderr,"Passes used %10d \n\n", ntimes);
         fprintf(stderr,"Times for array with leading dimension of%4d\n\n",lda);
         fprintf(stderr,"      dgefa      dgesl      total     Mflops       unit");
-        fprintf(stderr,"      ratio\n");        
+        fprintf(stderr,"      ratio\n");
 
 /************************************************************************
  *                              Execute 5 passes                        *
  ************************************************************************/
-      
+
         tm2 = ntimes * overhead1;
         atime[3][6] = 0;
 
         for (j=1 ; j<6 ; j++)
         {
-        
+
             t1 = second();
 
             for (i = 0; i < ntimes; i++)
@@ -531,8 +482,8 @@ main (int argc, char *argv[])
 
             atime[0][j] = (second() - t1 - tm2)/ntimes;
 
-            t1 = second();      
-        
+            t1 = second();
+
             for (i = 0; i < ntimes; i++)
             {
                 dgesl(a,lda,n,ipvt,b,0);
@@ -545,28 +496,28 @@ main (int argc, char *argv[])
             atime[4][j] = 2.0/atime[3][j];
             atime[5][j] = total/cray;
             atime[3][6] = atime[3][6] + atime[3][j];
-            
+
             print_time(j);
         }
         atime[3][6] = atime[3][6] / 5.0;
         fprintf (stderr,"Average                          %11.2f\n",
-                                               (double)atime[3][6]);        
-        
+                                               (double)atime[3][6]);
+
         fprintf (stderr,"\nCalculating matgen2 overhead\n");
 
 /************************************************************************
  *             Calculate overhead of executing matgen procedure         *
  ************************************************************************/
 
-        time1 = second();        
+        time1 = second();
         for ( i = 0 ; i < loop ; i++)
         {
-            matgen(aa,ldaa,n,b,&norma);    
+            matgen(aa,ldaa,n,b,&norma);
         }
         time2 = second();
         overhead2 = (time2 - time1);
         overhead2 = overhead2 / (double)loop;
-        
+
         fprintf (stderr,"Overhead for 1 matgen %12.5f seconds\n\n", overhead2);
         fprintf(stderr,"Times for array with leading dimension of%4d\n\n",ldaa);
         fprintf(stderr,"      dgefa      dgesl      total     Mflops       unit");
@@ -575,13 +526,13 @@ main (int argc, char *argv[])
 /************************************************************************
  *                              Execute 5 passes                        *
  ************************************************************************/
-              
+
         tm2 = ntimes * overhead2;
         atime[3][12] = 0;
 
         for (j=7 ; j<12 ; j++)
         {
-        
+
             t1 = second();
 
             for (i = 0; i < ntimes; i++)
@@ -592,8 +543,8 @@ main (int argc, char *argv[])
 
             atime[0][j] = (second() - t1 - tm2)/ntimes;
 
-            t1 = second();      
-        
+            t1 = second();
+
             for (i = 0; i < ntimes; i++)
             {
                 dgesl(aa,ldaa,n,ipvt,b,0);
@@ -609,114 +560,65 @@ main (int argc, char *argv[])
 
             print_time(j);
         }
-        atime[3][12] = atime[3][12] / 5.0; 
+        atime[3][12] = atime[3][12] / 5.0;
         fprintf (stderr,"Average                          %11.2f\n",
-                                              (double)atime[3][12]);  
+                                              (double)atime[3][12]);
 
 /************************************************************************
  *           Use minimum average as overall Mflops rating               *
  ************************************************************************/
-      
+
         mflops = atime[3][6];
         if (atime[3][12] < mflops) mflops = atime[3][12];
-       
+
         fprintf(stderr,"\n");
         fprintf(stderr,ROLLING);fprintf(stderr,PREC);
         fprintf(stderr," Precision %11.2f Mflops \n\n",mflops);
-
-        what_date();
 
 /************************************************************************
  *             Type details of hardware, software etc.                  *
  ************************************************************************/
 
-   if (getinput == 1)
-     {
-        printf ("Enter the following which will be added with results to file LINPACK.TXT\n");
-        printf ("When submitting a number of results you need only provide details once\n");
-        printf ("but a cross reference such as an abbreviated CPU type would be useful.\n");    
-        printf ("You can kill (exit or close) the program now and no data will be added.\n\n");
-                
-        printf ("PC Supplier/model     ? ");
-        gets(general[1]);
-    
-        printf ("CPU chip              ? ");
-        gets(general[2]);
-    
-        printf ("Clock MHz             ? ");
-        gets(general[3]);
-     
-        printf ("Cache size            ? ");
-        gets(general[4]);
-     
-        printf ("Chipset & H/W options ? ");
-        gets(general[5]);
-      
-        printf ("OS/DOS version        ? ");
-        gets(general[6]);
-        
-        printf ("Your name             ? ");
-        gets(general[7]);
-     
-        printf ("Company/Location      ? ");
-        gets(general[8]);
-     
-        printf ("E-mail address        ? ");
-        gets(general[0]);
-     }
-
 /************************************************************************
  *              Add results to output file LLloops.txt                  *
  ************************************************************************/
-            
+
     fprintf (outfile, "----------------- ----------------- --------- "
                       "--------- ---------\n");
     fprintf (outfile, "LINPACK BENCHMARK FOR PCs 'C/C++'    n @ 100\n\n");
-    fprintf (outfile, "Month run         %d/%d\n", this_month, this_year);
-    fprintf (outfile, "PC model          %s\n", general[1]);
-    fprintf (outfile, "CPU               %s\n", general[2]);
-    fprintf (outfile, "Clock MHz         %s\n", general[3]);
-    fprintf (outfile, "Cache             %s\n", general[4]);
-    fprintf (outfile, "Options           %s\n", general[5]);
-    fprintf (outfile, "OS/DOS            %s\n", general[6]);
-    fprintf (outfile, "Compiler          %s\n", compiler);
-    fprintf (outfile, "OptLevel          %s\n", options);
-    fprintf (outfile, "Run by            %s\n", general[7]);
-    fprintf (outfile, "From              %s\n", general[8]);
-    fprintf (outfile, "E-mail            %s\n\n", general[0]);
-    
+
     fprintf(outfile, "Rolling            %s\n",ROLLING);
-    fprintf(outfile, "Precision          %s\n",PREC); 
+    fprintf(outfile, "Precision          %s\n",PREC);
     fprintf(outfile, "norm. resid        %16.1f\n",(double)residn);
     fprintf(outfile, "resid              %16.8e\n",(double)resid);
     fprintf(outfile, "machep             %16.8e\n",(double)epsn);
     fprintf(outfile, "x[0]-1             %16.8e\n",(double)x1);
     fprintf(outfile, "x[n-1]-1           %16.8e\n",(double)x2);
     fprintf(outfile, "matgen 1 seconds   %16.5f\n",overhead1);
-    fprintf(outfile, "matgen 2 seconds   %16.5f\n",overhead2); 
+    fprintf(outfile, "matgen 2 seconds   %16.5f\n",overhead2);
     fprintf(outfile, "Repetitions        %16d\n",ntimes);
-    fprintf(outfile, "Leading dimension  %16d\n",lda);  
+    fprintf(outfile, "Leading dimension  %16d\n",lda);
     fprintf(outfile, "                              dgefa     dgesl "
                      "    total    Mflops\n");
     fprintf(outfile, "1 pass seconds     %16.5f %9.5f %9.5f\n",
                       atime[0][0], atime[1][0], atime[2][0]);
-                      
+
     for (i=1 ; i<6 ; i++)
-    {                 
-        fprintf(outfile, "Repeat seconds     %16.5f %9.5f %9.5f %9.2f\n",                
+    {
+        fprintf(outfile, "Repeat seconds     %16.5f %9.5f %9.5f %9.2f\n",
                        atime[0][i], atime[1][i], atime[2][i], atime[3][i]);
     }
     fprintf(outfile, "Average            %46.2f\n",atime[3][6]);
-    
+
     fprintf(outfile, "Leading dimension  %16d\n",ldaa);
-     
+
     for (i=7 ; i<12 ; i++)
-    {                 
-        fprintf(outfile, "Repeat seconds     %16.5f %9.5f %9.5f %9.2f\n",                
+    {
+        fprintf(outfile, "Repeat seconds     %16.5f %9.5f %9.5f %9.2f\n",
                        atime[0][i], atime[1][i], atime[2][i], atime[3][i]);
     }
-    fprintf(outfile, "Average            %46.2f\n\n",atime[3][12]); 
-    
+    fprintf(outfile, "Average            %46.2f\n\n",atime[3][12]);
+
     fclose (outfile);
     printf ("\n");
     printf ("A new results file will have been created in the same directory as the\n");
@@ -726,26 +628,19 @@ main (int argc, char *argv[])
     printf ("you may wish to rename LINPACK.TXT with a more informative title.\n\n");
     printf ("Please submit feedback and results files as a posting in Section 12\n");
     printf ("or to Roy_Longbottom@compuserve.com\n\n");
-
-    if (getinput == 1)
-     {
-        printf("Press any key to exit\n");
-        endit = getch();
-        printf ("\nIf this is displayed you must close the window in the normal way\n");    
-     }
 }
-     
-/*----------------------*/ 
+
+/*----------------------*/
 void print_time (int row)
 
 {
 fprintf(stderr,"%11.5f%11.5f%11.5f%11.2f%11.4f%11.4f\n",   (double)atime[0][row],
-       (double)atime[1][row], (double)atime[2][row], (double)atime[3][row], 
+       (double)atime[1][row], (double)atime[2][row], (double)atime[3][row],
        (double)atime[4][row], (double)atime[5][row]);
        return;
 }
-      
-/*----------------------*/ 
+
+/*----------------------*/
 
 void matgen (REAL a[], int lda, int n, REAL b[], REAL *norma)
 
@@ -761,9 +656,9 @@ function, references to a[i][j] are written a[lda*i+j].  */
         for (j = 0; j < n; j++) {
                 for (i = 0; i < n; i++) {
                         init = 3125*init % 65536;
-                        a[lda*j+i] = (init - 32768.0)/16384.0;                        
+                        a[lda*j+i] = (init - 32768.0)/16384.0;
                         *norma = (a[lda*j+i] > *norma) ? a[lda*j+i] : *norma;
-                        
+
                         /* alternative for some compilers
                         if (fabs(a[lda*j+i]) > *norma) *norma = fabs(a[lda*j+i]);
                         */
@@ -780,7 +675,7 @@ function, references to a[i][j] are written a[lda*i+j].  */
         return;
 }
 
-/*----------------------*/ 
+/*----------------------*/
 void dgefa(REAL a[], int lda, int n, int ipvt[], int *info)
 
 
@@ -851,7 +746,7 @@ int j,k,kp1,l,nm1;
                         l = idamax(n-k,&a[lda*k+k],1) + k;
                         ipvt[k] = l;
 
-                        /* zero pivot implies this column already 
+                        /* zero pivot implies this column already
                            triangularized */
 
                         if (a[lda*k+l] != ZERO) {
@@ -861,7 +756,7 @@ int j,k,kp1,l,nm1;
                                 if (l != k) {
                                         t = a[lda*k+l];
                                         a[lda*k+l] = a[lda*k+k];
-                                        a[lda*k+k] = t; 
+                                        a[lda*k+k] = t;
                                 }
 
                                 /* compute multipliers */
@@ -879,19 +774,19 @@ int j,k,kp1,l,nm1;
                                         }
                                         daxpy(n-(k+1),t,&a[lda*k+k+1],1,
                                               &a[lda*j+k+1],1);
-                                } 
+                                }
                         }
-                        else { 
+                        else {
                                 *info = k;
                         }
-                } 
+                }
         }
         ipvt[n-1] = n-1;
         if (a[lda*(n-1)+(n-1)] == ZERO) *info = n-1;
         return;
 }
 
-/*----------------------*/ 
+/*----------------------*/
 
 void dgesl(REAL a[],int lda,int n,int ipvt[],REAL b[],int job )
 
@@ -970,13 +865,13 @@ function, references to a[i][j] are written a[lda*i+j].  */
                         for (k = 0; k < nm1; k++) {
                                 l = ipvt[k];
                                 t = b[l];
-                                if (l != k){ 
+                                if (l != k){
                                         b[l] = b[k];
                                         b[k] = t;
-                                }       
+                                }
                                 daxpy(n-(k+1),t,&a[lda*k+k+1],1,&b[k+1],1 );
                         }
-                } 
+                }
 
                 /* now solve  u*x = y */
 
@@ -987,7 +882,7 @@ function, references to a[i][j] are written a[lda*i+j].  */
                     daxpy(k,t,&a[lda*k+0],1,&b[0],1 );
                 }
         }
-        else { 
+        else {
 
                 /* job = nonzero, solve  trans(a) * x = b
                    first solve  trans(u)*y = b                  */
@@ -1015,7 +910,7 @@ function, references to a[i][j] are written a[lda*i+j].  */
         return;
 }
 
-/*----------------------*/ 
+/*----------------------*/
 
 void daxpy(int n, REAL da, REAL dx[], int incx, REAL dy[], int incy)
 /*
@@ -1045,13 +940,13 @@ void daxpy(int n, REAL da, REAL dx[], int incx, REAL dy[], int incy)
                         dy[iy] = dy[iy] + da*dx[ix];
                         ix = ix + incx;
                         iy = iy + incy;
-                     
+
                 }
                 return;
         }
-        
+
         /* code for both increments equal to 1 */
-        
+
 
 #ifdef ROLL
 
@@ -1066,9 +961,9 @@ void daxpy(int n, REAL da, REAL dx[], int incx, REAL dy[], int incy)
 
         m = n % 4;
         if ( m != 0) {
-                for (i = 0; i < m; i++) 
+                for (i = 0; i < m; i++)
                         dy[i] = dy[i] + da*dx[i];
-                        
+
                 if (n < 4) return;
         }
         for (i = m; i < n; i = i + 4) {
@@ -1076,14 +971,14 @@ void daxpy(int n, REAL da, REAL dx[], int incx, REAL dy[], int incy)
                 dy[i+1] = dy[i+1] + da*dx[i+1];
                 dy[i+2] = dy[i+2] + da*dx[i+2];
                 dy[i+3] = dy[i+3] + da*dx[i+3];
-                
+
         }
 
 #endif
 return;
 }
-   
-/*----------------------*/ 
+
+/*----------------------*/
 
 REAL ddot(int n, REAL dx[], int incx, REAL dy[], int incy)
 /*
@@ -1115,7 +1010,7 @@ REAL ddot(int n, REAL dx[], int incx, REAL dy[], int incy)
                         dtemp = dtemp + dx[ix]*dy[iy];
                         ix = ix + incx;
                         iy = iy + incy;
-                       
+
                 }
                 return(dtemp);
         }
@@ -1127,7 +1022,7 @@ REAL ddot(int n, REAL dx[], int incx, REAL dy[], int incy)
 
         for (i=0;i < n; i++)
                 dtemp = dtemp + dx[i]*dy[i];
-               
+
         return(dtemp);
 
 #endif
@@ -1152,7 +1047,7 @@ REAL ddot(int n, REAL dx[], int incx, REAL dy[], int incy)
 
 }
 
-/*----------------------*/ 
+/*----------------------*/
 void dscal(int n, REAL da, REAL dx[], int incx)
 
 /*     scales a vector by a constant.
@@ -1173,7 +1068,7 @@ void dscal(int n, REAL da, REAL dx[], int incx)
                 nincx = n*incx;
                 for (i = 0; i < nincx; i = i + incx)
                         dx[i] = da*dx[i];
-                        
+
                 return;
         }
 
@@ -1184,7 +1079,7 @@ void dscal(int n, REAL da, REAL dx[], int incx)
 
         for (i = 0; i < n; i++)
                 dx[i] = da*dx[i];
-                
+
 
 #endif
 
@@ -1209,7 +1104,7 @@ void dscal(int n, REAL da, REAL dx[], int incx)
 
 }
 
-/*----------------------*/ 
+/*----------------------*/
 int idamax(int n, REAL dx[], int incx)
 
 /*
@@ -1255,7 +1150,7 @@ int idamax(int n, REAL dx[], int incx)
         return (itemp);
 }
 
-/*----------------------*/ 
+/*----------------------*/
 REAL epslon (REAL x)
 
 /*
@@ -1269,11 +1164,11 @@ REAL epslon (REAL x)
      satisfying the following two assumptions,
         1.  the base used in representing dfloating point
             numbers is not a power of three.
-        2.  the quantity  a  in statement 10 is represented to 
+        2.  the quantity  a  in statement 10 is represented to
             the accuracy used in dfloating point variables
             that are stored in memory.
      the statement number 10 and the go to 10 are intended to
-     force optimizing compilers to generate code satisfying 
+     force optimizing compilers to generate code satisfying
      assumption 2.
      under these assumptions, it should be true that,
             a  is not exactly equal to four-thirds,
@@ -1301,8 +1196,8 @@ REAL epslon (REAL x)
         }
         return(eps*fabs((double)x));
 }
- 
-/*----------------------*/ 
+
+/*----------------------*/
 void dmxpy (int n1, REAL y[], int n2, int ldm, REAL x[], REAL m[])
 
 
@@ -1318,7 +1213,7 @@ function, references to m[i][j] are written m[ldm*i+j].  */
      n1 integer, number of elements in vector y, and number of rows in
          matrix m
 
-     y double [n1], vector of length n1 to which is added 
+     y double [n1], vector of length n1 to which is added
          the product m*x
 
      n2 integer, number of elements in vector x, and number of columns
@@ -1339,9 +1234,9 @@ function, references to m[i][j] are written m[ldm*i+j].  */
         j = n2 % 2;
         if (j >= 1) {
                 j = j - 1;
-                for (i = 0; i < n1; i++) 
+                for (i = 0; i < n1; i++)
                         y[i] = (y[i]) + x[j]*m[ldm*j+i];
-        } 
+        }
 
         /* cleanup odd group of two vectors */
 
@@ -1351,7 +1246,7 @@ function, references to m[i][j] are written m[ldm*i+j].  */
                 for (i = 0; i < n1; i++)
                         y[i] = ( (y[i])
                                + x[j-1]*m[ldm*(j-1)+i]) + x[j]*m[ldm*j+i];
-        } 
+        }
 
         /* cleanup odd group of four vectors */
 
@@ -1360,10 +1255,10 @@ function, references to m[i][j] are written m[ldm*i+j].  */
                 j = j - 1;
                 for (i = 0; i < n1; i++)
                         y[i] = ((( (y[i])
-                               + x[j-3]*m[ldm*(j-3)+i]) 
+                               + x[j-3]*m[ldm*(j-3)+i])
                                + x[j-2]*m[ldm*(j-2)+i])
                                + x[j-1]*m[ldm*(j-1)+i]) + x[j]*m[ldm*j+i];
-        } 
+        }
 
         /* cleanup odd group of eight vectors */
 
@@ -1376,35 +1271,35 @@ function, references to m[i][j] are written m[ldm*i+j].  */
                                + x[j-5]*m[ldm*(j-5)+i]) + x[j-4]*m[ldm*(j-4)+i])
                                + x[j-3]*m[ldm*(j-3)+i]) + x[j-2]*m[ldm*(j-2)+i])
                                + x[j-1]*m[ldm*(j-1)+i]) + x[j]  *m[ldm*j+i];
-        } 
-        
+        }
+
         /* main loop - groups of sixteen vectors */
 
         jmin = (n2%16)+16;
         for (j = jmin-1; j < n2; j = j + 16) {
-                for (i = 0; i < n1; i++) 
+                for (i = 0; i < n1; i++)
                         y[i] = ((((((((((((((( (y[i])
-                                + x[j-15]*m[ldm*(j-15)+i]) 
+                                + x[j-15]*m[ldm*(j-15)+i])
                                 + x[j-14]*m[ldm*(j-14)+i])
-                                + x[j-13]*m[ldm*(j-13)+i]) 
+                                + x[j-13]*m[ldm*(j-13)+i])
                                 + x[j-12]*m[ldm*(j-12)+i])
-                                + x[j-11]*m[ldm*(j-11)+i]) 
+                                + x[j-11]*m[ldm*(j-11)+i])
                                 + x[j-10]*m[ldm*(j-10)+i])
-                                + x[j- 9]*m[ldm*(j- 9)+i]) 
+                                + x[j- 9]*m[ldm*(j- 9)+i])
                                 + x[j- 8]*m[ldm*(j- 8)+i])
-                                + x[j- 7]*m[ldm*(j- 7)+i]) 
+                                + x[j- 7]*m[ldm*(j- 7)+i])
                                 + x[j- 6]*m[ldm*(j- 6)+i])
-                                + x[j- 5]*m[ldm*(j- 5)+i]) 
+                                + x[j- 5]*m[ldm*(j- 5)+i])
                                 + x[j- 4]*m[ldm*(j- 4)+i])
-                                + x[j- 3]*m[ldm*(j- 3)+i]) 
+                                + x[j- 3]*m[ldm*(j- 3)+i])
                                 + x[j- 2]*m[ldm*(j- 2)+i])
-                                + x[j- 1]*m[ldm*(j- 1)+i]) 
+                                + x[j- 1]*m[ldm*(j- 1)+i])
                                 + x[j]   *m[ldm*j+i];
         }
         return;
-} 
+}
 
-/*----------------------*/ 
+/*----------------------*/
 
 
 
