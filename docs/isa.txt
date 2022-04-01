@@ -38,6 +38,10 @@ There are a few ideas to explore in this processor design:
   there were a bunch of registers, with only 15, it might be a little tricky. The type then determines the
   operations associated with various opcodes, especially in the unary, binary ALU groups and in conditional
   branches.
+- Type-less variant: if all one needs is a simple integer implementation, types can be simply left out.
+  in that case, all instructions will operate as if registers are of INT32 type and the ISA revers back
+  to a simple 32-bit integer RISC processor. For this variant, the fractional multiplies in the
+  extension group are optional: if not implemented, an SII is thrown, which triggers SW emulation.
 
 INSTRUCTION ENCODING
 =============================================
@@ -47,25 +51,25 @@ There are three encoding variants:
 16-bit instructions:
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-|    FIELD_C    |    FIELD_B    |    FIELD_A    |    FIELD_D    |
+|    FIELD_D    |    FIELD_C    |    FIELD_B    |    FIELD_A    |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 32-bit instructions:
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-|    FIELD_C    |    FIELD_B    |    FIELD_A    |    FIELD_D    |  |                         FIELD_E                               |
+|    FIELD_D    |    FIELD_C    |    FIELD_B    |    FIELD_A    |  |                         FIELD_E                               |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 48-bit instructions:
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-|    FIELD_C    |    FIELD_B    |    FIELD_A    |    FIELD_D    |  |                                                            FIELD_E                                                            |
+|    FIELD_D    |    FIELD_C    |    FIELD_B    |    FIELD_A    |  |                                                            FIELD_E                                                            |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-FIELD_C normally contains the instruction op-code
-FIELD_B normally contains the register index of the second operand
-FIELD_A normally contains the register index of the first operand
-FIELD_D normally contains the register index of the destination
+FIELD_D normally contains the register index of the [D]estination
+FIELD_C normally contains the instruction op-[C]ode
+FIELD_B normally contains the register index of the second operand (operand [B])
+FIELD_A normally contains the register index of the first operand (operand [A])
 FIELD_E normally contains an immediate or a memory offset
 
 The whole 16 bit instruction is referred to as the INST.
@@ -94,9 +98,9 @@ Register indexes:
 
 Register aliases:
     $srX: signed version of $rX
-    $sp:  alias to $r0
-    $fp:  alias to $r1
-    $lr:  alias to $r2
+    $fp:  alias to $r12
+    $sp:  alias to $r13
+    $lr:  alias to $r14
 NOTE: none of these aliases have (almost) anything to do with HW and only make assembly 4
       unambiguous and/or easier to read. The only exception is that $r0 and $r1 support
       special, compact load-store operation. There's no functional difference, but the
@@ -164,32 +168,36 @@ Form A:
 Exception group
 
   FIELD
-  CBAD             OP_CODE   OPERATION          TYPE VARIATIONS
+  DCBA             OP_CODE   OPERATION          TYPE VARIATIONS
 -------------------------------------------------------------------
 0x0000             FILL     SWI0                   enters privileged mode, disables interrupts - used to fill unused code-pages; TPC points to the current instruction
-0x0001             BREAK    SWI1                   enters privileged mode, disables interrupts - used for SW breakpoints; TPC points to the current instruction
-0x0002             SYSCALL  SWI2                   enters privileged mode, disables interrupts - used for SYSCALL-s; TPC points to the current instruction
-0x0003                      SWI3                   enters privileged mode, disables interrupts - used for sotware interrupts; TPC points to the current instruction
-0x0004                      SWI4                   enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the current instruction
-0x0005                      SWI5                   enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the current instruction
-0x0006             SII      SWI6                   enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the current instruction
-0x0007             HWI      SWI7                   enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the current instruction
+0x1000             BREAK    SWI1                   enters privileged mode, disables interrupts - used for SW breakpoints; TPC points to the current instruction
+0x2000             SYSCALL  SWI2                   enters privileged mode, disables interrupts - used for SYSCALL-s; TPC points to the current instruction
+0x3000                      SWI3                   enters privileged mode, disables interrupts - used for sotware interrupts; TPC points to the current instruction
+0x4000                      SWI4                   enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the current instruction
+0x5000                      SWI5                   enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the current instruction
+0x6000             SII      SWI6                   enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the current instruction
+0x7000             HWI      SWI7                   enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the current instruction
 
-0x0008             STM                             enters task mode, enables interrupts; SPC points to the NEXT instruction
-0x0009             WOI                             wake on interrupt
-0x000a:0x000e      SII
+0x8000             STM                             enters task mode, enables interrupts; SPC points to the NEXT instruction
+0x9000             WOI                             wake on interrupt
+0xa000             SII
+0xb000             SII
+0xc000             SII
+0xd000             SII
+0xe000             SII
 
 Atomic group
 
   FIELD
-  CBAD             OP_CODE   OPERATION          TYPE VARIATIONS
+  DCBA             OP_CODE   OPERATION          TYPE VARIATIONS
 -------------------------------------------------------------------
-0x001.             FENCE                        1   ensures that all memory references are completed before continuing
+0x.001             FENCE                        1   ensures that all memory references are completed before continuing
 
-NOTE: inst[0]: ~R-before
-      inst[1]: ~W-before
-      inst[2]: ~R-after
-      inst[3]: ~W-after
+NOTE: inst[12]: ~R-before
+      inst[13]: ~W-before
+      inst[14]: ~R-after
+      inst[15]: ~W-after
       bit-values are inverted to make FIELD_D==0xf an invalid encoding (i.e. no fence specification)
 NOTE: on my implementation: reads amongst themselves and writes amongst themselves are always ordered.
       Since reads flush the write-queue, reads after writes are also ordered.
@@ -206,55 +214,66 @@ NOTE: on my implementation: reads amongst themselves and writes amongst themselv
 Branch group
 
   FIELD
-  CBAD             OP_CODE   OPERATION          TYPE VARIATIONS
+  DCBA             OP_CODE   OPERATION          TYPE VARIATIONS
 -------------------------------------------------------------------
-0x002.             $pc <- $rD                      <------- indirect jump: we probably want to encode it to something that's easier to recognize by the branch predictor
-0x003.             $tpc <- $rD
-0x004.             $rD <- $pc
-0x005.             $rD <- $tpc
-0x006.:0x00e.      SII
+0x.002             $pc <- $rD                      <------- indirect jump: we probably want to encode it to something that's easier to recognize by the branch predictor
+0x.003             $tpc <- $rD
+0x.004             $rD <- $pc
+0x.005             $rD <- $tpc
+0x.006
+0x.007
+0x.008
+0x.009
+0x.00a
+0x.00b
+0x.00c
+0x.00d
+0x.00e
 
 Unary group
 
   FIELD
-  CBAD             OP_CODE   OPERATION          TYPE VARIATIONS
+  DCBA             OP_CODE   OPERATION          TYPE VARIATIONS
 -------------------------------------------------------------------
-0x01..             $rD.* <- $rA.* + 1
-0x02..             $rD.* <- $rA.* - 1
-0x03..             $rD.* <- -$rA.*
-0x04..             $rD.* <- ~$rA.*
-0x05..             $rD <- sum($rA.*)
-0x06..             $srD.* <- BSI $rA.*; $rfD.* <- 1 / $frA.*
-0x07..             $srD.* <- WSI $rA.*; $frD.* <- rsqrt($frA.*)
-0x08..             $frD.* <- $srA.*
-0x09..             $srD.* <- FLOOR $frA.*
-0x0a..             type($rD) <- $rA
-0x0b..             $rD <- type($rA)
-0x0c..             $rD <- $pc + FIELD_A*2
-0x0d..             type($rD) <- FIELD_A
-0x0e..
+0x.01.             $rD <- FIELD_A (one-s complement; range is -7...7)
+0x.02.             $rD <- $pc + FIELD_A*2
+0x.03.             $rD.* <- -$rA.*
+0x.04.             $rD.* <- ~$rA.*
+0x.05.             $srD.* <- BSI $rA.*
+0x.06.             $srD.* <- WSI $rA.*
+-----------
+0x.07.             $frD.* <- $srA.*
+0x.08.             $srD.* <- FLOOR $rA.*
+0x.09.             $rD.* <- 1 / $rA.*
+0x.0a.             $rD.* <- rsqrt $rA.*
+-----------
+0x.0b.             $rD <- sum $rA.*
+-----------
+0x.0c.             type $rD <- $rA
+0x.0d.             $rD <- type $rA
+0x.0e.             type $rD <- FIELD_A
 
 NOTE: We only have reduction sum. Is there any other *really* important reduction op we need?
 
 Binary group
 
   FIELD
-  CBAD             OP_CODE   OPERATION          TYPE VARIATIONS
+  DCBA             OP_CODE   OPERATION          TYPE VARIATIONS
 -------------------------------------------------------------------
-0x1...             $rD.* <- $rA.* ^ $rB.*       1
-0x2...             $rD.* <- $rA.* | $rB.*       1
-0x3...             $rD.* <- $rA.* & $rB.*       1
-0x4...             $rD.* <- $rA.* + $rB.*       9
-0x5...             $rD.* <- $rA.* - $rB.*       9
-0x6...             $rD.* <- $rA.* << $rB.*      3
-0x7...             $rD.* <- $rA.* >> $rB.*      3
-0x8...             $srD.* <- $srA.* >> $rB.*    3
-0x9...             $rD.* <- $rA.* * $rB.*       9 (?)
-0xa...             $rD.* <- ~$rA.* & $rB.*      1  (this is for lane-combining with an inverted predicate)
-0xb...             interpolate
-0xc...             see below (stack ops)
-0xd...             see below (stack ops)
-0xe...             see below (mem ops)
+0x.1..             $rD.* <- $rA.* ^ $rB.*       1
+0x.2..             $rD.* <- $rA.* | $rB.*       1
+0x.3..             $rD.* <- $rA.* & $rB.*       1
+0x.4..             $rD.* <- $rA.* + $rB.*       9
+0x.5..             $rD.* <- $rA.* - $rB.*       9
+0x.6..             $rD.* <- $rA.* << $rB.*      3
+0x.7..             $rD.* <- $rA.* >> $rB.*      3
+0x.8..             $srD.* <- $srA.* >> $rB.*    3
+0x.9..             $rD.* <- $rA.* * $rB.*       9 (?)
+0x.a..             $rD.* <- ~$rA.* & $rB.*      1  (this is for lane-combining with an inverted predicate)
+0x.b..             $rD.* <- $rB. + FIELD_A (one's complement; range is -7...7)
+0x.c..             see below (stack ops)
+0x.d..             see below (stack ops)
+0x.e..             see below (mem ops)
 
 NOTE: logical ops ignore type info, except for determining output type
 NOTE: if swizzle muxes are inline in the pipeline, instead of a parallel execution unit, it's possible
@@ -267,8 +286,8 @@ NOTE: output type is the type of $rA
 
 Pseudo instructions:
 NOP: encodes to 0x2222, which is $r2 = $r2 | $r2
-$rD = 0: encodes to 0x1eeD which is $rD <- $r14 ^ $r14
-$rD = $rS: encodes to 0x2SSD
+$rD = 0: encodes to 0xD1ee which is $rD <- $r14 ^ $r14
+$rD = $rS: encodes to 0xD2SS
 
 Form B:
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -276,25 +295,25 @@ Form B:
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   FIELD
-  CBAD             OP_CODE   OPERATION          TYPE VARIATIONS
+  DCBA             OP_CODE   OPERATION          TYPE VARIATIONS
 -------------------------------------------------------------------
-0x00f.             $rD.*  <- VALUE              1 (type of $rD remains unchanged)         NOTE: this is the unary operator space normally.
-0x01f.             $pc  <- VALUE                N/A
-0x02f.:0xef.       SII
-0x1.f.             $rD.*  <- VALUE ^ $rB.*      1
-0x2.f.             $rD.*  <- VALUE | $rB.*      1
-0x3.f.             $rD.*  <- VALUE & $rB.*      1
-0x4.f.             $rD.*  <- VALUE + $rB.*      9
-0x5.f.             $rD.*  <- VALUE - $rB.*      9
-0x6.f.             $rD.*  <- VALUE << $rB.*     3
-0x7.f.             $rD.*  <- VALUE >> $rB.*     3
-0x8.f.             $srD.* <- VALUE >> $rB.*     3              signed right shift
-0x9.f.             $rD.*  <- VALUE * $rB.*      9 (?)
-0xa.f.
-0xb.f.
-0xc.f.             see below (stack ops)
-0xd.f.             see below (stack ops)
-0xe.f.             see below (mem ops)
+0x.00f             $rD.*  <- VALUE              1 (type of $rD remains unchanged)         NOTE: this is the unary operator space normally.
+0x.01f             $pc  <- VALUE                N/A
+0x.02f:0x.0ef      SII
+0x.1.f             $rD.*  <- VALUE ^ $rB.*      1
+0x.2.f             $rD.*  <- VALUE | $rB.*      1
+0x.3.f             $rD.*  <- VALUE & $rB.*      1
+0x.4.f             $rD.*  <- VALUE + $rB.*      9
+0x.5.f             $rD.*  <- VALUE - $rB.*      9
+0x.6.f             $rD.*  <- VALUE << $rB.*     3
+0x.7.f             $rD.*  <- VALUE >> $rB.*     3
+0x.8.f             $srD.* <- VALUE >> $rB.*     3              signed right shift
+0x.9.f             $rD.*  <- VALUE * $rB.*      9 (?)
+0x.a.f             type $r0...$r7 <- VALUE
+0x.b.f             type $r8...$r15 <- VALUE
+0x.c.f             see below (stack ops)
+0x.d.f             see below (stack ops)
+0x.e.f             see below (mem ops)
 
 NOTE: VALUE is assumed to be of the same type as $rB
 NOTE: result type is that of $rB (exception for load immediate)
@@ -309,25 +328,25 @@ Form C:
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   FIELD
-  CBAD             OP_CODE   OPERATION                TYPE VARIATIONS
+  DCBA             OP_CODE   OPERATION                TYPE VARIATIONS
 -------------------------------------------------------------------------
-0x0f0.             $rD  <- short VALUE                1     NOTE: this is the unary operator space normally.
-0x0f1.             $rD <- lane_swizzle($rA, VALUE)    1     only lower 8 bits of value has any meaning, all selection options are valid, independent of type NOTE: this would be a short, unconditional jump, something that already is possible using conditional branches
-0x0f2.:0xfe.       SII
-0x1f..             $rD  <- short VALUE ^ $rA          1
-0x2f..             $rD  <- short VALUE | $rA          1
-0x3f..             $rD  <- short VALUE & $rA          1
-0x4f..             $rD  <- short VALUE + $rA          9
-0x5f..             $rD  <- short VALUE - $rA          9
-0x6f..             $rD  <- short VALUE << $rA         3
-0x7f..             $rD  <- short VALUE >> $rA         3
-0x8f..             $srD <- short VALUE >> $rA         3    signed right shift
-0x9f..             $rD  <- short VALUE * $rA          9 (?)
-0xaf..             SII
-0xbf..             SII
-0xcf..             see below (stack ops)
-0xdf..             see below (stack ops)
-0xef..             see below (mem ops)
+0x.0f0             $rD  <- short VALUE                1     NOTE: this is the unary operator space normally.
+0x.0f1             $rD <- lane_swizzle $rA, VALUE     1     only lower 8 bits of value has any meaning, all selection options are valid, independent of type NOTE: this would be a short, unconditional jump, something that already is possible using conditional branches
+0x.0f2:0x.0fe       SII
+0x.1f.             $rD  <- short VALUE ^ $rA          1
+0x.2f.             $rD  <- short VALUE | $rA          1
+0x.3f.             $rD  <- short VALUE & $rA          1
+0x.4f.             $rD  <- short VALUE + $rA          9
+0x.5f.             $rD  <- short VALUE - $rA          9
+0x.6f.             $rD  <- short VALUE << $rA         3
+0x.7f.             $rD  <- short VALUE >> $rA         3
+0x.8f.             $srD <- short VALUE >> $rA         3    signed right shift
+0x.9f.             $rD  <- short VALUE * $rA          9 (?)
+0x.af.             SII
+0x.bf.             SII
+0x.cf.             see below (stack ops)
+0x.df.             see below (stack ops)
+0x.ef.             see below (mem ops)
 
 NOTE: VALUE is assumed to be of matching scalar type for $rA. It is sign-extended to 32-bits, then replicated for each lane.
 NOTE: result type is that of $rA (exception for load immediate)
@@ -336,23 +355,6 @@ VALUE is *always* sign-extended to 32-bits before applying it to the operation.
 TODO: we might want to zero-extend for certain operations, such as logical ops.
 NOTE: sign-extending a 16-bit constant, then treating it as a float almost certainly don't make any sense.
 TODO: The last three op-codes could be used for something else, such as the missing shifts though...
-
-Stack ops
--------------------------------
-
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-|       C       |            OFS            | A |       D       |
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-  FIELD
-  CBAD             OP_CODE   OPERATION          TYPE VARIATIONS
--------------------------------------------------------------------
-0xc**.             MEM[$rA,OFS*4] <- $rD        1
-0xd**.             $rD <- MEM[$rA,OFS*4]        1 (destination type remains unchanged)
-
-NOTE: these instructions only allow $r0 ($sp) and $r1 ($fp) as their base register and an offset range of -256...+252.
-NOTE: the existence of these ops complicate memory op decode as well as operation size decode, but save
-      a *huge* amount of code-space, allowing almost all register spills and fills to be done in two bytes.
 
 Branches:
 -------------------------------
@@ -364,45 +366,44 @@ Form A:
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   FIELD
-  CBAD             OP_CODE   OPERATION                                   TYPE VARIATIONS
+  DCBA             OP_CODE   OPERATION                                   TYPE VARIATIONS
 ------------------------------------------------------------------------------------------
-0x00.f            if any $rA == 0  $pc <- $pc + unmunge(OFFSET)          1
-0x01.f            if any $rA != 0  $pc <- $pc + unmunge(OFFSET)          1
-0x02.f            if any $srA < 0  $pc <- $pc + unmunge(OFFSET)          5                signed compare
-0x03.f            if any $srA >= 0 $pc <- $pc + unmunge(OFFSET)          5                signed compare
-0x04.f            if any $srA > 0  $pc <- $pc + unmunge(OFFSET)          5                signed compare
-0x05.f            if any $srA <= 0 $pc <- $pc + unmunge(OFFSET)          5                signed compare
-0x06.f            SII
-0x07.f            SII
-0x08.f            if all $rA == 0  $pc <- $pc + unmunge(OFFSET)          1
-0x09.f            if all $rA != 0  $pc <- $pc + unmunge(OFFSET)          1
-0x0b.f            if all $srA >= 0 $pc <- $pc + unmunge(OFFSET)          5                signed compare
-0x0c.f            if all $srA > 0  $pc <- $pc + unmunge(OFFSET)          5                signed compare
-0x0d.f            if all $srA <= 0 $pc <- $pc + unmunge(OFFSET)          5                signed compare
-0x0a.f            if all $srA < 0  $pc <- $pc + unmunge(OFFSET)          5                signed compare
-0x0e.f            SII
+0xf00.            if any $rA == 0  $pc <- $pc + unmunge(OFFSET)          1
+0xf01.            if any $rA != 0  $pc <- $pc + unmunge(OFFSET)          1
+0xf02.            if any $srA < 0  $pc <- $pc + unmunge(OFFSET)          5                signed compare
+0xf03.            if any $srA >= 0 $pc <- $pc + unmunge(OFFSET)          5                signed compare
+0xf04.            if any $srA > 0  $pc <- $pc + unmunge(OFFSET)          5                signed compare
+0xf05.            if any $srA <= 0 $pc <- $pc + unmunge(OFFSET)          5                signed compare
+0xf06.            SII
+0xf07.            SII
+0xf08.            if all $rA == 0  $pc <- $pc + unmunge(OFFSET)          1
+0xf09.            if all $rA != 0  $pc <- $pc + unmunge(OFFSET)          1
+0xf0b.            if all $srA >= 0 $pc <- $pc + unmunge(OFFSET)          5                signed compare
+0xf0c.            if all $srA > 0  $pc <- $pc + unmunge(OFFSET)          5                signed compare
+0xf0d.            if all $srA <= 0 $pc <- $pc + unmunge(OFFSET)          5                signed compare
+0xf0a.            if all $srA < 0  $pc <- $pc + unmunge(OFFSET)          5                signed compare
+0xf0e.            SII
 
-0x1..f            if any $rB == $rA   $pc <- $pc + unmunge(OFFSET)       1
-0x2..f            if any $rB != $rA   $pc <- $pc + unmunge(OFFSET)       1
-0x3..f            if any $srB < $srA  $pc <- $pc + unmunge(OFFSET)       5             signed compare
-0x4..f            if any $srB >= $srA $pc <- $pc + unmunge(OFFSET)       5             signed compare
-0x5..f            if any $rB < $rA    $pc <- $pc + unmunge(OFFSET)       5
-0x6..f            if any $rB >= $rA   $pc <- $pc + unmunge(OFFSET)       5
-0x7..f            SII
-0x8..f            SII
-0x9..f            if all $rB == $rA   $pc <- $pc + unmunge(OFFSET)       1
-0xa..f            if all $rB != $rA   $pc <- $pc + unmunge(OFFSET)       1
-0xb..f            if all $srB < $srA  $pc <- $pc + unmunge(OFFSET)       5             signed compare
-0xc..f            if all $srB >= $srA $pc <- $pc + unmunge(OFFSET)       5             signed compare
-0xd..f            if all $rB < $rA    $pc <- $pc + unmunge(OFFSET)       5
-0xe..f            if all $rB >= $rA   $pc <- $pc + unmunge(OFFSET)       5
+0xf1..            if any $rB == $rA   $pc <- $pc + unmunge(OFFSET)       1
+0xf2..            if any $rB != $rA   $pc <- $pc + unmunge(OFFSET)       1
+0xf3..            if any $srB < $srA  $pc <- $pc + unmunge(OFFSET)       5             signed compare
+0xf4..            if any $srB >= $srA $pc <- $pc + unmunge(OFFSET)       5             signed compare
+0xf5..            if any $rB < $rA    $pc <- $pc + unmunge(OFFSET)       5
+0xf6..            if any $rB >= $rA   $pc <- $pc + unmunge(OFFSET)       5
+0xf7..            SII
+0xf8..            SII
+0xf9..            if all $rB == $rA   $pc <- $pc + unmunge(OFFSET)       1
+0xfa..            if all $rB != $rA   $pc <- $pc + unmunge(OFFSET)       1
+0xfb..            if all $srB < $srA  $pc <- $pc + unmunge(OFFSET)       5             signed compare
+0xfc..            if all $srB >= $srA $pc <- $pc + unmunge(OFFSET)       5             signed compare
+0xfd..            if all $rB < $rA    $pc <- $pc + unmunge(OFFSET)       5
+0xfe..            if all $rB >= $rA   $pc <- $pc + unmunge(OFFSET)       5
 
 NOTE: for scalar types, FIELD_C MSB (inst[15]) is irrelevant, that is any/all selection doesn't matter
 NOTE: comparison type is determined by type of $rA. type of $rB is ignored and assumed to match that of $rA
 TODO: maybe we can do lane-replication in case of lane-count mismatch? After all, these are using the ALUs, the same way as binary ops do...
 
 PSEUDO OPS:
-    $pc <- $pc + unmunge(OFFSET)
     if $srB >= $srA $pc <- $pc + unmunge(OFFSET)
     if $srB < $srA  $pc <- $pc + unmunge(OFFSET)
     if $rB >= $rA   $pc <- $pc + unmunge(OFFSET)
@@ -417,23 +418,23 @@ Form B (group CA):
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   FIELD
-  CBAD             OP_CODE   OPERATION                                   TYPE VARIATIONS
+  DCBA             OP_CODE   OPERATION                                   TYPE VARIATIONS
 ------------------------------------------------------------------------------------------
-0x0f.f        if $rA[0]  == 1 $pc <- $pc + unmunge(OFFSET)               3
-0x1f.f        if $rA[1]  == 1 $pc <- $pc + unmunge(OFFSET)               3
-0x2f.f        if $rA[2]  == 1 $pc <- $pc + unmunge(OFFSET)               3
-0x3f.f        if $rA[3]  == 1 $pc <- $pc + unmunge(OFFSET)               3
-0x4f.f        if $rA[4]  == 1 $pc <- $pc + unmunge(OFFSET)               3
-0x5f.f        if $rA[5]  == 1 $pc <- $pc + unmunge(OFFSET)               3
-0x6f.f        if $rA[6]  == 1 $pc <- $pc + unmunge(OFFSET)               3
-0x7f.f        if $rA[7]  == 1 $pc <- $pc + unmunge(OFFSET)               3
-0x8f.f        if $rA[8]  == 1 $pc <- $pc + unmunge(OFFSET)               3
-0x9f.f        if $rA[9]  == 1 $pc <- $pc + unmunge(OFFSET)               3
-0xaf.f        if $rA[14] == 1 $pc <- $pc + unmunge(OFFSET)               3
-0xbf.f        if $rA[15] == 1 $pc <- $pc + unmunge(OFFSET)               3
-0xcf.f        if $rA[16] == 1 $pc <- $pc + unmunge(OFFSET)               3
-0xdf.f        if $rA[30] == 1 $pc <- $pc + unmunge(OFFSET)               3
-0xef.f        if $rA[31] == 1 $pc <- $pc + unmunge(OFFSET)               3
+0xf0f.        if $rA[0]  == 1 $pc <- $pc + unmunge(OFFSET)               3
+0xf1f.        if $rA[1]  == 1 $pc <- $pc + unmunge(OFFSET)               3
+0xf2f.        if $rA[2]  == 1 $pc <- $pc + unmunge(OFFSET)               3
+0xf3f.        if $rA[3]  == 1 $pc <- $pc + unmunge(OFFSET)               3
+0xf4f.        if $rA[4]  == 1 $pc <- $pc + unmunge(OFFSET)               3
+0xf5f.        if $rA[5]  == 1 $pc <- $pc + unmunge(OFFSET)               3
+0xf6f.        if $rA[6]  == 1 $pc <- $pc + unmunge(OFFSET)               3
+0xf7f.        if $rA[7]  == 1 $pc <- $pc + unmunge(OFFSET)               3
+0xf8f.        if $rA[8]  == 1 $pc <- $pc + unmunge(OFFSET)               3
+0xf9f.        if $rA[9]  == 1 $pc <- $pc + unmunge(OFFSET)               3
+0xfaf.        if $rA[14] == 1 $pc <- $pc + unmunge(OFFSET)               3
+0xfbf.        if $rA[15] == 1 $pc <- $pc + unmunge(OFFSET)               3
+0xfcf.        if $rA[16] == 1 $pc <- $pc + unmunge(OFFSET)               3
+0xfdf.        if $rA[30] == 1 $pc <- $pc + unmunge(OFFSET)               3
+0xfef.        if $rA[31] == 1 $pc <- $pc + unmunge(OFFSET)               3
 
 OFFSET is sign-extended to 31 bits, shifted left by one before addition.
 
@@ -444,23 +445,23 @@ Form C (group CB):
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   FIELD
-  CBAD             OP_CODE   OPERATION                                   TYPE VARIATIONS
+  DCBA             OP_CODE   OPERATION                                   TYPE VARIATIONS
 ------------------------------------------------------------------------------------------
-0x0.ff        if $rB[0]  == 0 $pc <- $pc + unmunge(OFFSET)               3
-0x1.ff        if $rB[1]  == 0 $pc <- $pc + unmunge(OFFSET)               3
-0x2.ff        if $rB[2]  == 0 $pc <- $pc + unmunge(OFFSET)               3
-0x3.ff        if $rB[3]  == 0 $pc <- $pc + unmunge(OFFSET)               3
-0x4.ff        if $rB[4]  == 0 $pc <- $pc + unmunge(OFFSET)               3
-0x5.ff        if $rB[5]  == 0 $pc <- $pc + unmunge(OFFSET)               3
-0x6.ff        if $rB[6]  == 0 $pc <- $pc + unmunge(OFFSET)               3
-0x7.ff        if $rB[7]  == 0 $pc <- $pc + unmunge(OFFSET)               3
-0x8.ff        if $rB[8]  == 0 $pc <- $pc + unmunge(OFFSET)               3
-0x9.ff        if $rB[9]  == 0 $pc <- $pc + unmunge(OFFSET)               3
-0xa.ff        if $rB[14] == 0 $pc <- $pc + unmunge(OFFSET)               3
-0xb.ff        if $rB[15] == 0 $pc <- $pc + unmunge(OFFSET)               3
-0xc.ff        if $rB[16] == 0 $pc <- $pc + unmunge(OFFSET)               3
-0xd.ff        if $rB[30] == 0 $pc <- $pc + unmunge(OFFSET)               3
-0xe.ff        if $rB[31] == 0 $pc <- $pc + unmunge(OFFSET)               3
+0xf0.f        if $rB[0]  == 0 $pc <- $pc + unmunge(OFFSET)               3
+0xf1.f        if $rB[1]  == 0 $pc <- $pc + unmunge(OFFSET)               3
+0xf2.f        if $rB[2]  == 0 $pc <- $pc + unmunge(OFFSET)               3
+0xf3.f        if $rB[3]  == 0 $pc <- $pc + unmunge(OFFSET)               3
+0xf4.f        if $rB[4]  == 0 $pc <- $pc + unmunge(OFFSET)               3
+0xf5.f        if $rB[5]  == 0 $pc <- $pc + unmunge(OFFSET)               3
+0xf6.f        if $rB[6]  == 0 $pc <- $pc + unmunge(OFFSET)               3
+0xf7.f        if $rB[7]  == 0 $pc <- $pc + unmunge(OFFSET)               3
+0xf8.f        if $rB[8]  == 0 $pc <- $pc + unmunge(OFFSET)               3
+0xf9.f        if $rB[9]  == 0 $pc <- $pc + unmunge(OFFSET)               3
+0xfa.f        if $rB[14] == 0 $pc <- $pc + unmunge(OFFSET)               3
+0xfb.f        if $rB[15] == 0 $pc <- $pc + unmunge(OFFSET)               3
+0xfc.f        if $rB[16] == 0 $pc <- $pc + unmunge(OFFSET)               3
+0xfd.f        if $rB[30] == 0 $pc <- $pc + unmunge(OFFSET)               3
+0xfe.f        if $rB[31] == 0 $pc <- $pc + unmunge(OFFSET)               3
 
 OFFSET is sign-extended to 31 bits, shifted left by one before addition.
 
@@ -468,6 +469,23 @@ NOTE: in the branch predictor, relative jumps with negative OFFSET VALUE can be 
       Compilers are encouraged to encode back-edges of loops in this encoding to improve branch prediction.
 
 NOTE: some bit-offsets for certain lane types are meaningless. In those cases, the bits to be compared are assumed to be 0.
+
+Stack ops
+-------------------------------
+
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+|       C       |            OFS            | A |       D       |
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  FIELD
+  DCBA             OP_CODE   OPERATION               TYPE VARIATIONS
+------------------------------------------------------------------------
+0x.c**             MEM[$rA,tiny OFS*4] <- $rD        1
+0x.d**             $rD <- MEM[$rA,tiny OFS*4]        1 (destination type remains unchanged)
+
+NOTE: these instructions only allow $r0 ($sp) and $r1 ($fp) as their base register and an offset range of -256...+252.
+NOTE: the existence of these ops complicate memory op decode as well as operation size decode, but save
+      a *huge* amount of code-space, allowing almost all register spills and fills to be done in two bytes.
 
 Load/Store
 ----------
@@ -478,20 +496,25 @@ Form A: Indirect load/store
 | 1 | 1 | 1 | 0 |     MEM_OP    |       A       |       D       |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-  INST        OP_CODE                        OPERATION
+  FIELD
+  DCBA        OP_CODE                        OPERATION
 --------------------------------------------------------------
-0xe0..        $srD <- MEM8[$rA]              8-bit signed load from MEM[$rA] into $rD
-0xe1..        $rD <- MEM8[$rA]               8-bit unsigned load from MEM[$rA] into $rD
-0xe2..        $srD <- MEM16[$rA]             16-bit signed load from MEM[$rA] into $rD
-0xe3..        $rD <- MEM16[$rA]              16-bit unsigned load from MEM[$rA] into $rD
-0xe4..        $rD <- MEM[32][$rA]            32-bit load from MEM[$rA] into $rD
-0xe5..        MEM8[$rA] <- $rD               8-bit store to MEM[$rA] from $rD
-0xe6..        MEM16[$rA] <- $rD              16-bit store to MEM[$rA] from $rD
-0xe7..        MEM[32][$rA] <- $rD            32-bit store to MEM[$rA] from $rD
-0xe8..        $rD <- !MEM[32][$rA]           32-bit unsigned load-reserve (exclusive load)
-0xe9..        ?MEM[32][$rA] <- $rD           32-bit store-release (exclusive store)
-0xea.0        $pc <- MEM[32][$rA]            32-bit load from MEM[$rA] into PC
-0xea.1        INV[32][$rA]                   invalidate cache line for address $rA
+0x.e0.        $srD <- MEM8[$rA]              8-bit signed load from MEM[$rA] into $rD
+0x.e1.        $rD <- MEM8[$rA]               8-bit unsigned load from MEM[$rA] into $rD
+0x.e2.        $srD <- MEM16[$rA]             16-bit signed load from MEM[$rA] into $rD
+0x.e3.        $rD <- MEM16[$rA]              16-bit unsigned load from MEM[$rA] into $rD
+0x.e4.        $rD <- MEM[32][$rA]            32-bit load from MEM[$rA] into $rD
+0x.e5.        MEM8[$rA] <- $rD               8-bit store to MEM[$rA] from $rD
+0x.e6.        MEM16[$rA] <- $rD              16-bit store to MEM[$rA] from $rD
+0x.e7.        MEM[32][$rA] <- $rD            32-bit store to MEM[$rA] from $rD
+0x.e8.        $rD <- !MEM[32][$rA]           32-bit unsigned load-reserve (exclusive load)
+0x.e9.        ?MEM[32][$rA] <- $rD           32-bit store-release (exclusive store)
+0x0ea.        $pc <- MEM[32][$rA]            32-bit load from MEM[$rA] into PC
+0x1ea.        INV[32][$rA]                   invalidate cache line for address $rA
+0x.eb.        type $r0...$r7  <- MEM[$rD, FIELD_A*4 (one-complement)]
+0x.ec.        type $r8...$r14 <- MEM[$rD, FIELD_A*4 (one-complement)]
+0x.ed.        MEM[$rD, FIELD_A*4 (one-complement)] <- type $r0...$r7
+0x.ee.        MEM[$rD, FIELD_A*4 (one-complement)] <- type $r8...$r14
 
 NOTE: loads don't change the type of a register.
 
@@ -501,20 +524,25 @@ Form B: Inidirect offset load/store
 | 1 | 1 | 1 | 1 |     MEM_OP    |       A       |       D       |  |                           VALUE                               |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-  INST        OP_CODE                              OPERATION
+  FIELD
+  DCBA        OP_CODE                        OPERATION
 --------------------------------------------------------------
-0xf0..        $srD <- MEM8[$rA+VALUE]              8-bit signed load from MEM[$rA+VALUE] into $rD
-0xf1..        $rD <- MEM8[$rA+VALUE]               8-bit unsigned load from MEM[$rA+VALUE] into $rD
-0xf2..        $srD <- MEM16[$rA+VALUE]             16-bit signed load from MEM[$rA+VALUE] into $rD
-0xf3..        $rD <- MEM16[$rA+VALUE]              16-bit unsigned load from MEM[$rA+VALUE] into $rD
-0xf4..        $rD <- MEM[32][$rA+VALUE]            32-bit load from MEM[$rA+VALUE] into $rD
-0xf5..        MEM8[$rA+VALUE] <- $rD               8-bit store to MEM[$rA+VALUE] from $rD
-0xf6..        MEM16[$rA+VALUE] <- $rD              16-bit store to MEM[$rA+VALUE] from $rD
-0xf7..        MEM[32][$rA+VALUE] <- $rD            32-bit store to MEM[$rA+VALUE] from $rD
-0xf8..        $rD <- !MEM[32][$rA+VALUE]           32-bit unsigned load-reserve (exclusive load)
-0xf9..        ?MEM[32][$rA+VALUE] <- $rD           32-bit store-release (exclusive store)
-0xfa.0        $pc <- MEM[32][$rA+VALUE]            32-bit load from MEM[$rA+VALUE] into PC
-0xfa.1        INV[32][$rA+VALUE]                   invalidate cache line for address $rA+VALUE
+0x.f0.        $srD <- MEM8[$rA+VALUE]              8-bit signed load from MEM[$rA+VALUE] into $rD
+0x.f1.        $rD <- MEM8[$rA+VALUE]               8-bit unsigned load from MEM[$rA+VALUE] into $rD
+0x.f2.        $srD <- MEM16[$rA+VALUE]             16-bit signed load from MEM[$rA+VALUE] into $rD
+0x.f3.        $rD <- MEM16[$rA+VALUE]              16-bit unsigned load from MEM[$rA+VALUE] into $rD
+0x.f4.        $rD <- MEM[32][$rA+VALUE]            32-bit load from MEM[$rA+VALUE] into $rD
+0x.f5.        MEM8[$rA+VALUE] <- $rD               8-bit store to MEM[$rA+VALUE] from $rD
+0x.f6.        MEM16[$rA+VALUE] <- $rD              16-bit store to MEM[$rA+VALUE] from $rD
+0x.f7.        MEM[32][$rA+VALUE] <- $rD            32-bit store to MEM[$rA+VALUE] from $rD
+0x.f8.        $rD <- !MEM[32][$rA+VALUE]           32-bit unsigned load-reserve (exclusive load)
+0x.f9.        ?MEM[32][$rA+VALUE] <- $rD           32-bit store-release (exclusive store)
+0x0fa.        $pc <- MEM[32][$rA+VALUE]            32-bit load from MEM[$rA+VALUE] into PC
+0x1fa.        INV[32][$rA+VALUE]                   invalidate cache line for address $rA+VALUE
+0x.fb.        type $r0...$r7  <- MEM[$rD, FIELD_A*4 (one-complement)] with VALUE as mask
+0x.fc.        type $r8...$r14 <- MEM[$rD, FIELD_A*4 (one-complement)] with VALUE as mask
+0x.fd.        MEM[$rD, FIELD_A*4 (one-complement)] <- type $r0...$r7  with VALUE as mask
+0x.fe.        MEM[$rD, FIELD_A*4 (one-complement)] <- type $r8...$r14 with VALUE as mask
 
 NOTE: VALUE is sign-extended before addition
 NOTE: loads don't change the type of a register.
@@ -525,20 +553,25 @@ Form C: Direct load/store
 | 1 | 1 | 1 | 1 |     MEM_OP    | 1 | 1 | 1 | 1 |       D       |  |                                                             VALUE                                                             |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-  INST        OP_CODE                          OPERATION
+  FIELD
+  DCBA        OP_CODE                        OPERATION
 --------------------------------------------------------------
-0xf0f.        $srD <- MEM8[VALUE]              8-bit signed load from MEM[VALUE] into $rD
-0xf1f.        $rD <- MEM8[VALUE]               8-bit unsigned load from MEM[VALUE] into $rD
-0xf2f.        $srD <- MEM16[VALUE]             16-bit signed load from MEM[VALUE] into $rD
-0xf3f.        $rD <- MEM16[VALUE]              16-bit unsigned load from MEM[VALUE] into $rD
-0xf4f.        $rD <- MEM[32][VALUE]            32-bit load from MEM[VALUE] into $rD
-0xf5f.        MEM8[VALUE] <- $rD               8-bit store to MEM[VALUE] from $rD
-0xf6f.        MEM16[VALUE] <- $rD              16-bit store to MEM[VALUE] from $rD
-0xf7f.        MEM[32][VALUE] <- $rD            32-bit store to MEM[VALUE] from $rD
-0xf8f.        $rD <- !MEM[32][VALUE]           32-bit unsigned load-reserve (exclusive load)
-0xf9f.        ?MEM[32][VALUE] <- $rD           32-bit store-release (exclusive store)
-0xfaf0        $pc <- MEM[32][VALUE]            32-bit load from MEM[VALUE] into PC
-0xfaf1        INV[32][VALUE]                   invalidate cache line for address VALUE
+0x.f0f        $srD <- MEM8[VALUE]              8-bit signed load from MEM[VALUE] into $rD
+0x.f1f        $rD <- MEM8[VALUE]               8-bit unsigned load from MEM[VALUE] into $rD
+0x.f2f        $srD <- MEM16[VALUE]             16-bit signed load from MEM[VALUE] into $rD
+0x.f3f        $rD <- MEM16[VALUE]              16-bit unsigned load from MEM[VALUE] into $rD
+0x.f4f        $rD <- MEM[32][VALUE]            32-bit load from MEM[VALUE] into $rD
+0x.f5f        MEM8[VALUE] <- $rD               8-bit store to MEM[VALUE] from $rD
+0x.f6f        MEM16[VALUE] <- $rD              16-bit store to MEM[VALUE] from $rD
+0x.f7f        MEM[32][VALUE] <- $rD            32-bit store to MEM[VALUE] from $rD
+0x.f8f        $rD <- !MEM[32][VALUE]           32-bit unsigned load-reserve (exclusive load)
+0x.f9f        ?MEM[32][VALUE] <- $rD           32-bit store-release (exclusive store)
+0x0faf        $pc <- MEM[32][VALUE]            32-bit load from MEM[VALUE] into PC
+0x1faf        INV[32][VALUE]                   invalidate cache line for address VALUE
+0x.fbf
+0x.fcf
+0x.fdf
+0x.fef
 
 NOTE: loads don't change the type of a register.
 
@@ -547,7 +580,7 @@ Extension group A:
 -------------------------------
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-| 1 | 1 | 1 | 0 |      EXT      | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |  |       C       |       B       |       A       |       D       |
+| 1 | 1 | 1 | 1 | 1 | 1 | 1 | 0 |      EXT      | 1 | 1 | 1 | 1 |  |       D       |       C       |       B       |       A       |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 These instructions allow for instruction set extensions in the following way: each value of the ESC select an alternative decoding
@@ -560,58 +593,59 @@ are 32-bit long, which is what the length decoding logic signals.
 
 EXT = 0:
   FIELD
-  CBAD             OP_CODE   OPERATION       TYPE VARIATIONS
+  DCBA             OP_CODE   OPERATION       TYPE VARIATIONS
 ------------------------------------------------------------------------------------------
-0x00..            $rD.* <- $rA.* == 0        3
-0x01..            $rD.* <- $rA.* != 0        3
-0x02..            $rD.* <- $srA.* < 0        5         signed compare
-0x03..            $rD.* <- $srA.* >= 0       5         signed compare
-0x04..            $rD.* <- $srA.* > 0        5         signed compare
-0x05..            $rD.* <- $srA.* <= 0       5         signed compare
-0x06..            SII
-0x07..            SII
-0x08..            SII
-0x09..            SII
-0x0a..            SII
-0x0b..            SII
-0x0c..            SII
-0x0d..            SII
-0x0e..            SII
+0x.00.            $rD.* <- $rA.* == 0        3
+0x.01.            $rD.* <- $rA.* != 0        3
+0x.02.            $rD.* <- $srA.* < 0        5         signed compare
+0x.03.            $rD.* <- $srA.* >= 0       5         signed compare
+0x.04.            $rD.* <- $srA.* > 0        5         signed compare
+0x.05.            $rD.* <- $srA.* <= 0       5         signed compare
+0x.06.            SII
+0x.07.            SII
+0x.08.            SII
+0x.09.            SII
+0x.0a.            SII
+0x.0b.            SII
+0x.0c.            SII
+0x.0d.            SII
+0x.0e.            SII
 
-0x1...            $rD.* <- $rB.* == $rA.*    3
-0x2...            $rD.* <- $rB.* != $rA.*    3
-0x3...            $rD.* <- $srB.* < $srA.*   5              signed compare
-0x4...            $rD.* <- $srB.* >= $srA.*  5              signed compare
-0x5...            $rD.* <- $rB.* < $rA.*     5
-0x6...            $rD.* <- $rB.* >= $rA.*    5
-0x7...            SII
-0x8...            SII
-0x9...            SII
-0xa...            SII
-0xb...            SII
-0xc...            SII
-0xd...            SII
-0xe...            SII
+0x.1..            $rD.* <- $rB.* == $rA.*    3
+0x.2..            $rD.* <- $rB.* != $rA.*    3
+0x.3..            $rD.* <- $srB.* < $srA.*   5              signed compare
+0x.4..            $rD.* <- $srB.* >= $srA.*  5              signed compare
+0x.5..            $rD.* <- $rB.* < $rA.*     5
+0x.6..            $rD.* <- $rB.* >= $rA.*    5
+0x.7..            SII
+0x.8..            SII
+0x.9..            SII
+0x.a..            SII
+0x.b..            SII
+0x.c..            SII
+0x.d..            SII
+0x.e..            SII
 
 Extension group B:
 -------------------------------
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-| 1 | 1 | 1 | 0 |    EXT    |      FRACT        | 1 | 1 | 1 | 1 |  |       C       |       B       |       A       |       D       |
+| 1 | 1 | 1 | 1 | 1 | 1 | 1 | 0 |    EXT    |      FIELD_F      |  |       D       |       C       |       B       |       A       |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 EXT = 0:
   FIELD
-  CBAD             OP_CODE   OPERATION                  TYPE VARIATIONS
+  DCBA             OP_CODE   OPERATION                  TYPE VARIATIONS
 ------------------------------------------------------------------------------------------
-0x0...             $rD <- full $rA * $rB >> FRACT       3
-0x1...             $srD <- full $srA * $srB >> FRACT    3
+0x.0..             $rD <- full $rA * $rB >> FIELD_F     3
+0x.1..             $srD <- full $srA * $srB >> FIELD_F  3
+0x.2..             $rD.* <- interpolate $rA, $rB.*
 
 Extension group C:
 -------------------------------
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-| 1 | 1 | 1 | 0 |      EXT      | 1 | 1 | 1 | 1 |      EXT2     |  |                                                             VALUE                                                             |
+|      EXT      | 1 | 1 | 1 | 0 |      EXT2     | 1 | 1 | 1 | 1 |  |                                                             VALUE                                                             |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 SII
@@ -620,7 +654,7 @@ Extension group D:
 -------------------------------
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-|      EXT      | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |      EXT2     |  |                                                             VALUE                                                             |
+|      EXT      |      EXT2     | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |  |                                                             VALUE                                                             |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 C < 0xa
@@ -631,7 +665,7 @@ Extension group E:
 -------------------------------
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-|      EXT      | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |  |                           VALUE                               |
+| 1 | 1 | 1 | 1 |      EXT      | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |  |                           VALUE                               |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 SII
@@ -640,7 +674,7 @@ Extension group F:
 -------------------------------
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-| 1 | 1 | 1 | 1 |      EXT      |      EXT2     | 1 | 1 | 1 | 1 |  |                           VALUE                               |
+| 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |      EXT      |      EXT2     |  |                           VALUE                               |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 SII
@@ -649,7 +683,7 @@ Extension group G:
 -------------------------------
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-| 1 | 1 | 1 | 1 |      EXT      | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |  |                                                             VALUE                                                             |
+| 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |      EXT      | 1 | 1 | 1 | 1 |  |                                                             VALUE                                                             |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 SII
@@ -908,3 +942,41 @@ S_GL1_INV    - invalidates the GL1 cache whatever that is
 NOTE: there's no flush. That seems to indicate:
   - write-through
   - non-coherent
+
+BENCHMARK NOTES
+==================
+
+Linpack.o: 3411 assembly lines, 6640 bytes of code. That's pretty close to 16-bits per instruction.
+And that's before the spill/reload optimizations. That alone would save 774 words or 1584 bytes.
+That would make the code segment 5056 bytes long, so below 16 bits per instruction (which of course
+must be a measurement error, I can't average below 16.)
+
+The problem is in the code segment size. Whatever is disassembled is only 11498 bytes long, because it
+contains both .text and .text.startup. So, the real ratio used to be 27 bits/instruction.
+
+After the changes it should be around 23.2 bits/instruction. A 32-bit ISA obviously would not be
+able to beat that, but it might still be better if it somehow was significantly more compact.
+
+One reason for that to be would be the possibility of 31 GP registers. On the flip-side, loading
+a generic 32-bit constant would require 64-bits of instruction space, whereas this ISA gets the
+job done if 48 bits.
+
+Overall, I have a hard time seeing how any 32-bit ISA would be able to beat this for compactness.
+But then again, there's RISCV...
+
+The same metrics for that code: 2137 instructions, in 8540 bytes. That's quite precisely 32-bits per
+instruction, which of course is the expectation. Though the comparison isn't fair: the RISCV code
+uses hard-floats.
+
+Correcting for that, we end up with 3334 instructions, 13328 bytes. Now we're talking! the RISCV
+ISA now doesn't match up to even my current implementation, let alone to the optimized one!
+
+The other 32-bit architectures, NIOS2 and MICROBLAZE were no better either. That leaves ARM (32),
+which appears to still be slightly better.
+
+That stems from the fact that they manage to accomplish the task in a mere 2724 instructions. However
+we do know that ARM is very compact due to the their multi-register push/pull instructions, which
+I'm not willing to entertain. And with the optimized spill/reload sequences, I'll be able to beat
+ARM as well, even though not THUMB.
+
+The typed ISA though is *painful*!
