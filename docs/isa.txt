@@ -97,7 +97,6 @@ Register indexes:
 0xf:  reserved
 
 Register aliases:
-    $srX: signed version of $rX
     $fp:  alias to $r12
     $sp:  alias to $r13
     $lr:  alias to $r14
@@ -170,14 +169,14 @@ Exception group
   FIELD
   DCBA             OP_CODE   OPERATION          TYPE VARIATIONS
 -------------------------------------------------------------------
-0x0000             FILL     SWI0                   enters privileged mode, disables interrupts - used to fill unused code-pages; TPC points to the current instruction
-0x1000             BREAK    SWI1                   enters privileged mode, disables interrupts - used for SW breakpoints; TPC points to the current instruction
-0x2000             SYSCALL  SWI2                   enters privileged mode, disables interrupts - used for SYSCALL-s; TPC points to the current instruction
-0x3000                      SWI3                   enters privileged mode, disables interrupts - used for sotware interrupts; TPC points to the current instruction
-0x4000                      SWI4                   enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the current instruction
-0x5000                      SWI5                   enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the current instruction
-0x6000             SII      SWI6                   enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the current instruction
-0x7000             HWI      SWI7                   enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the current instruction
+0x0000             FILL     SWI 0                  enters privileged mode, disables interrupts - used to fill unused code-pages; TPC points to the current instruction
+0x1000             BREAK    SWI 1                  enters privileged mode, disables interrupts - used for SW breakpoints; TPC points to the current instruction
+0x2000             SYSCALL  SWI 2                  enters privileged mode, disables interrupts - used for SYSCALL-s; TPC points to the current instruction
+0x3000                      SWI 3                  enters privileged mode, disables interrupts - used for sotware interrupts; TPC points to the current instruction
+0x4000                      SWI 4                  enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the current instruction
+0x5000                      SWI 5                  enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the current instruction
+0x6000             SII      SWI 6                  enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the current instruction
+0x7000             HWI      SWI 7                  enters privileged mode, disables interrupts - used to indicate invlid instructions; TPC points to the current instruction
 
 0x8000             STM                             enters task mode, enables interrupts; SPC points to the NEXT instruction
 0x9000             WOI                             wake on interrupt
@@ -236,14 +235,14 @@ Unary group
   DCBA             OP_CODE   OPERATION          TYPE VARIATIONS
 -------------------------------------------------------------------
 0x.01.             $rD <- FIELD_A (one-s complement; range is -7...7)
-0x.02.             $rD <- $pc + FIELD_A*2
+0x.02.             $rD <- $pc + FIELD_A*2  ################## NOTE: WE COULD MAKE THE RANGE A LITTLE HIGHER IF NOT ALLOW 0
 0x.03.             $rD.* <- -$rA.*
 0x.04.             $rD.* <- ~$rA.*
-0x.05.             $srD.* <- BSI $rA.*
-0x.06.             $srD.* <- WSI $rA.*
+0x.05.             $rD.* <- bsi $rA.*
+0x.06.             $rD.* <- wsi $rA.*
 -----------
-0x.07.             $frD.* <- $srA.*
-0x.08.             $srD.* <- FLOOR $rA.*
+0x.07.             $rD.* <- float $rA.*
+0x.08.             $rD.* <- int $rA.*
 0x.09.             $rD.* <- 1 / $rA.*
 0x.0a.             $rD.* <- rsqrt $rA.*
 -----------
@@ -251,7 +250,7 @@ Unary group
 -----------
 0x.0c.             type $rD <- $rA
 0x.0d.             $rD <- type $rA
-0x.0e.             type $rD <- FIELD_A
+0x.0e.             type $rD <- type FIELD_A
 
 NOTE: We only have reduction sum. Is there any other *really* important reduction op we need?
 
@@ -267,10 +266,10 @@ Binary group
 0x.5..             $rD.* <- $rA.* - $rB.*       9
 0x.6..             $rD.* <- $rA.* << $rB.*      3
 0x.7..             $rD.* <- $rA.* >> $rB.*      3
-0x.8..             $srD.* <- $srA.* >> $rB.*    3
+0x.8..             $rD.* <- $rA.* >>> $rB.*     3
 0x.9..             $rD.* <- $rA.* * $rB.*       9 (?)
 0x.a..             $rD.* <- ~$rA.* & $rB.*      1  (this is for lane-combining with an inverted predicate)
-0x.b..             $rD.* <- $rB. + FIELD_A (one's complement; range is -7...7)
+0x.b..             $rD.* <- tiny $rB.* + FIELD_A (one's complement; range is -7...7)
 0x.c..             see below (stack ops)
 0x.d..             see below (stack ops)
 0x.e..             see below (mem ops)
@@ -298,7 +297,8 @@ Form B:
   DCBA             OP_CODE   OPERATION          TYPE VARIATIONS
 -------------------------------------------------------------------
 0x.00f             $rD.*  <- VALUE              1 (type of $rD remains unchanged)         NOTE: this is the unary operator space normally.
-0x.01f             $pc  <- VALUE                N/A
+0x201f             $pc   <- VALUE                N/A
+0x301f             $tpc  <- VALUE                N/A
 0x.02f:0x.0ef      SII
 0x.1.f             $rD.*  <- VALUE ^ $rB.*      1
 0x.2.f             $rD.*  <- VALUE | $rB.*      1
@@ -307,7 +307,7 @@ Form B:
 0x.5.f             $rD.*  <- VALUE - $rB.*      9
 0x.6.f             $rD.*  <- VALUE << $rB.*     3
 0x.7.f             $rD.*  <- VALUE >> $rB.*     3
-0x.8.f             $srD.* <- VALUE >> $rB.*     3              signed right shift
+0x.8.f             $rD.*  <- VALUE >>> $rB.*    3              signed right shift
 0x.9.f             $rD.*  <- VALUE * $rB.*      9 (?)
 0x.a.f             type $r0...$r7 <- VALUE
 0x.b.f             type $r8...$r15 <- VALUE
@@ -331,8 +331,10 @@ Form C:
   DCBA             OP_CODE   OPERATION                TYPE VARIATIONS
 -------------------------------------------------------------------------
 0x.0f0             $rD  <- short VALUE                1     NOTE: this is the unary operator space normally.
-0x.0f1             $rD <- lane_swizzle $rA, VALUE     1     only lower 8 bits of value has any meaning, all selection options are valid, independent of type NOTE: this would be a short, unconditional jump, something that already is possible using conditional branches
-0x.0f2:0x.0fe       SII
+0x20f1             $pc  <- short VALUE
+0x30f1             $tpc <- short VALUE
+0x.0f2             $rD  <- lane_swizzle $rA, VALUE    1     only lower 8 bits of value has any meaning, all selection options are valid, independent of type NOTE: this would be a short, unconditional jump, something that already is possible using conditional branches
+0x.0f3:0x.0fe      SII
 0x.1f.             $rD  <- short VALUE ^ $rA          1
 0x.2f.             $rD  <- short VALUE | $rA          1
 0x.3f.             $rD  <- short VALUE & $rA          1
@@ -340,7 +342,7 @@ Form C:
 0x.5f.             $rD  <- short VALUE - $rA          9
 0x.6f.             $rD  <- short VALUE << $rA         3
 0x.7f.             $rD  <- short VALUE >> $rA         3
-0x.8f.             $srD <- short VALUE >> $rA         3    signed right shift
+0x.8f.             $rD  <- short VALUE >>> $rA        3    signed right shift
 0x.9f.             $rD  <- short VALUE * $rA          9 (?)
 0x.af.             SII
 0x.bf.             SII
@@ -370,32 +372,32 @@ Form A:
 ------------------------------------------------------------------------------------------
 0xf00.            if any $rA == 0  $pc <- $pc + unmunge(OFFSET)          1
 0xf01.            if any $rA != 0  $pc <- $pc + unmunge(OFFSET)          1
-0xf02.            if any $srA < 0  $pc <- $pc + unmunge(OFFSET)          5                signed compare
-0xf03.            if any $srA >= 0 $pc <- $pc + unmunge(OFFSET)          5                signed compare
-0xf04.            if any $srA > 0  $pc <- $pc + unmunge(OFFSET)          5                signed compare
-0xf05.            if any $srA <= 0 $pc <- $pc + unmunge(OFFSET)          5                signed compare
+0xf02.            if any $rA < 0  $pc <- $pc + unmunge(OFFSET)           5                signed compare
+0xf03.            if any $rA >= 0 $pc <- $pc + unmunge(OFFSET)           5                signed compare
+0xf04.            if any $rA > 0  $pc <- $pc + unmunge(OFFSET)           5                signed compare
+0xf05.            if any $rA <= 0 $pc <- $pc + unmunge(OFFSET)           5                signed compare
 0xf06.            SII
 0xf07.            SII
 0xf08.            if all $rA == 0  $pc <- $pc + unmunge(OFFSET)          1
 0xf09.            if all $rA != 0  $pc <- $pc + unmunge(OFFSET)          1
-0xf0b.            if all $srA >= 0 $pc <- $pc + unmunge(OFFSET)          5                signed compare
-0xf0c.            if all $srA > 0  $pc <- $pc + unmunge(OFFSET)          5                signed compare
-0xf0d.            if all $srA <= 0 $pc <- $pc + unmunge(OFFSET)          5                signed compare
-0xf0a.            if all $srA < 0  $pc <- $pc + unmunge(OFFSET)          5                signed compare
+0xf0b.            if all $rA >= 0 $pc <- $pc + unmunge(OFFSET)           5                signed compare
+0xf0c.            if all $rA > 0  $pc <- $pc + unmunge(OFFSET)           5                signed compare
+0xf0d.            if all $rA <= 0 $pc <- $pc + unmunge(OFFSET)           5                signed compare
+0xf0a.            if all $rA < 0  $pc <- $pc + unmunge(OFFSET)           5                signed compare
 0xf0e.            SII
 
 0xf1..            if any $rB == $rA   $pc <- $pc + unmunge(OFFSET)       1
 0xf2..            if any $rB != $rA   $pc <- $pc + unmunge(OFFSET)       1
-0xf3..            if any $srB < $srA  $pc <- $pc + unmunge(OFFSET)       5             signed compare
-0xf4..            if any $srB >= $srA $pc <- $pc + unmunge(OFFSET)       5             signed compare
+0xf3..            if any signed $rB < $rA  $pc <- $pc + unmunge(OFFSET)  5             signed compare
+0xf4..            if any signed $rB >= $rA $pc <- $pc + unmunge(OFFSET)  5             signed compare
 0xf5..            if any $rB < $rA    $pc <- $pc + unmunge(OFFSET)       5
 0xf6..            if any $rB >= $rA   $pc <- $pc + unmunge(OFFSET)       5
 0xf7..            SII
 0xf8..            SII
 0xf9..            if all $rB == $rA   $pc <- $pc + unmunge(OFFSET)       1
 0xfa..            if all $rB != $rA   $pc <- $pc + unmunge(OFFSET)       1
-0xfb..            if all $srB < $srA  $pc <- $pc + unmunge(OFFSET)       5             signed compare
-0xfc..            if all $srB >= $srA $pc <- $pc + unmunge(OFFSET)       5             signed compare
+0xfb..            if all signed $rB < $rA  $pc <- $pc + unmunge(OFFSET)  5             signed compare
+0xfc..            if all signed $rB >= $rA $pc <- $pc + unmunge(OFFSET)  5             signed compare
 0xfd..            if all $rB < $rA    $pc <- $pc + unmunge(OFFSET)       5
 0xfe..            if all $rB >= $rA   $pc <- $pc + unmunge(OFFSET)       5
 
@@ -404,8 +406,8 @@ NOTE: comparison type is determined by type of $rA. type of $rB is ignored and a
 TODO: maybe we can do lane-replication in case of lane-count mismatch? After all, these are using the ALUs, the same way as binary ops do...
 
 PSEUDO OPS:
-    if $srB >= $srA $pc <- $pc + unmunge(OFFSET)
-    if $srB < $srA  $pc <- $pc + unmunge(OFFSET)
+    if signed $rB >= $rA $pc <- $pc + unmunge(OFFSET)
+    if signed $rB < $rA  $pc <- $pc + unmunge(OFFSET)
     if $rB >= $rA   $pc <- $pc + unmunge(OFFSET)
     if $rB < $rA    $pc <- $pc + unmunge(OFFSET)
 
@@ -499,9 +501,9 @@ Form A: Indirect load/store
   FIELD
   DCBA        OP_CODE                        OPERATION
 --------------------------------------------------------------
-0x.e0.        $srD <- MEM8[$rA]              8-bit signed load from MEM[$rA] into $rD
+0x.e0.        $rD <- SMEM8[$rA]              8-bit signed load from MEM[$rA] into $rD
 0x.e1.        $rD <- MEM8[$rA]               8-bit unsigned load from MEM[$rA] into $rD
-0x.e2.        $srD <- MEM16[$rA]             16-bit signed load from MEM[$rA] into $rD
+0x.e2.        $rD <- SMEM16[$rA]             16-bit signed load from MEM[$rA] into $rD
 0x.e3.        $rD <- MEM16[$rA]              16-bit unsigned load from MEM[$rA] into $rD
 0x.e4.        $rD <- MEM[32][$rA]            32-bit load from MEM[$rA] into $rD
 0x.e5.        MEM8[$rA] <- $rD               8-bit store to MEM[$rA] from $rD
@@ -509,8 +511,9 @@ Form A: Indirect load/store
 0x.e7.        MEM[32][$rA] <- $rD            32-bit store to MEM[$rA] from $rD
 0x.e8.        $rD <- !MEM[32][$rA]           32-bit unsigned load-reserve (exclusive load)
 0x.e9.        ?MEM[32][$rA] <- $rD           32-bit store-release (exclusive store)
-0x0ea.        $pc <- MEM[32][$rA]            32-bit load from MEM[$rA] into PC
-0x1ea.        INV[32][$rA]                   invalidate cache line for address $rA
+0x0ea.        INV[32][$rA]                   invalidate cache line for address $rA
+0x2ea.        $pc <- MEM[32][$rA]            32-bit load from MEM[$rA] into $PC
+0x3ea.        $tpc <- MEM[32][$rA]           32-bit load from MEM[$rA] into $TPC
 0x.eb.        type $r0...$r7  <- MEM[$rD, FIELD_A*4 (one-complement)]
 0x.ec.        type $r8...$r14 <- MEM[$rD, FIELD_A*4 (one-complement)]
 0x.ed.        MEM[$rD, FIELD_A*4 (one-complement)] <- type $r0...$r7
@@ -527,9 +530,9 @@ Form B: Inidirect offset load/store
   FIELD
   DCBA        OP_CODE                        OPERATION
 --------------------------------------------------------------
-0x.f0.        $srD <- MEM8[$rA+VALUE]              8-bit signed load from MEM[$rA+VALUE] into $rD
+0x.f0.        $rD <- SMEM8[$rA+VALUE]              8-bit signed load from MEM[$rA+VALUE] into $rD
 0x.f1.        $rD <- MEM8[$rA+VALUE]               8-bit unsigned load from MEM[$rA+VALUE] into $rD
-0x.f2.        $srD <- MEM16[$rA+VALUE]             16-bit signed load from MEM[$rA+VALUE] into $rD
+0x.f2.        $rD <- SMEM16[$rA+VALUE]             16-bit signed load from MEM[$rA+VALUE] into $rD
 0x.f3.        $rD <- MEM16[$rA+VALUE]              16-bit unsigned load from MEM[$rA+VALUE] into $rD
 0x.f4.        $rD <- MEM[32][$rA+VALUE]            32-bit load from MEM[$rA+VALUE] into $rD
 0x.f5.        MEM8[$rA+VALUE] <- $rD               8-bit store to MEM[$rA+VALUE] from $rD
@@ -537,8 +540,9 @@ Form B: Inidirect offset load/store
 0x.f7.        MEM[32][$rA+VALUE] <- $rD            32-bit store to MEM[$rA+VALUE] from $rD
 0x.f8.        $rD <- !MEM[32][$rA+VALUE]           32-bit unsigned load-reserve (exclusive load)
 0x.f9.        ?MEM[32][$rA+VALUE] <- $rD           32-bit store-release (exclusive store)
-0x0fa.        $pc <- MEM[32][$rA+VALUE]            32-bit load from MEM[$rA+VALUE] into PC
-0x1fa.        INV[32][$rA+VALUE]                   invalidate cache line for address $rA+VALUE
+0x0fa.        INV[32][$rA+VALUE]                   invalidate cache line for address $rA+VALUE
+0x2fa.        $pc <- MEM[32][$rA+VALUE]            32-bit load from MEM[$rA+VALUE] into $PC
+0x3fa.        $tpc <- MEM[32][$rA+VALUE]           32-bit load from MEM[$rA+VALUE] into $TPC
 0x.fb.        type $r0...$r7  <- MEM[$rD, FIELD_A*4 (one-complement)] with VALUE as mask
 0x.fc.        type $r8...$r14 <- MEM[$rD, FIELD_A*4 (one-complement)] with VALUE as mask
 0x.fd.        MEM[$rD, FIELD_A*4 (one-complement)] <- type $r0...$r7  with VALUE as mask
@@ -556,9 +560,9 @@ Form C: Direct load/store
   FIELD
   DCBA        OP_CODE                        OPERATION
 --------------------------------------------------------------
-0x.f0f        $srD <- MEM8[VALUE]              8-bit signed load from MEM[VALUE] into $rD
+0x.f0f        $rD <- SMEM8[VALUE]              8-bit signed load from MEM[VALUE] into $rD
 0x.f1f        $rD <- MEM8[VALUE]               8-bit unsigned load from MEM[VALUE] into $rD
-0x.f2f        $srD <- MEM16[VALUE]             16-bit signed load from MEM[VALUE] into $rD
+0x.f2f        $rD <- SMEM16[VALUE]             16-bit signed load from MEM[VALUE] into $rD
 0x.f3f        $rD <- MEM16[VALUE]              16-bit unsigned load from MEM[VALUE] into $rD
 0x.f4f        $rD <- MEM[32][VALUE]            32-bit load from MEM[VALUE] into $rD
 0x.f5f        MEM8[VALUE] <- $rD               8-bit store to MEM[VALUE] from $rD
@@ -566,8 +570,9 @@ Form C: Direct load/store
 0x.f7f        MEM[32][VALUE] <- $rD            32-bit store to MEM[VALUE] from $rD
 0x.f8f        $rD <- !MEM[32][VALUE]           32-bit unsigned load-reserve (exclusive load)
 0x.f9f        ?MEM[32][VALUE] <- $rD           32-bit store-release (exclusive store)
-0x0faf        $pc <- MEM[32][VALUE]            32-bit load from MEM[VALUE] into PC
-0x1faf        INV[32][VALUE]                   invalidate cache line for address VALUE
+0x0faf        INV[32][VALUE]                   invalidate cache line for address VALUE
+0x2faf        $pc <- MEM[32][VALUE]            32-bit load from MEM[VALUE] into $PC
+0x3faf        $tpc <- MEM[32][VALUE]           32-bit load from MEM[VALUE] into $TPC
 0x.fbf
 0x.fcf
 0x.fdf
@@ -593,14 +598,14 @@ are 32-bit long, which is what the length decoding logic signals.
 
 EXT = 0:
   FIELD
-  DCBA             OP_CODE   OPERATION       TYPE VARIATIONS
+  DCBA             OP_CODE   OPERATION             TYPE VARIATIONS
 ------------------------------------------------------------------------------------------
-0x.00.            $rD.* <- $rA.* == 0        3
-0x.01.            $rD.* <- $rA.* != 0        3
-0x.02.            $rD.* <- $srA.* < 0        5         signed compare
-0x.03.            $rD.* <- $srA.* >= 0       5         signed compare
-0x.04.            $rD.* <- $srA.* > 0        5         signed compare
-0x.05.            $rD.* <- $srA.* <= 0       5         signed compare
+0x.00.            $rD.* <- $rA.* == 0              3
+0x.01.            $rD.* <- $rA.* != 0              3
+0x.02.            $rD.* <- $rA.* < 0               5         signed compare
+0x.03.            $rD.* <- $rA.* >= 0              5         signed compare
+0x.04.            $rD.* <- $rA.* > 0               5         signed compare
+0x.05.            $rD.* <- $rA.* <= 0              5         signed compare
 0x.06.            SII
 0x.07.            SII
 0x.08.            SII
@@ -611,12 +616,12 @@ EXT = 0:
 0x.0d.            SII
 0x.0e.            SII
 
-0x.1..            $rD.* <- $rB.* == $rA.*    3
-0x.2..            $rD.* <- $rB.* != $rA.*    3
-0x.3..            $rD.* <- $srB.* < $srA.*   5              signed compare
-0x.4..            $rD.* <- $srB.* >= $srA.*  5              signed compare
-0x.5..            $rD.* <- $rB.* < $rA.*     5
-0x.6..            $rD.* <- $rB.* >= $rA.*    5
+0x.1..            $rD.* <- $rB.* == $rA.*           3
+0x.2..            $rD.* <- $rB.* != $rA.*           3
+0x.3..            $rD.* <- signed $rB.* < $rA.*     5              signed compare
+0x.4..            $rD.* <- signed $rB.* >= $rA.*    5              signed compare
+0x.5..            $rD.* <- $rB.* < $rA.*            5
+0x.6..            $rD.* <- $rB.* >= $rA.*           5
 0x.7..            SII
 0x.8..            SII
 0x.9..            SII
@@ -638,7 +643,7 @@ EXT = 0:
   DCBA             OP_CODE   OPERATION                  TYPE VARIATIONS
 ------------------------------------------------------------------------------------------
 0x.0..             $rD <- full $rA * $rB >> FIELD_F     3
-0x.1..             $srD <- full $srA * $srB >> FIELD_F  3
+0x.1..             $rD <- full $rA * $rB >>> FIELD_F    3
 0x.2..             $rD.* <- interpolate $rA, $rB.*
 
 Extension group C:
