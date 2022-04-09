@@ -161,7 +161,7 @@ ALU operations:
 Form A:
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-|       C       |       B       |       A       |       D       |
+|       D       |       C       |       B       |       A       |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 Exception group
@@ -234,7 +234,7 @@ Unary group
   FIELD
   DCBA             OP_CODE   OPERATION          TYPE VARIATIONS
 -------------------------------------------------------------------
-0x.01.             $rD <- FIELD_A (one-s complement; range is -7...7)
+0x.01.             $rD <- tiny FIELD_A (one-s complement; range is -7...7)
 0x.02.             $rD <- $pc + FIELD_A*2  ################## NOTE: WE COULD MAKE THE RANGE A LITTLE HIGHER IF NOT ALLOW 0
 0x.03.             $rD.* <- -$rA.*
 0x.04.             $rD.* <- ~$rA.*
@@ -290,16 +290,16 @@ $rD = $rS: encodes to 0xD2SS
 
 Form B:
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-|       C       |       B       | 1 | 1 | 1 | 1 |       D       |  |                                                             VALUE                                                             |
+|       D       |       C       |       B       | 1 | 1 | 1 | 1 |  |                                                             VALUE                                                             |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   FIELD
   DCBA             OP_CODE   OPERATION          TYPE VARIATIONS
 -------------------------------------------------------------------
 0x.00f             $rD.*  <- VALUE              1 (type of $rD remains unchanged)         NOTE: this is the unary operator space normally.
-0x201f             $pc   <- VALUE                N/A
-0x301f             $tpc  <- VALUE                N/A
-0x.02f:0x.0ef      SII
+0x.01f:0x.0df      SII
+0x20ef             $pc   <- VALUE                N/A
+0x30ef             $tpc  <- VALUE                N/A
 0x.1.f             $rD.*  <- VALUE ^ $rB.*      1
 0x.2.f             $rD.*  <- VALUE | $rB.*      1
 0x.3.f             $rD.*  <- VALUE & $rB.*      1
@@ -323,18 +323,18 @@ NOTE: << and >> operations where opB is constant can be simulated by multiplies.
       (i.e. 32-bit instead of 16).
 
 Form C:
+
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-|       C       | 1 | 1 | 1 | 1 |       A       |       D       |  |                         VALUE                                 |
+|       D       |       C       | 1 | 1 | 1 | 1 |       A       |  |                         VALUE                                 |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   FIELD
   DCBA             OP_CODE   OPERATION                TYPE VARIATIONS
 -------------------------------------------------------------------------
 0x.0f0             $rD  <- short VALUE                1     NOTE: this is the unary operator space normally.
-0x20f1             $pc  <- short VALUE
-0x30f1             $tpc <- short VALUE
-0x.0f2             $rD  <- lane_swizzle $rA, VALUE    1     only lower 8 bits of value has any meaning, all selection options are valid, independent of type NOTE: this would be a short, unconditional jump, something that already is possible using conditional branches
-0x.0f3:0x.0fe      SII
+0x.0f0:0x.0fd      SII
+0x20fe             $pc  <- short VALUE
+0x30fe             $tpc <- short VALUE
 0x.1f.             $rD  <- short VALUE ^ $rA          1
 0x.2f.             $rD  <- short VALUE | $rA          1
 0x.3f.             $rD  <- short VALUE & $rA          1
@@ -344,7 +344,7 @@ Form C:
 0x.7f.             $rD  <- short VALUE >> $rA         3
 0x.8f.             $rD  <- short VALUE >>> $rA        3    signed right shift
 0x.9f.             $rD  <- short VALUE * $rA          9 (?)
-0x.af.             SII
+0x.af.             $rD  <- lane_swizzle $rA, VALUE    1     only lower 8 bits of value has any meaning, all selection options are valid, independent of type NOTE: in ASM, this is represented as a 4-digit number, each digit of the value 0...3, representing each lane, so for instance 0000 would replicate byte 0 into all 4 bytes
 0x.bf.             SII
 0x.cf.             see below (stack ops)
 0x.df.             see below (stack ops)
@@ -364,7 +364,7 @@ Branches:
 Form A:
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-|       C       |       B       |       A       | 1 | 1 | 1 | 1 |  |                          OFFSET                               |
+| 1 | 1 | 1 | 1 |       C       |       B       |       A       |  |                          OFFSET                               |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   FIELD
@@ -416,7 +416,7 @@ unmunge: move LSB to bit position 17, replace LSB with 0 and sign-extend to 32 b
 Form B (group CA):
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-|       C       | 1 | 1 | 1 | 1 |       A       | 1 | 1 | 1 | 1 |  |                          OFFSET                               |
+| 1 | 1 | 1 | 1 |       C       | 1 | 1 | 1 | 1 |       A       |  |                          OFFSET                               |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   FIELD
@@ -443,7 +443,7 @@ OFFSET is sign-extended to 31 bits, shifted left by one before addition.
 Form C (group CB):
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-|       C       |       B       | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |  |                          OFFSET                               |
+| 1 | 1 | 1 | 1 |       C       |       B       | 1 | 1 | 1 | 1 |  |                          OFFSET                               |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   FIELD
@@ -476,7 +476,7 @@ Stack ops
 -------------------------------
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-|       C       |            OFS            | A |       D       |
+|       D       |       C       |            OFS            | A |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   FIELD
@@ -495,58 +495,59 @@ Load/Store
 Form A: Indirect load/store
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-| 1 | 1 | 1 | 0 |     MEM_OP    |       A       |       D       |
+|       D       | 1 | 1 | 1 | 0 |     MEM_OP    |       A       |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   FIELD
   DCBA        OP_CODE                        OPERATION
 --------------------------------------------------------------
-0x.e0.        $rD <- SMEM8[$rA]              8-bit signed load from MEM[$rA] into $rD
-0x.e1.        $rD <- MEM8[$rA]               8-bit unsigned load from MEM[$rA] into $rD
-0x.e2.        $rD <- SMEM16[$rA]             16-bit signed load from MEM[$rA] into $rD
-0x.e3.        $rD <- MEM16[$rA]              16-bit unsigned load from MEM[$rA] into $rD
-0x.e4.        $rD <- MEM[32][$rA]            32-bit load from MEM[$rA] into $rD
-0x.e5.        MEM8[$rA] <- $rD               8-bit store to MEM[$rA] from $rD
-0x.e6.        MEM16[$rA] <- $rD              16-bit store to MEM[$rA] from $rD
-0x.e7.        MEM[32][$rA] <- $rD            32-bit store to MEM[$rA] from $rD
-0x.e8.        $rD <- !MEM[32][$rA]           32-bit unsigned load-reserve (exclusive load)
-0x.e9.        ?MEM[32][$rA] <- $rD           32-bit store-release (exclusive store)
-0x0ea.        INV[32][$rA]                   invalidate cache line for address $rA
-0x2ea.        $pc <- MEM[32][$rA]            32-bit load from MEM[$rA] into $PC
-0x3ea.        $tpc <- MEM[32][$rA]           32-bit load from MEM[$rA] into $TPC
-0x.eb.        type $r0...$r7  <- MEM[$rD, FIELD_A*4 (one-complement)]
-0x.ec.        type $r8...$r14 <- MEM[$rD, FIELD_A*4 (one-complement)]
-0x.ed.        MEM[$rD, FIELD_A*4 (one-complement)] <- type $r0...$r7
-0x.ee.        MEM[$rD, FIELD_A*4 (one-complement)] <- type $r8...$r14
+0x.e0.        type $r0...$r7  <- MEM[$rD, FIELD_A*4 (one-complement)]
+0x.e1.        type $r8...$r14 <- MEM[$rD, FIELD_A*4 (one-complement)]
+0x.e2.        MEM[$rD, FIELD_A*4 (one-complement)] <- type $r0...$r7
+0x.e3.        MEM[$rD, FIELD_A*4 (one-complement)] <- type $r8...$r14
+0x.e4.        $rD <- MEM8[$rA]               8-bit unsigned load from MEM[$rA] into $rD
+0x.e5.        $rD <- MEM16[$rA]              16-bit unsigned load from MEM[$rA] into $rD
+0x.e6.        $rD <- MEM[32][$rA]            32-bit load from MEM[$rA] into $rD
+0x.e7.        $rD <- MEMLL[32][$rA]          32-bit unsigned load-reserve (exclusive load)
+0x.e8.        MEM8[$rA] <- $rD               8-bit store to MEM[$rA] from $rD
+0x.e9.        MEM16[$rA] <- $rD              16-bit store to MEM[$rA] from $rD
+0x.ea.        MEM[32][$rA] <- $rD            32-bit store to MEM[$rA] from $rD
+0x.eb.        MEMSR[32][$rA] <- $rD          32-bit store-release (exclusive store)
+0x.ec.        $rD <- SMEM8[$rA]              8-bit signed load from MEM[$rA] into $rD
+0x.ed.        $rD <- SMEM16[$rA]             16-bit signed load from MEM[$rA] into $rD
+0x1ee.        INV[32][$rA]                   invalidate cache line for address $rA
+0x2ee.        $pc <- MEM[32][$rA]            32-bit load from MEM[$rA] into $PC
+0x3ee.        $tpc <- MEM[32][$rA]           32-bit load from MEM[$rA] into $TPC
 
 NOTE: loads don't change the type of a register.
 
 Form B: Inidirect offset load/store
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-| 1 | 1 | 1 | 1 |     MEM_OP    |       A       |       D       |  |                           VALUE                               |
+|       D       | 1 | 1 | 1 | 1 |     MEM_OP    |       A       |  |                           VALUE                               |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   FIELD
   DCBA        OP_CODE                        OPERATION
 --------------------------------------------------------------
-0x.f0.        $rD <- SMEM8[$rA+VALUE]              8-bit signed load from MEM[$rA+VALUE] into $rD
-0x.f1.        $rD <- MEM8[$rA+VALUE]               8-bit unsigned load from MEM[$rA+VALUE] into $rD
-0x.f2.        $rD <- SMEM16[$rA+VALUE]             16-bit signed load from MEM[$rA+VALUE] into $rD
-0x.f3.        $rD <- MEM16[$rA+VALUE]              16-bit unsigned load from MEM[$rA+VALUE] into $rD
-0x.f4.        $rD <- MEM[32][$rA+VALUE]            32-bit load from MEM[$rA+VALUE] into $rD
-0x.f5.        MEM8[$rA+VALUE] <- $rD               8-bit store to MEM[$rA+VALUE] from $rD
-0x.f6.        MEM16[$rA+VALUE] <- $rD              16-bit store to MEM[$rA+VALUE] from $rD
-0x.f7.        MEM[32][$rA+VALUE] <- $rD            32-bit store to MEM[$rA+VALUE] from $rD
-0x.f8.        $rD <- !MEM[32][$rA+VALUE]           32-bit unsigned load-reserve (exclusive load)
-0x.f9.        ?MEM[32][$rA+VALUE] <- $rD           32-bit store-release (exclusive store)
-0x0fa.        INV[32][$rA+VALUE]                   invalidate cache line for address $rA+VALUE
-0x2fa.        $pc <- MEM[32][$rA+VALUE]            32-bit load from MEM[$rA+VALUE] into $PC
-0x3fa.        $tpc <- MEM[32][$rA+VALUE]           32-bit load from MEM[$rA+VALUE] into $TPC
-0x.fb.        type $r0...$r7  <- MEM[$rD, FIELD_A*4 (one-complement)] with VALUE as mask
-0x.fc.        type $r8...$r14 <- MEM[$rD, FIELD_A*4 (one-complement)] with VALUE as mask
-0x.fd.        MEM[$rD, FIELD_A*4 (one-complement)] <- type $r0...$r7  with VALUE as mask
-0x.fe.        MEM[$rD, FIELD_A*4 (one-complement)] <- type $r8...$r14 with VALUE as mask
+0x.f0.        type $r0...$r7  <- MEM[$rD, FIELD_A*4 (one-complement)] with VALUE as mask
+0x.f1.        type $r8...$r14 <- MEM[$rD, FIELD_A*4 (one-complement)] with VALUE as mask
+0x.f2.        MEM[$rD, FIELD_A*4 (one-complement)] <- type $r0...$r7  with VALUE as mask
+0x.f3.        MEM[$rD, FIELD_A*4 (one-complement)] <- type $r8...$r14 with VALUE as mask
+
+0x.f4.        $rD <- MEM8[$rA+VALUE]               8-bit unsigned load from MEM[$rA+VALUE] into $rD
+0x.f5.        $rD <- MEM16[$rA+VALUE]              16-bit unsigned load from MEM[$rA+VALUE] into $rD
+0x.f6.        $rD <- MEM[32][$rA+VALUE]            32-bit load from MEM[$rA+VALUE] into $rD
+0x.f7.        $rD <- MEMLL[32][$rA+VALUE]           32-bit unsigned load-reserve (exclusive load)
+0x.f8.        MEM8[$rA+VALUE] <- $rD               8-bit store to MEM[$rA+VALUE] from $rD
+0x.f9.        MEM16[$rA+VALUE] <- $rD              16-bit store to MEM[$rA+VALUE] from $rD
+0x.fa.        MEM[32][$rA+VALUE] <- $rD            32-bit store to MEM[$rA+VALUE] from $rD
+0x.fb.        MEMSR[32][$rA+VALUE] <- $rD           32-bit store-release (exclusive store)
+0x.fc.        $rD <- SMEM8[$rA+VALUE]              8-bit signed load from MEM[$rA+VALUE] into $rD
+0x.fd.        $rD <- SMEM16[$rA+VALUE]             16-bit signed load from MEM[$rA+VALUE] into $rD
+0x1fe.        INV[32][$rA+VALUE]                   invalidate cache line for address $rA+VALUE
+0x2fe.        $pc <- MEM[32][$rA+VALUE]            32-bit load from MEM[$rA+VALUE] into $PC
+0x3fe.        $tpc <- MEM[32][$rA+VALUE]           32-bit load from MEM[$rA+VALUE] into $TPC
 
 NOTE: VALUE is sign-extended before addition
 NOTE: loads don't change the type of a register.
@@ -554,29 +555,30 @@ NOTE: loads don't change the type of a register.
 Form C: Direct load/store
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-| 1 | 1 | 1 | 1 |     MEM_OP    | 1 | 1 | 1 | 1 |       D       |  |                                                             VALUE                                                             |
+|       D       | 1 | 1 | 1 | 1 |     MEM_OP    | 1 | 1 | 1 | 1 |  |                                                             VALUE                                                             |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   FIELD
   DCBA        OP_CODE                        OPERATION
 --------------------------------------------------------------
-0x.f0f        $rD <- SMEM8[VALUE]              8-bit signed load from MEM[VALUE] into $rD
-0x.f1f        $rD <- MEM8[VALUE]               8-bit unsigned load from MEM[VALUE] into $rD
-0x.f2f        $rD <- SMEM16[VALUE]             16-bit signed load from MEM[VALUE] into $rD
-0x.f3f        $rD <- MEM16[VALUE]              16-bit unsigned load from MEM[VALUE] into $rD
-0x.f4f        $rD <- MEM[32][VALUE]            32-bit load from MEM[VALUE] into $rD
-0x.f5f        MEM8[VALUE] <- $rD               8-bit store to MEM[VALUE] from $rD
-0x.f6f        MEM16[VALUE] <- $rD              16-bit store to MEM[VALUE] from $rD
-0x.f7f        MEM[32][VALUE] <- $rD            32-bit store to MEM[VALUE] from $rD
-0x.f8f        $rD <- !MEM[32][VALUE]           32-bit unsigned load-reserve (exclusive load)
-0x.f9f        ?MEM[32][VALUE] <- $rD           32-bit store-release (exclusive store)
-0x0faf        INV[32][VALUE]                   invalidate cache line for address VALUE
-0x2faf        $pc <- MEM[32][VALUE]            32-bit load from MEM[VALUE] into $PC
-0x3faf        $tpc <- MEM[32][VALUE]           32-bit load from MEM[VALUE] into $TPC
-0x.fbf
-0x.fcf
-0x.fdf
-0x.fef
+0x.f0f
+0x.f1f
+0x.f2f
+0x.f3f
+
+0x.f4f        $rD <- MEM8[VALUE]               8-bit unsigned load from MEM[VALUE] into $rD
+0x.f5f        $rD <- MEM16[VALUE]              16-bit unsigned load from MEM[VALUE] into $rD
+0x.f6f        $rD <- MEM[32][VALUE]            32-bit load from MEM[VALUE] into $rD
+0x.f7f        $rD <- MEMLL[32][VALUE]           32-bit unsigned load-reserve (exclusive load)
+0x.f8f        MEM8[VALUE] <- $rD               8-bit store to MEM[VALUE] from $rD
+0x.f9f        MEM16[VALUE] <- $rD              16-bit store to MEM[VALUE] from $rD
+0x.faf        MEM[32][VALUE] <- $rD            32-bit store to MEM[VALUE] from $rD
+0x.fbf        MEMSR[32][VALUE] <- $rD           32-bit store-release (exclusive store)
+0x.fcf        $rD <- SMEM8[VALUE]              8-bit signed load from MEM[VALUE] into $rD
+0x.fdf        $rD <- SMEM16[VALUE]             16-bit signed load from MEM[VALUE] into $rD
+0x1fef        INV[32][VALUE]                   invalidate cache line for address VALUE
+0x2fef        $pc <- MEM[32][VALUE]            32-bit load from MEM[VALUE] into $PC
+0x3fef        $tpc <- MEM[32][VALUE]           32-bit load from MEM[VALUE] into $TPC
 
 NOTE: loads don't change the type of a register.
 
@@ -585,7 +587,7 @@ Extension group A:
 -------------------------------
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-| 1 | 1 | 1 | 1 | 1 | 1 | 1 | 0 |      EXT      | 1 | 1 | 1 | 1 |  |       D       |       C       |       B       |       A       |
+| 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |      EXT      |  |       D       |       C       |       B       |       A       |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 These instructions allow for instruction set extensions in the following way: each value of the ESC select an alternative decoding
@@ -631,99 +633,128 @@ EXT = 0:
 0x.d..            SII
 0x.e..            SII
 
+EXT = 1:
+0x.0..             $rD.* <- interpolate $rA, $rB.*
+
 Extension group B:
 -------------------------------
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-| 1 | 1 | 1 | 1 | 1 | 1 | 1 | 0 |    EXT    |      FIELD_F      |  |       D       |       C       |       B       |       A       |
+| 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |    EXT    |      FIELD_F      |  |       D       |       C       |       B       |       A       |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 EXT = 0:
   FIELD
   DCBA             OP_CODE   OPERATION                  TYPE VARIATIONS
 ------------------------------------------------------------------------------------------
-0x.0..             $rD <- full $rA * $rB >> FIELD_F     3
-0x.1..             $rD <- full $rA * $rB >>> FIELD_F    3
-0x.2..             $rD.* <- interpolate $rA, $rB.*
+0x.0..             $rD <- full $rA * $rB >>> FIELD_F    3
+0x.1..             $rD <- full $rA * $rB >> FIELD_F     3
 
-Extension group C:
+Extension group F:
 -------------------------------
 
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-|      EXT      | 1 | 1 | 1 | 0 |      EXT2     | 1 | 1 | 1 | 1 |  |                                                             VALUE                                                             |
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+|     TYPE_A    | 1 | 1 | 1 | D | 1 | 1 | 1 | 1 |    TYPE_B     | ...
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-SII
+type override for $rA (TYPE_A) and $rB (TYPE_B). If D is set, $rD type is written
+back into the register file. If cleared, $rD's type is not changed.
 
-Extension group D:
--------------------------------
+This is a *PREFIX* instruction. It works the following way:
+The next instruction will assume that $rA and/or $rB is of TYPE_A and TYPE_B respectively.
+That is, this instruction overrides the type-info that comes from the register file for the
+next instruction.
 
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-|      EXT      |      EXT2     | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |  |                                                             VALUE                                                             |
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+In order to be interrupt safe, this instruction disables interrupts for a single cycle
+(or decoded together with the subsequent instruction). In order to prevent user-code to lock
+the core indefinitely, this instruction, *toggles* the interrupt-suppression bit. This means
+that a pending interrupt at worst gets delayed by one instruction.
 
-C < 0xa
+Exceptions are a slight problem still: if the subsequent instruction generates an exception and
+the supervisory code attempts to retry, it'll have to be aware of the prefix and retry from that
+position. This could be problematic, since we can't simply check the previous word in the handler:
+we can't know if that was really part of the instruction stream. What we should probably do is
+to save the prefix instruction counter in some place that the handler has access to. If we're
+certain that only a single prefix can ever be applied, it's also possible to record that fact in the
+LSB of the exception address. Alternatively, we could record the exception address as the address
+of the (first) prefix instruction, in which case the handler would need to skip forward to see
+the complete instruction. This solution jives better with the 'decode together' idea.
 
-SII
-
-Extension group E:
+Unused extension groups:
 -------------------------------
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 | 1 | 1 | 1 | 1 |      EXT      | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |  |                           VALUE                               |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-SII
-
-Extension group F:
--------------------------------
-
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-| 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |      EXT      |      EXT2     |  |                           VALUE                               |
-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+THIS IS TREATED AS A CBRANCH BY THE BRANCH PREDICTOR !!!!
 
 SII
 
-Extension group G:
--------------------------------
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+| 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |  |                           VALUE                               |
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+SII
+
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+| 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |      EXT      | 1 | 1 | 1 | 1 |  |                           VALUE                               |
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+SII
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-| 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |      EXT      | 1 | 1 | 1 | 1 |  |                                                             VALUE                                                             |
+|      EXT      |      EXT2     | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |  |                                                             VALUE                                                             |
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+EXT2 can't be 0xc or 0xd!!!!
+
+SII
+
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+|      EXT      | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |  |                                                             VALUE                                                             |
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+SII
+
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+|      EXT      | 1 | 1 | 1 | 0 |      EXT2     | 1 | 1 | 1 | 1 |  |                                                             VALUE                                                             |
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+IF EXT == 0x2 && EXT2 == 0xe, THIS IS TREATED AS A CBRANCH BY THE BRANCH PREDICTOR !!!!
 
 SII
 
 DECODE NOTES:
 =============
 
-Instruction encoding is such that the following condition can be used to determine if the FIELD_E is needed or not:
-  (&inst[15:11] | &inst[11:8] | &inst[7:4] | &inst[3:0]) && (inst[15:13] != 3'b101) <-- THIS IS NOT TRUE ANYMORE!!!!
+Instruction encoding is such that the following condition can be used to determine if the FIELD_E is needed:
+  FIELD_D == 0xf ||
+  (FIELD_C == 0xf && (FIELD_B != 0xf || FIELD_A == 0xf)) ||
+  (FIELD_C == 0xe && FIELD_A == 0xf) ||
+  (FIELD_C < 0xc && (FIELD_B == 0xf || FIELD_A == 0xf))
 
 The size of FIELD_E == 32 if:
-  &inst[15:11] ? &inst[7:4] : (&inst[7:4] & !&inst[3:0])
-
-The first register file read port address of the register file comes from:
-  FIELD_A
-
-The second register file read port address of the register file comes from:
-  &inst[15:12] | ~|inst[15:8] ? FIELD_D : &inst[11:8] ? FIELD_A : FIELD_B
-
-The register file write port address of the register file comes from:
-  FIELD_D
-  NOTE: TPC and SPC are special and needs special decoding logic: they are written by all sort of weird combos of bit-fields,
-        potentially conditionally in case of conditional branches.
-
-NOTE: these port assignments are rather permissive: in many cases they read values that are then not used by the instruction.
-
-NOTE: the read port logic is a bit asymmetrical: port B has a 3-way mux, while port A has a direct connection to the instruction bits.
-      this can be mitigated - if needed - by pre-decoding the mux selection and store it as an extra 4 bits long with the instruction
-      either in the instruction queue (when reading from ICache) or during ICache line fills.
+  FIELD_D == 0xf || FIELD_A != 0xf
 
 Branches can be identified by:
-  inst[15:4] = 0x000 | inst[15:4] = 0x002 | (inst[15:12] != 0xf && inst[3:0] == 0xf) | (inst[15:12] == 0x1f && inst[3:0] == 0xf)
-  This formula catches a little more than needed, but the rest are SII operations.
-  There are quite a lot of simplifcations that can be done here which makes the overall formula less scary:
-  ~(|inst[15:6] | inst[4]) | &inst[3:0]
+  (FIELD_D == 0xf         && FIELD_C != 0xf) ||
+  ((FIELD_D & 0xe) == 0x2 && (FIELD_C & 0xe) == 0xe && FIELD_B == 0xe) ||
+  ((FIELD_D & 0xe) == 0x2 && FIELD_C == 0x0         && (FIELD_B & 0xe) == 0xe && (FIELD_A & 0xe) == 0xe && (FIELD_B & 1 != FIELD_A & 1) ||
+  (FIELD_C == 0x0         && FIELD_B == 0x0         && (FIELD_A & 0xe) == 0x2) ||
+  ((FIELD_D & 0x8) == 0   && FIELD_C == 0x0         && FIELD_B == 0x0         && FIELD_A == 0x0) <-- SWI insn.
+  (FIELD_D == 0x8         && FIELD_C == 0x0         && FIELD_B == 0x0         && FIELD_A == 0x0) <-- STM insn.
+
+  Some simplifcations can be made if this monster turns out to be a problem, such as not predicting SWI and STM
+  instructions. Notice, how term 3 has an XOR at the very end. This term can be decomposed into 2 4-term AND
+  expressions, for essentially 0x20ef and 0x20fe (plus the 0x3... variants).
+  In essense the critical path is a 16-bit compare followed by 6-way OR (for the full term) and a
+  15-bit compare followed by a 4-way OR (for the simplified term).
+
+  It seems that Cyclone V has 5-bit LUTs. That would mean that one can compare 15 bits in 3 LUTs. Then, another LUT could be used
+  to generate a single output bit. That is to say a 15-bit comparator has a 2-LUT latency. The 4 comparators can be combined in a
+  single LUT, so the total decode latency is 3 LUTs. Since we have unused inputs on some of the LUTs, it's possible that the full
+  term can also be decoded in that much latency.
 
 NOTE:
 ========
