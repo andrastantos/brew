@@ -532,9 +532,8 @@ Form B: Inidirect offset load/store
 --------------------------------------------------------------
 0x.f0.        type $r0...$r7  <- MEM[$rD, FIELD_A*4 (one-complement)] with VALUE as mask
 0x.f1.        type $r8...$r14 <- MEM[$rD, FIELD_A*4 (one-complement)] with VALUE as mask
-0x.f2.        MEM[$rD, FIELD_A*4 (one-complement)] <- type $r0...$r7  with VALUE as mask
-0x.f3.        MEM[$rD, FIELD_A*4 (one-complement)] <- type $r8...$r14 with VALUE as mask
-
+0x.f2.
+0x.f3.
 0x.f4.        $rD <- MEM8[$rA+VALUE]               8-bit unsigned load from MEM[$rA+VALUE] into $rD
 0x.f5.        $rD <- MEM16[$rA+VALUE]              16-bit unsigned load from MEM[$rA+VALUE] into $rD
 0x.f6.        $rD <- MEM[32][$rA+VALUE]            32-bit load from MEM[$rA+VALUE] into $rD
@@ -565,7 +564,6 @@ Form C: Direct load/store
 0x.f1f
 0x.f2f
 0x.f3f
-
 0x.f4f        $rD <- MEM8[VALUE]               8-bit unsigned load from MEM[VALUE] into $rD
 0x.f5f        $rD <- MEM16[VALUE]              16-bit unsigned load from MEM[VALUE] into $rD
 0x.f6f        $rD <- MEM[32][VALUE]            32-bit load from MEM[VALUE] into $rD
@@ -756,6 +754,10 @@ Branches can be identified by:
   single LUT, so the total decode latency is 3 LUTs. Since we have unused inputs on some of the LUTs, it's possible that the full
   term can also be decoded in that much latency.
 
+NOTE: all these terms are simulated. The data latency seems to be a little over 5.5ns in the fastest Cyclone V parts. That would put
+      us below 200MHz clock frequency. However, due to clock also getting delayed we actaully get a significant boost and timing
+      closes all the way up to 421MHz. From the technology viewer it seems that the logic needs three levels of LUTs. So, I was right:
+      only three levels of LUTs are needed. This would give us roughly 1.83ns delay per LUT, or 545MHz f_max.
 NOTE:
 ========
 CALLs use link registers:
