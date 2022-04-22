@@ -123,16 +123,16 @@ in use at the moment:
 
 Type code     Type        Note
 --------------------------------------------
-0             INT32       32-bit integer: this is the default type of all registers after reset
-1             INT16X2     2-way 16-bit integer vector
-2             INT8X4      4-way 8-bit integer vector
-3             UINT16X2S   Unsigned, saturated version on INT16X2
-4             SINT16X2S   Signed, saturated version on INT16X2
-5             UINT8X4S    Unsigned, saturated version on INT8X4
-6             SINT8X4S    Signed, saturated version on INT8X4
-8             FP32        32-bit float
-9             FP16X2      2-way 16-bit float vector
-
+0x0           INT32       32-bit integer: this is the default type of all registers after reset
+0x1           INT16X2     2-way 16-bit integer vector
+0x2           INT8X4      4-way 8-bit integer vector
+0x3           UINT16X2S   Unsigned, saturated version on INT16X2
+0x4           SINT16X2S   Signed, saturated version on INT16X2
+0x5           UINT8X4S    Unsigned, saturated version on INT8X4
+0x6           SINT8X4S    Signed, saturated version on INT8X4
+0x8           FP32        32-bit float
+0x9           FP16X2      2-way 16-bit float vector
+0xf           mask        prevents target type changes during type ... <- ... type operations
 
 
 INSTRUCTIONS NEEDED
@@ -234,19 +234,22 @@ Unary group
   FIELD
   DCBA             OP_CODE   OPERATION          TYPE VARIATIONS
 -------------------------------------------------------------------
-0x.01.             $rD <- tiny FIELD_A (one-s complement; range is -7...7)
+0x.01.             $rD <- tiny FIELD_A (one-s complement; range is -7...7) ### SHOULD THIS SET RESULT TYPE???
 0x.02.             $rD <- $pc + FIELD_A*2  ################## NOTE: WE COULD MAKE THE RANGE A LITTLE HIGHER IF NOT ALLOW 0
-0x.03.             $rD.* <- -$rA.*
-0x.04.             $rD.* <- ~$rA.*
-0x.05.             $rD.* <- bsi $rA.*
-0x.06.             $rD.* <- wsi $rA.*
+0x.03.             $rD <- -$rA
+0x.04.             $rD <- ~$rA
+0x.05.             $rD <- bsi $rA
+0x.06.             $rD <- wsi $rA
 -----------
-0x.07.             $rD.* <- float $rA.*
-0x.08.             $rD.* <- int $rA.*
-0x.09.             $rD.* <- 1 / $rA.*
-0x.0a.             $rD.* <- rsqrt $rA.*
+#### TODO: these two should be merged into a single OP.
+0x.07.             $rD <- float $rA ### WHAT TO DO FOR 8-bit types????
+0x.08.             $rD <- int $rA ### WHAT TO DO FOR 8-bit types????
+
+0x.09.             $rD <- 1 / $rA ### WHAT TO DO FOR 8-bit types????
+0x.0a.             $rD <- rsqrt $rA ### WHAT TO DO FOR 8-bit types????
 -----------
-0x.0b.             $rD <- sum $rA.*
+#### TODO: this is a rather odd-ball instruction.
+0x.0b.             $rD <- sum $rA
 -----------
 0x.0c.             type $rD <- $rA
 0x.0d.             $rD <- type $rA
@@ -259,17 +262,17 @@ Binary group
   FIELD
   DCBA             OP_CODE   OPERATION          TYPE VARIATIONS
 -------------------------------------------------------------------
-0x.1..             $rD.* <- $rA.* ^ $rB.*       1
-0x.2..             $rD.* <- $rA.* | $rB.*       1
-0x.3..             $rD.* <- $rA.* & $rB.*       1
-0x.4..             $rD.* <- $rA.* + $rB.*       9
-0x.5..             $rD.* <- $rA.* - $rB.*       9
-0x.6..             $rD.* <- $rA.* << $rB.*      3
-0x.7..             $rD.* <- $rA.* >> $rB.*      3
-0x.8..             $rD.* <- $rA.* >>> $rB.*     3
-0x.9..             $rD.* <- $rA.* * $rB.*       9 (?)
-0x.a..             $rD.* <- ~$rA.* & $rB.*      1  (this is for lane-combining with an inverted predicate)
-0x.b..             $rD.* <- tiny $rB.* + FIELD_A (one's complement; range is -7...7)
+0x.1..             $rD <- $rA ^ $rB       1
+0x.2..             $rD <- $rA | $rB       1
+0x.3..             $rD <- $rA & $rB       1
+0x.4..             $rD <- $rA + $rB       9
+0x.5..             $rD <- $rA - $rB       9
+0x.6..             $rD <- $rA << $rB      3
+0x.7..             $rD <- $rA >> $rB      3
+0x.8..             $rD <- $rA >>> $rB     3
+0x.9..             $rD <- $rA * $rB       9 (?)
+0x.a..             $rD <- ~$rA & $rB      1  (this is for lane-combining with an inverted predicate)
+0x.b..             $rD <- tiny $rB + FIELD_A (one's complement; range is -7...7)
 0x.c..             see below (stack ops)
 0x.d..             see below (stack ops)
 0x.e..             see below (mem ops)
@@ -296,21 +299,21 @@ Form B:
   FIELD
   DCBA             OP_CODE   OPERATION          TYPE VARIATIONS
 -------------------------------------------------------------------
-0x.00f             $rD.*  <- VALUE              1 (type of $rD remains unchanged)         NOTE: this is the unary operator space normally.
+0x.00f             $rD  <- VALUE              1 (type of $rD remains unchanged)         NOTE: this is the unary operator space normally. TYPE IS NOT MODIFIED
 0x.01f:0x.0df      SII
 0x20ef             $pc   <- VALUE                N/A
 0x30ef             $tpc  <- VALUE                N/A
-0x.1.f             $rD.*  <- VALUE ^ $rB.*      1
-0x.2.f             $rD.*  <- VALUE | $rB.*      1
-0x.3.f             $rD.*  <- VALUE & $rB.*      1
-0x.4.f             $rD.*  <- VALUE + $rB.*      9
-0x.5.f             $rD.*  <- VALUE - $rB.*      9
-0x.6.f             $rD.*  <- VALUE << $rB.*     3
-0x.7.f             $rD.*  <- VALUE >> $rB.*     3
-0x.8.f             $rD.*  <- VALUE >>> $rB.*    3              signed right shift
-0x.9.f             $rD.*  <- VALUE * $rB.*      9 (?)
-0x.a.f             type $r0...$r7 <- VALUE
-0x.b.f             type $r8...$r15 <- VALUE
+0x80ef             type $r0...$r7 <- VALUE
+0x90ef             type $r8...$r14 <- VALUE
+0x.1.f             $rD  <- VALUE ^ $rB      1
+0x.2.f             $rD  <- VALUE | $rB      1
+0x.3.f             $rD  <- VALUE & $rB      1
+0x.4.f             $rD  <- VALUE + $rB      9
+0x.5.f             $rD  <- VALUE - $rB      9
+0x.6.f             $rD  <- VALUE << $rB     3
+0x.7.f             $rD  <- VALUE >> $rB     3
+0x.8.f             $rD  <- VALUE >>> $rB    3              signed right shift
+0x.9.f             $rD  <- VALUE * $rB      9 (?)
 0x.c.f             see below (stack ops)
 0x.d.f             see below (stack ops)
 0x.e.f             see below (mem ops)
@@ -331,6 +334,7 @@ Form C:
   FIELD
   DCBA             OP_CODE   OPERATION                TYPE VARIATIONS
 -------------------------------------------------------------------------
+### SHOULD LOAD IMMEDIATE SET THE TYPE?
 0x.0f0             $rD  <- short VALUE                1     NOTE: this is the unary operator space normally.
 0x.0f0:0x.0fd      SII
 0x20fe             $pc  <- short VALUE
@@ -600,12 +604,12 @@ EXT = 0:
   FIELD
   DCBA             OP_CODE   OPERATION             TYPE VARIATIONS
 ------------------------------------------------------------------------------------------
-0x.00.            $rD.* <- $rA.* == 0              3
-0x.01.            $rD.* <- $rA.* != 0              3
-0x.02.            $rD.* <- $rA.* < 0               5         signed compare
-0x.03.            $rD.* <- $rA.* >= 0              5         signed compare
-0x.04.            $rD.* <- $rA.* > 0               5         signed compare
-0x.05.            $rD.* <- $rA.* <= 0              5         signed compare
+0x.00.            $rD <- $rA == 0              3
+0x.01.            $rD <- $rA != 0              3
+0x.02.            $rD <- $rA < 0               5         signed compare
+0x.03.            $rD <- $rA >= 0              5         signed compare
+0x.04.            $rD <- $rA > 0               5         signed compare
+0x.05.            $rD <- $rA <= 0              5         signed compare
 0x.06.            SII
 0x.07.            SII
 0x.08.            SII
@@ -616,12 +620,12 @@ EXT = 0:
 0x.0d.            SII
 0x.0e.            SII
 
-0x.1..            $rD.* <- $rB.* == $rA.*           3
-0x.2..            $rD.* <- $rB.* != $rA.*           3
-0x.3..            $rD.* <- signed $rB.* < $rA.*     5              signed compare
-0x.4..            $rD.* <- signed $rB.* >= $rA.*    5              signed compare
-0x.5..            $rD.* <- $rB.* < $rA.*            5
-0x.6..            $rD.* <- $rB.* >= $rA.*           5
+0x.1..            $rD <- $rB == $rA           3
+0x.2..            $rD <- $rB != $rA           3
+0x.3..            $rD <- signed $rB < $rA     5              signed compare
+0x.4..            $rD <- signed $rB >= $rA    5              signed compare
+0x.5..            $rD <- $rB < $rA            5
+0x.6..            $rD <- $rB >= $rA           5
 0x.7..            SII
 0x.8..            SII
 0x.9..            SII
@@ -632,7 +636,7 @@ EXT = 0:
 0x.e..            SII
 
 EXT = 1:
-0x.0..             $rD.* <- interpolate $rA, $rB.*
+0x.0..             $rD <- interpolate $rA, $rB
 
 Extension group B:
 -------------------------------
@@ -648,7 +652,7 @@ EXT = 0:
 0x.0..             $rD <- full $rA * $rB >>> FIELD_F    3
 0x.1..             $rD <- full $rA * $rB >> FIELD_F     3
 
-Extension group F:
+Extension group C:
 -------------------------------
 
 +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -732,7 +736,7 @@ Instruction encoding is such that the following condition can be used to determi
   (FIELD_C == 0xe && FIELD_A == 0xf) ||
   (FIELD_C < 0xc && (FIELD_B == 0xf || FIELD_A == 0xf))
 
-The size of FIELD_E == 32 if:
+The size of FIELD_E == 16 if:
   FIELD_D == 0xf || FIELD_A != 0xf
 
 Branches can be identified by:
