@@ -1,7 +1,17 @@
 .text
     .global _start
     _start:
-#        sii
+        if signed $sp <= 0 $pc <- _start
+        if $r2[3] == 0 $pc <- _start
+        if $r0 == $r0 $pc <- _start
+lll:
+        if $r0 == $r0 $pc <- lll
+#	.p2align	1
+#        type $r1 <- int16x2
+#        $r1 <- 0x0100ffff
+#        $r2 <- 0x02000001
+#        $r3 <- $r1 + $r2
+#        $r4 <- $r2 + $r1
 #        fill
 #        swi 5
 #        $pc <- mem[$r2]
@@ -84,5 +94,15 @@
 #        $r6 <- mem[$fp + tiny 0]
 #        type $r8,$r9,$fp <- mem[$r10 + 12]
 #        type $r0,$r1,$r5,$r2 <- int32, fp32, int8x4, fp16x2
-        type $sp,$fp,$r13,$r9 <- int32, fp32, int8x4, fp16x2
+#        type $sp,$fp,$r13,$r9 <- int32, fp32, int8x4, fp16x2
 #        type $r0 <- int32
+#        $fp <- data
+#        $r1 <- mem[$fp + tiny 4]
+#        $r2 <- 0x01020304
+#        $r3 <- lane_swizzle $r2, 0123
+#        sii
+#mem[$r13 +-4]<-$r12
+#
+#.data
+#data:
+#        .ascii "12345678This is a string of some characters"
