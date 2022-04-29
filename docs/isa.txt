@@ -288,7 +288,6 @@ NOTE: output type is the type of $rA
 
 Pseudo instructions:
 NOP: encodes to 0x2222, which is $r2 = $r2 | $r2
-$rD = 0: encodes to 0xD1ee which is $rD <- $r14 ^ $r14
 $rD = $rS: encodes to 0xD2SS
 
 Form B:
