@@ -30,18 +30,18 @@
  *              5285 Port Royal Road                                    *
  *              Springfield, VA.  22161                                 *
  *                                                                      *
- ************************************************************************           
+ ************************************************************************
  *  The standard "C" code accesses the FORTRAN version for data         *
  *  generation and result analysis. These features have been merged     *
  *  to produce a program more suitable to run on PCs. FORTRAN features  *
- *  for detailed statistical analysis of the results have been omitted. *  
+ *  for detailed statistical analysis of the results have been omitted. *
  *                                                                      *
  *        Changes to "C" code to produce correct results:               *
  *                                                                      *
  *        Kernel 2  change i = ipntp - 1; to i = ipntp;                 *
  *        Kernel 7  third line of inner loop change r to q              *
  ************************************************************************
- *  Because of the inaccuracy of the PC clock, this version arranges    
+ *  Because of the inaccuracy of the PC clock, this version arranges
  *  for timing to be based on at least five seconds.
  *
  *  The kernels are executed as follows:
@@ -77,16 +77,16 @@
  *  magnitude as the clock resolution (0.05 to 0.06 seconds). Calibration
  *  also gives an indication of the linearity of timing. In the example
  *  shown, the overhead of 24 occurrences of data generation, which is
- *  excluded from the main timing, is about 0.6 seconds. 
+ *  excluded from the main timing, is about 0.6 seconds.
  *
  *  The total floating point operations for the first kernel 1 results are
  *  200 x 7 x 15 x 5 x 1001. For some other kernels, the total is not
  *  proportional to the span.
  *
  *  The OK column in the tables indicates the number of correct significant
- *  digits out of 16 compared with the defined checksums. 
- *   
- *                                                                      
+ *  digits out of 16 compared with the defined checksums.
+ *
+ *
  *                  Example of Results
  *
  * L.L.N.L. 'C' KERNELS: MFLOPS   P.C.  VERSION
@@ -140,11 +140,11 @@
  * 23   8 x  12 11 1.045440e+008  5.10   20.49  100 3.549900501563624e+004 15
  * 24   5 x  30  1 3.000000e+007  4.93    6.09 1001 5.000000000000000e+002 16
  *
- *                     Maximum   Rate   28.64 
- *                     Average   Rate   12.50 
- *                     Geometric Mean   10.50 
- *                     Harmonic  Mean    8.25 
- *                     Minimum   Rate    2.01 
+ *                     Maximum   Rate   28.64
+ *                     Average   Rate   12.50
+ *                     Geometric Mean   10.50
+ *                     Harmonic  Mean    8.25
+ *                     Minimum   Rate    2.01
  *
  *                     Do Span    471
  *
@@ -186,11 +186,11 @@
  * 23   5 x   9 11 9.801000e+007  4.77   20.54  100 3.549900501563624e+004 15
  * 24  31 x  30  1 3.720000e+007  6.06    6.14  101 5.000000000000000e+001 16
  *
- *                     Maximum   Rate   30.71 
- *                     Average   Rate   13.76 
- *                     Geometric Mean   11.69 
- *                     Harmonic  Mean    9.19 
- *                     Minimum   Rate    2.01 
+ *                     Maximum   Rate   30.71
+ *                     Average   Rate   13.76
+ *                     Geometric Mean   11.69
+ *                     Harmonic  Mean    9.19
+ *                     Minimum   Rate    2.01
  *
  *                     Do Span     90
  *
@@ -232,11 +232,11 @@
  * 23   7 x  15 11 1.201200e+008  4.38   27.42   14 4.850340602749970e+002 16
  * 24  23 x  32  1 3.061760e+007  5.01    6.11   27 1.300000000000000e+001 16
  *
- *                     Maximum   Rate   31.82 
- *                     Average   Rate   15.24 
- *                     Geometric Mean   13.06 
- *                     Harmonic  Mean   10.26 
- *                     Minimum   Rate    2.00 
+ *                     Maximum   Rate   31.82
+ *                     Average   Rate   15.24
+ *                     Geometric Mean   13.06
+ *                     Harmonic  Mean   10.26
+ *                     Minimum   Rate    2.00
  *
  *                     Do Span     19
  *
@@ -246,11 +246,11 @@
  *                Part 2 weight 2
  *                Part 3 weight 1
  *
- *                     Maximum   Rate   31.82 
- *                     Average   Rate   13.81 
- *                     Geometric Mean   11.70 
- *                     Harmonic  Mean    9.17 
- *                     Minimum   Rate    2.00 
+ *                     Maximum   Rate   31.82
+ *                     Average   Rate   13.81
+ *                     Geometric Mean   11.70
+ *                     Harmonic  Mean    9.17
+ *                     Minimum   Rate    2.00
  *
  *                     Do Span    167
  *
@@ -267,7 +267,7 @@
  * OptLevel        Win386 -zp4 -otexan -om -fp5 -zc -5r
  * Run by          Roy Longbottom
  * From            UK
- * Mail            101323.2241@compuserve.com 
+ * Mail            101323.2241@compuserve.com
  *
  *  Note: the date, compiler and opt level are inserted by the program.
  *
@@ -279,7 +279,7 @@
  *
  **********************************************************************
  *
- *  Pre-compiled codes were produced via a Watcom C/C++ 10.5 compiler. 
+ *  Pre-compiled codes were produced via a Watcom C/C++ 10.5 compiler.
  *  Versions are available for DOS, Windows 3/95 and NT/Win 95. Both
  *  non-optimised and optimised programs are available. The latter have
  *  options as in the above example.
@@ -288,14 +288,12 @@
  *  headers have embedded parameter types to produce code for C and C++
  *  at least suitable for compiling as such with the Watcom compiler.
  *
- ***********************************************************************  
+ ***********************************************************************
  */
- 
+
 #include <stdio.h>
 #include <math.h>
-#include <conio.h>
 #include <stdlib.h>
-#include <dos.h> 
 
 
    struct Arrays
@@ -331,7 +329,7 @@
      double Plan[300];
      double D[300];
      double Sa[101];
-     double Sb[101];     
+     double Sb[101];
      double P[512][4];
      double Px[101][25];
      double Cx[101][25];
@@ -348,14 +346,14 @@
      double Zb[7][101];
      double Zu[7][101];
      double Zv[7][101];
-     double Zz[7][101];               
+     double Zz[7][101];
      double B[64][64];
      double C[64][64];
-     double H[64][64];     
+     double H[64][64];
      double U1[2][101][5];
      double U2[2][101][5];
      double U3[2][101][5];
-     double Xtra[40];     
+     double Xtra[40];
      long   E[96];
      long   F[96];
      long   Ix[1001];
@@ -373,10 +371,10 @@
      double Zv0[7][101];
      double Zz0[7][101];
      double Za0[101][25];
-     double Stb50;               
+     double Stb50;
      double Xx0;
 
-     
+
   }as1;
    #define u        as1.U
    #define v        as1.V
@@ -460,8 +458,8 @@
    #define sig      as1.Xtra[34]
    #define stb5     as1.Xtra[35]
    #define t        as1.Xtra[36]
-   #define xnm      as1.Xtra[39]   
-   #define e        as1.E  
+   #define xnm      as1.Xtra[39]
+   #define e        as1.E
    #define f        as1.F
    #define ix       as1.Ix
    #define ir       as1.Ir
@@ -479,7 +477,7 @@
    #define zz0      as1.Zz0
    #define za0      as1.Za0
    #define stb50    as1.Stb50
-   #define xx0      as1.Xx0              
+   #define xx0      as1.Xx0
 
 
    struct Parameters
@@ -495,7 +493,7 @@
        double LoopFlos[3][25];
        long   Xflops[25];
        long   Xloops[3][25];
-       long   Nspan[3][25];       
+       long   Nspan[3][25];
        double TimeStart;
        double TimeEnd;
        double Loopohead;
@@ -511,10 +509,10 @@
        long   N16;
        double Mastersum;
        long   M24;
-  
-       
+
+
    }as2;
-   
+
    #define n            as2.Inner_loops
    #define loop         as2.Outer_loops
    #define mult         as2.Loop_mult
@@ -544,7 +542,7 @@
    #define m24          as2.M24
 
  /*COMPILER COMPILER COMPILER COMPILER COMPILER COMPILER COMPILER*/
-               
+
  #ifdef COW
     #define compiler  "Watcom C/C++ 10.5 Win386"
     #define options   "-otexan -om -zp8 -fp5 -5r"
@@ -580,65 +578,30 @@
 
 
    void init(long which);
-   
+
         /* Initialises arrays and variables  */
-             
+
    long endloop(long which);
-   
+
         /* Controls outer loops and stores results */
 
    long parameters(long which);
-   
+
         /* Gets loop parameters and variables, starts timer */
-        
+
    void kernels();
-   
+
         /* The 24 kernels */
-        
+
    void check(long which);
-   
+
         /* Calculates checksum accuracy */
-             
+
    void iqranf();
-   
+
         /* Random number generator for Kernel 14 */
 
 
-/* TIME TIME TIME TIME TIME TIME TIME TIME TIME TIME TIME TIME TIME */
-   #include <time.h>  /* for following time function only */         
-   double what_time(double secs)
-   {            
-      clock_t Time;
- 
-      Time = clock();
-      secs = (double)(Time) / (double)(CLOCKS_PER_SEC);
-      
-      return secs;
-   }
-
-    static char this_month;
-    static int this_year;
-   
-
-/* DATE DATE DATE DATE DATE DATE DATE DATE DATE DATE DATE DATE DATE */
-   void what_date()
-     {
-         /*   Watcom   */         
-         struct dosdate_t adate;
-         _dos_getdate( &adate );
-         this_month = adate.month;
-         this_year = adate.year;
-         
-         /*   Borland
-         struct date adate;
-         getdate( &adate );
-         this_month = adate.da_mon;
-         this_year = adate.da_year;
-         */         
-         return;
-     }
-     
-                 
 main(int argc, char *argv[])
 {
     double pass_time, least, lmult, now = 1.0, wt;
@@ -656,7 +619,7 @@ main(int argc, char *argv[])
     char   general[9][80] = {" "};
     FILE   *outfile;
     int  getinput = 1;
-    
+
     if (argc > 1)
      {
        switch (argv[1][0])
@@ -669,8 +632,8 @@ main(int argc, char *argv[])
                break;
         }
      }
-    
- 
+
+
     printf ("L.L.N.L. 'C' KERNELS: MFLOPS   P.C.  VERSION 4.0\n\n");
 
     if (getinput == 0)
@@ -681,80 +644,43 @@ main(int argc, char *argv[])
      {
         printf ("*** With run time input data ***\n\n");
      }
-     
-    printf("Compiler      %s\n",compiler);
-    printf("Optimisation  %s\n\n",options);
-
 
 /************************************************************************
  *                  Open results file LLloops.txt                       *
  ************************************************************************/
-     
+
     outfile = fopen("LLloops.txt","a+");
     if (outfile == NULL)
     {
         printf ("Cannot open results file LLloops.txt\n\n");
-        printf("Press any key\n");
-        Endit = getch();
         exit (0);
     }
-    
-                   
+
+
 /************************************************************************
  *       Calculate overhead of executing endloop procedure              *
  ************************************************************************/
-       
+
     printf ("Calculating outer loop overhead\n");
     pass = -20;
     extra_loops[0][0] = 1;
     loop = 1000;
     which = 0;
     section = 0;
-    do
-    {
-        time1 = what_time(now);
-        count = 0;
-        count2 = 0;
-        pass = pass + 1;        
-        do
-        {
-            endloop (0);
-        }
-        while (count < loop);
-        time2 = what_time(now);
-        overhead_l = (time2 - time1);
-        printf ("%10d times %6.2f seconds\n", loop, overhead_l);
-        if (overhead_l > 5.0)
-        {
-            pass = 0;
-        }
-        if (pass < 0)
-        {
-            if (overhead_l < 0.1)
-            {
-                loop = loop * 10;
-            }
-            else
-            {
-                loop = loop * 2;
-            }
-        }
-    }
-    while (pass < 0);
-        
-    overhead_l = overhead_l / (double)(loop);
-    printf ("Overhead for each loop %12.4e seconds\n\n", overhead_l);
-                    
+    count = 0;
+    count2 = 0;
+    pass = pass + 1;
+
 /************************************************************************
  *      Execute the kernels three times at different Do Spans           *
  ************************************************************************/
-    
+
     for ( section=0 ; section<3 ; section++ )
     {
         loop_passes = 200 * mul[section];
         pass = -20;
         mult = 2 * mul[section];
-    
+
         for ( i=1; i<25; i++)
         {
             extra_loops[section][i] = 1;
@@ -767,25 +693,22 @@ main(int argc, char *argv[])
              printf ("Calibrating part %d of 3\n\n", section + 1);
 
         do
-        
+
         /* Run a number of times with increased number of loops
-         or until the time for each loop is at least 0.07 seconds */   
+         or until the time for each loop is at least 0.07 seconds */
 
         {
             pass = pass + 1;
             mult = mult * 2;
-        
-            count2 = 0;            
+
+            count2 = 0;
             for ( i=1; i<25; i++)
             {
                  RunTime[section][i] = 0.0;
             }
-            time1 = what_time(now);
 
             kernels();
-        
-            time2 = what_time(now);
-            pass_time = (time2 - time1);
+
             least = 1.0;
             for ( i=1; i<25; i++)
             {
@@ -795,8 +718,8 @@ main(int argc, char *argv[])
                     RunTime[section][i] = 0.05;
                 }
             }
-            printf ("Loop count %10d %5.2f seconds\n", mult, pass_time);
-        
+            printf ("kernels() done\n");
+
             if (least > 0.0 )
             {
                 pass = 0;
@@ -812,28 +735,21 @@ main(int argc, char *argv[])
         while (pass < 0);
 
         lmult = (double)(mult) / (double)(loop_passes);
-    
+
         for ( i=1; i<25; i++)
         {
-            
+
           /* Calculate extra loops to produce a run time of about 5 seconds
            for each kernel. For each of the extra loops the parameters
            are re-initialised. The time for initialising parameters is
            not included in the loop time. */
-                             
+
             extra_loops[section][i] = (long)(5.0 / RunTime[section][i]
                                        * lmult) +1;
             RunTime[section][i] = 0.0;
         }
 
         mult = loop_passes;
-        
-        printf ("\nLoops  200 x %2d x Passes\n\n", mul[section]);
-        printf ("Kernel       Floating Pt ops\n");
-        printf ("No  Passes E No    Total      Secs.  MFLOPS Span     "
-                                        "Checksums          OK\n");
-        printf ("------------ -- ------------- ----- ------- ---- "
-                                         "---------------------- --\n");
 
         pass = 1;
         count2 = 0;
@@ -841,7 +757,7 @@ main(int argc, char *argv[])
 /************************************************************************
  *                      Execute the kernels                             *
  ************************************************************************/
-        
+
         kernels();
 
         maximum[section] = 0.0;
@@ -854,7 +770,7 @@ main(int argc, char *argv[])
 /************************************************************************
  *                        Calculate averages etc.                       *
  ************************************************************************/
-        
+
             for ( k=1 ; k<=24 ; k++ )
         {
            average[section] = average[section] + Mflops[section][k];
@@ -880,7 +796,7 @@ main(int argc, char *argv[])
 /************************************************************************
  *        Display averages etc. except during calibration               *
  ************************************************************************/
-        
+
         {
            printf ("\n");
            printf ("                     Maximum   Rate%8.2f \n",
@@ -895,13 +811,13 @@ main(int argc, char *argv[])
                                                   minimum[section]);
            printf ("                     Do Span   %4d\n\n",
                                                   xspan[section]);
-        }        
+        }
     }
 
 /************************************************************************
  *    End of executing the kernels three times at different Do Spans    *
  ************************************************************************/
-    
+
     maximum[3] = 0.0;
     minimum[3] = Mflops[0][1];
     average[3] = 0.0;
@@ -909,11 +825,11 @@ main(int argc, char *argv[])
     geometric[3] = 0.0;
     xspan[3] = 0;
     wt = 0.0;
-    
+
 /************************************************************************
  *     Calculate weighted averages for all Do Spans and display         *
  ************************************************************************/
-    
+
     for ( section=0 ; section<3 ; section++ )
     {
         for ( k=1 ; k<=24 ; k++ )
@@ -925,7 +841,7 @@ main(int argc, char *argv[])
            geometric[3] = geometric[3] + weight[section]
                                      * log(Mflops[section][k]);
            xspan[3] = xspan[3] + weight[section]
-                                     * nspan[section][k]; 
+                                     * nspan[section][k];
            if (Mflops[section][k] < minimum[3])
            {
                minimum[3] = Mflops[section][k];
@@ -952,65 +868,24 @@ main(int argc, char *argv[])
     printf ("                     Harmonic  Mean%8.2f \n", harmonic[3]);
     printf ("                     Minimum   Rate%8.2f \n\n", minimum[3]);
     printf ("                     Do Span   %4d\n\n", xspan[3]);
-            
-    what_date();
 
 /************************************************************************
  *             Type details of hardware, software etc.                  *
  ************************************************************************/
 
-   if (getinput == 1)
-     {
-
-        printf ("Enter the following which will be added with results to file LLLOOPS.TXT\n");
-        printf ("When submitting a number of results you need only provide details once\n");
-        printf ("but a cross reference such as an abbreviated CPU type would be useful.\n");    
-        printf ("You can kill (exit or close) the program now and no data will be added.\n\n");
-                
-        printf ("PC Supplier/model     ? ");
-        gets(general[1]);
-    
-        printf ("CPU chip              ? ");
-        gets(general[2]);
-    
-        printf ("Clock MHz             ? ");
-        gets(general[3]);
-     
-        printf ("Cache size            ? ");
-        gets(general[4]);
-     
-        printf ("Chipset & H/W options ? ");
-        gets(general[5]);
-      
-        printf ("OS/DOS version        ? ");
-        gets(general[6]);
-        
-        printf ("Your name             ? ");
-        gets(general[7]);
-     
-        printf ("Company/Location      ? ");
-        gets(general[8]);
-     
-        printf ("E-mail address        ? ");
-        gets(general[0]);
-     }    
-
 /************************************************************************
  *              Add results to output file LLloops.txt                  *
  ************************************************************************/
-            
+
     fprintf (outfile, "------------ -- ------------- ----- ------- ---- "
                                             "---------------------- --\n");
     fprintf (outfile, "PC BENCHMARK    LLNL MFLOPS 'C' Version 4.0\n\n");
-    fprintf (outfile, "Month run       %d/%d\n", this_month, this_year);    
     fprintf (outfile, "PC model        %s\n", general[1]);
     fprintf (outfile, "CPU             %s\n", general[2]);
     fprintf (outfile, "Clock MHz       %s\n", general[3]);
     fprintf (outfile, "Cache           %s\n", general[4]);
     fprintf (outfile, "Options         %s\n", general[5]);
     fprintf (outfile, "OS/DOS          %s\n", general[6]);
-    fprintf (outfile, "Compiler        %s\n", compiler);
-    fprintf (outfile, "OptLevel        %s\n", options);
     fprintf (outfile, "Run by          %s\n", general[7]);
     fprintf (outfile, "From            %s\n", general[8]);
     fprintf (outfile, "E-mail          %s\n\n", general[0]);
@@ -1065,7 +940,7 @@ main(int argc, char *argv[])
                                                         xspan[3]);
 
     fclose (outfile);
-    
+
     printf ("\n");
     printf ("A new results file will have been created in the same directory as the\n");
     printf (".EXE files if one did not already exist. If you made a mistake on input, \n");
@@ -1078,11 +953,9 @@ main(int argc, char *argv[])
    if (getinput == 1)
      {
         printf("Press any key to exit\n");
-        Endit = getch();
-        printf ("\nIf this is displayed you must close the window in the normal way\n");    
      }
 }
-    
+
 /************************************************************************
  *                          The Kernels                                 *
  ************************************************************************/
@@ -1104,14 +977,14 @@ void kernels()
    long   ink, jn, kn, kb5i;
    double di, dn;
    double qa;
-  
+
    for ( k=0 ; k<25; k++)
     {
         Checksum[section][k] = 0.0;
     }
 
 
-       
+
     /*
      *******************************************************************
      *   Kernel 1 -- hydro fragment
@@ -1119,14 +992,14 @@ void kernels()
      */
 
     parameters (1);
-    
+
     do
      {
         for ( k=0 ; k<n ; k++ )
         {
             x[k] = q + y[k]*( r*z[k+10] + t*z[k+11] );
         }
-      
+
         endloop (1);
      }
      while (count < loop);
@@ -1137,7 +1010,7 @@ void kernels()
      *******************************************************************
     */
 
-    parameters (2); 
+    parameters (2);
 
     do
      {
@@ -1155,11 +1028,11 @@ void kernels()
                 x[i] = x[k] - v[k]*x[k-1] - v[k+1]*x[k+1];
              }
          } while ( ii>0 );
-     
+
          endloop (2);
      }
      while (count < loop);
-  
+
     /*
      *******************************************************************
      *   Kernel 3 -- inner product
@@ -1174,8 +1047,8 @@ void kernels()
         for ( k=0 ; k<n ; k++ )
         {
             q += z[k]*x[k];
-        }     
-      
+        }
+
         endloop (3);
      }
      while (count < loop);
@@ -1204,11 +1077,11 @@ void kernels()
              }
             x[k-1] = y[4]*temp;
          }
-         
+
          endloop (4);
      }
      while (count < loop);
- 
+
     /*
      *******************************************************************
      *   Kernel 5 -- tri-diagonal elimination, below diagonal
@@ -1227,14 +1100,14 @@ void kernels()
          endloop (5);
      }
      while (count < loop);
- 
+
     /*
      *******************************************************************
      *   Kernel 6 -- general linear recurrence equations
      *******************************************************************
      */
-          
-    parameters (6); 
+
+    parameters (6);
 
 
     do
@@ -1251,15 +1124,15 @@ void kernels()
         endloop (6);
      }
      while (count < loop);
- 
+
     /*
      *******************************************************************
      *   Kernel 7 -- equation of state fragment
      *******************************************************************
      */
-     
+
     parameters (7);
-    
+
     do
      {
 
@@ -1273,7 +1146,7 @@ void kernels()
          endloop (7);
      }
      while (count < loop);
- 
+
     /*
      *******************************************************************
      *   Kernel 8 -- ADI integration
@@ -1282,7 +1155,7 @@ void kernels()
 
     nl1 = 0;
     nl2 = 1;
-    
+
     parameters (8);
 
     do
@@ -1306,11 +1179,11 @@ void kernels()
                   (u3[nl1][ky][kx+1]-2.0*u3[nl1][ky][kx]+u3[nl1][ky][kx-1]);
            }
         }
-    
+
         endloop (8);
    }
     while (count < loop);
- 
+
     /*
      *******************************************************************
      *   Kernel 9 -- integrate predictors
@@ -1318,7 +1191,7 @@ void kernels()
      */
 
     parameters (9);
-    
+
     do
     {
         for ( i=0 ; i<n ; i++ )
@@ -1332,15 +1205,15 @@ void kernels()
         endloop (9);
    }
     while (count < loop);
-    
+
     /*
      *******************************************************************
      *   Kernel 10 -- difference predictors
      *******************************************************************
      */
-     
-    parameters (10); 
-    
+
+    parameters (10);
+
     do
     {
         for ( i=0 ; i<n ; i++ )
@@ -1369,14 +1242,14 @@ void kernels()
         endloop (10);
    }
    while (count < loop);
-     
+
     /*
      *******************************************************************
      *   Kernel 11 -- first sum
      *******************************************************************
      */
-     
-    parameters (11); 
+
+    parameters (11);
 
     do
     {
@@ -1385,17 +1258,17 @@ void kernels()
         {
             x[k] = x[k-1] + y[k];
         }
-   
+
         endloop (11);
    }
    while (count < loop);
- 
+
     /*
      *******************************************************************
      *   Kernel 12 -- first difference
      *******************************************************************
      */
-     
+
     parameters (12);
 
     do
@@ -1408,7 +1281,7 @@ void kernels()
         endloop (12);
    }
    while (count < loop);
- 
+
 
     /*
      *******************************************************************
@@ -1416,8 +1289,8 @@ void kernels()
      *******************************************************************
      */
 
-   parameters (13); 
-  
+   parameters (13);
+
    do
     {
         for ( ip=0; ip<n; ip++)
@@ -1486,7 +1359,7 @@ void kernels()
      *   Kernel 15 -- Casual Fortran.  Development version
      *******************************************************************
     */
-    
+
     parameters (15);
 
     do
@@ -1566,7 +1439,7 @@ void kernels()
      */
 
     parameters (16);
-    
+
 
     ii = n / 3;
     lb = ii + ii;
@@ -1635,14 +1508,14 @@ void kernels()
         endloop (16);
    }
    while (count < loop);
-   
+
     /*
      *******************************************************************
      *   Kernel 17 -- implicit, conditional computation
      *******************************************************************
      */
 
-    parameters (17);  
+    parameters (17);
 
     do
     {
@@ -1671,7 +1544,7 @@ l61:    e3 = xnm*vlr[i] + vlin[i];
         xnm = e6;
         i += ink;
         if ( i != j ) goto l61;
-l62:;        
+l62:;
         endloop (17);
     }
     while (count < loop);
@@ -1682,7 +1555,7 @@ l62:;
      *******************************************************************
      */
 
-    parameters (18);  
+    parameters (18);
 
     do
     {
@@ -1736,9 +1609,9 @@ l62:;
      */
 
     parameters (19);
-    
+
     kb5i = 0;
-    
+
     do
     {
         for ( k=0 ; k<n ; k++ )
@@ -1763,7 +1636,7 @@ l62:;
     */
 
     parameters (20);
-    
+
     do
     {
         for ( k=0 ; k<n ; k++ )
@@ -1806,7 +1679,7 @@ l62:;
         endloop (21);
     }
     while (count < loop);
-    
+
     /*
      *******************************************************************
      *   Kernel 22 -- Planckian distribution
@@ -1833,7 +1706,7 @@ l62:;
      *   Kernel 23 -- 2-D implicit hydrodynamics fragment
      *******************************************************************
      */
-     
+
     parameters (23);
 
     do
@@ -1858,7 +1731,7 @@ l62:;
      */
 
     parameters (24);
-     
+
     x[n/2] = -1.0e+10;
     do
     {
@@ -1870,20 +1743,20 @@ l62:;
         endloop (24);
     }
     while (count < loop);
-   
+
    return;
  }
 
 /************************************************************************
  *        endloop procedure - calculate checksums and MFLOPS            *
  ************************************************************************/
- 
+
 long endloop(long which)
 {
   double now = 1.0, useflops;
   long   i, j, k, m;
   double Scale = 1000000.0;
-    
+
   count = count + 1;
   if (count >= loop)   /* else return */
   {
@@ -1891,7 +1764,7 @@ long endloop(long which)
 /************************************************************************
  *               End of standard set of loops for one kernel            *
  ************************************************************************/
-      
+
      count2 = count2 + 1;
      if (count2 == extra_loops[section][which])
                           /* else re-initialise parameters if required */
@@ -1900,10 +1773,10 @@ long endloop(long which)
 /************************************************************************
  *           End of extra loops for 5 seconds execution time            *
  ************************************************************************/
-                        
+
        count2 = 0;
        if (which == 1)
-       {     
+       {
            for ( k=0 ; k<n ; k++ )
            {
                 Checksum[section][1] = Checksum[section][1] + x[k]
@@ -1932,7 +1805,7 @@ long endloop(long which)
                 Checksum[section][4] = Checksum[section][4] + v[k]
                                           * (double)(k+1);
           }
-          useflops = nflops * (double) ((((n-5)/5)+1) * 3 * loop); 
+          useflops = nflops * (double) ((((n-5)/5)+1) * 3 * loop);
        }
        if (which == 5)
        {
@@ -1947,15 +1820,15 @@ long endloop(long which)
        {
           for ( k=0 ; k<n ; k++ )
           {
-         
+
              Checksum[section][6] = Checksum[section][6] + w[k]
                                        * (double)(k+1);
-         
+
           }
           useflops = nflops * (double)(n * ((n - 1) / 2) * loop);
-       } 
+       }
        if (which == 7)
-       {      
+       {
           for ( k=0 ; k<n ; k++ )
           {
               Checksum[section][7] = Checksum[section][7] + x[k]
@@ -1966,7 +1839,7 @@ long endloop(long which)
        if (which == 8)
        {
           for ( i=0 ; i<2 ; i++ )
-          {        
+          {
               for ( j=0 ; j<101 ; j++ )
               {
                   for ( k=0 ; k<5 ; k++ )
@@ -2010,13 +1883,13 @@ long endloop(long which)
                    {
                        Checksum[section][10] = Checksum[section][10]
                                               + px[i][j] * (double)(m);
-                   }                  
+                   }
               }
            }
            useflops = nflops * (double)(n * loop);
        }
        if (which == 11)
-       { 
+       {
            for ( k=1 ; k<n ; k++ )
            {
                 Checksum[section][11] = Checksum[section][11]
@@ -2025,7 +1898,7 @@ long endloop(long which)
            useflops = nflops * (double)((n - 1) * loop);
        }
        if (which == 12)
-       { 
+       {
            for ( k=0 ; k<n-1 ; k++ )
            {
                 Checksum[section][12] = Checksum[section][12] + x[k]
@@ -2035,9 +1908,9 @@ long endloop(long which)
        }
        if (which == 13)
        {
-          for ( k=0 ; k<2*n ; k++ )                  
+          for ( k=0 ; k<2*n ; k++ )
           {
-             for ( j=0 ; j<4 ; j++ )    
+             for ( j=0 ; j<4 ; j++ )
               {
                   m = 4 * k + j + 1;
                   Checksum[section][13] = Checksum[section][13]
@@ -2056,7 +1929,7 @@ long endloop(long which)
                   }
               }
          }
-         useflops = nflops * (double)(n * loop);  
+         useflops = nflops * (double)(n * loop);
        }
        if (which == 14)
        {
@@ -2101,11 +1974,11 @@ long endloop(long which)
                Checksum[section][17] = Checksum[section][17]
                                        + (vxne[k] + vxnd[k]) * (double)(k+1);
            }
-           useflops = nflops * (double)(n * loop); 
+           useflops = nflops * (double)(n * loop);
        }
        if (which == 18)
        {
-          for ( k=0 ; k<7 ; k++ )    
+          for ( k=0 ; k<7 ; k++ )
            {
                for ( j=0 ; j<101 ; j++ )
                {
@@ -2126,9 +1999,9 @@ long endloop(long which)
           {
               Checksum[section][19] = Checksum[section][19] + b5[k]
                                          * (double)(k+1);
-          }             
+          }
           useflops = nflops * (double)(n * loop);
-       } 
+       }
        if (which == 20)
        {
             for ( k=1 ; k<n+1 ; k++ )
@@ -2140,7 +2013,7 @@ long endloop(long which)
        }
        if (which == 21)
        {
-           for ( k=0 ; k<n ; k++ )          
+           for ( k=0 ; k<n ; k++ )
            {
                for ( i=0 ; i<25 ; i++ )
                {
@@ -2149,7 +2022,7 @@ long endloop(long which)
                                              + px[k][i] * (double)(m);
                }
            }
-           useflops = nflops * (double)(n * 625 * loop);      
+           useflops = nflops * (double)(n * 625 * loop);
 
        }
        if (which == 22)
@@ -2159,12 +2032,12 @@ long endloop(long which)
                 Checksum[section][22] = Checksum[section][22] + w[k]
                                            * (double)(k+1);
            }
-           useflops = nflops * (double)(n * loop);      
+           useflops = nflops * (double)(n * loop);
        }
        if (which == 23)
        {
            for ( j=0 ; j<7 ; j++ )
-           {        
+           {
                 for ( k=0 ; k<101 ; k++ )
                 {
                     m = 101 * j + k + 1;
@@ -2175,20 +2048,19 @@ long endloop(long which)
                     }
                 }
            }
-           useflops = nflops * (double)((n-1) * 5 * loop);       
+           useflops = nflops * (double)((n-1) * 5 * loop);
        }
        if (which == 24)
        {
            Checksum[section][24] =  (double)(m24);
-           useflops = nflops * (double)((n - 1) * loop); 
+           useflops = nflops * (double)((n - 1) * loop);
        }
 
 /************************************************************************
  *                           End of timing                              *
  ************************************************************************/
-       
-     EndTime = what_time(now);
-     RunTime[section][which] = EndTime - StartTime;
+
+     RunTime[section][which] = 0;
 
 /************************************************************************
  *     Deduct overheads from time, calculate MFLOPS, display results    *
@@ -2196,19 +2068,19 @@ long endloop(long which)
 
        RunTime[section][which] = RunTime[section][which]
                        - (loop * extra_loops[section][which]) * overhead_l;
-       FPops[section][which] =  useflops * extra_loops[section][which];   
+       FPops[section][which] =  useflops * extra_loops[section][which];
        Mflops[section][which] = FPops[section][which] / Scale
                                             / RunTime[section][which];
-       
+
        if (pass > 0)
        {
 
 /************************************************************************
  *      Compare sumcheck with standard result, calculate accuracy       *
  ************************************************************************/
-           
+
           check (which);
-           
+
           printf ("%2d %3d x%4d %2d %13.6e %5.2f%8.2f %4d %22.15e %2d\n",
                which, xloops[section][which], extra_loops[section][which],
                xflops[which], FPops[section][which], RunTime[section][which],
@@ -2223,7 +2095,7 @@ long endloop(long which)
  *                     Re-initialise data if reqired                    *
  ************************************************************************/
 
-       count = 0;  
+       count = 0;
        if (which == 2)
        {
           for ( k=0 ; k<n ; k++ )
@@ -2264,7 +2136,7 @@ long endloop(long which)
            }
        }
        if (which == 13)
-       {           
+       {
            for ( i=0 ; i<n ; i++ )
            {
                for (j=0 ; j<4 ; j++ )
@@ -2304,7 +2176,7 @@ long endloop(long which)
                   zr[i][j] = zr0[i][j];
                   zu[i][j] = zu0[i][j];
                   zv[i][j] = zv0[i][j];
-                  zz[i][j] = zz0[i][j];  
+                  zz[i][j] = zz0[i][j];
               }
           }
        }
@@ -2331,7 +2203,7 @@ long endloop(long which)
        k3 = k2 = 0;
        stb5 = stb50;
        xx[0] = xx0;
-          
+
      }
   }
   return 0;
@@ -2345,7 +2217,7 @@ long endloop(long which)
  {
     long   i, j, k, l, m, nn;
     double ds, dw, rr, ss;
-    double fuzz, fizz, buzz, scaled, one;  
+    double fuzz, fizz, buzz, scaled, one;
 
      scaled =  (double)(10.0);
      scaled =  (double)(1.0) / scaled;
@@ -2353,7 +2225,7 @@ long endloop(long which)
      buzz =    (double)(1.0) + fuzz;
      fizz =    (double)(1.1) * fuzz;
      one =     (double)(1.0);
-     
+
      for ( k=0 ; k<19977 + 34132 ; k++)
      {
          if (k == 19977)
@@ -2361,16 +2233,16 @@ long endloop(long which)
                 fuzz = (double)(0.0012345);
                 buzz = (double) (1.0) + fuzz;
                 fizz = (double) (1.1) * fuzz;
-         }         
+         }
          buzz = (one - fuzz) * buzz + fuzz;
          fuzz = - fuzz;
          u[k] = (buzz - fizz) * scaled;
      }
-     
+
      fuzz = (double)(0.0012345);
      buzz = (double) (1.0) + fuzz;
      fizz = (double) (1.1) * fuzz;
-     
+
      for ( k=1 ; k<40 ; k++)
      {
          buzz = (one - fuzz) * buzz + fuzz;
@@ -2380,7 +2252,7 @@ long endloop(long which)
 
     ds = 1.0;
     dw = 0.5;
-    for ( l=0 ; l<4 ; l++ )   
+    for ( l=0 ; l<4 ; l++ )
     {
          for ( i=0 ; i<512 ; i++ )
         {
@@ -2392,22 +2264,22 @@ long endloop(long which)
      {
          e[i] = 1;
          f[i] = 1;
-     }    
+     }
 
-     
+
          iqranf();
          dw = -100.0;
          for ( i=0; i<1001 ; i++ )
          {
              dex[i] = dw * dex[i];
              grd[i] = ix[i];
-         }     
+         }
          flx = 0.001;
 
-                  
+
          d[0]= 1.01980486428764;
          nn = n16;
-    
+
          for ( l=1 ; l<300 ; l++ )
          {
               d[l] = d[l-1] + 1.000e-4 / d[l-1];
@@ -2429,7 +2301,7 @@ long endloop(long which)
         }
         k = nn + nn + 1;
         zone[k-1] = nn;
-        
+
         if (which == 16)
         {
              r = d[n-1];
@@ -2450,7 +2322,7 @@ long endloop(long which)
 /************************************************************************
  *                 Make copies of data for extra loops                  *
  ************************************************************************/
- 
+
         for ( i=0; i<1001 ; i++ )
         {
             x0[i] = x[i];
@@ -2498,7 +2370,7 @@ long endloop(long which)
         }
         stb50 = stb5;
         xx0 = xx[0];
-                 
+
     return;
  }
 
@@ -2521,7 +2393,7 @@ long endloop(long which)
                     15, 14, 15, 26, 20, 15, 14, 27           }  };
 
 
-                             
+
        long lpass[3][25] =
              { {0, 7, 67,  9, 14, 10,  3,  4, 10, 36, 34, 11, 12,
                   36, 2,  1,  25, 35,  2, 39,  1,  1, 11,  8,  5  },
@@ -2530,7 +2402,7 @@ long endloop(long which)
                {0, 28, 46, 37, 38, 40, 21, 20,  9, 26, 25, 46, 48,
                    31,  8,  1, 14, 26,  2, 28,  7,  1,  8,  7, 23 } };
 
-       double sums[3][25] = 
+       double sums[3][25] =
         {
          { 0.0,
          5.114652693224671e+04, 1.539721811668385e+03, 1.000742883066363e+01,
@@ -2553,7 +2425,7 @@ long endloop(long which)
          5.421816960147207e+02, 3.126205178815431e+04, 7.824524877232093e+07,
          2.938604376566697e+02, 3.549900501563623e+04, 5.000000000000000e+01
                                                                           },
-     
+
          { 0.0,
          3.855104502494961e+01, 3.953296986903059e+01, 2.699309089320672e-01,
          5.999250595473891e-01, 3.182615248447483e+00, 1.120309393467088e+00,
@@ -2564,15 +2436,15 @@ long endloop(long which)
          1.268230698051003e+01, 5.987713249475302e+02, 5.009945671204667e+07,
          6.109968728263972e+00, 4.850340602749970e+02, 1.300000000000000e+01
                                                                          } };
-                               
- 
-     
+
+
+
        double number_flops[25] = {0, 5., 4., 2., 2., 2., 2., 16., 36., 17.,
                                       9., 1., 1., 7., 11., 33.,10., 9., 44.,
                                       6., 26., 2., 17., 11., 1.};
        double now = 1.0;
-      
-                           
+
+
        n = nloops[section][which];
        nspan[section][which] = n;
        n16 = nloops[section][16];
@@ -2585,23 +2457,18 @@ long endloop(long which)
        count = 0;
 
        init(which);
-       
+
 /************************************************************************
  *                   Start timing first pass only                       *
  ************************************************************************/
 
-       if (count2 == 0)
-       {                
-           StartTime = what_time(now); 
-       }
-              
        return 0;
    }
 
 /************************************************************************
  *          check procedure to check accuracy of calculations           *
  ************************************************************************/
-   
+
    void check(long which)
    {
         long maxs = 16;
@@ -2609,7 +2476,7 @@ long endloop(long which)
 
         xm = MasterSum;
         ym = Checksum[section][which];
-      
+
        if (xm * ym < 0.0)
        {
            accuracy[section][which] = 0;
@@ -2638,15 +2505,15 @@ long endloop(long which)
        }
 
        return;
-   } 
-   
+   }
+
 /************************************************************************
  *      iqranf procedure - random number generator for Kernel 14        *
  ************************************************************************/
-  
+
     void iqranf()
       {
-        
+
         long   inset, Mmin, Mmax, nn, i, kk;
         double span, spin, realn, per, scale1, qq, dkk, dp, dq;
         long   seed[3] = { 256, 12491249, 1499352848 };
@@ -2655,7 +2522,7 @@ long endloop(long which)
         Mmin = 1;
         Mmax = 1001;
         kk = seed[section];
-        
+
         inset= Mmin;
         span= Mmax - Mmin;
         spin= 16807;
@@ -2664,9 +2531,9 @@ long endloop(long which)
         scale1= 1.00001;
         qq= scale1 * (span / realn);
         dkk= kk;
-        
+
         for ( i=0 ; i<nn ; i++)
-        { 
+        {
             dp= dkk*spin;
             dkk= dp - (long)( dp/per)*per;
             dq= dkk*span;
@@ -2676,7 +2543,7 @@ long endloop(long which)
                 ix[i] = inset + i + 1 * qq;
             }
         }
-        
-        return;         
+
+        return;
       }
 
