@@ -4,7 +4,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
-#include <boost/asio.hpp>
 #include "utils.h"
 #include "cray_types.h"
 #include "cray_logger.h"
@@ -12,9 +11,6 @@
 #include "debug_events.h"
 #include <stdint.h>
 #include <vector>
-#include <boost/lexical_cast.hpp>
-#include <boost/format.hpp>
-#include <boost/timer/timer.hpp>
 #include "config_file.h"
 #include "ui.h"
 #include "cray_mainframe.h"

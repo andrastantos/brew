@@ -4,7 +4,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
+#ifdef HAS_ASIO
 #include <boost/asio.hpp>
+#endif
 #include "utils.h"
 #include "cray_types.h"
 #include "cray_logger.h"
@@ -216,7 +218,7 @@ public:
 	virtual void GetCpuStatus(StatusReport_c &aStatus, boost::timer::nanosecond_type aElapsedTime, bool aLongFormat) const override {}
 	virtual std::string GetName() const override;
 	virtual std::string GetLongName() const override;
-	
+
 	CLogger_c &GetLogger() const { return mLogger; }
 	class Mainframe_c &GetMainframe() { return *mMainframe; }
 

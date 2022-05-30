@@ -4,11 +4,6 @@
 #include "cray_iop.h"
 #include <fstream>
 #include <stdio.h>
-#include <boost/filesystem.hpp>
-#include <boost/variant.hpp>
-#include <boost/asio.hpp>
-#include <boost/thread.hpp>
-#include <boost/timer/timer.hpp>
 #include "cray_channels.h"
 #ifndef _WIN32
 #include <unistd.h>

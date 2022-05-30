@@ -3,7 +3,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#ifdef HAS_ASIO
 #include <boost/asio.hpp>
+#endif
 #include "utils.h"
 #include "cray_logger.h"
 #include "debug_events.h"
@@ -100,9 +102,11 @@ protected:
 	boost::optional<std::string> mConsoleCommand;
 	boost::optional<std::string> mNewTerminalCommand;
 
+	#ifdef HAS_ASIO
 	static boost::asio::io_service mIoService;
 	std::shared_ptr<boost::asio::ip::tcp::acceptor> mServerSocket;
 	std::shared_ptr<boost::asio::ip::tcp::socket> mConnectionSocket;
+	#endif
 	boost::array<char, 1> mReceiveBuf;
 	bool mReceiveFull;
 	struct TransmitQueueEntry_s {

@@ -11,9 +11,11 @@
 #include <vector>
 #include <unordered_set>
 #include <mutex>
+#ifndef BOOST_DISABLE_THREADS
 #include <boost/thread.hpp>
-#include <boost/algorithm/string/replace.hpp>
 #include <boost/thread/tss.hpp>
+#endif
+#include <boost/algorithm/string/replace.hpp>
 #include <boost/date_time.hpp>
 #include "utils.h"
 
@@ -276,7 +278,7 @@ public:
 	StreamLogger_c(): mLog(nullptr) {}
 	explicit StreamLogger_c(const char *aHeader): SimpleLogger_c(aHeader), mLog(nullptr) {}
 	StreamLogger_c(std::ostream &aStrm, const char *aHeader): SimpleLogger_c(aHeader), mLog(&aStrm) {}
-	StreamLogger_c(const StreamLogger_c &&aOld) : 
+	StreamLogger_c(const StreamLogger_c &&aOld) :
 		SimpleLogger_c(std::move(aOld)),
 		mLog(std::move(aOld.mLog))
 	{}
@@ -305,7 +307,7 @@ inline const LogLine_c &operator << (const LogLine_c &aLogger, std::basic_ostrea
 	if (aLogger.good()) aFormatterFn(aLogger.mParent.GetContext());
 	return aLogger;
 }
-	
+
 template <typename tElement> inline const LogLine_c &operator << (const LogLine_c &aLogger, const tElement &aElement) {
 	if (aLogger.good()) aLogger.mParent.GetContext() << aElement;
 	return aLogger;

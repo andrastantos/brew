@@ -19,6 +19,7 @@
 #include "cray_types.h"
 #include "exceptions.h"
 #include "config.h"
+#include <boost/config.hpp>
 
 #ifndef SINGLE_THREADED
 typedef std::atomic<bool>     AtomicBool;
@@ -262,8 +263,8 @@ public:
 };
 inline std::ostream & operator << (std::ostream &aStream, const FieldFormatter_i &aField) {
 	if (!aStream.good()) return aStream;
-	aField.Print(aStream); 
-	return aStream; 
+	aField.Print(aStream);
+	return aStream;
 }
 
 class DoublePrinter: public FieldFormatter_i {
@@ -572,6 +573,7 @@ void SetThreadAffinity(size_t aCpuId);
 
 std::string Dump(std::vector<uint8_t> &aVector);
 
+#ifndef BOOST_DISABLE_THREADS
 class Thread_c : public std::thread
 {
 public:
@@ -605,11 +607,12 @@ protected:
 
 	virtual void Thread() = 0;
 private:
-	void BaseThread() {
-		Thread();
+	static void BaseThread(Thread_c *th) {
+		th->Thread();
 	}
 	std::atomic_bool mTerminate;
 	std::atomic_bool mPaused;
 };
+#endif // BOOST_DISABLE_THREADS
 
 #endif // __UTILS_H__

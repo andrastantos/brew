@@ -6,4 +6,8 @@
 //#define SINGLE_THREADED // If enabled, compiles code for single-threaded use only (multi-threaded builds are probably broken by now)
 #define PARTIAL_DEBUG // If enabled, turns off optimization for certain functions
 
+#ifndef __BREW__
+#define HAS_ASIO
+#endif
+
 #endif // __CONFIG_H__

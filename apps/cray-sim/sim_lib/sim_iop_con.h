@@ -5,15 +5,12 @@
 #ifndef __SIM_IOP_CON_H__
 #define __SIM_IOP_CON_H__
 
-#include <boost/asio.hpp>
 #include "utils.h"
 #include "cray_types.h"
 #include "cray_logger.h"
 #include "cray_channels.h"
 #include "debug_events.h"
 #include <vector>
-#include <boost/lexical_cast.hpp>
-#include <boost/format.hpp>
 #include <boost/timer/timer.hpp>
 #include "config_file.h"
 #include "ui.h"
