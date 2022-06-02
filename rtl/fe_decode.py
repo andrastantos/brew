@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+from random import *
 from typing import *
 from silicon import *
 from brew_types import *
@@ -22,8 +23,8 @@ Latency is at least 1 cycle.
 
 
 class FeDecode(Module):
-    clk = Input(logic)
-    rst = Input(logic)
+    clk = ClkPort()
+    rst = RstPort()
 
     fetch = Input(FeFetch())
     push_data = Output(FeBeQueue())
@@ -305,8 +306,82 @@ def gen():
     Build.generate_rtl(FeDecode)
 
 def sim():
-    Build.simulation(FeDecode)
 
-gen()
-#sim()
+    insn_choices = (
+        #(0x0ff0, 0x0ff0,                ), # prefix-prefix
+        (0x1002,                        ), # $pc <- $r1
+        (0x20f0, 0x2ddd,                ), # $r1 <- short b001
+        (0x300f, 0x3dd0, 0x3dd1,        ), # $r1 <- 0xdeadbeef
+        (0x0ff0, 0x4002,                ), # type override + $pc <- $r1
+        (0x0ff1, 0x50f0, 0x5ddd,        ), # type override + $r1 <- short b001
+        (0x0ff2, 0x600f, 0x6dd0, 0x6dd1,), # type override + $r1 <- 0xdeadbeef
+    )
+    insn_stream = []
+    class Generator(RvSimSource):
+        def construct(self, max_wait_state: int = 5):
+            super().construct(FeFetch(), None, max_wait_state)
+            self.addr = -1
+            self.insn_fetch_stream = []
+        def generator(self, is_reset):
+            if is_reset:
+                return 0,0
+            self.addr += 1
+            while len(self.insn_fetch_stream) < 2:
+                insn = insn_choices[randint(0,len(insn_choices)-1)]
+                insn_stream.append(insn)
+                self.insn_fetch_stream += insn
+            # Don't combine the two instructions, because I don't want to rely on expression evaluation order. That sounds dangerous...
+            data = self.insn_fetch_stream.pop(0)
+            data |= self.insn_fetch_stream.pop(0) << 16
+            return self.addr, data
+
+    class Checker(RvSimSink):
+        def construct(self, max_wait_state: int = 5):
+            super().construct(None, max_wait_state)
+            self.cnt = 0
+        def checker(self, inst_top, inst_bottom, addr, has_top):
+            pass
+
+    class top(Module):
+        clk = ClkPort()
+        rst = RstPort()
+
+        def body(self):
+            self.input_stream = Wire(FeFetch())
+            self.checker = Checker()
+            self.generator = Generator()
+            self.input_stream <<= self.generator.output_port
+            dut = FeDecode()
+            dut.rst <<= self.rst
+            dut.clk <<= self.clk
+            self.checker.input_port <<= dut(self.input_stream)
+
+        def simulate(self) -> TSimEvent:
+            def clk() -> int:
+                yield 10
+                self.clk <<= ~self.clk & self.clk
+                yield 10
+                self.clk <<= ~self.clk
+                yield 0
+
+            print("Simulation started")
+
+            self.rst <<= 1
+            self.clk <<= 1
+            yield 10
+            for i in range(5):
+                yield from clk()
+            self.rst <<= 0
+
+            self.generator.max_wait_state = 0
+            self.checker.max_wait_state = 0
+            for i in range(500):
+                yield from clk()
+            now = yield 10
+            print(f"Done at {now}")
+
+    Build.simulation(top, "fe_decode.vcd", add_unnamed_scopes=True)
+
+#gen()
+sim()
 
