@@ -82,26 +82,28 @@ class FeDecode(Module):
 
         # Instruction pre-decode: in this stage, all we care about is whether an instruction is a prefix and what it's length is
         top_inst_fragment = self.fetch.data[31:16]
-        top_inst_is_prefix = is_prefix_inst(top_inst_fragment)
         top_inst_len = inst_len(top_inst_fragment)
+        top_inst_is_prefix = is_prefix_inst(top_inst_fragment) & (top_inst_len == inst_len_16)
 
         btm_inst_fragment = self.fetch.data[15:0]
-        btm_inst_is_prefix = is_prefix_inst(btm_inst_fragment)
         btm_inst_len = inst_len(btm_inst_fragment)
+        btm_inst_is_prefix = is_prefix_inst(btm_inst_fragment) & (btm_inst_len == inst_len_16)
 
         # State machine
         self.decode_fsm = FSM()
 
         class States(Enum):
             have_0_fragments = 0
-            have_1_fragments = 2
-            have_2_fragments = 3
-            have_all_fragments = 4
+            have_1_fragments = 1
+            have_2_fragments = 2
+            have_all_fragments = 3
 
         self.decode_fsm.reset_value <<= States.have_0_fragments
         self.decode_fsm.default_state <<= States.have_0_fragments
 
-        decode_btm = (self.decode_fsm.state == States.have_0_fragments) | (self.decode_fsm.state == States.have_all_fragments)
+        fsm_state = Wire()
+        fsm_state <<= self.decode_fsm.state
+        decode_btm = (self.decode_fsm.state == States.have_0_fragments) | (self.decode_fsm.state == States.have_all_fragments) & (~top_inst_pre_cond_reg | top_inst_is_prefix_reg)
         decode_btm_allow_pref = decode_btm & ~(top_inst_is_prefix_reg & top_inst_pre_cond_reg)
 
         """
@@ -130,20 +132,33 @@ class FeDecode(Module):
         """
         #case_pref_pref = decode_btm_allow_pref & btm_inst_is_prefix & top_inst_is_prefix
         #case_pref_0of0 = decode_btm_allow_pref & btm_inst_is_prefix & ~top_inst_is_prefix & (top_inst_len == inst_len_16)
+        #inst_len_to_compare = Select(top_inst_pre_cond_reg, btm_inst_len_reg, top_inst_len_reg)
         case_pref_0of0 = decode_btm_allow_pref & btm_inst_is_prefix & (top_inst_len == inst_len_16)
         case_pref_0of1 = decode_btm_allow_pref & btm_inst_is_prefix & (top_inst_len == inst_len_32)
-        case_pref_0of2 = decode_btm_allow_pref & btm_inst_is_prefix & (top_inst_len == inst_len_32)
+        case_pref_0of2 = decode_btm_allow_pref & btm_inst_is_prefix & (top_inst_len == inst_len_48)
         case_0of0_pref = decode_btm & ~btm_inst_is_prefix & (btm_inst_len == inst_len_16) & top_inst_is_prefix
         case_0of0_0of0 = decode_btm & ~btm_inst_is_prefix & (btm_inst_len == inst_len_16) & ~top_inst_is_prefix & (top_inst_len == inst_len_16)
         case_0of0_0of1 = decode_btm & ~btm_inst_is_prefix & (btm_inst_len == inst_len_16) & (top_inst_len == inst_len_32)
         case_0of0_0of2 = decode_btm & ~btm_inst_is_prefix & (btm_inst_len == inst_len_16) & (top_inst_len == inst_len_48)
-        case_0of1_1of1 = decode_btm & btm_inst_len == inst_len_32
-        case_0of2_1of2 = decode_btm & btm_inst_len == inst_len_48
-        case_1of1_pref = (self.decode_fsm.state == States.have_1_fragments) & (btm_inst_len_reg == inst_len_32) & top_inst_is_prefix
-        case_1of1_0of0 = (self.decode_fsm.state == States.have_1_fragments) & (btm_inst_len_reg == inst_len_32) & ~top_inst_is_prefix & (top_inst_len == inst_len_16)
-        case_1of1_0of1 = (self.decode_fsm.state == States.have_1_fragments) & (btm_inst_len_reg == inst_len_32) & (top_inst_len == inst_len_32)
-        case_1of1_0of2 = (self.decode_fsm.state == States.have_1_fragments) & (btm_inst_len_reg == inst_len_32) & (top_inst_len == inst_len_48)
-        case_1of2_2of2 = (self.decode_fsm.state == States.have_1_fragments) & (btm_inst_len_reg == inst_len_48)
+        case_0of1_1of1 = decode_btm & (btm_inst_len == inst_len_32)
+        case_0of2_1of2 = decode_btm & (btm_inst_len == inst_len_48)
+        case_1of1_pref_from_top = ~decode_btm &  top_inst_pre_cond_reg & (top_inst_len_reg == inst_len_32) & top_inst_is_prefix
+        case_1of1_0of0_from_top = ~decode_btm &  top_inst_pre_cond_reg & (top_inst_len_reg == inst_len_32) & ~top_inst_is_prefix & (top_inst_len == inst_len_16)
+        case_1of1_0of1_from_top = ~decode_btm &  top_inst_pre_cond_reg & (top_inst_len_reg == inst_len_32) & (top_inst_len == inst_len_32)
+        case_1of1_0of2_from_top = ~decode_btm &  top_inst_pre_cond_reg & (top_inst_len_reg == inst_len_32) & (top_inst_len == inst_len_48)
+        case_1of2_2of2_from_top = ~decode_btm &  top_inst_pre_cond_reg & (top_inst_len_reg == inst_len_48)
+        case_1of1_pref_from_btm = ~decode_btm & ~top_inst_pre_cond_reg & (btm_inst_len_reg == inst_len_32) & top_inst_is_prefix
+        case_1of1_0of0_from_btm = ~decode_btm & ~top_inst_pre_cond_reg & (btm_inst_len_reg == inst_len_32) & ~top_inst_is_prefix & (top_inst_len == inst_len_16)
+        case_1of1_0of1_from_btm = ~decode_btm & ~top_inst_pre_cond_reg & (btm_inst_len_reg == inst_len_32) & (top_inst_len == inst_len_32)
+        case_1of1_0of2_from_btm = ~decode_btm & ~top_inst_pre_cond_reg & (btm_inst_len_reg == inst_len_32) & (top_inst_len == inst_len_48)
+        case_1of2_2of2_from_btm = ~decode_btm & ~top_inst_pre_cond_reg & (btm_inst_len_reg == inst_len_48)
+
+        case_1of1_pref = case_1of1_pref_from_top | case_1of1_pref_from_btm
+        case_1of1_0of0 = case_1of1_0of0_from_top | case_1of1_0of0_from_btm
+        case_1of1_0of1 = case_1of1_0of1_from_top | case_1of1_0of1_from_btm
+        case_1of1_0of2 = case_1of1_0of2_from_top | case_1of1_0of2_from_btm
+        case_1of2_2of2 = case_1of2_2of2_from_top | case_1of2_2of2_from_btm
+
         case_2of2_pref = (self.decode_fsm.state == States.have_2_fragments) & top_inst_is_prefix
         case_2of2_0of0 = (self.decode_fsm.state == States.have_2_fragments) & ~top_inst_is_prefix & (top_inst_len == inst_len_16)
         case_2of2_0of1 = (self.decode_fsm.state == States.have_2_fragments) & (top_inst_len == inst_len_32)
@@ -173,6 +188,19 @@ class FeDecode(Module):
         self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_0of0_0of2, States.have_all_fragments)
         self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_0of1_1of1, States.have_all_fragments)
         self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_0of2_1of2, States.have_2_fragments)
+
+        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of1_pref_from_top, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of1_0of0_from_top, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of1_0of1_from_top, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of1_0of2_from_top, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of2_2of2_from_top, States.have_all_fragments)
+
+        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of1_pref_from_btm, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of1_0of0_from_btm, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of1_0of1_from_btm, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of1_0of2_from_btm, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of2_2of2_from_btm, States.have_all_fragments)
+
         self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & ~self.fetch.valid, States.have_0_fragments)
 
         # Handshake logic: we're widening the datapath, so it's essentially the same as a ForwardBuf
@@ -209,30 +237,47 @@ class FeDecode(Module):
                 Select(
                     load_from_top & ~top_inst_is_prefix_reg,
                     SelectOne(
-                        decode_btm,    btm_inst_fragment,
+                        decode_btm & ~btm_inst_is_prefix,    btm_inst_fragment,
+                        decode_btm &  btm_inst_is_prefix,    top_inst_fragment,
                         default_port = btm_inst_reg[15:0]
                     ),
                     top_inst_reg
                 )
             )
             btm_inst_reg[31:16] <<= RegEn(
-                SelectOne(
-                    case_0of1_1of1, top_inst_fragment,
-                    case_0of2_1of2, top_inst_fragment,
-                    self.decode_fsm.state == States.have_1_fragments,    btm_inst_fragment,
-                    default_port = btm_inst_reg[31:16]
-                ),
+                Select(
+                    load_from_top,
+                    # Not loading from top
+                    SelectOne(
+                        case_0of1_1of1, top_inst_fragment,
+                        case_0of2_1of2, top_inst_fragment,
+                        self.decode_fsm.state == States.have_1_fragments,    btm_inst_fragment,
+                        default_port = btm_inst_reg[31:16]
+                    ),
+                    # Loading from top
+                    Select(
+                        top_inst_is_prefix_reg,
+                        # Loading a non-prefix instruction from top
+                        btm_inst_fragment,
+                        # Loading a prefix instruction from top
+                        top_inst_fragment,
+                    )
+                )
             )
             btm_inst_reg[47:32] <<= RegEn(
-                SelectOne(
-                    self.decode_fsm.state == States.have_1_fragments,    top_inst_fragment,
-                    self.decode_fsm.state == States.have_2_fragments,    btm_inst_fragment,
-                    default_port = btm_inst_reg[47:32]
-                ),
+                Select(
+                    load_from_top,
+                    SelectOne(
+                        self.decode_fsm.state == States.have_1_fragments,    top_inst_fragment,
+                        self.decode_fsm.state == States.have_2_fragments,    btm_inst_fragment,
+                        default_port = btm_inst_reg[47:32]
+                    ),
+                    top_inst_fragment
+                )
             )
             btm_inst_len_reg <<= RegEn(
                 Select(
-                    load_from_top,
+                    load_from_top & ~top_inst_is_prefix_reg,
                     SelectOne(
                         decode_btm &  btm_inst_is_prefix, top_inst_len,
                         decode_btm & ~btm_inst_is_prefix, btm_inst_len,
@@ -307,46 +352,84 @@ def gen():
 
 def sim():
 
-    insn_choices = (
+    inst_choices = (
         #(0x0ff0, 0x0ff0,                ), # prefix-prefix
-        (0x1002,                        ), # $pc <- $r1
+        (0x1100,                        ), # $r1 <- $r0 ^ $r0
         (0x20f0, 0x2ddd,                ), # $r1 <- short b001
         (0x300f, 0x3dd0, 0x3dd1,        ), # $r1 <- 0xdeadbeef
-        (0x0ff0, 0x4002,                ), # type override + $pc <- $r1
-        (0x0ff1, 0x50f0, 0x5ddd,        ), # type override + $r1 <- short b001
-        (0x0ff2, 0x600f, 0x6dd0, 0x6dd1,), # type override + $r1 <- 0xdeadbeef
+        (0x0ff0, 0x1001,                ), # type override + $pc <- $r1
+        (0x0ff1, 0x20f1, 0x5ddd,        ), # type override + $r1 <- short b001
+        (0x0ff2, 0x301f, 0x6dd0, 0x6dd1,), # type override + $r1 <- 0xdeadbeef
     )
-    insn_stream = []
+    inst_stream = []
     class Generator(RvSimSource):
-        def construct(self, max_wait_state: int = 5):
+        def construct(self, max_wait_state: int = 0):
             super().construct(FeFetch(), None, max_wait_state)
             self.addr = -1
-            self.insn_fetch_stream = []
+            self.inst_fetch_stream = []
         def generator(self, is_reset):
             if is_reset:
                 return 0,0
             self.addr += 1
-            while len(self.insn_fetch_stream) < 2:
-                insn = insn_choices[randint(0,len(insn_choices)-1)]
-                insn_stream.append(insn)
-                self.insn_fetch_stream += insn
+            while len(self.inst_fetch_stream) < 2:
+                inst = inst_choices[randint(0,len(inst_choices)-1)]
+                inst_stream.append(inst)
+                self.inst_fetch_stream += inst
             # Don't combine the two instructions, because I don't want to rely on expression evaluation order. That sounds dangerous...
-            data = self.insn_fetch_stream.pop(0)
-            data |= self.insn_fetch_stream.pop(0) << 16
+            data = self.inst_fetch_stream.pop(0)
+            data |= self.inst_fetch_stream.pop(0) << 16
             return self.addr, data
 
     class Checker(RvSimSink):
-        def construct(self, max_wait_state: int = 5):
+        def construct(self, max_wait_state: int = 0):
             super().construct(None, max_wait_state)
             self.cnt = 0
-        def checker(self, inst_top, inst_bottom, addr, has_top):
-            pass
+        def checker(self, value):
+            def get_next_inst():
+                inst = inst_stream.pop(0)
+                print(f"  --- inst:", end="")
+                for i in inst:
+                    print(f" {i:04x}", end="")
+                print("")
+                has_prefix = inst[0] & 0x0ff0 == 0x0ff0
+                if has_prefix:
+                    prefix = inst[0]
+                    inst = inst[1:]
+                else:
+                    prefix = None
+                inst_len = len(inst)-1
+                inst_code = 0
+                for idx, word in enumerate(inst):
+                    inst_code |= word << (16*idx)
+                return prefix, has_prefix, inst_code, inst_len
+
+            expected_prefix, expected_has_prefix, expected_inst_code, expected_inst_len = get_next_inst()
+            print(f"Received: ", end="")
+            if value.inst_bottom.has_prefix:
+                print(f" [{value.inst_bottom.prefix:04x}]", end="")
+            for i in range(value.inst_bottom.inst_len+1):
+                print(f" {(value.inst_bottom.inst >> (16*i)) & 0xffff:04x}", end="")
+            if value.has_top:
+                print(f" top: {value.inst_top:04x}", end="")
+            print("")
+
+            assert expected_has_prefix == value.inst_bottom.has_prefix
+            assert not expected_has_prefix or expected_prefix == value.inst_bottom.prefix
+            assert expected_inst_len == value.inst_bottom.inst_len
+            inst_mask = (1 << (16*(expected_inst_len+1))) - 1
+            assert (expected_inst_code & inst_mask) == (value.inst_bottom.inst & inst_mask)
+            if value.has_top == 1:
+                expected_prefix, expected_has_prefix, expected_inst_code, expected_inst_len = get_next_inst()
+                assert not expected_has_prefix
+                assert expected_inst_len == 0
+                assert expected_inst_code == value.inst_top
 
     class top(Module):
         clk = ClkPort()
         rst = RstPort()
 
         def body(self):
+            seed(0)
             self.input_stream = Wire(FeFetch())
             self.checker = Checker()
             self.generator = Generator()

@@ -6,7 +6,7 @@ class BrewBeInst(Struct):
     inst = Unsigned(48)
     prefix = Unsigned(16)
     has_prefix = logic
-    inst_len = Unsigned(3)
+    inst_len = Number(min_val=0, max_val=3) # NOTE: theoretically, this should be 0...2, but I'm lazy
 
 BrewInstAddr = Unsigned(31)
 BrewDWordAddr = Unsigned(30)
