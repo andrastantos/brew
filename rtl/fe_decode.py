@@ -132,7 +132,7 @@ class FeDecode(Module):
         """
         #case_pref_pref = decode_btm_allow_pref & btm_inst_is_prefix & top_inst_is_prefix
         #case_pref_0of0 = decode_btm_allow_pref & btm_inst_is_prefix & ~top_inst_is_prefix & (top_inst_len == inst_len_16)
-        #inst_len_to_compare = Select(top_inst_pre_cond_reg, btm_inst_len_reg, top_inst_len_reg)
+        inst_len_to_compare = Select(top_inst_pre_cond_reg, btm_inst_len_reg, top_inst_len_reg)
         case_pref_0of0 = decode_btm_allow_pref & btm_inst_is_prefix & (top_inst_len == inst_len_16)
         case_pref_0of1 = decode_btm_allow_pref & btm_inst_is_prefix & (top_inst_len == inst_len_32)
         case_pref_0of2 = decode_btm_allow_pref & btm_inst_is_prefix & (top_inst_len == inst_len_48)
@@ -142,22 +142,11 @@ class FeDecode(Module):
         case_0of0_0of2 = decode_btm & ~btm_inst_is_prefix & (btm_inst_len == inst_len_16) & (top_inst_len == inst_len_48)
         case_0of1_1of1 = decode_btm & (btm_inst_len == inst_len_32)
         case_0of2_1of2 = decode_btm & (btm_inst_len == inst_len_48)
-        case_1of1_pref_from_top = ~decode_btm &  top_inst_pre_cond_reg & (top_inst_len_reg == inst_len_32) & top_inst_is_prefix
-        case_1of1_0of0_from_top = ~decode_btm &  top_inst_pre_cond_reg & (top_inst_len_reg == inst_len_32) & ~top_inst_is_prefix & (top_inst_len == inst_len_16)
-        case_1of1_0of1_from_top = ~decode_btm &  top_inst_pre_cond_reg & (top_inst_len_reg == inst_len_32) & (top_inst_len == inst_len_32)
-        case_1of1_0of2_from_top = ~decode_btm &  top_inst_pre_cond_reg & (top_inst_len_reg == inst_len_32) & (top_inst_len == inst_len_48)
-        case_1of2_2of2_from_top = ~decode_btm &  top_inst_pre_cond_reg & (top_inst_len_reg == inst_len_48)
-        case_1of1_pref_from_btm = ~decode_btm & ~top_inst_pre_cond_reg & (btm_inst_len_reg == inst_len_32) & top_inst_is_prefix
-        case_1of1_0of0_from_btm = ~decode_btm & ~top_inst_pre_cond_reg & (btm_inst_len_reg == inst_len_32) & ~top_inst_is_prefix & (top_inst_len == inst_len_16)
-        case_1of1_0of1_from_btm = ~decode_btm & ~top_inst_pre_cond_reg & (btm_inst_len_reg == inst_len_32) & (top_inst_len == inst_len_32)
-        case_1of1_0of2_from_btm = ~decode_btm & ~top_inst_pre_cond_reg & (btm_inst_len_reg == inst_len_32) & (top_inst_len == inst_len_48)
-        case_1of2_2of2_from_btm = ~decode_btm & ~top_inst_pre_cond_reg & (btm_inst_len_reg == inst_len_48)
-
-        case_1of1_pref = case_1of1_pref_from_top | case_1of1_pref_from_btm
-        case_1of1_0of0 = case_1of1_0of0_from_top | case_1of1_0of0_from_btm
-        case_1of1_0of1 = case_1of1_0of1_from_top | case_1of1_0of1_from_btm
-        case_1of1_0of2 = case_1of1_0of2_from_top | case_1of1_0of2_from_btm
-        case_1of2_2of2 = case_1of2_2of2_from_top | case_1of2_2of2_from_btm
+        case_1of1_pref = ~decode_btm & (inst_len_to_compare == inst_len_32) & top_inst_is_prefix
+        case_1of1_0of0 = ~decode_btm & (inst_len_to_compare == inst_len_32) & ~top_inst_is_prefix & (top_inst_len == inst_len_16)
+        case_1of1_0of1 = ~decode_btm & (inst_len_to_compare == inst_len_32) & (top_inst_len == inst_len_32)
+        case_1of1_0of2 = ~decode_btm & (inst_len_to_compare == inst_len_32) & (top_inst_len == inst_len_48)
+        case_1of2_2of2 = ~decode_btm & (inst_len_to_compare == inst_len_48)
 
         case_2of2_pref = (self.decode_fsm.state == States.have_2_fragments) & top_inst_is_prefix
         case_2of2_0of0 = (self.decode_fsm.state == States.have_2_fragments) & ~top_inst_is_prefix & (top_inst_len == inst_len_16)
@@ -188,18 +177,11 @@ class FeDecode(Module):
         self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_0of0_0of2, States.have_all_fragments)
         self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_0of1_1of1, States.have_all_fragments)
         self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_0of2_1of2, States.have_2_fragments)
-
-        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of1_pref_from_top, States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of1_0of0_from_top, States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of1_0of1_from_top, States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of1_0of2_from_top, States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of2_2of2_from_top, States.have_all_fragments)
-
-        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of1_pref_from_btm, States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of1_0of0_from_btm, States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of1_0of1_from_btm, States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of1_0of2_from_btm, States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of2_2of2_from_btm, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of1_pref, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of1_0of0, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of1_0of1, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of1_0of2, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of2_2of2, States.have_all_fragments)
 
         self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & ~self.fetch.valid, States.have_0_fragments)
 
