@@ -65,6 +65,7 @@ class FeDecode(Module):
 
 
         fsm_advance = Wire(logic)
+        load_from_top = Wire(logic)
 
         # Datapath registers
         top_inst_is_prefix_reg = Wire(logic)
@@ -154,46 +155,57 @@ class FeDecode(Module):
         case_2of2_0of2 = (self.decode_fsm.state == States.have_2_fragments) & (top_inst_len == inst_len_48)
 
         # We're in a state where we don't have anything partial
-        self.decode_fsm.add_transition(States.have_0_fragments, fsm_advance & case_pref_0of0, States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_0_fragments, fsm_advance & case_pref_0of1, States.have_1_fragments)
-        self.decode_fsm.add_transition(States.have_0_fragments, fsm_advance & case_pref_0of2, States.have_1_fragments)
-        self.decode_fsm.add_transition(States.have_0_fragments, fsm_advance & case_0of0_pref, States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_0_fragments, fsm_advance & case_0of0_0of0, States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_0_fragments, fsm_advance & case_0of0_0of1, States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_0_fragments, fsm_advance & case_0of0_0of2, States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_0_fragments, fsm_advance & case_0of1_1of1, States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_0_fragments, fsm_advance & case_0of2_1of2, States.have_2_fragments)
+        self.decode_fsm.add_transition(States.have_0_fragments,  fsm_advance & case_pref_0of0, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_0_fragments,  fsm_advance & case_pref_0of1, States.have_1_fragments)
+        self.decode_fsm.add_transition(States.have_0_fragments,  fsm_advance & case_pref_0of2, States.have_1_fragments)
+        self.decode_fsm.add_transition(States.have_0_fragments,  fsm_advance & case_0of0_pref, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_0_fragments,  fsm_advance & case_0of0_0of0, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_0_fragments,  fsm_advance & case_0of0_0of1, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_0_fragments,  fsm_advance & case_0of0_0of2, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_0_fragments,  fsm_advance & case_0of1_1of1, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_0_fragments,  fsm_advance & case_0of2_1of2, States.have_2_fragments)
+        self.decode_fsm.add_transition(States.have_0_fragments, ~fsm_advance                 , States.have_0_fragments)
         # We're in a state where we have 1 parcel for the bottom
-        self.decode_fsm.add_transition(States.have_1_fragments, fsm_advance, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_1_fragments,  fsm_advance, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_1_fragments, ~fsm_advance, States.have_1_fragments)
         # We're in a state where we have 2 fragments for the bottom
-        self.decode_fsm.add_transition(States.have_2_fragments, fsm_advance, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_2_fragments,  fsm_advance, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_2_fragments, ~fsm_advance, States.have_2_fragments)
         # We have all the fragments: we either advance to the next set of instructions, or reset if the source is not valid
-        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_pref_0of0, States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_pref_0of1, States.have_1_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_pref_0of2, States.have_1_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_0of0_pref, States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_0of0_0of0, States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_0of0_0of1, States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_0of0_0of2, States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_0of1_1of1, States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_0of2_1of2, States.have_2_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of1_pref, States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of1_0of0, States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of1_0of1, States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of1_0of2, States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & self.fetch.valid & case_1of2_2of2, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments,  fsm_advance & self.fetch.valid & case_pref_0of0, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments,  fsm_advance & self.fetch.valid & case_pref_0of1, States.have_1_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments,  fsm_advance & self.fetch.valid & case_pref_0of2, States.have_1_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments,  fsm_advance & self.fetch.valid & case_0of0_pref, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments,  fsm_advance & self.fetch.valid & case_0of0_0of0, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments,  fsm_advance & self.fetch.valid & case_0of0_0of1, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments,  fsm_advance & self.fetch.valid & case_0of0_0of2, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments,  fsm_advance & self.fetch.valid & case_0of1_1of1, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments,  fsm_advance & self.fetch.valid & case_0of2_1of2, States.have_2_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments,  fsm_advance & self.fetch.valid & case_1of1_pref, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments,  fsm_advance & self.fetch.valid & case_1of1_0of0, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments,  fsm_advance & self.fetch.valid & case_1of1_0of1, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments,  fsm_advance & self.fetch.valid & case_1of1_0of2, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments,  fsm_advance & self.fetch.valid & case_1of2_2of2, States.have_all_fragments)
 
-        self.decode_fsm.add_transition(States.have_all_fragments, fsm_advance & ~self.fetch.valid, States.have_0_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments,  fsm_advance & ~self.fetch.valid & ~load_from_top, States.have_0_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments,  fsm_advance & ~self.fetch.valid & load_from_top & top_inst_is_prefix_reg, States.have_0_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments,  fsm_advance & ~self.fetch.valid & load_from_top & ~top_inst_is_prefix_reg & (top_inst_len_reg == inst_len_16), States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments,  fsm_advance & ~self.fetch.valid & load_from_top & (top_inst_len_reg == inst_len_32), States.have_1_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments,  fsm_advance & ~self.fetch.valid & load_from_top & (top_inst_len_reg == inst_len_48), States.have_1_fragments)
+
+        self.decode_fsm.add_transition(States.have_all_fragments, ~fsm_advance                    , States.have_all_fragments)
 
         # Handshake logic: we're widening the datapath, so it's essentially the same as a ForwardBuf
         terminal_fsm_state = Wire(logic)
         terminal_fsm_state <<= (self.decode_fsm.state == States.have_all_fragments)
-        self.fetch.ready <<= ~terminal_fsm_state | self.push_data.ready
+        fetch_ready = (~terminal_fsm_state & ~top_inst_pre_cond_reg) | self.push_data.ready
+        self.fetch.ready <<= fetch_ready
         self.push_data.valid <<= terminal_fsm_state
-        fsm_advance <<= (~terminal_fsm_state & self.fetch.valid) | (terminal_fsm_state & self.push_data.ready)
+        fsm_advance <<= (~terminal_fsm_state & self.fetch.valid & fetch_ready) | (terminal_fsm_state & self.push_data.ready)
 
         # Loading of the datapath registers
-        load_from_top = (self.decode_fsm.state == States.have_all_fragments) & top_inst_pre_cond_reg
+        #load_from_top = (self.decode_fsm.state == States.have_all_fragments) & top_inst_pre_cond_reg
+        load_from_top <<= top_inst_pre_cond_reg
         with fsm_advance as clk_en:
             btm_inst_prefix_reg <<= RegEn(
                 Select(
@@ -438,8 +450,17 @@ def sim():
                 yield from clk()
             self.rst <<= 0
 
+            self.generator.max_wait_state = 2
+            self.checker.max_wait_state = 5
+            for i in range(500):
+                yield from clk()
             self.generator.max_wait_state = 0
             self.checker.max_wait_state = 0
+            for i in range(500):
+                yield from clk()
+            now = yield 10
+            self.generator.max_wait_state = 5
+            self.checker.max_wait_state = 2
             for i in range(500):
                 yield from clk()
             now = yield 10
