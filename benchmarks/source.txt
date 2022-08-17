@@ -1,1 +1,3 @@
 https://openbenchmarking.org/
+
+There's also CoreMark, that seems to be free and targeted towards embedded systems (so NewLib is probably fine for it).
