@@ -208,6 +208,10 @@ NOTE: on my implementation: reads amongst themselves and writes amongst themselv
       side-effects are there though? All I/O is memory mapped, even MMU and CSR accesses.
       Exceptions and interrupts are not really side-effects. Instruction fetches would be one thing,
       but those are not really caught here either. So... I don't know... Maybe we don't need this at all??
+      Actually we do: the write-fence needs to ensure that all the write-responses are back! Just because
+      writes leave in-order, they don't necessarily reach their target in order (due to different inter-connected
+      latencies to different targets). So W-before will have to not only flush the write queue but also
+      wait for all the write-responses to come back, before letting the pipeline continue.
 
 
 Branch group

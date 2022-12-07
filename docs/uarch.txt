@@ -54,6 +54,26 @@ That means that in order to test for a hit, we'll need to wait for the TLB resul
 The ICache can provide 32-bits at a time. This is not the granularity of instructions, so the FE uses an FC
 pointer to get the next 32-bits from the ICache.
 
+ICACHE INVALIDATION
+===================
+This is a tricky subject that needs to span the whole front-end of the processor: the ICache, the branch
+predictor and the instruction fetch. It even has implications on the FE-BE FIFO.
+
+When the ICACHE gets flushed, the most likely reason for it is self-modifying code. That is, when someone
+put data in main memory and we want to execute it. In some cases (trampolines) we might be able to invalidate
+just a cache-line, but in more complex JIT scenarios we want to blow the whole cache away.
+
+Cache invalidation is initiated through an I/O write. After the write, there must be a tight loop,
+checking for the invalidation to be completed. That is an I/O read, followed by a jump if invalidation
+is still in progress. Why? Because of the de-coupled FE behavior. Quite likely a number of instructions
+are already in the decode queue by the time the write finally reaches the cache controller and the invalidation
+starts. The act of invalidating will stall any further instruction fetches, but whatever is already in the FE
+pipeline will go through uninterrupted. So, the loop might execute a few times (if the branch-predictor was right)
+before the processor finally stalls. NOTE: in this design reads flush the write-queue so it's guaranteed that the
+first read will see the side-effect of the write. Since the read is not cached, it'll take quite a bit to wind
+their its through the interconnect to the cache-controller. It's possible that by the time the read reaches the
+controller, the invalidation has been completed.
+
 BRANCH PREDICTION
 =================
 

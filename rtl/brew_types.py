@@ -28,3 +28,40 @@ class DecodeIn(ReadyValid):
 class FeFetch(ReadyValid):
     addr     = BrewDWordAddr
     data     = BrewData
+
+'''
+MMU descriptor and page access modes
++---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---+
+|                                   P_PA_ADDR                                   | C |   MODE    |               .               |
++---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---#---+---+---+---+
+
+MODE   MNEMONIC   EXPLANATION
+-----------------------------
+0      INV        entry is not valid (or no access). Any access generates an exception
+1      R          entry is readable
+2       W         entry is writable
+3      RW         entry is readable and writeable
+4        X        entry is executable
+5      R X        entry is read/executable
+6      LINK       entry is link to 2nd level page table, if appears in the 1st level page table
+6       WX        entry is writable and executable, if appears in the 2nd level page table
+7      RWX        entry has all access rights
+'''
+mmu_mode_inv = 0
+mmu_mode_r = 1
+mmu_mode_w = 2
+mmu_mode_rw = 3
+mmu_mode_x = 4
+mmu_mode_rx = 5
+mmu_mode_lnk = 6
+mmu_mode_wx = 6
+mmu_mode_rwx = 7
+
+def mmu_readable(mode):
+    return mode & mmu_mode_r
+
+def mmu_writable(mode):
+    return mode & mmu_mode_w
+
+def mmu_executable(mode):
+    return mode & mmu_mode_x
