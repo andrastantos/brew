@@ -4,3 +4,180 @@ How to get to a GPU?
 Someone is already doing this based on RiscV: https://vortex.cc.gatech.edu/publications/vortex_micro21_final.pdf
 
 POCL is an open-source (and claimed to be portable) OpenCL implementation: http://portablecl.org/
+
+So, it seems the traditional way of dealing with GPUs is to have 'SM'-s. These are highly hyper-threaded SIMT processors,
+where we have 32 data-paths (with independent prediction maybe to handle control-flow divergence and independent address generation
+for load-store divergence). These are called warps. On top of this, there appear to be 512/32 ... 1024/32 (16...32) HW 'threads' or
+rather contexts, which can be scheduled onto the data-paths cycle-to-cycle to hide (memory access) latency. Thus, the SM instance
+handles somewhere between 512 and 1024 threads. These threads together are called a 'thread block'.
+
+Now, it appears that multiple thread blocks can be executed in parallel (that is the contexts are not needed to be the same) but
+there must be enough registers and shared memory available for this to be the case.
+
+Physical storage types:
+- Registers: Akin to CPU registers. Per-thread storage.
+- Shared memory: local SRAM within an SM. This (well, d'uh) can be shared between threads in a thread-block, but not outside.
+                 life-time is the execution of the block.
+- Global memory: memory visible to all threads (in DRAM, but cached). Lifetime is manually managed. Visible even to the host.
+
+Logical storage types within global memory:
+- Local memory: This is thread-local storage.
+- Constant memory: a read-only variant. Apparently can reduce memory BW (probably through coalescing).
+- Texture memory: another read-only variant with similar benefits to constant memory.
+- There's of course just 'global memory' too.
+
+Core latency
+------------
+Apparently (https://www.microway.com/hpc-tech-tips/gpu-memory-types-performance-comparison/) Cuda cores have a
+read-to-write latency of 24 cycles for *registers*. This latency is hidden (potentially) by the hyper-threading,
+but of course not completely if only 16 hyper-threads are used.
+
+Registers
+---------
+In a Tesla core, a thread-block can have 64k registers. Given, that in this same core, there are 1k threads per
+block, this gives **32 registers** per thread.
+
+Actually, this is more complicated then that, apparently (https://en.wikipedia.org/wiki/Ampere_(microarchitecture)):
+Yes, there's a total of 64k registers per SM (even in newer architectures), and they are 32-bit wide, but they can
+be relatively dynamically allocated to threads. The max number of registers per thread is 256. The minimum is 16.
+
+Shared memory
+-------------
+Has multiple banks (apparently the same as the 'SIMT' with of the SM). Each bank though is only 32-bit wide,
+only for Kepler+ it's 64-bits.
+Apparently there is roughly 64kB of memory per SM. This memory is divided into shared memory and L1-cache.
+There are three options: 16k/48k, 32k/32k or 48k/16k.
+
+Data-types
+----------
+The following data-types are used:
+FP16, FP32, FP64, BF16 (only in latest)
+INT8
+
+SM setup in Volta
+-----------------
+https://images.nvidia.com/content/volta-architecture/pdf/volta-architecture-whitepaper.pdf
+
+There are endless variations on these ideas, apparently.
+
+Volta has an SM with 4 independent engines. Each engine has 32 'SIMT' threads. The register
+file is 16k for them (with a hyper-threading of 16). For these 32 'SIMT' threads there are
+only 16 INT and 16 FP32 execution units, which makes one wonder how they can maintain
+1-insn/cycle issue rate. They have 8 FP64 cores, 8 LD/ST units and 2 Tensor cores.
+
+Again, 4 of these engines comprise an SM. On the SM level, they share 128k L1 data-cache (presumably this
+also contains shared memory) and 4 texture units.
+
+The number of registers per thread is between 32 and 255.
+
+MY GPU SETUP
+============
+This thing is optimized for (low-end) FPGAs. That is to say, that memory blocks are assumed to be 1kB large.
+Data-path is going to be 32-bits wide.
+
+The core is going to be strictly 2-read-1-write.
+
+That is to say, if 2 BRAMs are to be used for register memory, I'll have 256 registers. If 4 BRAMs are to be used,
+I'll have 512.
+
+I'll have a SIMT width of 1 (i.e. scalar), and a load-to-store latency of no more than 8.
+
+I'll limit the per-thread registers to 32, which will give me a hyper-threading number of 8 to 16.
+
+Shared memory is a potential problem: since my thread block size is 8 to 16, shared memory looks very different.
+
+Maybe it's better to think about share memory as a different abstraction of global memory? Or a chunk of
+L2? Yes!
+
+L1D cache is going to be very small, probably direct-mapped and only 1 or 2 BRAMs.
+L1I cache is also very small, probably similarly sized to L1D.
+
+Shared memory is part of L2. L2 is shared among all SMs.
+
+Global memory is of course shared with main CPU.
+
+There are on the order of 16 SMs (hopefully).
+
+SIMT
+====
+I'm not sure I want any of that. Maybe only hyper-threading. There is a balance to be stricken between
+the size of the (combined) execution units and the front-end of the pipeline. With hyper-threading,
+the front-end grows larger, with SIMT the execution unit size grows.
+
+At any rate, if SIMT is to be used, one has to solve the problem of predication for divergent execution
+paths. According to: https://carrv.github.io/2019/papers/carrv2019_paper_10.pdf one way of solving this
+is a split/join instruction pair, which pushes/pops the predication register onto a stack.
+
+I suppose something similar would be needed to support the nesting of conditionals. In traditional
+architectures, control flow carries this information, but with SIMT, it needs to be explicit.
+
+So, split would mean that we 'AND' together the active predicate and the incoming predicate mask,
+(allowing the disabling of some threads), while the old mask is pushed on the stack.
+
+Then, during join, we simply pop the old predicate from the stack, which enables some lanes.
+
+One could suppose that 'split' could support all manners of binary operations between the new and the old
+predicate state, chiefly: OR, AND, OVERRIDE, XOR (invert).
+
+Now, the fun here is that there still actually is control flow on top of this too: there are non-SIMT
+instructions and - presumably - non-SIMT registers as well so looping and what not on the Warp level
+is still supported.
+
+Normally a warp size of 32 is used, and each thread within a warp is 32-bit wide (lately maybe 64), which
+would mean that the SIMT registers are 1024 bits wide. That's certainly not something I'm willing to
+entertain, especially if there are 64k of them per SM.
+
+GPU based on brew
+=================
+If the brew ISA was to be repurposed for this GPU, it would mean:
+
+- 15 general-purpose registers per thread
+- 16...32 threads
+
+Data-types:
+- INT32
+- INT16x2
+- INT8x4
+- FP32
+- FP16x2
+
+Where signed-ness matters is in multiplies and arithmetic shifts.
+Vector types need lane-loads/stores, lane-swaps, a lot of things, normally not done in scalar ISAs.
+It's questionable I have the decode space to include all of that, but we can try...
+
+The pipeline would look something like this:
+
+1.  Insn fetch (read issue to L1I)
+2.  L1I tag check
+3.  L1I data return
+4.  Potentially second L1I data return (for reads straddling multiple cache-lines)
+5.  Decode
+6.  Register read
+7.  Execute 1 / Mem offset compute
+8.  Execute 2 / L1D tag check
+9.  Execute 3 / L1D data return
+10. Write-back / PC update
+
+So, 16 threads can easily hide all of this, in fact, it would probably be enough to hide an L1D miss / L2D hit case.
+
+This would allow for not needing any branch-prediction/speculation.
+
+Not sure what to do about exceptions and the whole scheduler mode business:
+1. On the one hand, I don't see what the proper reaction to such exceptions would be? If a kernel thread hits
+   a page fault, what is the GPU going to do about it? Other exception types, such as floating-point exceptions
+   and HW interrupts make even less sense. SWIs are only needed if there's a use for them, so that can be removed
+   too.
+2. On the other hand, how do we expect to put this GPU behind an MMU if we don't have fault-handling?
+3. Maybe fault-handling should happen on the host processor, but for that we would need to signal over to it
+   and also would need to halt
+
+In the front-end we would need 16...32 $tpc-s (and maybe the same number of $spc-s).
+
+Let's see if we can make a typed version of the Brew ISA with the following types:
+
+INT32
+INT16x2
+INT8x4
+FRAC12P4x2
+FP32
+FP16x2

@@ -1,20 +1,20 @@
 The following register usage is defined:
 
-   $pc  - a.k.a. $r0 - program counter.
-   $sp  - a.k.a. $r1 - stack pointer.
-   $fp  - a.k.a. $r2 - frame pointer.
-   $r3  - link register.
+   $sp  - call-saved register a.k.a. $r0 - stack pointer.
+   $fp  - call-saved register a.k.a. $r1 - frame pointer.
+   $lr  - call-clobbered link register. - NOTE: this is actually call-saved at the moment, but I don't think that's necessary.
+   $r3  - call-saved general purpose register.
    $r4  - call-clobbered first argument/return value register.
    $r5  - call-clobbered second argument/return value register.
-   $r6  - call-clobbered third argument/return value register; 
+   $r6  - call-clobbered third argument/return value register;
    $r7  - call-clobbered fourth argument/return value register;
-   $r8  - call-clobbered general purpose caller-saved 32-bit register; static chain register
-   $r9  - call-clobbered general purpose caller-saved 32-bit register; used in thunks for virtual inheritance. Must be call-clobbered
-   $r10 - call-clobbered general purpose caller-saved 32-bit register; struct value address (return value area pointer for large return values). EH_RETURN_STACKADJ_RTX BREW_STACKADJ_REG. Must be call-clobbered
-   $r11 - call-saved general purpose callee-saved 32-bit register. 
-   $r12 - call-saved general purpose callee-saved 32-bit register.
-   $r13 - call-saved general purpose callee-saved 32-bit register; EH_RETURN_DATA_REGNO
-   $r14 - call-saved general purpose callee-saved 32-bit register; EH_RETURN_DATA_REGNO;
+   $r8  - call-clobbered general purpose; static chain register
+   $r9  - call-clobbered general purpose; used in thunks for virtual inheritance. Must be call-clobbered
+   $r10 - call-clobbered general purpose; struct value address (return value area pointer for large return values). EH_RETURN_STACKADJ_RTX BREW_STACKADJ_REG. Must be call-clobbered
+   $r11 - call-saved general purpose register.
+   $r12 - call-saved general purpose register.
+   $r13 - call-saved general purpose register; EH_RETURN_DATA_REGNO
+   $r14 - call-saved general purpose register; EH_RETURN_DATA_REGNO;
 
 NOTE: if this changes, it needs to be followed-up in:
         - brew-newlib/newlib/libc/machine/brew/setjmp.S (setjmp/longjmp implementation)
@@ -60,7 +60,7 @@ NOTE: the only reason an argument is partially in registers is if
 there isn't enough registers left to keep them in registers.
 Similarly, an argument is placed on the stack only if we completely
 ran out of argument-passing registers. Consequently, if an
-argument is partially or fully on the stack, all subsequent arguments 
+argument is partially or fully on the stack, all subsequent arguments
 are fully on the stack.
 
 !!! TODO: what exactly!!! Some arguments are passed by reference
@@ -213,7 +213,7 @@ that call __builtin_eh_return (at least in the runtime) tend to return a single 
 the first return value register that we use as EH_RETURN_DATA_REGNO, we're good.
 
 In epilog generation we need to know if we have to save the afforementioned registers. We can consult
-    
+
     crtl->calls_eh_return
 
 to determine that.
@@ -243,4 +243,4 @@ ensuring this:
         #define REG_ALLOC_ORDER \
             {9, 13, 12, 11, 10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 14, 15, 17, 16, 18, 19, 20}
 
-            
+
