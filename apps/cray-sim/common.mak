@@ -23,23 +23,27 @@
 #################################################################################
 ### Define commands if they're not already defined
 
+ifndef TOOLPREFIX
+TOOLPREFIX = brew-none-elf-
+endif
+
 ifndef GCXX
-GCXX = g++
+GCXX = $(TOOLPREFIX)g++
 endif
 ifndef GCC
-GCC = gcc
+GCC = $(TOOLPREFIX)gcc
 endif
 ifndef AR
-AR = ar
+AR = $(TOOLPREFIX)ar
 endif
 ifndef OBJDUMP
-OBJDUMP = objdump
+OBJDUMP = $(TOOLPREFIX)objdump
 endif
 ifndef OBJCOPY
-OBJCOPY = objcopy
+OBJCOPY = $(TOOLPREFIX)objcopy
 endif
 ifndef STRIP
-STRIP = strip
+STRIP = $(TOOLPREFIX)strip
 endif
 
 ifndef SYSTEM
@@ -68,7 +72,13 @@ ifneq (, $(findstring cygnus, $(GCC_TARGET)))
 SYSTEM=cygwin
 HOST=posix
 else
-$(error Couldn't detect system. Please specify manually \(make SYSTEM=<linux|mingw|cygwin>\)
+ifneq (, $(findstring brew-none-elf, $(GCC_TARGET)))
+SYSTEM=linux
+HOST=posix
+SYS_INC_DIRS+=~/include
+else
+$(error Couldn't detect system. Please specify manually \(make SYSTEM=<linux|mingw|cygwin>\))
+endif
 endif
 endif
 endif
@@ -76,7 +86,7 @@ endif
 endif
 
 ifndef SYSTEM
-$(error Couldn't detect system. Please specify manually \(make SYSTEM=<linux|mingw|cygwin>\)
+$(error Couldn't detect system. Please specify manually \(make SYSTEM=<linux|mingw|cygwin>\))
 endif
 
 ifeq ($(SYSTEM),cygwin)
