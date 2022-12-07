@@ -145,7 +145,7 @@ SO_FILES = $(addprefix $(SO_DIR)/,$(addsuffix .so,$(basename $(notdir $(TARGETS)
 endif
 SRCLIB_FILES = $(addprefix $(LIB_DIR)/lib,$(addsuffix .a,$(SOURCE_LIBS)))
 INC_FLAGS = $(addprefix -I,$(INC_DIRS))
-SYS_INC_FLAGS = $(addprefix -isystem,$(SYS_INC_DIRS))
+SYS_INC_FLAGS = $(addprefix -isystem ,$(SYS_INC_DIRS))
 DEP_INC_FLAGS = $(addprefix -I,$(DEP_INC_DIRS))
 DEFINE_FLAGS = $(addprefix -D,$(DEFINES))
 LIBDIR_FLAGS = $(addprefix -L,$(LIB_DIRS))
