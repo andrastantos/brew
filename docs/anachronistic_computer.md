@@ -32,173 +32,168 @@ For communications, I would think modems, thus serial ports. I don't know when E
 
 Expandability would actually be rather low on my list, but maybe that's bias on my side. Contemporary machines ran the gamut on that, the Apple II and IBM PC being highly expandable. The Amiga in it's first iteration was too, but the A500 was not. Many other machines, the C64, the Atari ST, the later 8-bitters, such as the Amstrad CPCs were not either.
 
+### The internals
+
+Let's look at the internals! Here are some relevant transistor counts:
+
+'75:  6502    3510 transistors
+'79: Z8000   17500 transistors 16 16-bit registers
+'78: i8086   29000 transistors 13 16-bit registers
+'79: 68000   40000 transistors 16 32-bit registers
+'82: i80186  55000 transistors
+'82: i80286 134000 transistors
+'85: ARM1    25000 transistors
+'86: ARM2    27000 transistors
+
+VIC II - 13000 transistors
+Amiga Denise - 20000 transistors
+Amiga AA+ - 100000 transistors
+
+The prevailing tech node was 2 or 3um.
+
+Actually, there's a pretty good table here:
+https://en.wikipedia.org/wiki/Transistor_count
+
+So, let's say I can afford around 50000 transistors in NMOS, which
+would translate to about 25000 gates.
+That would be roughly (according to Digikey) an XC4028; XC4044 or an
+EPF6024. An Actel (Microchip) A54SX16 is also about the same size.
+These all clock in at around 1500 LUTs. Nothing gets even remotely
+close to them in size these days. Even the smallest Cyclone III has
+5000 LEs. Which just goes to show how constrained these designs would
+need to be. Nevertheless, a straightforward 3-stage (or 5-stage) RISC
+pipeline should fit as the ARM1/2 cores show. The smallest MAX10 device
+is in this category as well (2000 LEs), but one can't use any of the
+on-chip RAMs or DSP blocks, cause that would be cheating.
+The iCE40UL-1k XO2-2000, MachXO3L-2100, AGL030 all seem to be in the
+same league. The AGL030 is old enough apparently to be 5V tolerant too.
+
+Of course I can't make ASICs, but how would I compare what I have to what was achievable back then?
+
+So, Google (https://opensource.googleblog.com/2022/10/announcing-globalfoundries-open-mpw-shuttle-program.html) has an open-source process for 0.18u. They have some example projects as well: https://colab.research.google.com/github/chipsalliance/silicon-notebooks/blob/main/digital-inverter-openlane.ipynb
+
+There is also https://github.com/TinyTapeout/tinytapeout-02 which might have a usable PDK + back-end flow or at least something that gets me a gate-count estimate (really I only need the front-end for that).
+
+This thing: https://datasheet.datasheetarchive.com/originals/crawler/xfab.com/a3edb8140abfda7a83325589538d6415.pdf seems to indicate that fmax for a 0.18u flow about 40GHz for P-channel and about 70GHz for N-channel devices (fT is 15 and 50GHz respectively).
+
+https://www.researchgate.net/publication/320841806_History_and_Evolution_of_CMOS_Technology_and_its_Application_in_Semiconductor_Industry Shows some history.
+
+1980: 2u   -  50k Transistors
+1983: 1.5u - 100k Transistors
+1985: 1u   - 500k Transistors
+
+https://en.wikichip.org/wiki/1.5_%C2%B5m_lithography_process shows a bunch of different process nodes.
+
+There's this too: http://www.fulviofrisone.com/attachments/article/466/CRC,.The.VLSI.Handbook.(2007),.2Ed.Spy.%5B084934199X%5D.pdf
+
+But everything is way too new.
+
+So, let's go with the following:
+- 2u process was the rage around the turn of the '70-s ('79-'80). Typical part would be the 68020 @ 12.5 ... 33MHz clock rates and 100,000 transistors. The CVAX was also on this process with 12.5MHz clock rates. ARM2 was here too with 8...12MHz clock rates.
+- 1.5u process was available from '81...'85. The 80386 (16...33MHz) would be a typical part but the 80286 (4...25MHz) was one as well. ARM3 clocks in between 20 and 36MHz, but that's '89
+- 1.3u around '87 featured the 68030 (16...50MHz) and the MB86900 (16.6MHz)
+
+So, I think it's safe to assume that 20MHz clock rate would be pushing the tech of the early '80s, but would be no problem for the later years of the decade. What I will do is to assume 20MHz for the I/O, but stick with 10MHz for the core. That seems safe...
+
 ## CPU
 
 As it turns out, I have a rather interesting little ISA laying around that I've been toying with: the BREW architecture. I will use that, mostly because ... why not? It's a riff on a variable-instruction-length RISC architecture, which straddles the divide that started to emerge around that time in CPU architecture. In that sense it fits right in. It's also a 32-bit ISA with a 16-bit instruction encoding, something that would have been rather more appealing in those memory-constrained days. It highly depends on an MMU, which I don't think I can afford, so something more simplistic, probably a Cray-style base+limit-based protection scheme would need to be used. It also depends highly on memory-mapped I/O, which - as we will see - is good for pin-count reduction.
 
-Now on to pinout: can we fit this 32-bit micro into only 40 pins? We of course can't afford a 32-bit external bus, but how about 16-bits? That would play nicely still with the instruction set: most of the instructions are either 16-bits long or 16-bits, followed by another 16-bit constant field.
+The ISA is described in isa.txt, but there are changes to be made for this core:
+- No fence or cache invalidation
+- No extension groups
+- No types, everything is INT32
+- No floating point ops (especially in unary group)
+- No type overrides loads or stores
+- No $rD <- sum $rA
+- No barrel shifter or multiplier: these are multi-cycle operations
+- No lane-swizzle
+- No synchronization (load-acquire; store-release) - these are probably simple regular load/stores
 
-One thing that annoyed me a lot every time I looked at schematics of these early machines was the interface to DRAM. When I tried to design my own, I also have found the problem very annoying. Now, looking back, it's not only that: it's also very inefficient. Since the muxing of the address bus required two cycles, but since it was almost exclusively done with discrete logic, there was no advantage to reading adjacent words. 
+The implementation is also rather simplified:
+- No iCache or dCache. An instruction buffer would be nice, but maybe not even that
+- No decoupled front-end
+- No store-queue
+- No re-order queue (multi-cycle instructions stall)
 
-I know this is a side-track, but I'm interested: can I make a
-functional 16-bit external bus CPU package with only 40 pins?
+Now on to pinout: can we fit this 32-bit micro into only 40 pins? We of course can't afford a 32-bit external bus, but how about 16-bits? That would play nicely with the instruction set: most of the instructions are either 16-bits long or 16-bits, followed by another 16-bit constant field.
 
-The idea here would be that instead of multiplexing the data and the
-address bus on top of each other (a'la intel), we would multiplex the
-address-bus in a fashion that it can be direct-connected to DRAM chips.
+One thing that annoyed me a lot every time I looked at schematics of these early machines was the interface to DRAM. When I tried to design my own, I also have found the problem very annoying. Now, looking back, it's not only that: it's also very inefficient. Since the muxing of the address bus required two cycles, but since it was almost exclusively done with discrete logic, there was no advantage to reading adjacent words. This was probably fine in the C64 era when memory was so much faster then either video or CPU, but certainly not in the 16- or 32-bit era. Amiga needed two banks of memory to get around the problem. The Macintosh could only really support black-and-white graphics. Yet, many processors (Intel, I'm looking at you) *did* have a multiplexed bus. It's just that they multiplexed data and address on top of each other. So, what if we've multiplexed addresses on top of each other, exactly as DRAM would need it? It would not only reduce pin-count on the CPU (or any bus-master, really) but would also make it possible to directly attach DRAM to these devices. So, how would it work?
 
-This would be something that could be built in the early '80-s, with an
-outlook towards a decade or so.
+Let's say we have the following address-bus muxing:
 
-DRAM history from:
-http://doctord.dyndns.org/Courses/UNH/CS216/Ram-Timeline.pdf
-
-    '70: 1kbit
-    '73: 4kbit
-    '76: 16kbit
-    '78: 64kbit
-    '82: 256kbit
-    '86: 1Mbit
-    '88: 4Mbit
-    '91: 16Mbit
-    '94: 64Mbit
-    '98: 256Mbit
-
-EPROM timeline (from https://en.wikipedia.org/wiki/EPROM):
-    '75: 2704
-    '75: 2708
-    '77: 2716
-    '79: 2732
-    '81: 2764 (https://timeline.intel.com/1981/a-new-era-for-eprom)
-    '82: 27128
-(https://timeline.intel.com/1982/the-eprom-evolution-continues)
-         27256
-         27512
-    '86: 27010 (https://timeline.intel.com/1986/one-megabit-eprom)
-
-
-That would mean that we should think about supporting 32MBytes of
-addressable space. If all that is done using DRAMs, that would be 16
-chips in '91 and 4 chips in '94.
-
-If I look on Digikey today, there are only 4Mbit and 16MBit parts of
-FPM/EDO type. So 32MBytes of addressable space seems more than
-sufficient.
-
-Now, on the low end, if our market introduction is early '80-s, we
-could assume wide availability of 64kbit chips with 256kbit on the near
-horizon. In that era, we probably are looking at system memory sizes of
-128k and up.
-
-So...
-
-There is something curious though: I can't seem to find 16Mbit (or
-indeed 4MBit) parts in 1-bit wide configurations. It appears that they
-both do only 20 total address lines (so 4x for 4Mbit and 16x for
-16MBit). Actually, that's not true. There were 16Mbit x1 parts:
-
-https://www.digchip.com/datasheets/parts/datasheet/409/KM41C16000CK-pdf.php
-https://www.digikey.com/htmldatasheets/production/1700164/0/0/1/MSM51V17400F.pdf
-https://media.digikey.com/pdf/Data Sheets/ISSI PDFs/IS41LV16105B.pdf
-
-EDO memory modules were already 32-bit wide, and usually built with 4x
-chips. The module pinout supported two banks with two sets or RAS/CAS
-signals. OE was grounded on these modules and WE was shared among both
-banks: https://www.pjrc.com/tech/mp3/simm/datasheet.html. Actually it's
-way more complicated with 4 CAS and 4 RAS lines because we also need
-byte-enables somehow.
-
-So, conclusion is this: no FPM or EDO DRAM chip exists with more than
-10 addr lines. These chips (the higher sizes at least) are still
-available from Digikey and others even though they are obsolete.
-
-These 'modern' 16-bit parts support 2 CAS lines and a single RAS one,
-which is in line with the 72-pin EDO module pinout from above, however
-being only 16Mbit parts, they only go up to A9 in address lines.
-
-The signals are as follows:
-    /RAS   - shared between 16-bits of data
-    /LCAS  - shared between chips driving the same byte, for a 16-bit
-wide system, we have 2 of them
-    /UCAS  - shared between chips driving the same byte, for a 16-bit
-wide system, we have 2 of them
-    /WE    - write-enable
-    A0-A10 - multiplexed address bus
-    D0-D15 - data-bus
-
-The minimum chip size we would want to support is 64kbit DRAM (in 64kx1
-configuration). Here's a datasheet:
-https://www.jameco.com/Jameco/Products/ProdDS/2290535SAM.pdf. Another
-one for the 4x part:
-https://www.jameco.com/Jameco/Products/ProdDS/2288023.pdf
-
-The signals are as follows:
-    /RAS   - whatever, this is a 1x chip
-    /CAS   - whatever, this is a 1x chip
-    /WE    - write-enable
-    A0-A8  - multiplexed address bus
-    D      - data input
-    Q      - data output
-
-What's interesting is that the 4x part has tri-stated DQ pins, but even
-the 1x part tri-states its Q line. So that really isn't all that
-different.
-
-All right, so here's what we need to do:
-
-Address line muxing:
-A0  <<= A8   A0
-A1  <<= A9   A1
-A2  <<= A10  A2
-A3  <<= A11  A3
-A4  <<= A12  A4
-A5  <<= A13  A5
-A6  <<= A14  A6
-A7  <<= A15  A7
+A8  and A0
+A9  and A1
+A10 and A2
+A11 and A3
+A12 and A4
+A13 and A5
+A14 and A6
+A15 and A7
 ----------------
-A8  <<= A16  A17
-A9  <<= A19  A18
-A10 <<= A21  A20
+A16 and A17
+A19 and A18
+A21 and A20
 A22
 
-This allows for 16MBytes of total address space and A0..A10 can be
-directly connected to anything from 64kbit to 16Mbit DRAM chips.
+This allows for the use of 64kbit DRAMs all the way up to 4Mbit devices. That really carries us through the '80s: the 16Mbit DRAM was introduced in '91. If our little line of machines was still alive by then, we would certainly have revved the CPU for something more capable with more pins, most likely with the full 32-bit address bus exposed. So this is fine.
 
-Control signals needed:
+Side-bar: memory timeline:
+    > DRAM history from:
+    > http://doctord.dyndns.org/Courses/UNH/CS216/Ram-Timeline.pdf
+    > 
+    >     '70: 1kbit
+    >     '73: 4kbit
+    >     '76: 16kbit
+    >     '78: 64kbit
+    >     '82: 256kbit
+    >     '86: 1Mbit
+    >     '88: 4Mbit
+    >     '91: 16Mbit
+    >     '94: 64Mbit
+    >     '98: 256Mbit
+    > 
+    > EPROM timeline (from https://en.wikipedia.org/wiki/EPROM):
+    >     '75: 2704
+    >     '75: 2708
+    >     '77: 2716
+    >     '79: 2732
+    >     '81: 2764 (https://timeline.intel.com/1981/a-new-era-for-eprom)
+    >     '82: 27128 (https://timeline.intel.com/1982/the-eprom-evolution-continues)
+    >          27256
+    >          27512
+    >     '86: 27010 (https://timeline.intel.com/1986/one-megabit-eprom)
+    >
+    > Some DRAM datasheets:
+    > https://www.digchip.com/datasheets/parts/datasheet/409/KM41C16000CK-pdf.php
+    > https://www.digikey.com/htmldatasheets/production/1700164/0/0/1/MSM51V17400F.pdf
+    > "https://media.digikey.com/pdf/Data Sheets/ISSI PDFs/IS41LV16105B.pdf"
+    > (https://downloads.reactivemicro.com/Electronics/DRAM/NEC D41464 64k x 4bit DRAM Data Sheet.pdf)
+    > https://www.jameco.com/Jameco/Products/ProdDS/2290535SAM.pdf
+    > https://www.jameco.com/Jameco/Products/ProdDS/2288023.pdf
+    > https://datasheetspdf.com/pdf-file/550187/MicronTechnology/MT4C1024/1
+    >
+    > There were two memory module formats: 30 pin and 72 pin.
+    > https://www.pjrc.com/tech/mp3/simm/datasheet.html
 
-/RAS
-/LCAS
-/UCAS
-/WE
+The external address space is 16MByte, but only 8MByte is available (directly) for DRAMs. That would work for 16 chips of 4Mbitx1 configuration, or even 4 chips of 16Mbitx4 configuration. 
 
-Data pins needed:
-
-D0...D15
-
-Other pins needed:
-
-CLK
-/RST
-/INT
-/BREQ
-/BGRANT
-
-So, where are we?
+The full pin-list is as follows:
 
 --------
-A0
-A1
-A2
-A3
-A4
+A8_0
+A9_1
+A10_2
+A11_3
+A12_4
 --------
-A5
-A6
-A7
-A8
-A9
+A13_5
+A14_6
+A15_7
+A16_17
+A19_18
 --------
-A10
+A21_20
 A22
 D0
 D1
@@ -239,254 +234,126 @@ This is EXACTLY 40 pins!!! So, this *could* be done, provided a single
 VCC/GND pair is sufficient (it probably was in those days) and that
 we're extremely frugal on control signals.
 
-Now, the second problem: how to interface to SRAM/EPROM chips? Those
-have a non-multiplexed bus and the following control signals:
+## Address decode and interface to things other than DRAM:
 
-A0...An for address
-D0...D7 for data
-/WE (in case of SRAM)
-/CE
-/OE
+We need to identify the two address cycles:
 
-What we would need is this:
+/AC_1: /RAS || ~(/LCAS && /UCAS)
+/AC_2: /RAS || (/LCAS && /UCAS)
 
-1. On falling edge of /RAS, capture A0...A10 into a register
-2. /LCAS and /UCAS are connected to /CE of the SRAM chips
-3. /WE is /WE
-4. Data is data
-5. Address is the combination of the registered and direct-from-CPU
-address lines, as many as needed.
+Address decode is relatively simple:
 
-## Address decode:
+1. Latch A0..A10 and A22 by /AC_1:
+   LA8  <<= latch(A8_0, /AC_1)
+   LA9  <<= latch(A9_1, /AC_1)
+   LA10 <<= latch(A10_2, /AC_1)
+   LA11 <<= latch(A11_3, /AC_1)
+   LA12 <<= latch(A12_4, /AC_1)
+   LA13 <<= latch(A13_5, /AC_1)
+   LA14 <<= latch(A14_6, /AC_1)
+   LA15 <<= latch(A15_7, /AC_1)
+   LA16 <<= latch(A16_17, /AC_1)
+   LA19 <<= latch(A19_18, /AC_1)
+   LA21 <<= latch(A21_20, /AC_1)
+   LA22 <<= latch(A22, /AC_1) 
+2. Use the latched signals to decode 4 address regions, by feeding LA21-22 into a 74LS139. Gate the decode with /RAS
+   The decoded regions are used as follows:
+        /RGN0: ROMs
+        /RGN1: I/O
+        /RGN2: DRAM
+        /RGN3: DRAM   
+3. I/O can be further decoded using a 74LS138. It should be gated by /AC_2, /RGN1 and LA16, decoding LA13,14,15
+4. Extension board I/O regions could also be decoded in a similar way, except gating the second 74LS138 by /LA16. This gives each card 16kB (8kW) of I/O space
+5. EEPROM can be attached to A0...A8 + LA8...LA16 making it possible to decode 512kBytes (256kW) worth of EEPROM space. Their /CE signal is connected to /AC2, their /OE signal is to /RGN0
 
-This is a bit tricky and the result needs to be latched:
-address decode can use A22 and A10 (which is A21 in the first cycle) to
-decode 4 regions, each being 4MByte each. A sub-decode 
-region 0: ROMs
-region 1: I/O
-region 2: DRAM
-region 3: DRAM
+## Interface to DRAM
 
-Sub-region decoding could be done at the same time by capturing A0...A8
-which is actually A8...A16 in the first cycle. This allows for the
-decoding of I/O regions, since 128kWord of I/O space is probably
-sufficient.
+DRAMs are relatively straightforward to interface to, that was the whole point. /LCAS and /UCAS act as byte-selects, but they need to be qualified by /RGN2 and /RNG3 to create space for the 4 RAM banks. These 4 banks then can be either implemented in a single 72-pin (EDO-style) DIMM or 4 30-pin DIMM modules. 
 
-In the timeline we're looking at 4kByte EPROMs were widely available,
-so no smaller one should we think about. However, on the higher end
-64kByte and 128kByte (maybe even higher) were available. Now, it's
-quite likely that any system would contain more than one EPROM of these
-sizes: it appears that ROM kernel sizes grew faster then EPROM prices
-came down. So, let's plan for up to 4 EPROM chips.
+Due to the loading of all the RAM chips, it's quite likely that /RAS /WE, address and data needs to be buffered, but that is to be seen.
 
-In the first address cycle, we have access to address lines A8...A16,
-which would allow for contiguous decoding of up to 256kBytes of ROM
-space. That I think should be acceptable. If more is needed, it can be
-done, but with holes in the addressing space.
+## DRAM speeds and clocks
 
-So, really the only problem is that we only allow for scaling up to
-8MBytes of DRAM without paging.
+Early NMOS DRAMs had:
 
-The 30-bit memory module (https://en.wikipedia.org/wiki/SIMM) has
-support up to 16MByte modules, but in reality, I don't think many of
-them were produced (especially because they would need A11 as a
-multiplexed line, which we don't support anyway). In practice those
-modules go up to 4MByte, two of which would get us to the maximum
-supported size of 8MByte. So it's not all bad.
+t_RAC = 100/120/150ns
+t_CAC = 55/60/75ns
+t_RC = 190/220/260ns
 
-So, there, we have it: a 40-pin, 16-bit (external) processor with
-trivial interfacing to DRAM, single-buffer (albeit 11-bits wide, so
-maybe 2 chips) for address de-multiplexing and 4-chip address decode
-(upper bits with a 74LS139, lower bits for I/O and ROM by 2x 74LS138
-and a latch in front of all these to capture the right address bits).
-
-## The internals
-
-Let's look at the internals! Here are some relevant transistor counts:
-
-'75:  6502    3510 transistors
-'79: Z8000   17500 transistors 16 16-bit registers
-'78: i8086   29000 transistors 13 16-bit registers
-'79: 68000   40000 transistors 16 32-bit registers
-'82: i80186  55000 transistors
-'82: i80286 134000 transistors
-'85: ARM1    25000 transistors
-'86: ARM2    27000 transistors
-
-The prevailing tech node was 2 or 3um.
-
-Actually, there's a pretty good table here:
-https://en.wikipedia.org/wiki/Transistor_count
-
-So, let's say I can afford around 50000 transistors in NMOS, which
-would translate to about 25000 gates.
-That would be roughly (according to Digikey) an XC4028; XC4044 or an
-EPF6024. An Actel (Microchip) A54SX16 is also about the same size.
-These all clock in at around 1500 LUTs. Nothing gets even remotely
-close to them in size these days. Even the smallest Cyclone III has
-5000 LEs. Which just goes to show how constrained these designs would
-need to be. Nevertheless, a straightforward 3-stage (or 5-stage) RISC
-pipeline should fit as the ARM1/2 cores show. The smallest MAX10 device
-is in this category as well (2000 LEs), but one can't use any of the
-on-chip RAMs or DSP blocks, cause that would be cheating.
-The iCE40UL-1k XO2-2000, MachXO3L-2100, AGL030 all seem to be in the
-same league. The AGL030 is old enough apparently to be 5V tolerant too.
-
-
-# Graphics
-
-VIC II - 13000 transistors
-Amiga Denise - 20000 transistors
-Amiga AA+ - 100000 transistors
-
-VGA pixel clock is 25.175MHz for 640x480. For 320x240, it would be
-half, 12.5875MHz. That's 40 or 80ns respectively.
-
-If we want to support 8bpp mode in 320x240, and have a 16-bit bus, we
-would need 160ns access time to DRAM. We would also of course need at
-least 75kB of RAM.
-
-That's not something that a 4164 can easily handle: it had access times
-of 190/220/260ns. Then again, within a page it could support 55/60/75ns
-access times and a precharge time of 40/45/60ns.
-
-t_rcd = 45/60/75
-t_cas = 55/60/75
-t_cp  = 40/45/60 
-t_crp = 0
-A 4-beat burst timing would be: t_rcd + (t_cas + t_cp) * 4 + t_crp 
-
-45+95*4=425, average 106.25ns
-60+105*4=480, average 120ns
-75+135*4=615, average 153.75ns
-
-In other words, with 4-beat bursts we're just squeezing in the lowest
-speed-grade part, but we eat almost all cycles, not leaving anything
-for the CPU and audio.
-
-A 41464 datasheet:
-https://downloads.reactivemicro.com/Electronics/DRAM/NEC D41464 64k x 4bit DRAM Data Sheet.pdf
- shows it's somewhat faster:
+Later devices were somewhat faster (uPD41464):
 
 t_rcd = 40/50/60
 t_cas = 40/50/60
 t_cp  = 30/40/50
 t_crp = 0
 
-So, this could reach 80ns average speed for a 4-beat burst, leaving
-about half of the bandwidth for the rest of the system. That might
-actually be acceptable.
+FPM DRAMs later on had:
 
-The newest part (41C16000):
+t_RAC = 80/70/60ns
+t_CAC = 20/20/15ns
+t_RC = 150/130/110ns
+
+The newest part (41C16000) even gets somewhat faster:
 
 t_rcd = 37/45
 t_cas = 13/15
 t_cp  = 10
 t_rp  = 35/40
 
-Here, we need to add t_rp-tcp at the end of the cycle, so the average
-access is 38.5ns/43.75ns. These are screaming fast!
+FPM was a later ('90) invention and EDO was even later, introduced in '95. 
 
-In other words, first models (based on 4164) would need to compromise
-to 320x240@4bpp. Once upgraded to at least 41464, 320x240@8bpp should
-be possible. This jives well with memory sizes too: if you only have
-128k of RAM, you probably don't want to blow 75k of that just on a
-frame-buffer.
+As we will see later, we will want about 12.6MBps of transfer rate for 320x240 8bpp resolution. That would be 160ns between video accesses over a 16-bit bus. That is almost all the bandwidth that an early DRAM (150ns) could provide. No wonder Amiga had slow and fast RAM. However, what we really want is page-mode access, which even in those days could support 75ns access times within a page. It's not really reasonable though to bank on needing so early parts (4164). and if we go with 41464 parts, those are significantly faster, supporting ~50ns accesses times within a page.
 
-So, let's think of pinout!
+This is what we should be shooting for then: **50ns (20MHz) clock speed on the bus.** This should be the main clock for our machine.
+This is quite a bit higher then what most designs used at the time. I might have to clock the CPU (and maybe other chips) as well down to half of that and only keep the bus interface at that high speed (which is a bit weird to say, later split-clock designs were the other way around).
 
-We need to be able to drive the bus but also receive transactions. We
-probably want to be able to put the frame buffer wherever, so we want
-the whole address bus, and we certainly want all data being available:
+## Glue logic speed
 
---------
-A0
-A1
-A2
-A3
-A4
---------
-A5
-A6
-A7
-A8
-A9
---------
-A10
-A22
-D0
-D1
-D2
---------
-D3
-D4
-D5
-D6
-D7
---------
-D8
-D9
-D10
-D11
-D12
---------
-D13
-D14
-D15
-/RAS
-/LCAS
---------
-/UCAS
-/WE
-CLK
-/RST
-/INT <-- output
---------
-/BREQ
-/BGRANT
-/WAIT
-VCC
-GND
---------
-R
-G
-B
-HSYNC
-VSYNC
---------
+If our cycle-time on the bus is 50ns, we will need to use fast chips: we can't afford a 45ns propagation delay of a 74LS138 for instance. At least for the crucial address-decode logic we'll have to bank on 'F' series parts.
 
-This is unfortunately 45 pins. Of course an FPGA implementation would
-have even more, given that it doesn't have built-in DACs.
+## DMA
 
-No, to be fair, there were more than 40-pin packages in those days (the
-68k was a 64pin DIP monster), but it would be nice to not going there.
+There are a lot of things that want bus-master access. Mostly graphics and audio, but HDD and FDD controllers too. Not only that, but both graphics and audio wants several independent data-streams. Finally, we don't really have the pins to implement bus-mastering capability in the graphics or indeed in the audio controller. It appears it's better to centralize this capability in a multi-channel DMA controller.
 
-48 and 50 pin packages also existed. So maybe that's where we will have
-to go.
+The DMA controller has 2D DMA capability (at least on some channels). The configuration of the DMA is the following:
+  1. Base-address (32 bits)
+  2. Line length (12 bits)
+  3. Line offset (12 bits)
+  4. Transfer size (32 bits)
+  5. Wrap size (5 bits)
+  6. Burst size (2 bits)
+  7. Active (1 bit)
+  8. Mode (2 bits) (Read/Write/Chained/RSV)
+  9. Word size (1 bit)
+  10. Interrupt on termination (1 bit)
+  11. Circular (1 bit)
 
-Alternatively the DMA part and the video generation part could be in
-two different packages. That becomes an expensive proposition though...
-Still, let's consider it! The idea would be then that we have a generic
-DMA controller, one channel of which is used for video generation. This
-disallows sprites and all sort of other goodies though, unless we have
-several channels for it.
+This is a total of 101 bits, probably spread across 4 32-bit and 2 8-bit registers.
 
-### DMA controller pinout
+The state of the DMA is captured in the following registers:
+  1. Current address (32 bits)
+  2. Mark address (32 bits)
+
+Chaining allows adjacent channels to act as a pair of memory-to-memory DMAs.
+
+TODO: do we want blitter functionality? If so, we would need read-modify-write cycles.
+
+The DMA chip has the following pinout:
 
 -------- 0
-A0
-A1
-A2
-A3
-A4
+A8_0
+A9_1
+A10_2
+A11_3
+A12_4
 -------- 5
-A5
-A6
-A7
-A8
-A9
+A13_5
+A14_6
+A15_7
+A16_17
+A19_18
 -------- 10
-A10
+A21_20
 A22
 D0
 D1
@@ -498,120 +365,305 @@ D5
 D6
 D7
 -------- 20
+D8
+D9
+D10
+D11
+D12
+-------- 25
+D13
+D14
+D15
 /DRQ
 /DACK
+-------- 30
 /DCHRD (OC)
 /RAS
 /LCAS
--------- 25
 /UCAS
 /WE
+-------- 35
+/REG_CS
 CLK
 /RST
 /INT <-- output
--------- 30
-/BREQ (OC)
+/BREQ_IN
+-------- 40
+/BREQ_OUT
 /BGRANT
 /WAIT (OC)
 TC
 VCC
--------- 35
 GND
 
--------- 40
+It's sad to see that we can't fit in 40 pins, but 46 is still acceptable. According to (https://img.ozdisan.com/content/library/IC_Packages.pdf) DIP packages went up to 48 pins, and PLCC packages actually have been around by then. The Atari ST series used those from the get-go, so we can afford them too!
 
-The way this would work is this: DMA requestors are daisy-chained
-through their DRQ_IN/OUT signals. This establishes a hard-wired
-priority scheme between them. The furthest device from the controller
-has the highest priority.
+  > The reason for having full 16-bit data-bus:
+  > - We have 32-bit registers, which are awkward to program over a sip-address 8-bit bus. At the same time, we do need access to the unmodified lower 8-bit of the data-bus for the channel ID cycle. While this can be worked around, it would need extra chips - we can't simply participate in the normal 8-bit peripheral bus - the bus-driver is enabled in the wrong direction.
+  > - It's really awkward to implement chained DMAs. They would need external registers for data-storage and even then it would not be possible to support 8-bit chained DMAs or anything other than a burst-size of 1.
 
-The DMA controller, when it registers a DMA request, issues a special
-cycle (assert /DCHRD, after gaining control of the bus). This signal is
-decoded by all DMA requestors and the one who won arbitration puts it's
-requested channel ID on the data-bus (only the bottom 8-bits are used,
-so there could only be 256 DMA channels, but that's plenty).
+The operating is the following:
 
-Once the DMA controller has the channel info, it can create the
-appropriate bus-cycle in the name of the requestor and assert /DACK
-along with /CAS). This signal is read by all requestors along with
-/WAIT to determine the timing of the cycle. for DMA writes, requestors
-are responsible for driving the data-bus whenever /DACK is low. For
-read cycles, they are to latch the contents of the data-bus on the
-rising edge of /DACK or /WAIT, whichever happens first.
+Each DMA client is daisy-chained through their /DRQ lines. That is to say, that each DMA client (as we'll see later) has a /DRQ_IN and a /DRQ_OUT pin. The first in this chain is driving the /DRQ line of the DMA controller:
 
-This is a rather convoluted and slow way of generating DMA cycles:
-there's a request cycle, a channel read cycle, potentially an address
-cycle and then the data cycle.
+/DRQ_OUT <<= /DRQ_IN & ~(<any internal DMA request>)
+ARB_WON <<= ~/DCHRD & /DRQ_IN 
 
-Multiple DMA controllers can collaborate in the following way: All
-controllers are connected 'in parallel', but they have a set of
-channels they implement. When /DRQ is asserted, all controllers request
-control of the bus (assert /BREQ, monitor /BGRANT) and issue the /DCHRD
-cycle. Based on the returned channel code, all but one of the DMA
-controllers determine that they are not the one to generate the bus-
-cycle, so they release /BREQ. The controller that got selected (i.e.
-the one with the requested channel) completes the transaction and
-releases /BREQ whenever it's ready.
+This establishes a hard-wired priority scheme between them. The furthest device from the controller has the highest priority.
 
-This is actually not a horrible way of dealing with things. The only
-complexity is that video DMAs are special, especially with scan-line
-doubling. Sprite reads are also problematic if they get moved during a
-refresh cycle.
+When the DMA controller notices /DRQ asserted, it requests access to the bus by asserting /BREQ. The CPU (eventually) answers by asserting /BGRANT and relinquishes driving of the bus.
 
-So, maybe a simple protocol could be established:
+The DMA controller at this point asserts /DCHRD. This signal is received by all DMA clients. The client with it's /DRQ_IN de-asserted is the one that will be the one selected as the DMA target (as described by the internal ARB_WON signal above). This client puts the associated channel ID on D0...D5 and the command-code on D6...D7. If multiple DMA sources present in a single client, it is the clients responsibility to select the highest priority internal source. The channel ID in general is programmable in the client and assumed to be unique across the system. The /WAIT signal can be asserted by the client to extend the /DCHRD cycle.
 
-During the /DCHRD cycle, the following commands are returned along with
-the channel info:
+If the channel ID read on the data-bus during the /DCHRD cycle is one of the channel IDs of the DMA controller, it will continue processing the DMA request. If not, it will simply relinquish the bus by de-asserting /BREQ. This allows multiple DMA controllers to work in parallel on the same bus: All controllers are connected 'in parallel', but they have their own unique set of channels they implement. When /DRQ is asserted, all controllers request control of the bus (assert /BREQ, monitor /BGRANT) and issue the /DCHRD cycle. Based on the returned channel code, all but one of the DMA controllers determine that they are not the one to generate the bus-cycle, so they release /BREQ. The controller that got selected (i.e. the one with the requested channel) completes the transaction and releases /BREQ whenever it's ready.
 
-D0 - CH0
-D1 - CH1
-D2 - CH2
-D3 - CH3
-D4 - CH4
-D5 - CH6
-D6 - CMD0
-D7 - CMD1
+DMA channel IDs handled by a controller are numbered consecutively, starting from a pre-programmed ID. For instance, if there are 16 DMA channels in a controller, it will have a 4-bit start channel ID register, which sets the top 4 channel bits.
+
+There can be a total of 64 DMA channels in a single system.
+
+Now, for the commands: there are four command codes that the client returns to the DMA controller along with its channel ID. These are presented on D15 and D16 and are as follows:
 
 CMD codes:
-0 - advance
-1 - mark (current address is saved off in mark-register)
-2 - restore (current address is restored from mark-register)
-3 - reset (current address is reset to DMA base-address)
+0 - advance; the DMA serves the next address per it's current state
+1 - mark; same as 'advance, but the current (not updated) current-address register is also written to the mark register
+2 - restore; current address is restored from mark-register and used to serve the DMA request
+3 - reset; current address is reset to DMA base-address and used to serve the DMA request
 
-Now we only allow for 64 DMA channels, which still feels plenty, but
-the weird logic of sprite addressing and scan-line repetition is
-handled in the requestor (that is in the video chip). The DMA
-controller still needs to deal with 2D DMAs (to support smooth
-scrolling), but that's not all that weird.
+Using the command and the channel ID, the DMA controller can load the appropriate configuration and context, update the context and start serving the request. Each request is served by a number of transfers, programmed in the burst-size register. In most cases, bursts will be within a single DRAM page, but that's not necessarily the case. Additional page-select (/RAS only) cycles are generated by the DMA controller as the current address pointer crosses page boundaries. Since the smallest supported device is the 4164 part, pages are assumed to be fixed, 256 words long (even for larger devices). At the beginning of a DMA burst, a /RAS cycle is always inserted: we don't know what the selected page is, not to mention that we gain control of the bus with /RAS high.
 
+Whenever the DMA controller asserts /LCAS or /UCAS, it also asserts /DACK to signal to the client the availability of a read or the request for data for a write transfer.
 
+The client is responsible for the handling of the data-bus. There are a few possibilities here:
 
+1. 16-bit client - 16-bit, word aligned transfers:
+   in this case both /LCAS and /UCAS are asserted along with /DACK. The 16-bit data is presented on the whole data-bus. /WE signals the direction of the transfer
+2. 8-bit client - 16-bit transfers: this is not supported
+3. 8-bit client - 8-bit client-->memory transfers
+   in this case /LCAS is asserted for even and /UCAS for odd addresses. /DACK is asserted with either. Data is taken from either D0...7 or D8...15, depending on which /xCAS is asserted. The other 8 bits are ignored, so the client can simply replicate data on both bytes, but *it has to do so*. /WE is asserted during these transfers.
+4. 8-bit client - 8-bit memory-->client transfers
+   in this case /LCAS is asserted for even and /UCAS for odd addresses. /DACK is asserted with either. Data is presented on either D0...D7 or D8...15, depending on which /xCAS is asserted. The other 8 bits are undefined. The client is required to mux the required byte into it's local 8-bit data-bus.
 
-Comparing this to the Intel controller, we see two differences: there
-is some shenanigans around single-cycle vs. block vs. demand DMAs
-(https://docs.freebsd.org/doc/2.1.7-RELEASE/usr/share/doc/handbook/handbook248.html
-). Demand mode in particular seems to transfer many bytes so long as
-DRQ is asserted.
+The DMA controller monitors the /WAIT line and allows the extension of the /xCAS cycles as needed.
 
-What happens in the intel DMA controller
-(http://zet.aluzina.org/images/8/8c/Intel-8237-dma.pdf) is that it
-asserts either /READ or /WRITE during it's memory transfer, along with
-/DACK. So, it's possible to have several transfers to/from different
-address within a single DACK cycle by toggling /READ /WRITE several
-times. Our DMA controller doesn't do that. If we want demand mode, we
-would toggle /DACK many times, each time we have the data (or need the
-data) on the data-bus.
+/DACK remains asserted throughout the whole burst. /WE als remains static. It's /xCAS that toggles for the beats.
 
-We can't really do that, because of this: as we complete a DACK cycle,
-the original requestor may or may not released the bus. So, we have to
-go back and re-query the requestor channel by asserting /DCHRD for a
-cycle.
+Once the requisite number of beats of the burst were completed, /DACK is de-asserted along with /BRQ. The CPU gains back control of the bus.
 
-We should be able to do the following modes:
-- Single: every request is a single transfer
-- Burst: every request is N transfers
+When a client sees /DACK de-assert, it can remove it's request by clearing it's internal request state. This - depending on /DRQ_IN may or may not propagate down to the DMA controller. The DMA controller will re-examine /DRQ in the next cycle, allowing at least some time for the CPU to make forward progress as well.
 
-TC should be asserted on the last cycle of a DMA. This is to make intel DMA compatibility easier, but I'm also guessing it's there to help with interrupt generation on the peripheral side.
+It is the responsibility of the programmer to make sure that the DMA burst-size and the client request-logic is properly matched, that is: a client will only request a transaction if it can handle at least the programmed burst-size number of contiguous transactions. If no such guarantee is present, a burst-size of 1 should be used.
+
+The TC output is set to 1 upon the last beat of the last transfer for a programmed DMA. If enabled, an interrupt is also generated. For circular DMAs, the DMA engine is re-initialized to a new transfer. For non-circular DMAs, the channel is disabled.
+
+The DMA controller ignores any transfer-requests on disabled channels.
+
+There is a 16-bit interrupt status register containing '1' for each channel that has a pending interrupt. This register is 'write-1-to-clear'.
+
+TODO: this all sounds very complicated. Many control registers are needed with a lot of internal state. In some sense, more channels are easy to add, but at some point we'll simply run out of transistors for state-storage.
+
+TODO: This is a rather slow way of generating DMA cycles: there's a request cycle, a channel ID read cycle, an address cycle and then the data cycle. It helps a little that we have burst support though, but even then, a 4-beat burst takes 7 cycles. And that assumes that we can toggle the requisite lines within a single clock cycle, for example by driving them on both edges (which makes our already short cycles even shorter).
+
+### Chaining:
+
+Depending in implementation complexity, chained DMAs may only support a burst-size of 1. The driving DMA (even channel) is generating memory reads and capture the result in an internal data registers. The slave DMA (odd channel) then generates a memory write from the internal data register. Byte-lane swizzle must be supported for 8-bit DMAs. Mixed-width DMAs (16-bit master, 8-bit slave or the other way around) are not supported.
+
+Chained DMAs are auto-triggered in that the driving DMA is requested by the completion of the slave DMA and vice versa.
+
+TODO: do we want to add some pacing? If so, how?
+
+## DMA bridge
+
+There are quite a few peripherals that support intel-style DMA transfers. FDD and HDD controllers are the prime examples. Since those were important devices at the time, we need a way to work with them. Comparing our DMA controller to the Intel i8237, we see one key difference: they support single-cycle vs. block vs. demand DMAs (https://docs.freebsd.org/doc/2.1.7-RELEASE/usr/share/doc/handbook/handbook248.html). Demand mode in particular seems to transfer many bytes so long as DRQ is asserted.
+
+We can't really demand mode, because of this: as we complete a DACK cycle, the original requestor may or may not released the bus. So, we have to go back and re-query the requestor channel by asserting /DCHRD for a cycle.
+
+Block transfers are not particular useful (and probably not used all that often) as they hold the bus up for very long time. So we really can only do single-cycle transfers and emulate demand transfers by keep requesting more cycles. Our bust-mode is not really compatible with Intel DMA, so that can be used.
+
+We can create a bridge chip that handles these conversions. It would have the following pinout:
+
+-------- 0
+D0
+D1
+D2
+D3
+D4
+-------- 5
+D5
+D6
+D7
+A0
+A1
+-------- 10
+A2
+/CS
+/DRQ_IN
+/DRQ_OUT
+/DACK
+-------- 15
+/DCHRD
+/WAIT
+/WE
+CLK
+/RST
+-------- 20
+/INT
+DSRQ0
+DSACK0
+DSRQ1
+DSACK1
+-------- 25
+DSRQ2
+DSACK2
+DSRQ3
+DSACK3
+VCC
+-------- 30
+GND
+
+TODO: how did DMA wait-states work in the Intel world? Who generated /WAIT? Who monitored it?
+
+## Graphics
+
+According to http://tinyvga.com/vga-timing: VGA pixel clock is 25.175MHz for 640x480. For 320x240, it would be half, 12.5875MHz. That's 40 or 80ns respectively.
+
+If we want to support 8bpp mode in 320x240, and have a 16-bit bus, we would need 160ns access time to DRAM. We would also of course need at
+least 75kB of RAM.
+
+With our 50ns cycle-time, 4-beat DMA burst, which would take 7 cycles to complete we would get a byte in about 44ns on average. That's about 50% of the available bus bandwidth. That sounds about right, though of course lower would be nicer.
+
+There is of course the option of not depending on the DMA engine for address generation, but let's first investigate the DMA-based option!
+### Video timing generator pinout
+
+-------- 0
+D0
+D1
+D2
+D3
+D4
+-------- 5
+D5
+D6
+D7
+D8
+D9
+-------- 10
+D10
+D11
+D12
+D13
+D14
+-------- 15
+D15
+A0
+A1
+A2
+/CS
+-------- 20
+/DRQ_IN
+/DRQ_OUT
+/DACK
+/DCHRD
+/WAIT
+-------- 25
+/WE
+VIDEO_CLK
+SYS_CLK
+/RST
+/INT <-- output
+-------- 30
+R
+G
+B
+HSYNC
+VSYNC
+-------- 35
+VCC
+GND
+
+We have to independent clock inputs (and two internal clock-domains): one for the system clock to interface with the bus and the other for the video generation logic. R/G/B output would be analog signals, which of course we can't do on an FPGA: we would need to depend on external DACs. (Side-note: even the Amiga 1000 depended on external resistor-network based DACs for video. In the A500, it became a 'hybrid', which is not much better... The Atari ST did the same thing, except for 3-bits per channel.) So, here I'm assuming more then what the tech of the day supported apparently. If I add those pins (9 extra), we'll end up with 46 pins total.
+
+We have to have internal buffers for a full burst from the DMA controller and then some to weather the latency-jitter: probably 16x8 bytes worth. We would also need a palette RAM, which is 256x12 bits.
+
+If we wanted to support sprites, we would need scan-line buffers for them, probably around 64-bits worth each (16x16 and 4bpp). That would be 512 bits total.
+
+Adding this all up, it's 3712 bits total. Then, of course we have all the timing registers and what not, quite a bit of state to maintain.
+
+We would have 9 DMA channels: one for the main screen and one for each sprite.
+
+### Line-replication
+
+### Smooth-scrolling
+
+### Autonomous device pinout
+
+Net's look at how a device with integrated address generation would look like!
+
+We need to be able to drive the bus but also receive transactions. We
+probably want to be able to put the frame buffer wherever, so we want
+the whole address bus, and we certainly want all data being available:
+
+-------- 0
+A8_0
+A9_1
+A10_2
+A11_3
+A12_4
+-------- 5
+A13_5
+A14_6
+A15_7
+A16_17
+A19_18
+-------- 10
+A21_20
+A22
+D0
+D1
+D2
+-------- 15
+D3
+D4
+D5
+D6
+D7
+-------- 20
+D8
+D9
+D10
+D11
+D12
+-------- 25
+D13
+D14
+D15
+/RAS
+/LCAS
+-------- 30
+/UCAS
+/WE
+/REG_CS
+/RST
+/INT <-- output
+-------- 35
+/BREQ_IN
+/BREQ_OUT
+/BGRANT
+/WAIT (OC)
+VIDEO_CLK
+-------- 40
+SYS_CLK
+R
+G
+B
+HSYNC
+-------- 45
+VSYNC
+VCC
+GND
+
+So now, we're clocking in at 48 pins (57 if external DACs are used).
+
+Maybe this is better, but I'm afraid the integrated DMA would make the chip too large.
 
 ### Smooth scrolling
 
@@ -644,53 +696,30 @@ would require ~1500 bits. That's 8800 transistors right there. If my
 budget is ~20k transistors, that's quite a bit, though not tragic,
 necessarily.
 
-### Video timing generator pinout
 
 
--------- 0
-D0
-D1
-D2
-D3
-D4
--------- 5
-D5
-D6
-D7
-D8
-D9
--------- 10
-D10
-D11
-D12
-D13
-D14
--------- 15
-D15
-A0
-A1
-A2
-/CS
--------- 20
-/DRQ_IN
-/DRQ_OUT
-/DACK
-/WAIT
-/WE
--------- 25
-VIDEO_CLK
-SYS_CLK
-/RST
-/INT <-- output
-R
--------- 30
-G
-B
-HSYNC
-VSYNC
-VCC
--------- 35
-GND
+## 8-bit peripherals
+
+We probably would have a ton of 8-bit peripherals in our system. To handle them we need to create an 8-bit bus:
+
+There are two 74F245 chips:
+
+chip 1: 
+        A1...A8 <<= peripheral-side D0...D7
+        B1...B8 <<= CPU-side D0...D7
+        DIR <<= (1 A-->B; 0 B-->A) /WE
+        /OE <<= /LCAS && /DCHRD
+chip 2: 
+        A1...A8 <<= peripheral-side D0...D7
+        B1...B8 <<= CPU-side D8...D15
+        DIR <<= (1 A-->B; 0 B-->A) /WE
+        /OE <<= /UCAS
+
+For addresses, we need to shift the address bus 'up' by 1, and insert /UCAS as A0.
+
+For /CS, we use /LCAS && /UCAS and for /WE we can use /WE unmodified.
+
+Interrupts and DMA requests/responses work as-is, no translation is needed.
 
 
 
@@ -849,46 +878,6 @@ This one is interesting as it has a DRQ line, but no DACK. So, it would need som
 
 ## DMA converter
 
-This thing allows for PC-style DMA peripherals to participate in our
-crazy DMA scheme.
-
--------- 0
-D0
-D1
-D2
-D3
-D4
--------- 5
-D5
-D6
-D7
-A0
-A1
--------- 10
-A2
-/CS
-/DRQ_IN
-/DRQ_OUT
-/DACK
--------- 15
-/WAIT
-/WE
-CLK
-/RST
-/INT
--------- 20
-DSRQ0
-DSACK0
-DSRQ1
-DSACK1
-DSRQ2
--------- 25
-DSACK2
-DSRQ3
-DSACK3
-VCC
-GND
--------- 30
 
 ## Hard drive interface
 
