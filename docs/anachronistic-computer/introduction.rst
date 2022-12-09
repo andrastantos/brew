@@ -1,6 +1,5 @@
-# Anachronistic Computer
-
-## Introduction
+Introduction
+============
 
 As I'm getting old, I'm thinking more and more of the past. I grew up in the '70 and '80s. My childhood computer was a VIC20, followed by a C64. I was dreaming about owning an Amiga, but never had the money to have one. I admired the Mac and of course was fascinated by the Cray machines.
 
@@ -14,7 +13,8 @@ I will however take advantage of modern design tools. And I will take advantage 
 
 So, let's dive in!
 
-## Boundary conditions
+Boundary Conditions
+===================
 
 I'm going to assume that I have access to a chip fab and I can have as many custom chips as I wish. I will limit myself to packages of the era, mostly - ideally - below 40-pin DIPs. I will allow myself to break that and go all the way up to 64 pins (after all the MC68000 existed in that package at the time), but that must have been a rather expensive proposition, so I'm going to do my best to avoid it.
 
@@ -32,22 +32,22 @@ For communications, I would think modems, thus serial ports. I don't know when E
 
 Expandability would actually be rather low on my list, but maybe that's bias on my side. Contemporary machines ran the gamut on that, the Apple II and IBM PC being highly expandable. The Amiga in it's first iteration was too, but the A500 was not. Many other machines, the C64, the Atari ST, the later 8-bitters, such as the Amstrad CPCs were not either.
 
-### The internals
+The internals
+~~~~~~~~~~~~~
 
 Let's look at the internals! Here are some relevant transistor counts:
 
-'75:  6502    3510 transistors
-'79: Z8000   17500 transistors 16 16-bit registers
-'78: i8086   29000 transistors 13 16-bit registers
-'79: 68000   40000 transistors 16 32-bit registers
-'82: i80186  55000 transistors
-'82: i80286 134000 transistors
-'85: ARM1    25000 transistors
-'86: ARM2    27000 transistors
-
-VIC II - 13000 transistors
-Amiga Denise - 20000 transistors
-Amiga AA+ - 100000 transistors
+- '75:  6502    3510 transistors
+- '79: Z8000   17500 transistors 16 16-bit registers
+- '78: i8086   29000 transistors 13 16-bit registers
+- '79: 68000   40000 transistors 16 32-bit registers
+- '82: i80186  55000 transistors
+- '82: i80286 134000 transistors
+- '85: ARM1    25000 transistors
+- '86: ARM2    27000 transistors
+- VIC II - 13000 transistors
+- Amiga Denise - 20000 transistors
+- Amiga AA+ - 100000 transistors
 
 The prevailing tech node was 2 or 3um.
 
@@ -78,9 +78,9 @@ This thing: https://datasheet.datasheetarchive.com/originals/crawler/xfab.com/a3
 
 https://www.researchgate.net/publication/320841806_History_and_Evolution_of_CMOS_Technology_and_its_Application_in_Semiconductor_Industry Shows some history.
 
-1980: 2u   -  50k Transistors
-1983: 1.5u - 100k Transistors
-1985: 1u   - 500k Transistors
+- 1980: 2u   -  50k Transistors
+- 1983: 1.5u - 100k Transistors
+- 1985: 1u   - 500k Transistors
 
 https://en.wikichip.org/wiki/1.5_%C2%B5m_lithography_process shows a bunch of different process nodes.
 
@@ -94,145 +94,6 @@ So, let's go with the following:
 - 1.3u around '87 featured the 68030 (16...50MHz) and the MB86900 (16.6MHz)
 
 So, I think it's safe to assume that 20MHz clock rate would be pushing the tech of the early '80s, but would be no problem for the later years of the decade. What I will do is to assume 20MHz for the I/O, but stick with 10MHz for the core. That seems safe...
-
-## CPU
-
-As it turns out, I have a rather interesting little ISA laying around that I've been toying with: the BREW architecture. I will use that, mostly because ... why not? It's a riff on a variable-instruction-length RISC architecture, which straddles the divide that started to emerge around that time in CPU architecture. In that sense it fits right in. It's also a 32-bit ISA with a 16-bit instruction encoding, something that would have been rather more appealing in those memory-constrained days. It highly depends on an MMU, which I don't think I can afford, so something more simplistic, probably a Cray-style base+limit-based protection scheme would need to be used. It also depends highly on memory-mapped I/O, which - as we will see - is good for pin-count reduction.
-
-The ISA is described in isa.txt, but there are changes to be made for this core:
-- No fence or cache invalidation
-- No extension groups
-- No types, everything is INT32
-- No floating point ops (especially in unary group)
-- No type overrides loads or stores
-- No $rD <- sum $rA
-- No barrel shifter or multiplier: these are multi-cycle operations
-- No lane-swizzle
-- No synchronization (load-acquire; store-release) - these are probably simple regular load/stores
-
-The implementation is also rather simplified:
-- No iCache or dCache. An instruction buffer would be nice, but maybe not even that
-- No decoupled front-end
-- No store-queue
-- No re-order queue (multi-cycle instructions stall)
-
-Now on to pinout: can we fit this 32-bit micro into only 40 pins? We of course can't afford a 32-bit external bus, but how about 16-bits? That would play nicely with the instruction set: most of the instructions are either 16-bits long or 16-bits, followed by another 16-bit constant field.
-
-One thing that annoyed me a lot every time I looked at schematics of these early machines was the interface to DRAM. When I tried to design my own, I also have found the problem very annoying. Now, looking back, it's not only that: it's also very inefficient. Since the muxing of the address bus required two cycles, but since it was almost exclusively done with discrete logic, there was no advantage to reading adjacent words. This was probably fine in the C64 era when memory was so much faster then either video or CPU, but certainly not in the 16- or 32-bit era. Amiga needed two banks of memory to get around the problem. The Macintosh could only really support black-and-white graphics. Yet, many processors (Intel, I'm looking at you) *did* have a multiplexed bus. It's just that they multiplexed data and address on top of each other. So, what if we've multiplexed addresses on top of each other, exactly as DRAM would need it? It would not only reduce pin-count on the CPU (or any bus-master, really) but would also make it possible to directly attach DRAM to these devices. So, how would it work?
-
-Let's say we have the following address-bus muxing:
-
-A8  and A0
-A9  and A1
-A10 and A2
-A11 and A3
-A12 and A4
-A13 and A5
-A14 and A6
-A15 and A7
-----------------
-A16 and A17
-A19 and A18
-A21 and A20
-A22
-
-This allows for the use of 64kbit DRAMs all the way up to 4Mbit devices. That really carries us through the '80s: the 16Mbit DRAM was introduced in '91. If our little line of machines was still alive by then, we would certainly have revved the CPU for something more capable with more pins, most likely with the full 32-bit address bus exposed. So this is fine.
-
-Side-bar: memory timeline:
-    > DRAM history from:
-    > http://doctord.dyndns.org/Courses/UNH/CS216/Ram-Timeline.pdf
-    > 
-    >     '70: 1kbit
-    >     '73: 4kbit
-    >     '76: 16kbit
-    >     '78: 64kbit
-    >     '82: 256kbit
-    >     '86: 1Mbit
-    >     '88: 4Mbit
-    >     '91: 16Mbit
-    >     '94: 64Mbit
-    >     '98: 256Mbit
-    > 
-    > EPROM timeline (from https://en.wikipedia.org/wiki/EPROM):
-    >     '75: 2704
-    >     '75: 2708
-    >     '77: 2716
-    >     '79: 2732
-    >     '81: 2764 (https://timeline.intel.com/1981/a-new-era-for-eprom)
-    >     '82: 27128 (https://timeline.intel.com/1982/the-eprom-evolution-continues)
-    >          27256
-    >          27512
-    >     '86: 27010 (https://timeline.intel.com/1986/one-megabit-eprom)
-    >
-    > Some DRAM datasheets:
-    > https://www.digchip.com/datasheets/parts/datasheet/409/KM41C16000CK-pdf.php
-    > https://www.digikey.com/htmldatasheets/production/1700164/0/0/1/MSM51V17400F.pdf
-    > "https://media.digikey.com/pdf/Data Sheets/ISSI PDFs/IS41LV16105B.pdf"
-    > (https://downloads.reactivemicro.com/Electronics/DRAM/NEC D41464 64k x 4bit DRAM Data Sheet.pdf)
-    > https://www.jameco.com/Jameco/Products/ProdDS/2290535SAM.pdf
-    > https://www.jameco.com/Jameco/Products/ProdDS/2288023.pdf
-    > https://datasheetspdf.com/pdf-file/550187/MicronTechnology/MT4C1024/1
-    >
-    > There were two memory module formats: 30 pin and 72 pin.
-    > https://www.pjrc.com/tech/mp3/simm/datasheet.html
-
-The external address space is 16MByte, but only 8MByte is available (directly) for DRAMs. That would work for 16 chips of 4Mbitx1 configuration, or even 4 chips of 16Mbitx4 configuration. 
-
-The full pin-list is as follows:
-
---------
-A8_0
-A9_1
-A10_2
-A11_3
-A12_4
---------
-A13_5
-A14_6
-A15_7
-A16_17
-A19_18
---------
-A21_20
-A22
-D0
-D1
-D2
---------
-D3
-D4
-D5
-D6
-D7
---------
-D8
-D9
-D10
-D11
-D12
---------
-D13
-D14
-D15
-/RAS
-/LCAS
---------
-/UCAS
-/WE
-CLK
-/RST
-/INT
---------
-/BREQ
-/BGRANT
-/WAIT
-VCC
-GND
---------
-
-This is EXACTLY 40 pins!!! So, this *could* be done, provided a single
-VCC/GND pair is sufficient (it probably was in those days) and that
-we're extremely frugal on control signals.
 
 ## Address decode and interface to things other than DRAM:
 
@@ -265,6 +126,47 @@ Address decode is relatively simple:
 3. I/O can be further decoded using a 74LS138. It should be gated by /AC_2, /RGN1 and LA16, decoding LA13,14,15
 4. Extension board I/O regions could also be decoded in a similar way, except gating the second 74LS138 by /LA16. This gives each card 16kB (8kW) of I/O space
 5. EEPROM can be attached to A0...A8 + LA8...LA16 making it possible to decode 512kBytes (256kW) worth of EEPROM space. Their /CE signal is connected to /AC2, their /OE signal is to /RGN0
+
+## Interface to DRAM
+
+DRAMs are relatively straightforward to interface to, that was the whole point. /LCAS and /UCAS act as byte-selects, but they need to be qualified by /RGN2 and /RNG3 to create space for the 4 RAM banks. These 4 banks then can be either implemented in a single 72-pin (EDO-style) DIMM or 4 30-pin DIMM modules. 
+
+Due to the loading of all the RAM chips, it's quite likely that /RAS /WE, address and data needs to be buffered, but that is to be seen.
+
+## DRAM speeds and clocks
+
+Early NMOS DRAMs had:
+
+t_RAC = 100/120/150ns
+t_CAC = 55/60/75ns
+t_RC = 190/220/260ns
+
+Later devices were somewhat faster (uPD41464):
+
+t_rcd = 40/50/60
+t_cas = 40/50/60
+t_cp  = 30/40/50
+t_crp = 0
+
+FPM DRAMs later on had:
+
+t_RAC = 80/70/60ns
+t_CAC = 20/20/15ns
+t_RC = 150/130/110ns
+
+The newest part (41C16000) even gets somewhat faster:
+
+t_rcd = 37/45
+t_cas = 13/15
+t_cp  = 10
+t_rp  = 35/40
+
+FPM was a later ('90) invention and EDO was even later, introduced in '95. 
+
+As we will see later, we will want about 12.6MBps of transfer rate for 320x240 8bpp resolution. That would be 160ns between video accesses over a 16-bit bus. That is almost all the bandwidth that an early DRAM (150ns) could provide. No wonder Amiga had slow and fast RAM. However, what we really want is page-mode access, which even in those days could support 75ns access times within a page. It's not really reasonable though to bank on needing so early parts (4164). and if we go with 41464 parts, those are significantly faster, supporting ~50ns accesses times within a page.
+
+This is what we should be shooting for then: **50ns (20MHz) clock speed on the bus.** This should be the main clock for our machine.
+This is quite a bit higher then what most designs used at the time. I might have to clock the CPU (and maybe other chips) as well down to half of that and only keep the bus interface at that high speed (which is a bit weird to say, later split-clock designs were the other way around).
 
 ## Glue logic speed
 
