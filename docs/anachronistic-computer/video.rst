@@ -10,6 +10,9 @@ We will have to compromise as well: our video support will have to be initially 
 
 .. [#video_speed] The reason the Amiga could get away with its graphics was that it supported only 320x200 at 5bpp resolution and the frame-rate was only 30Hz, not 60 as in VGA.
 
+
+WAVEDROM EXAMPLE
+----------------
 .. wavedrom::
 
         { "signal": [

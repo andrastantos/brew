@@ -37,15 +37,13 @@ A12_4    A12         A4
 A13_5    A13         A5
 A14_6    A14         A6
 A15_7    A15         A7
-A16_17   A16         A17
+A17_16   A17         A16
 A19_18   A19         A18
-A21_20   A21         A20
-A22      A22         A22
 ======== =========== ============
 
 This allows for the use of 64kbit DRAMs all the way up to 4Mbit devices. That really carries us through the '80s: the 16Mbit DRAM was introduced in '91. If our little line of machines was still alive by then, we would certainly have revved the CPU for something more capable with more pins, most likely with the full 32-bit address bus exposed. So this is fine.
 
-The external address space is 16MByte, but only 8MByte is available (directly) for DRAMs. That would work for 16 chips of 4Mbitx1 configuration, or even 4 chips of 16Mbitx4 configuration. 
+The external address space is 8MByte, but only 4MByte is available (directly) for DRAMs in two banks. That would work for 8 chips of 1Mbitx4 configuration, or even a single 1Mbitx16 chip. 
 
 The full pin-list is as follows:
 
@@ -60,37 +58,72 @@ Pin Number Pin Name Description
 6          A13_5    Multiplexed address bus
 7          A14_6    Multiplexed address bus
 8          A15_7    Multiplexed address bus
-9          A16_17   Multiplexed address bus
+9          A17_16   Multiplexed address bus
 10         A19_18   Multiplexed address bus
-11         A21_20   Multiplexed address bus
-12         A22      Highest order address bit
-13         D0       Data bus
-14         D1       Data bus
-15         D2       Data bus
-16         D3       Data bus
-17         D4       Data bus
-18         D5       Data bus
-19         D6       Data bus
-20         D7       Data bus
-21         D8       Data bus
-22         D9       Data bus
-23         D10      Data bus
-24         D11      Data bus
-25         D12      Data bus
-26         D13      Data bus
-27         D14      Data bus
-28         D15      Data bus
-29         nRAS     Active low row-select
-30         nLCAS    Active low column select, lower byte
-31         nUCAS    Active low column select, upper byte
+11         D0       Data bus
+12         D1       Data bus
+13         D2       Data bus
+14         D3       Data bus
+15         D4       Data bus
+16         D5       Data bus
+17         D6       Data bus
+18         D7       Data bus
+19         D8       Data bus
+20         D9       Data bus
+21         D10      Data bus
+22         D11      Data bus
+23         D12      Data bus
+24         D13      Data bus
+25         D14      Data bus
+26         D15      Data bus
+27         nRAS_B0  Active low row-select, bank 0
+28         nRAS_B1  Active low row-select, bank 1
+29         nLCAS    Active low column select, lower byte
+30         nUCAS    Active low column select, upper byte
+31         nNREN    Active low non-DRAM bus cycle qualifier 
 32         nWE      Active low write-enable
 33         CLK      Clock input
 34         nRST     Active low reset input
 35         nINT     Active low interrupt input
 36         nBREQ    Active low bus-request input
-37         nBGRANT  Active low bus-request output
+37         nBGRANT  Active low bus-grant output
 38         nWAIT    Active low wait-state input
 39         VCC      Power input
 40         GND      Ground input
 ========== ======== ===========
 
+To meet timing requirements on the DRAM interface, DRAM chips *directly* interfaced to the processor. No address decode, no latches, no buffers can be in between,
+
+For other devices on the bus, `nLCAS` and `nUCAS` can still work as a byte-select/enable signal. We need another RAS-style qualifier to know that we need to latch the address and start decoding. That's `nNREN` above.
+
+To fit in the 40-pin package, we needed to limit the addressable memory quite a bit. This is not a problem for an early '80-s machine, but for the next iteration (and FPM DRAM support) we will have to go up to a 44-pin package. This allows:
+
+1. Two extra address lines to support 4Mx1 or even 16Mx1 devices
+2. Two extra nRAS_Bx signals to support two extra banks
+
+These changes allow to support up to 32MBytes of RAM per bank for a total of 128MByte RAM. 
+
+DRAM decode
+~~~~~~~~~~~
+
+To support various DRAM sizes, the address decode regions for nRAS_Bx needs to be programmable. They all are qualified by A31, that is they belong to the upper 2GB of the total address space. However, which address bits are used to select between nRAS_Bx has to be programmable, otherwise it can't be guaranteed that DRAM banks create a contiguous space.
+
+This programming can be done at boot time, while testing for memory sizes: the default decode should allow for very large DRAM banks, and by testing for aliasing, the right boundary can be selected.
+
+.. note:: 
+    The same programmability needs to exist in the DMA controller too.
+
+Wait states
+~~~~~~~~~~~
+
+The CPU has three programmable address regions:
+
+=============  ===========  ===========
+Start address  End address  Description
+=============  ===========  ===========
+0x0000_0000    0x0003_ffff  ROM space
+0x0004_0000    0x0007_ffff  I/O spaces
+0x8000_0000    0xffff_ffff  DRAM space
+=============  ===========  ===========
+
+For each of these I/O spaces, a different number of wait-states can be programmed as a 4-bit value. The value 0 means 15 wait-states, other wise value N means N-1 wait-states. The register resets to 0.

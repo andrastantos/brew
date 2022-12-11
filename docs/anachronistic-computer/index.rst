@@ -15,7 +15,12 @@ Anachronistic Computer
    memory
    clock
    video
-
+   gate-counts
+   system
+   dma
+   graphics
+   sound
+   peripherals
 
 Indices and tables
 ==================

@@ -47,6 +47,8 @@ DRAMs are relatively straightforward to interface to in our system. /LCAS and /U
 
 Due to the loading of all the RAM chips, it's quite likely that /RAS /WE, address and maybe even data needs to be buffered, but that is to be seen.
 
+.. _dram_speeds:
+
 DRAM speeds
 -----------
 
@@ -166,6 +168,8 @@ So, let's look at a few burst sizes and the average cycle time per access:
         print(f"{beats}-beat average access  {acc_str}")
     print("====================== ====== ====== ====== ======")
 
+.. _dram_timing:
+
 Timing Diagrams
 ---------------
 
@@ -278,6 +282,8 @@ Interface
 ---------
 
 To get to the EPROM, we would need to latch the first address cycle, and only enable nOE and nCE on the second address cycle, when the full address is available. We can use the first address cycle for some pre-decoding though.
+
+.. _eeprom_timing:
 
 Timing
 ------
