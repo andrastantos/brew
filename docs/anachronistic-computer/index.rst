@@ -21,6 +21,7 @@ Anachronistic Computer
    graphics
    sound
    peripherals
+   competitors
 
 Indices and tables
 ==================

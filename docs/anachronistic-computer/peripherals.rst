@@ -27,7 +27,8 @@ This guy can interface directly to our bus and our DMA bridge for DMAs. No issue
 
 There were other controllers as well: 
  - http://www.bitsavers.org/components/westernDigital/WD57C65_Floppy_Disk_Subsystem_Controller_May88.pdf
-- http://www.bitsavers.org/components/westernDigital/FD179X-02_Data_Sheet_May1980.pdf
+ - http://www.bitsavers.org/components/westernDigital/FD179X-02_Data_Sheet_May1980.pdf
+ - http://info-coach.fr/atari/documents/_mydoc/WD1772-JLG.pdf
 
 I will stick with the PC-style FDD controller though, especially with the knowledge of hind-sight.
 
@@ -64,6 +65,8 @@ Then there was IDE (a.k.a ATA), but that was introduced later, at '87: https://e
 
     This chip doesn't have DMA apparently, but does have a multiplexed data/address bus. This would need significant external logic for us. It is a chip-graveyard anyway, as external buffers are also needed to buffer the data.
 
+There was the `HD63463 <https://datasheetspdf.com/pdf-file/1285972/HitachiSemiconductor/HD63463/1>`_ for MFM controllers. It seems a very nice 16-bit, DMA-based controller, not a nuisance to deal with at all. A decent competitor to the SCSI chips above. I just don't know when it was introduced. It was used in the `Archimedes A300 Hard-disk poddle <http://chrisacorns.computinghistory.org.uk/docs/Acorn/Manuals/Acorn_A300_SMCLSup.pdf>`_, so before second half of '80s for sure.
+
 Overall, surveying the landscape, even today - let alone back in the day - I would have come to the conclusion that SCSI is the way to, and most likely would have gone the same route as Apple did: the 5380 or one of it's many variants.
 
 Networking
@@ -85,6 +88,23 @@ Nowadays, there are still some alternatives: `LAN91C113 <https://media.digikey.c
 This is all later though it seems, fine for the second generation machine, but not for the first gen.
 
 For the first generation machines, I would say I would have developed some sort of home-grown, serial (probably `RS422 <https://en.wikipedia.org/wiki/RS-422>`_-based) protocol.
+
+There is something interesting, called HDLC/SDLC. These are L2 protocols that are developed by IBM, worked probably through RS232 or RS422 or similar physical layers, but had controllers, such as the Motorola `mc6854 <https://heyrick.eu/econet/mc6854fixed.pdf>`_. This device could reach about 1Mbps, so not shabby for the time. It was used in the `Acorn Archimedes Econet poddle <http://chrisacorns.computinghistory.org.uk/docs/Acorn/Manuals/Acorn_A300_SMCLSup.pdf>`_, from which I got the idea.
+
+Printers
+--------
+
+Centronics was the rage, I would have just rolled with it through some 3rd party GPIO chip, I think. Or, if I could scavenge together enough GPIOs for the handshake control, maybe just a 74LS373 for the data-bus. We would need 5 inputs and 4 outputs on top of the data-bus. That's annoying. So maybe a 2-port GPIO chip (such as whatever the C64 used) and a single extra GPIO down on the HID interface chip?
+
+MIDI
+----
+
+Midi is just a serial port, but for some reason people liked to use something else then the 16450. I probably would have stuck with it, but it would have needed a custom crystal to get the baud-rate right.
+
+RTC
+---
+
+The Archimedes A300 used the `PCF8573 <https://www.picmicrolab.com/wp-content/uploads/2014/05/PCF8573.pdf>`_, but *also* the `PCF8583 <https://www.nxp.com/docs/en/data-sheet/PCF8583.pdf?>`_. My guess is that one was introduced earlier then the other and they wanted to be able to populate either. The second one has some memory in it for configuration and stuff, so my guess is that they would have gone with just that had it been available on time. Either way, they are both I2C peripherals, which make interfacing them into just a pair of GPIOs, stolen from the HID device below. Or, if I'm so inclined, a full I2C controller in that very same chip.
 
 Human interface
 ---------------

@@ -70,3 +70,12 @@ Pin Number Pin Name    Description
 
 .. note:: 
     The Amiga HW had some rather crazy audio filtering going on on its outputs. Judging from the fact that they couldn't implement a video DAC, I'm assuming they don't have an audio DAC either. They probably simply do a PWM output (if lucky, some sort of sigma-delta output) and external filtering to remove the nasty aliases. We could have also done something similar, removing the need for the analog power supplies.
+
+FM synthesis
+------------
+
+One could think about adding more sound features using an `OPL <https://map.grauw.nl/resources/sound/yamaha_ym3526.pdf>`_ chip to the computer. This one (released in '84) would add 9 FM-synthesis sounds. One would need a `DAC <https://datasheetspdf.com/pdf-file/865757/Yamaha/YM3014B/1>`_ to go with this chip.
+
+Apparently there were other variants (OPN, OPM) too.
+
+A good list is `here <https://en.wikipedia.org/wiki/List_of_sound_chips>`_.
