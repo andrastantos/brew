@@ -1,9 +1,9 @@
-.. Anachronistic Computer documentation master file, created by
+.. Brew Processor documentation master file, created by
    sphinx-quickstart on Thu Dec  8 13:25:35 2022.
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-Anachronistic Computer
+Brew Processor
 ======================
 
 .. toctree::
@@ -11,23 +11,17 @@ Anachronistic Computer
    :caption: Contents:
 
    introduction
-   cpu
-   memory
-   clock
-   video
-   gate-counts
+   isa
+   isa_details
+   interpolation
+   lr-sr
+   abi
    system
-   dma
-   graphics
-   sound
-   peripherals
-   competitors
-   build-notes
-
-Todos
-=====
-
-.. todolist::
+   uarch
+   decode
+   competition
+   todo
+   gpu
 
 Indices and tables
 ==================

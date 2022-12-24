@@ -15,7 +15,7 @@ To conserve memory bandwidth, our DMAs will work with 4-beat bursts, transferrin
 
 If we can fit a full scan-line worth of data in an internal FIFO, we could cut the data-rate required in half, due to double-scan: we can repeat the scan-line from internal memory. If we could fit two scan-lines worth of data internally, we could even space out the loads over two scan-lines, reducing not only our average thirst for data, but our peak as well. That however is probably a second-gen feature. The first generation chips would not have that capability.
 
-.. warning:: 
+.. todo::
     We need to figure out the DMA timing precisely. There's a lot of 'fluff' in our DMA protocol that will slow us down.
 
 The graphics controller uses several DMA channels to convey video-data into itself: one for the main screen buffer and one each for each sprite.
@@ -59,8 +59,8 @@ Pin Number Pin Name    Description
 31         R           Analog 'red' channel output
 32         G           Analog 'green' channel output
 33         B           Analog 'blue' channel output
-34         BLANK       Video blanking output with programmable polarity 
-35         HSYNC       Horizontal video sync output with programmable polarity 
+34         BLANK       Video blanking output with programmable polarity
+35         HSYNC       Horizontal video sync output with programmable polarity
 36         VSYNC       Vertical video sync output with programmable polarity
 37         DVCC        Digital power input
 38         DGND        Digital ground input
@@ -70,7 +70,7 @@ Pin Number Pin Name    Description
 
 We have to independent clock inputs (and two internal clock-domains): one for the system clock to interface with the bus and the other for the video generation logic. R/G/B output would be analog signals, which of course we can't do on an FPGA: we would need to depend on external DACs.
 
-.. note:: 
+.. note::
     The Amiga and the Atari ST depended on external resistor-network based DACs for video. In the A500, it became a 'hybrid', which is not much better...
 
 We have to have internal buffers for a full burst from the DMA controller and then some to weather the latency-jitter: probably 16x8 bytes worth. We would also need a palette RAM, which is 256x12 bits.
@@ -93,7 +93,7 @@ If we wanted to do *more* than ~240 scan-lines on a TV screen, we would have had
 
 So, to support 640x480 screens on a TV (or a monitor supporting NTSC-style timings) we would need to support interlaced mode.
 
-.. note:: 
+.. note::
     It's interesting to see how in the 'old world' 640x480 needed special treatment, while in the 'new world' it's the other, the 320x240 resolution that requires it.
 
 Smooth-scrolling

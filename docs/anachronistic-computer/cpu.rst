@@ -43,7 +43,7 @@ A19_18   A19         A18
 
 This allows for the use of 64kbit DRAMs all the way up to 4Mbit devices. That really carries us through the '80s: the 16Mbit DRAM was introduced in '91. If our little line of machines was still alive by then, we would certainly have revved the CPU for something more capable with more pins, most likely with the full 32-bit address bus exposed. So this is fine.
 
-The external address space is 8MByte, but only 4MByte is available (directly) for DRAMs in two banks. That would work for 8 chips of 1Mbitx4 configuration, or even a single 1Mbitx16 chip. 
+The external address space is 8MByte, but only 4MByte is available (directly) for DRAMs in two banks. That would work for 8 chips of 1Mbitx4 configuration, or even a single 1Mbitx16 chip.
 
 The full pin-list is as follows:
 
@@ -80,7 +80,7 @@ Pin Number Pin Name Description
 28         nRAS_B1  Active low row-select, bank 1
 29         nLCAS    Active low column select, lower byte
 30         nUCAS    Active low column select, upper byte
-31         nNREN    Active low non-DRAM bus cycle qualifier 
+31         nNREN    Active low non-DRAM bus cycle qualifier
 32         nWE      Active low write-enable
 33         CLK      Clock input
 34         nRST     Active low reset input
@@ -101,7 +101,7 @@ To fit in the 40-pin package, we needed to limit the addressable memory quite a 
 1. Two extra address lines to support 4Mx1 or even 16Mx1 devices
 2. Two extra nRAS_Bx signals to support two extra banks
 
-These changes allow to support up to 32MBytes of RAM per bank for a total of 128MByte RAM. 
+These changes allow to support up to 32MBytes of RAM per bank for a total of 128MByte RAM.
 
 DRAM decode
 ~~~~~~~~~~~
@@ -110,7 +110,7 @@ To support various DRAM sizes, the address decode regions for nRAS_Bx needs to b
 
 This programming can be done at boot time, while testing for memory sizes: the default decode should allow for very large DRAM banks, and by testing for aliasing, the right boundary can be selected.
 
-.. note:: 
+.. note::
     The same programmability needs to exist in the DMA controller too.
 
 Wait states
@@ -127,3 +127,74 @@ Start address  End address  Description
 =============  ===========  ===========
 
 For each of these I/O spaces, a different number of wait-states can be programmed as a 4-bit value. The value 0 means 15 wait-states, other wise value N means N-1 wait-states. The register resets to 0.
+
+Generations
+-----------
+
+Generation 1
+~~~~~~~~~~~~
+
+Very simple, 5- or 6-stage pipeline. No caches, maybe not even branch-prediction. If anything, everything is predicted not taken, i.e. straight line speculative execution. No write buffer, every memory access is stalling. Multiplies could be multi-cycle, if exist at all. Maybe even barrel-shifter is multi-cycle.
+
+Integer-only ISA with no extension groups or prefix instructions.
+
+The 6th stage (if needed) is there to make instruction decode close timing.
+
+No MMU, only offset/length-based memory protection.
+
+Target frequency is ~10MHz.
+
+16-bit external bus.
+
+Virtual market introduction ~'83.
+
+Generation 2
+~~~~~~~~~~~~
+
+I think the most important improvement is going to be a very small iCache (maybe direct-mapped 1kB or something rather trivial) and a full MMU.
+
+Target frequency is ~20MHz.
+
+Maybe write-queues are making an appearance.
+
+Support for FPM DRAM.
+
+Virtual market introduction ~'86.
+
+Generation 3
+~~~~~~~~~~~~
+
+32-bit external bus, introduction of DCache, probably more capable ICache. External bus is PCI-like, multiplexed 32-bit address-data. If possible, actually PCI.
+
+Actually, PCI is a '92 thingy, so probably would be too early for this processor.
+
+Memory controller goes off-chip, but adds EDO support. <-- this puts is to ~'95, so this is too early for that as well.
+
+Write queues.
+
+More adept branch-prediction.
+
+Maybe types are introduced to support floating points. Still no vector ISA.
+
+Not sure, but maybe de-coupled front-end?
+
+Target frequency is ~33MHz
+
+Virtual market introduction ~'90
+
+Generation 4
+~~~~~~~~~~~~
+
+Memory controller moves back into processor, external bus remains PCI for peripherals only. PC100 SDRAM support <-- this puts us to '93.
+
+De-coupled front-end, updated caches (probably write-back DCache).
+
+Maybe introduction of some sort of coherency protocol for multi-processor systems.
+
+Maybe introduction of vector types.
+
+Re-order queues at the back-end, creation of independent execution units.
+
+Target frequency is ~150MHz core, 33MHz front-end bus.
+
+Virtual market introduction ~'93
