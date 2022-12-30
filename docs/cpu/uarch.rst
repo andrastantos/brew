@@ -1,5 +1,193 @@
-Micro-architecture
-==================
+Micro-architecture V1
+=====================
+
+General comments
+----------------
+
+This is the processor for the earliest version of the 'Anachronistic Computer'. It is targeting a clock speed of 10MHz (12MHz in the highest speed-grade). It is intended to work with a 16-bit NMOS (not even FPM) DRAM through a direct interface. It has to share this memory with the display controller (technically the DMA controller, but that's irrelevant for now). We intend to support up-to 4-beat bursts with the DRAM, completed in 5 clock cycles.
+
+The 10MHz clock frequency coupled with the bursts and DRAM timing results in a peak memory bandwidth of 16MByte/sec. Of course with less optimal burst sizes or any arbitration overhead the bandwidth drops.
+
+The video refresh alone will eat up about 12.5MBps of this, leaving precious little to the processor. In fact, arguably this system is not really capable of 320x240x8bpp resolution at a 32kHz HSync. Going back to NTSC timing would halve video bandwidth requirements to 6.25MBps, leaving about 10MBps for the processor. There of course is also HBlank and VBlank during which the full bandwidth is available to the CPU.
+
+We should expect about 25% of our operations to be memory accesses, which would incur (as we'll see) a 2-cycle stall, minimum. Branches, which happen about 12.5% of the time would have a penalty of 3 clock cycles. Other hazards will add about one stall every 8 instructions. This would mean that all accounted for, we would have 5 stalls every 8 clock cycles, or a target IPC ~= 0.4.
+
+Turning it around, at 10MHz with an IPC of 0.4 and a memory operation every 4th instruction, we see that we need 12MBps for instruction fetches and another 4MBps for load/stores. This gives us 16MBps of total memory bandwidth requirement.
+
+We can see that the CPU even with this rather appalling IPC target will be memory starved. The achievable IPC is around 0.25. That is, our 10MHz processor has a MIPS of 2. To turn it another way, we could have a multi-cycle, non-pipelined implementation with a 4-cycles-per-instruction implementation and not lose much in terms of efficiency.
+
+This is rather sad...
+
+Notice how the trouble of memory bandwidth is most punishing around instruction fetches: they consume inordinate amount of bandwidth. So, an ICache would be highly beneficial. Can we have it? Even in version 1? In a chip, designed in the late '70-s, very early '80-s?
+
+ICache
+------
+
+Let's start with something very simple:
+
+- We have a 4-way set-associative cache. Each way is 128 bytes long.
+- A cache line is 32-bit long, the same as the fetch
+- The only tag for a line is a valid bit
+- We have a common (25-bit) base address tag for each way
+- Lines are filled in parallel with the fetch logic: no prefetch of any sort
+- A miss simply allocates the ways in a round-robin fashion.
+- No line-invalidate logic: only the whole cache can be invalidated. That happens through a CSR.
+
+This is a 512-byte large cache, consuming about 25k transistors. The 68000 had about 68k transistors at that time, and that was probably very large for it's time. So this cache is about a 3rd of that. Damn!
+
+Let's say this cache has a hit-rate of 50%! Since we don't do any prefetch, we don't incur any penalty for it, so it's pure gravy. Now, our 0.4 IPC processor only needs 6MBps for instruction fetches and another 4MBps for loads/stores. That's 10MBps, the bandwidth we have.
+
+So, let's plan for this and hope that:
+
+#. We can fit the cache
+#. We can get 50% hit-rate
+
+The pipeline
+------------
+
+Due to memory bandwidth constraints, aiming for more than a 0.4 IPC is a fools errand. Thus, the pipeline is very very simple, more geared towards being small then efficient and thus freeing up silicon area for more ICache.
+
+This is a simple 5-stage pipeline.
+
+Fetch
+~~~~~
+
+We have 7-entry FIFO between the memory and the decode engine. Every time there are at least 4 free entries, a 4-beat burst is request. Bursts are 64-bit aligned, and thus there is a little problem in the first burst after a jump. This burst has two ways to go:
+
+- In case of an ICache hit, it's directly filled from the ICache, no memory transactions are generated.
+- In case of an ICache miss, a cache-way is allocated and the memory request is generated. The response is bisected into the decode FIFO and the ICache line.
+
+Decode/Register Read
+~~~~~~~~~~~~~~~~~~~~
+
+Instruction decode takes 16-bits of instruction stream at a time. It decodes instruction length (we only support up to 48-bits) and prepares:
+
+#. Register read address 1
+#. Register read address 2
+#. Target register access
+#. Constant field
+#. ALU operation code
+#. Memory operation code
+
+Registers are read from either the register file or the forwarding path.
+
+This stage also manages the score-board for register use: monitors the clearing of read addresses, and sets the destination allocation
+
+Execute
+~~~~~~~
+
+Execute ALU operations, prepare physical address for memory operations, check for all exceptions, check for branches.
+
+If branches are taken, signal the flush of the pipeline and restart 'fetch' from the branch target.
+
+Memory
+~~~~~~
+
+Since memory is slow, we stall for multiple cycles for a 32-bit burst:
+
+::
+
+              <--1-><--2-><--3->
+     CLK __/^^\__/^^\__/^^\__/^^\
+    nRAS ^^^^^\___________/^^^^^\
+    nCAS ^^^^^^^^\__/^^\__/^^^^^^
+    nWE  ^^^^^^^^^^^^^^^^^^^^^^^^
+    Data ----------<>----<>------
+
+::
+
+              <--1-><--2-><--3->
+     CLK __/^^\__/^^\__/^^\__/^^\
+    nRAS ^^^^^\___________/^^^^^\
+    nCAS ^^^^^^^^\__/^^\__/^^^^^^
+    nWE  ^^^^^^^^\__/**\__/^^^^^^
+    Data --------<=====X=====>---
+
+Of course the actual signal timing is generated by the memory controller and we might be contending with other sources (instruction fetch or other bus-masters outside the CPU) so we can have longer stalls too.
+
+Write-back
+~~~~~~~~~~
+
+In this cycle we right back the results into the register file, clear the score-board and deal with forwarding paths, if necessary.
+
+Extra units
+-----------
+
+Debug
+~~~~~
+
+CSRs
+~~~~
+
+Memory protection
+~~~~~~~~~~~~~~~~~
+
+Memory arbitrator
+~~~~~~~~~~~~~~~~~
+
+Memory controller
+~~~~~~~~~~~~~~~~~
+
+
+People to talk to
+~~~~~~~~~~~~~~~~~
+Rajeev
+Phil
+Gary
+Rob
+
+Technology V1
+=============
+
+We will target late '70s, early '80s tech. That would be 3um HMOS. I've found one `article <https://www.semanticscholar.org/paper/HMOS-III-technology-Liu-Fu/898e1109886793a09fcdef2c4133be6acb902e67>`_ where a basic comparison of HMOS 1/2/3 is shown:
+
+.. figure:: hmos.png
+
+  Basic HMOS node comparison
+
+We of course can't build anything in HMOS. What we can do is Google's `Open Silicon <https://opensource.googleblog.com/2022/05/Build%20Open%20Silicon%20with%20Google.html>`_ initiative. In particular, lately they added support for OpenFoundries 180nm node.
+
+The developer page is here: https://developers.google.com/silicon
+
+According to `Dependence on Feature Size <https://psec.uchicago.edu/workshops/fast_timing_conf_2011/system/docs/25/original/110429_psec_workshop_drake_size_dependence.pdf>`_:
+
+.. figure:: process_speed.png
+
+  Technology node vs. ring oscillator speed
+
+A 130nm process should have an inverter delay of about 35ps. Roughly the same for the other (180nm) node that's available through OpenSilicon.
+
+HMOS 1 as we know is at 3um and the minimum gate-delay (I'm going to say that's an inverter) is 1ns.
+
+The tech node ratio is 23:1. The speed ratio is 28:1. I would say, that's a pretty good fit. In other words, Denard scaling is applicable.
+
+So, what I will do is this: I will assume that Denard scaling holds and will simply use the design flow for the 130nm process from OpenSilicon for area and speed estimations.
+
+Our design targets would have been:
+
+- Area: 45mm :sup:2
+- Speed: 10MHz (typical part)
+- Tech node: 3um
+
+Scaling that to current levels:
+
+- Area: 0.085 mm^2
+- Speed: 230MHz
+- Tech node: 130nm
+
+And with that, ladies and gentlemen, we have something to shoot for. In fact, here's an idea: can we actually **try to build these chips?**. One `sample design <https://github.com/miscellaneousbits/caravel_sha3_256_crypto_miner>`_ claims about 300k cells. In the same area, we can probably fit the whole chipset, and somehow select between them using strapping. Now **that** would be something!!
+
+
+
+
+Some more links:
+
+- `Microarchitecture of the MC 68000 and Evaluation of a Self Checking Version <https://link.springer.com/chapter/10.1007/978-94-009-5143-3_10>`_
+- `HMOS-CMOS - A low-power high-performance technology <https://ui.adsabs.harvard.edu/abs/1981IJSSC..16..454Y/abstract>`_
+- `The Evolution of the Intel 8051 Processes <https://www.cpushack.com/2016/04/28/the-evolution-of-the-intel-8051-processes/>`_
+
+Micro-architecture V4
+=====================
 
 The implementation is going to follow a relatively simple pipeline implementation with the following stages:
 
