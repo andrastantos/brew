@@ -41,6 +41,12 @@ class BusIf(Module):
     ext_req           = Input(logic)
     ext_grnt          = Output(logic)
 
+    # Side-band interface (CSRs)
+    wait_states_0     = Input(Unsigned(4))
+    wait_states_1     = Input(Unsigned(4))
+    wait_states_2     = Input(Unsigned(4))
+    wait_states_3     = Input(Unsigned(4))
+
     def body(self):
         read_not_write  = Wire(logic)
         beats_remaining = Wire(Unsigned(2))
@@ -81,24 +87,44 @@ class BusIf(Module):
         self.arb_fsm.add_transition(ArbStates.external,  self.ext_req, ArbStates.external)
         self.arb_fsm.add_transition(ArbStates.external, ~self.ext_req, ArbStates.idle)
 
+        self.wait_states = Wire(Unsigned(4))
+
         self.ext_grnt <<= arb_state == ArbStates.external
 
-        self.mem.response <<= arb_state == ArbStates.memory
+        self.mem.response <<= arb_state == ArbStates.memory & (self.wait_states == 0)
         self.mem.data_out <<= data_out
         self.mem.last     <<= last
 
-        self.fetch.response <<= arb_state == ArbStates.fetch
+        self.fetch.response <<= arb_state == ArbStates.fetch & (self.wait_states == 0)
         self.fetch.data_out <<= data_out
         self.fetch.last     <<= last
 
         start = (arb_state == ArbStates.idle) & (self.fetch.request | self.mem.request)
         advance = arb_state != ArbStates.idle
 
+        self.wait_states <<= Reg(
+            Select(
+                start,
+                Select(
+                    self.wait_states == 0,
+                    self.wait_states - 1,
+                    0
+                ),
+                Select(
+                    Select(self.fetch.request, self.mem.addr[31:30], self.fetch.addr[31:30]),
+                    self.wait_states_0,
+                    self.wait_states_1,
+                    self.wait_states_2,
+                    self.wait_states_3
+                )
+            )
+        )
+
         read_not_write  <<= Reg(Select(start, read_not_write, Select(self.fetch.request, self.mem.read_not_write, self.fetch.read_not_write)))
         page_addr       <<= Reg(Select(start, page_addr, Select(self.fetch.request, self.mem.addr[31:8], self.fetch.addr[31:8])))
         page_offs       <<= Reg(Select(start, Select(advance, page_offs, page_offs + 1), Select(self.fetch.request, self.mem.addr[7:0], self.fetch.addr[7:0])))
-        beats_remaining <<= Reg(Select(start, Select(advance, beats_remaining, beats_remaining - 1), Select(self.fetch.request, self.mem.burst_len, self.fetch.burst_len)))
-        byte_en         <<= Reg(Select(start, 3, Select(self.fetch.request, self.mem.byte_en, self.fetch.byte_en)))
+        beats_remaining <<= Reg(Select(start, Select(advance, beats_remaining, beats_remaining - Select(self.wait_states == 0, 0, 1)), Select(self.fetch.request, self.mem.burst_len, self.fetch.burst_len)))
+        byte_en         <<= Reg(Select(start, Select(self.wait_states == 0, byte_en, 3), Select(self.fetch.request, self.mem.byte_en, self.fetch.byte_en)))
         data_in         <<= Reg(Select(arb_next_state == ArbStates.fetch, self.mem.data_in, self.fetch.data_in))
 
         last <<= beats_remaining == 0 & (arb_state != ArbStates.idle)
@@ -226,8 +252,8 @@ class BusIf(Module):
         self.DRAM_nRAS <<= arb_state == ArbStates.idle
         self.DRAM_nRASd <<= Reg(self.DRAM_nRAS, clk=~self.clk)
         self.CAS_nEN <<= self.DRAM_nRAS & self.DRAM_nRASd
-        self.DRAM_nCAS_h <<= ~byte_en[1] | self.CAS_nEN | ~self.clk
-        self.DRAM_nCAS_l <<= ~byte_en[0] | self.CAS_nEN | ~self.clk
+        self.DRAM_nCAS_h <<= ~byte_en[1] | self.CAS_nEN | ((self.wait_states == 0) & ~self.clk)
+        self.DRAM_nCAS_l <<= ~byte_en[0] | self.CAS_nEN | ((self.wait_states == 0) & ~self.clk)
         self.DRAM_nWE <<= read_not_write
 
         self.DRAM_ADDR <<= Select(self.clk, row_addr, col_addr)
