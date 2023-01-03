@@ -54,9 +54,17 @@ class InstBuffer(Module):
 
         fetch_increment = Wire(logic)
 
+        # The bottom few bits control the burst length after a branch
+        self.fetch_btm = Reg(
+            Select(
+                self.do_branch,
+                0,
+                Select(self.task_mode, self.spc[BrewLineAddrBtm-1:0], self.tpc[BrewLineAddrBtm-1:0])
+            )
+        )
         self.fetch_addr = Reg(
             Select(
-                do_branch,
+                self.do_branch,
                 # Normal incremental fetch
                 self.fetch_addr + fetch_increment,
                 # Branch - compute new physical address
@@ -99,7 +107,8 @@ class InstBuffer(Module):
         self.fsm.add_transition(States.idle, ~start_new_request, States.idle)
         self.fsm.add_transition(States.idle,  start_new_request, States.request_start)
         self.fsm.add_transition(States.request_start, ~self.do_branch & ~self.bus_if.response, States.request_start)
-        self.fsm.add_transition(States.request_start, ~self.do_branch &  self.bus_if.response, States.request)
+        self.fsm.add_transition(States.request_start, ~self.do_branch &  self.bus_if.response & ~self.bus_if.last, States.request)
+        self.fsm.add_transition(States.request_start, ~self.do_branch &  self.bus_if.response &  self.bus_if.last, States.request_last)
         self.fsm.add_transition(States.request_start,  self.do_branch,                         States.flush_start)
         self.fsm.add_transition(States.request, ~self.do_branch & ~self.bus_if.response,                     States.request)
         self.fsm.add_transition(States.request, ~self.do_branch &  self.bus_if.response & ~self.bus_if.last, States.request)
@@ -115,9 +124,16 @@ class InstBuffer(Module):
         self.fsm.add_transition(States.flush,  self.bus_if.response & ~self.bus_if.last, States.flush)
         self.fsm.add_transition(States.flush,  self.bus_if.response &  self.bus_if.last, States.idle)
 
+        """
+                  +--------+--------+--------+--------+
+                  | word 0 | word 1 | word 2 | word 3 |
+                  +--------+--------+--------+--------+
+        address:      0        1        2        3
+        burst_len:    3        2        1        0
+        """
         self.bus_if.addr <<= {self.fetch_addr, "2'b0"}
         self.bus_if.read_not_write <<= 1
-        self.bus_if.burst_len <<= 3
+        self.bus_if.burst_len <<= 3 - self.fetch_btm
         self.bus_if.byte_en <<= 3
         self.bus_if.data_in <<= None # This is a read-only port
 
