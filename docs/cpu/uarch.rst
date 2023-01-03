@@ -20,6 +20,37 @@ This is rather sad...
 
 Notice how the trouble of memory bandwidth is most punishing around instruction fetches: they consume inordinate amount of bandwidth. So, an ICache would be highly beneficial. Can we have it? Even in version 1? In a chip, designed in the late '70-s, very early '80-s?
 
+ISA support
+-----------
+
+The V1 implementation doesn't support types or any type-related operations.
+
+It doesn't have floating-point support either.
+
+Fence operations are no-ops, and barrier instructions behave as normal load/stores.
+
+Lane swizzle and reduction-sum aren't supported either
+
+Most importantly though, the V1 implementation doesn't support indirect jumps:
+
+======================  ============================    ==================
+Instruction code        Assembly                        Operation
+======================  ============================    ==================
+0x2ee.                  $pc <- MEM[32][$rA]             32-bit load from MEM[$rA] into $PC
+0x3ee.                  $tpc <- MEM[32][$rA]            32-bit load from MEM[$rA] into $TPC
+0x2fe. 0x****           $pc <- MEM[32][$rA+FIELD_E]     32-bit load from MEM[$rA+FIELD_E] into $PC
+0x3fe. 0x****           $tpc <- MEM[32][$rA+FIELD_E]    32-bit load from MEM[$rA+FIELD_E] into $TPC
+0x2fef 0x**** 0x****    $pc <- MEM[32][FIELD_E]         32-bit load from MEM[FIELD_E] into $PC
+0x3fef 0x**** 0x****    $tpc <- MEM[32][FIELD_E]        32-bit load from MEM[FIELD_E] into $TPC
+======================  ============================    ==================
+
+These instructions generate an exception. The reason is that jump targets are evaluated in the execute stage. That stage is before the memory stage, which means that the branch target is not known for these instructions. This functionality must be achieved through a general-purpose register in two instructions. This makes subroutine epilogs longer and method calls more painful.
+
+.. TODO:: GCC will need to be aware of this...
+
+.. TODO::
+  Can we make these jumps work? Since they are not conditional, anything after them is just busy-work. Execute could identify that and stall further execution, then have either memory or the register-file finish the branch.
+
 ICache
 ------
 
@@ -615,7 +646,8 @@ The following exceptions are supported:
 - MIP: MMU Exception on the instruction port (details are in EX_ADDR_I/EX_OP_I)
 - MDP: MMU Exception on the data port (details are in EX_ADDR_D/EX_OP_D)
 - SWI: SWI instruction (details are in the ECAUSE/RCAUSE registers)
-- SUA: unaligned access
+- CUA: unaligned access
+- HWI: HW interrupt
 
 Since we do posted writes (or at least should supported it), we can't really do precise bus error exceptions. So, those are not precise:
 
@@ -627,9 +659,9 @@ These - being imprecise - can't be retried, so if they occur in TASK mode, the o
 
 All these sources are mapped into the ECAUSE and RCAUSE registers:
 
-+---+---+---+---+---+---+---+---+---+---+---+---+---+
-|IAV|IIA|ITF|MIP|MDP|SW7|SW6|SW5|SW4|SW3|SW2|SW1|SW0|
-+---+---+---+---+---+---+---+---+---+---+---+---+---+
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+|IAV|IIA|ITF|HWI|MIP|MDP|CUA|SW7|SW6|SW5|SW4|SW3|SW2|SW1|SW0|
++---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 Interrupt handling
 ~~~~~~~~~~~~~~~~~~
