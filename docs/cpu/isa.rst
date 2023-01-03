@@ -154,9 +154,12 @@ Instruction code   Assembly    Alternative       Operation
 0x3000             SWI 3
 0x4000             SWI 4
 0x5000             SWI 5
-0x6000             SWI 6       SII               Invalid instruction exception
-0x7000             SWI 7       HWI               Functionally equivalent to a hardware interrupt
+0x6000             SWI 6
+0x7000             SWI 7       SII               Functionally equivalent to invalid instruction exception
 =================  ========    ============      ==================
+
+.. TODO::
+  The toolset might still think SII is 0x6000 and HWI is 0x7000! Need to follow-up
 
 Mode change and power management group
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -265,8 +268,8 @@ Instruction code   Assembly                    Operation
 0x.02.             $rD <- $pc + FIELD_A*2      Short relative jump [#note0xX02X]_
 0x.03.             $rD <- -$rA                 Negative operation, depending on type
 0x.04.             $rD <- ~$rA                 Binary inversion
-0x.05.             $rD <- bsi $rA              Sign-extend from byte [#note0xX05X]_
-0x.06.             $rD <- wsi $rA              Sign-extend from word
+0x.05.             $rD <- bse $rA              Sign-extend from byte [#note0xX05X]_
+0x.06.             $rD <- wse $rA              Sign-extend from word
 0x.07.             $rD <- float $rA            Convert to float. No-op if $rA is already a float
 0x.08.             $rD <- int $rA              Convert to integer. No-op if $rA is already integer
 0x.09.             $rD <- 1 / $rA              Reciprocal for floats [#note0xX09X]_
@@ -277,8 +280,8 @@ Instruction code   Assembly                    Operation
 0x.0e.             type $rD <- type FIELD_A    Sets type of $rD
 =================  ========================    ==================
 
-.. [#note0xX01X] FIELD_E is one-s complement; range is -7...7
-.. [#note0xX02X] FIELD_E is one-s complement; range is -7...7; NOTE: WE COULD MAKE THE RANGE A LITTLE HIGHER IF NOT ALLOW 0
+.. [#note0xX01X] FIELD_A is one-s complement; range is -7...7
+.. [#note0xX02X] FIELD_A is one-s complement; range is -7...7; NOTE: WE COULD MAKE THE RANGE A LITTLE HIGHER IF NOT ALLOW 0
 .. [#note0xX05X] For vector types, operation is per-lane. Floating point types are treated as integer
 .. [#note0xX09X] Operation is RESERVED for integer types.
 .. [#note0xX0aX] Operation is RESERVED for integer types.
