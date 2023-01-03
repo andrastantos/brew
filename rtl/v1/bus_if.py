@@ -2,8 +2,8 @@
 from random import *
 from typing import *
 from silicon import *
-from brew_types import *
-from brew_utils import *
+from .brew_types import *
+from .brew_utils import *
 
 """
 Bus interface of the V1 pipeline.
@@ -20,30 +20,13 @@ It does the following:
 
 """
 
-class Memory(Module):
+class BusIf(Module):
     clk = ClkPort()
     rst = RstPort()
 
-    # Interface to fetch
-    f_request         = Input(logic)
-    f_read_not_write  = Input(logic)
-    f_burst_len       = Input(Unsigned(2))
-    f_byte_en         = Input(Unsigned(2))
-    f_addr            = Input(BrewBusAddr)
-    f_data_in         = Input(BrewBusData)
-    f_response        = Output(logic)
-    f_data_out        = Output(BrewBusData)
-    f_last            = Output(logic)
-
-    m_request         = Input(logic)
-    m_read_not_write  = Input(logic)
-    m_burst_len       = Input(Unsigned(2))
-    m_byte_en         = Input(Unsigned(2))
-    m_addr            = Input(BrewBusAddr)
-    m_data_in         = Input(BrewBusData)
-    m_response        = Output(logic)
-    m_data_out        = Output(BrewBusData)
-    m_last            = Output(logic)
+    # Interface to fetch and memory
+    fetch = Input(BusIfPortIf)
+    mem = Input(BusIfPortIf)
 
     # DRAM interface
     DRAM_nRAS         = Output(logic)
@@ -87,36 +70,36 @@ class Memory(Module):
         arb_next_state <<= self.arb_fsm.next_state
 
         # We're in a state where we don't have anything partial
-        self.arb_fsm.add_transition(ArbStates.idle,  self.f_request & ~self.ext_req, ArbStates.fetch)
-        self.arb_fsm.add_transition(ArbStates.idle,  ~self.f_request & self.m_request & ~self.ext_req, ArbStates.memory)
-        self.arb_fsm.add_transition(ArbStates.idle,  ~self.f_request & ~self.m_request & self.ext_req, ArbStates.external)
-        self.arb_fsm.add_transition(ArbStates.idle,  ~self.f_request & ~self.m_request & ~self.ext_req, ArbStates.idle)
+        self.arb_fsm.add_transition(ArbStates.idle,   self.fetch.request &                     ~self.ext_req, ArbStates.fetch)
+        self.arb_fsm.add_transition(ArbStates.idle,  ~self.fetch.request &  self.mem.request & ~self.ext_req, ArbStates.memory)
+        self.arb_fsm.add_transition(ArbStates.idle,  ~self.fetch.request & ~self.mem.request &  self.ext_req, ArbStates.external)
+        self.arb_fsm.add_transition(ArbStates.idle,  ~self.fetch.request & ~self.mem.request & ~self.ext_req, ArbStates.idle)
         self.arb_fsm.add_transition(ArbStates.fetch, ~last, ArbStates.fetch)
-        self.arb_fsm.add_transition(ArbStates.fetch, last, ArbStates.idle)
+        self.arb_fsm.add_transition(ArbStates.fetch,  last, ArbStates.idle)
         self.arb_fsm.add_transition(ArbStates.memory, ~last, ArbStates.memory)
-        self.arb_fsm.add_transition(ArbStates.memory, last, ArbStates.idle)
-        self.arb_fsm.add_transition(ArbStates.external, self.ext_req, ArbStates.external)
+        self.arb_fsm.add_transition(ArbStates.memory,  last, ArbStates.idle)
+        self.arb_fsm.add_transition(ArbStates.external,  self.ext_req, ArbStates.external)
         self.arb_fsm.add_transition(ArbStates.external, ~self.ext_req, ArbStates.idle)
 
         self.ext_grnt <<= arb_state == ArbStates.external
 
-        m_response <<= arb_state == ArbStates.memory
-        m_data_out <<= data_out
-        m_last     <<= last
+        self.mem.response <<= arb_state == ArbStates.memory
+        self.mem.data_out <<= data_out
+        self.mem.last     <<= last
 
-        f_response <<= arb_state == ArbStates.fetch
-        f_data_out <<= data_out
-        f_last     <<= last
+        self.fetch.response <<= arb_state == ArbStates.fetch
+        self.fetch.data_out <<= data_out
+        self.fetch.last     <<= last
 
-        start = (arb_state == ArbStates.idle) & (self.f_request | self.m_request)
+        start = (arb_state == ArbStates.idle) & (self.fetch.request | self.mem.request)
         advance = arb_state != ArbStates.idle
 
-        read_not_write  <<= Reg(Select(start, read_not_write, Select(self.f_request, self.m_read_not_write, self.f_read_not_write)))
-        page_addr       <<= Reg(Select(start, page_addr, Select(self.f_request, self.m_addr[31:8], self.f_addr[31:8])))
-        page_offs       <<= Reg(Select(start, Select(advance, page_offs, page_offs + 1), Select(self.f_request, self.m_addr[7:0], self.f_addr[7:0])))
-        beats_remaining <<= Reg(Select(start, Select(advance, beats_remaining, beats_remaining - 1), Select(self.f_request, self.m_burst_len, self.f_burst_len)))
-        byte_en         <<= Reg(Select(start, 3, Select(self.f_request, self.m_byte_en, self.f_byte_en)))
-        data_in         <<= Reg(Select(arb_next_state == ArbStates.fetch, self.m_data_in, self.f_data_in))
+        read_not_write  <<= Reg(Select(start, read_not_write, Select(self.fetch.request, self.mem.read_not_write, self.fetch.read_not_write)))
+        page_addr       <<= Reg(Select(start, page_addr, Select(self.fetch.request, self.mem.addr[31:8], self.fetch.addr[31:8])))
+        page_offs       <<= Reg(Select(start, Select(advance, page_offs, page_offs + 1), Select(self.fetch.request, self.mem.addr[7:0], self.fetch.addr[7:0])))
+        beats_remaining <<= Reg(Select(start, Select(advance, beats_remaining, beats_remaining - 1), Select(self.fetch.request, self.mem.burst_len, self.fetch.burst_len)))
+        byte_en         <<= Reg(Select(start, 3, Select(self.fetch.request, self.mem.byte_en, self.fetch.byte_en)))
+        data_in         <<= Reg(Select(arb_next_state == ArbStates.fetch, self.mem.data_in, self.fetch.data_in))
 
         last <<= beats_remaining == 0 & (arb_state != ArbStates.idle)
 
@@ -216,10 +199,35 @@ class Memory(Module):
             data_out        ---------------<=====X=====X=====X=====>---
         '''
 
-        # This thing (I think) is theoretically glitch-free, but I'm not sure if an FPGA LUT implementation guarantees it.
-        self.DRAM_nCAS_h <<= byte_en[1] & (arb_state != ArbStates.idle) & ~self.clk
-        self.DRAM_nCAS_l <<= byte_en[0] & (arb_state != ArbStates.idle) & ~self.clk
+        '''
+        CAS generation:
+
+            CLK             /^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/
+            ~CLK            \__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\
+            DRAM_nRAS       ^^^^^^^^^\_______________________/^^^^^^^^^
+            DRAM_nRASd      ^^^^^^^^^^^^\_______________________/^^^^^^
+            CAS_nEN         ^^^^^^^^^^^^\____________________/^^^^^^^^^
+            DRAM_nCASx      ^^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^^^^
+
+        We need to avoid changing the enable signal on opposite edges of the clock.
+        That is, CAS_nEN falls with ~CLK falling and rises with ~CLK rising.
+
+        This way timing is not that critical, provided the LUT is just as glitch-free
+        as logic gates would be. That's actually up to debate. Apparently Xilinx only
+        guarantees glitch-free output for single input toggling, but in practice it
+        appears to be true that the output doesn't glitch if normal logic wouldn't.
+
+        From what I've gathered, the glitch-free nature of the output comes from
+        depending on the output capacitance of the read-wire and careful timing of
+        the switching of the pass-gates that make up the LUT read mux. So, fingers
+        crossed, this is a safe circuit...
+        '''
+
         self.DRAM_nRAS <<= arb_state == ArbStates.idle
+        self.DRAM_nRASd <<= Reg(self.DRAM_nRAS, clk=~self.clk)
+        self.CAS_nEN <<= self.DRAM_nRAS & self.DRAM_nRASd
+        self.DRAM_nCAS_h <<= ~byte_en[1] | self.CAS_nEN | ~self.clk
+        self.DRAM_nCAS_l <<= ~byte_en[0] | self.CAS_nEN | ~self.clk
         self.DRAM_nWE <<= read_not_write
 
         self.DRAM_ADDR <<= Select(self.clk, row_addr, col_addr)
@@ -229,127 +237,7 @@ class Memory(Module):
 
 
 def gen():
-    Build.generate_rtl(Fetch)
+    Build.generate_rtl(BusIf)
 
-def sim():
-
-    inst_choices = (
-        (0x1100,                        ), # $r1 <- $r0 ^ $r0
-        (0x20f0, 0x2ddd,                ), # $r1 <- short b001
-        (0x300f, 0x3dd0, 0x3dd1,        ), # $r1 <- 0xdeadbeef
-    )
-    inst_stream = []
-    class Generator(RvSimSource):
-        def construct(self, max_wait_state: int = 0):
-            super().construct(MemToFetchStream, None, max_wait_state)
-            self.addr = -1
-            self.inst_fetch_stream = []
-        def generator(self, is_reset):
-            if is_reset:
-                return 0,0
-            self.addr += 1
-            while len(self.inst_fetch_stream) < 2:
-                inst = inst_choices[randint(0,len(inst_choices)-1)]
-                inst_stream.append(inst)
-                self.inst_fetch_stream += inst
-            # Don't combine the two instructions, because I don't want to rely on expression evaluation order. That sounds dangerous...
-            data = self.inst_fetch_stream.pop(0)
-            return self.addr, data
-
-    class Checker(RvSimSink):
-        def construct(self, max_wait_state: int = 0):
-            super().construct(None, max_wait_state)
-            self.cnt = 0
-        def checker(self, value):
-            def get_next_inst():
-                inst = inst_stream.pop(0)
-                print(f"  --- inst:", end="")
-                for i in inst:
-                    print(f" {i:04x}", end="")
-                print("")
-                has_prefix = inst[0] & 0x0ff0 == 0x0ff0
-                if has_prefix:
-                    prefix = inst[0]
-                    inst = inst[1:]
-                else:
-                    prefix = None
-                inst_len = len(inst)-1
-                inst_code = 0
-                for idx, word in enumerate(inst):
-                    inst_code |= word << (16*idx)
-                return prefix, has_prefix, inst_code, inst_len
-
-            expected_prefix, expected_has_prefix, expected_inst_code, expected_inst_len = get_next_inst()
-            print(f"Received: ", end="")
-            if value.inst_bottom.has_prefix:
-                print(f" [{value.inst_bottom.prefix:04x}]", end="")
-            for i in range(value.inst_bottom.inst_len+1):
-                print(f" {(value.inst_bottom.inst >> (16*i)) & 0xffff:04x}", end="")
-            if value.has_top:
-                print(f" top: {value.inst_top:04x}", end="")
-            print("")
-
-            assert expected_has_prefix == value.inst_bottom.has_prefix
-            assert not expected_has_prefix or expected_prefix == value.inst_bottom.prefix
-            assert expected_inst_len == value.inst_bottom.inst_len
-            inst_mask = (1 << (16*(expected_inst_len+1))) - 1
-            assert (expected_inst_code & inst_mask) == (value.inst_bottom.inst & inst_mask)
-            if value.has_top == 1:
-                expected_prefix, expected_has_prefix, expected_inst_code, expected_inst_len = get_next_inst()
-                assert not expected_has_prefix
-                assert expected_inst_len == 0
-                assert expected_inst_code == value.inst_top
-
-    class top(Module):
-        clk = ClkPort()
-        rst = RstPort()
-
-        def body(self):
-            seed(0)
-            self.input_stream = Wire(MemToFetchStream)
-            self.checker = Checker()
-            self.generator = Generator()
-            self.input_stream <<= self.generator.output_port
-            dut = Fetch()
-            dut.rst <<= self.rst
-            dut.clk <<= self.clk
-            self.checker.input_port <<= dut(self.input_stream)
-
-        def simulate(self) -> TSimEvent:
-            def clk() -> int:
-                yield 10
-                self.clk <<= ~self.clk & self.clk
-                yield 10
-                self.clk <<= ~self.clk
-                yield 0
-
-            print("Simulation started")
-
-            self.rst <<= 1
-            self.clk <<= 1
-            yield 10
-            for i in range(5):
-                yield from clk()
-            self.rst <<= 0
-
-            self.generator.max_wait_state = 2
-            self.checker.max_wait_state = 5
-            for i in range(500):
-                yield from clk()
-            self.generator.max_wait_state = 0
-            self.checker.max_wait_state = 0
-            for i in range(500):
-                yield from clk()
-            now = yield 10
-            self.generator.max_wait_state = 5
-            self.checker.max_wait_state = 2
-            for i in range(500):
-                yield from clk()
-            now = yield 10
-            print(f"Done at {now}")
-
-    Build.simulation(top, "fetch.vcd", add_unnamed_scopes=True)
-
-#gen()
-sim()
+gen()
 

@@ -2,24 +2,170 @@
 from random import *
 from typing import *
 from silicon import *
-from brew_types import *
-from brew_utils import *
+from .brew_types import *
+from .brew_utils import *
 
 """
 In V1, fetch works from a 16-bit read port: it gets (up to) 16-bits of data at a time.
 
-It decodes the instructions and pushes them into a FIFO connecting to decode. We don't
-do any branch-prediction, and we don't support any prefix instructions or extension groups.
+It constructs full instructions and supplies them to decode.
+
+We don't do any branch-prediction, or to be more precise, we're following
+straight-line execution, until told otherwise.
+
+We don't support any prefix instructions or extension groups either.
 As such, the maximum instruction length is 48 bits and can always be decoded by looking
 at the first 16-bits of the instruction field.
+
+The composition of fetch comes from 3 modules:
+
 """
 
-class Fetch(Module):
+class MemToFetchIf(ReadyValid):
+    data = Unsigned(16)
+    av = logic
+
+
+class InstBuffer(Module):
+    """
+    This module deals with the interfacing to the bus interface and generating an instruction word stream for the fetch stage.
+    """
     clk = ClkPort()
     rst = RstPort()
 
-    fetch = Input(MemToFetchStream)
-    push_data = Output(FetchToDecodeQueue)
+    # Bus interface
+    bus_if = Output(BusIfPortIf)
+
+    # Interface towards fetch
+    queue = Output(MemToFetchIf)
+    queue_free_cnt = Input(Unsigned(3)) # We have a queue of 8 words to pre-fetch. The external FIFO logic will provide us with the free count
+
+
+    # Side-band interfaces
+    mem_base = Input(BrewMemBase)
+    mem_limit = Input(BrewMemBase)
+    spc  = Input(BrewInstAddr)
+    tpc  = Input(BrewInstAddr)
+    task_mode  = Input(logic)
+    do_branch = Input(logic)
+
+    def body(self):
+        self.fetch_addr = Wire(BrewLineAddr)
+
+        fetch_increment = Wire(logic)
+
+        self.fetch_addr = Reg(
+            Select(
+                do_branch,
+                # Normal incremental fetch
+                self.fetch_addr + fetch_increment,
+                # Branch - compute new physical address
+                Select(self.task_mode, self.spc[31:BrewLineAddrBtm], self.tpc[31:BrewLineAddrBtm]) + (self.mem_base << (BrewMemShift-BrewLineAddrBtm))
+            )
+        )
+
+        fetch_av = self.fetch_addr[31:BrewMemShift-BrewLineAddrBtm] > self.mem_limit
+
+        self.fsm = FSM()
+
+        class States(Enum):
+            idle = 0
+            request_start = 1
+            request = 2
+            request_last = 3
+            flush_start = 4
+            flush = 5
+
+        self.fsm.reset_value <<= States.idle
+        self.fsm.default_state <<= States.idle
+
+        state = Wire()
+        state <<= self.fsm.state
+
+        '''
+        4-beat access timing
+
+                                     ...idle>< r_s ><  r ><  r ><  r >< r_l><idle.......
+            CLK               /^^\__/^^\__/^^\~__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/
+            b_request         _________/^^^^^^~\______________________________________
+            b_addr            ---------<  a  >~---------------------------------------
+            b_response        ________________~/^^^^^^^^^^^^^^^^^^^^^^\_______________
+            b_last            ________________~_________________/^^^^^\_______________
+            b_data_in         ----------------~-----<=====X=====X=====X=====>---------
+
+        '''
+
+        start_new_request = (self.queue_free_cnt >= 4) | self.do_branch
+        self.fsm.add_transition(States.idle, ~start_new_request, States.idle)
+        self.fsm.add_transition(States.idle,  start_new_request, States.request_start)
+        self.fsm.add_transition(States.request_start, ~self.do_branch & ~self.bus_if.response, States.request_start)
+        self.fsm.add_transition(States.request_start, ~self.do_branch &  self.bus_if.response, States.request)
+        self.fsm.add_transition(States.request_start,  self.do_branch,                         States.flush_start)
+        self.fsm.add_transition(States.request, ~self.do_branch & ~self.bus_if.response,                     States.request)
+        self.fsm.add_transition(States.request, ~self.do_branch &  self.bus_if.response & ~self.bus_if.last, States.request)
+        self.fsm.add_transition(States.request, ~self.do_branch &  self.bus_if.response &  self.bus_if.last, States.request_last)
+        self.fsm.add_transition(States.request,  self.do_branch & ~self.bus_if.response,                     States.flush)
+        self.fsm.add_transition(States.request,  self.do_branch &  self.bus_if.response & ~self.bus_if.last, States.flush)
+        self.fsm.add_transition(States.request,  self.do_branch &  self.bus_if.response &  self.bus_if.last, States.idle)
+        self.fsm.add_transition(States.request_last, ~start_new_request, States.idle)
+        self.fsm.add_transition(States.request_last,  start_new_request, States.request_start)
+        self.fsm.add_transition(States.flush_start, ~self.bus_if.response, States.flush_start)
+        self.fsm.add_transition(States.flush_start,  self.bus_if.response, States.flush)
+        self.fsm.add_transition(States.flush, ~self.bus_if.response,                     States.flush)
+        self.fsm.add_transition(States.flush,  self.bus_if.response & ~self.bus_if.last, States.flush)
+        self.fsm.add_transition(States.flush,  self.bus_if.response &  self.bus_if.last, States.idle)
+
+        self.bus_if.addr <<= {self.fetch_addr, "2'b0"}
+        self.bus_if.read_not_write <<= 1
+        self.bus_if.burst_len <<= 3
+        self.bus_if.byte_en <<= 3
+        self.bus_if.data_in <<= None # This is a read-only port
+
+        response_d <<= Reg(self.bus_if.response)
+
+        self.queue.data <<= self.bus_if.data_out
+        self.queue.av <<= fetch_av
+        self.queue.valid <<= response_d
+
+# A simple FIFO with some extra sprinkles to handle bursts and flushing. It sits between the instruction buffer and fetch
+class InstQueue(Module):
+    clk = ClkPort()
+    rst = RstPort()
+
+    # Interface towards instruction buffer
+    inst = Input(MemToFetchIf)
+    queue_free_cnt = Output(Unsigned(3)) # We have a queue of 8 words to pre-fetch. The external FIFO logic will provide us with the free count
+    # Interface towards fetch
+    assemble = Output(MemToFetchIf)
+
+    # Side-band interfaces
+    do_branch = Input(logic)
+
+    def body(self):
+        depth = 7
+        self.assemble <<= Fifo(depth=depth)(self.inst, clear = self.do_branch)
+
+        self.empty_cnt = Wire(Unsigned(3))
+        dec = self.inst.ready & self.inst.valid
+        inc = self.assemble.ready & self.assemble.valid
+        self.empty_cnt <<= Reg(
+            Select(
+                self.do_branch,
+                self.empty_cnt + inc - dec,
+                depth
+            ),
+            rst_val = depth
+        )
+        self.queue_free_cnt <<= self.empty_cnt
+
+class InstAssemble(Module):
+    clk = ClkPort()
+    rst = RstPort()
+
+    inst_buf = Input(MemToFetchIf)
+    decode = Output(FetchDecodeIf)
+
+    do_branch = Input(logic)
 
     def body(self):
         @module(1)
@@ -53,7 +199,7 @@ class Fetch(Module):
         inst_fetch_addr = Wire(BrewInstAddr)
 
         # Instruction pre-decode: in this stage, all we care about is whether an instruction is a prefix and what it's length is
-        inst_fragment = self.fetch.data
+        inst_fragment = self.inst_buf.data
         inst_len = inst_len(inst_fragment)
 
         # State machine
@@ -72,33 +218,45 @@ class Fetch(Module):
         fsm_state <<= self.decode_fsm.state
 
         # We're in a state where we don't have anything partial
-        self.decode_fsm.add_transition(States.have_0_fragments,  fsm_advance & (inst_len == inst_len_16), States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_0_fragments,  fsm_advance & (inst_len == inst_len_32), States.need_1_fragments)
-        self.decode_fsm.add_transition(States.have_0_fragments,  fsm_advance & (inst_len == inst_len_48), States.need_2_fragments)
-        self.decode_fsm.add_transition(States.have_0_fragments, ~fsm_advance                            , States.have_0_fragments)
+        self.decode_fsm.add_transition(States.have_0_fragments, ~self.do_branch &  fsm_advance & (inst_len == inst_len_16), States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_0_fragments, ~self.do_branch &  fsm_advance & (inst_len == inst_len_32), States.need_1_fragments)
+        self.decode_fsm.add_transition(States.have_0_fragments, ~self.do_branch &  fsm_advance & (inst_len == inst_len_48), States.need_2_fragments)
+        self.decode_fsm.add_transition(States.have_0_fragments, ~self.do_branch & ~fsm_advance                            , States.have_0_fragments)
+        self.decode_fsm.add_transition(States.have_0_fragments,  self.do_branch                                           , States.have_0_fragments)
         # We're in a state where we have 1 parcel for the bottom
-        self.decode_fsm.add_transition(States.need_1_fragments,  fsm_advance, States.have_all_fragments)
-        self.decode_fsm.add_transition(States.need_1_fragments, ~fsm_advance, States.need_1_fragments)
+        self.decode_fsm.add_transition(States.need_1_fragments, ~self.do_branch &  fsm_advance, States.have_all_fragments)
+        self.decode_fsm.add_transition(States.need_1_fragments, ~self.do_branch & ~fsm_advance, States.need_1_fragments)
+        self.decode_fsm.add_transition(States.need_1_fragments,  self.do_branch               , States.have_0_fragments)
         # We're in a state where we have 2 fragments for the bottom
-        self.decode_fsm.add_transition(States.need_2_fragments,  fsm_advance, States.need_1_fragments)
-        self.decode_fsm.add_transition(States.need_2_fragments, ~fsm_advance, States.need_2_fragments)
+        self.decode_fsm.add_transition(States.need_2_fragments, ~self.do_branch &  fsm_advance, States.need_1_fragments)
+        self.decode_fsm.add_transition(States.need_2_fragments, ~self.do_branch & ~fsm_advance, States.need_2_fragments)
+        self.decode_fsm.add_transition(States.need_2_fragments,  self.do_branch,                States.have_0_fragments)
         # We have all the fragments: we either advance to the next set of instructions, or reset if the source is not valid
-        self.decode_fsm.add_transition(States.have_all_fragments,  fsm_advance & self.fetch.valid & (inst_len == inst_len_16), States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments,  fsm_advance & self.fetch.valid & (inst_len == inst_len_32), States.need_1_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments,  fsm_advance & self.fetch.valid & (inst_len == inst_len_48), States.need_2_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments,  fsm_advance & ~self.fetch.valid, States.have_0_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments, ~fsm_advance                    , States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments, ~self.do_branch &  fsm_advance & self.inst_buf.valid & (inst_len == inst_len_16), States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments, ~self.do_branch &  fsm_advance & self.inst_buf.valid & (inst_len == inst_len_32), States.need_1_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments, ~self.do_branch &  fsm_advance & self.inst_buf.valid & (inst_len == inst_len_48), States.need_2_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments, ~self.do_branch &  fsm_advance & ~self.inst_buf.valid                           , States.have_0_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments, ~self.do_branch & ~fsm_advance                                                  , States.have_all_fragments)
+        self.decode_fsm.add_transition(States.have_all_fragments,  self.do_branch                                                                 , States.have_0_fragments)
 
         # Handshake logic: we're widening the datapath, so it's essentially the same as a ForwardBuf
         terminal_fsm_state = Wire(logic)
         terminal_fsm_state <<= (self.decode_fsm.state == States.have_all_fragments)
-        fetch_ready = (~terminal_fsm_state & ~top_inst_pre_cond_reg) | self.push_data.ready
-        self.fetch.ready <<= fetch_ready
-        self.push_data.valid <<= terminal_fsm_state
-        fsm_advance <<= (~terminal_fsm_state & self.fetch.valid & fetch_ready) | (terminal_fsm_state & self.push_data.ready)
+        fetch_ready = ~terminal_fsm_state | self.decode.ready | self.do_branch
+        self.inst_buf.ready <<= fetch_ready
+        self.decode.valid <<= terminal_fsm_state & ~self.do_branch
+        fsm_advance <<= (~terminal_fsm_state & self.inst_buf.valid & fetch_ready) | (terminal_fsm_state & self.decode.ready)
 
         # Loading of the datapath registers
+        fetch_av = Wire(logic)
         with fsm_advance as clk_en:
+            fetch_av <<= RegEn(
+                Select(
+                    self.decode_fsm.state == States.have_0_fragments | self.decode_fsm.state == States.have_all_fragments,
+                    fetch_av,
+                    self.inst_buf.av
+                )
+            )
             inst_reg[15:0] <<= RegEn(
                 Select(
                     self.decode_fsm.state == States.have_0_fragments | self.decode_fsm.state == States.have_all_fragments,
@@ -126,11 +284,54 @@ class Fetch(Module):
             )
 
         # Filling the output data
-        self.push_data.inst <<= inst_reg
-        self.push_data.inst_len <<= inst_len_reg
+        self.decode.inst <<= inst_reg
+        self.decode.inst_len <<= inst_len_reg
+        self.decode.av <<= fetch_av
+
+
+
+class FetchStage(Module):
+    clk = ClkPort()
+    rst = RstPort()
+
+    # Bus interface
+    bus_if = Output(BusIfPortIf)
+
+    # Decode interface
+    decode = Output(FetchDecodeIf)
+
+    # Side-band interfaces
+    mem_base = Input(BrewMemBase)
+    mem_limit = Input(BrewMemBase)
+    spc  = Input(BrewInstAddr)
+    tpc  = Input(BrewInstAddr)
+    task_mode  = Input(logic)
+    do_branch = Input(logic)
+
+    def body(self):
+        inst_buf = InstBuffer()
+        inst_queue = InstQueue()
+        inst_assemble = InstAssemble()
+
+        self.bus_if <<= inst_buf.bus_if
+        inst_queue.inst <<= inst_buf.queue
+        inst_buf.queue_free_cnt <<= inst_queue.queue_free_cnt
+
+        inst_buf.mem_base <<= self.mem_base
+        inst_buf.mem_limit <<= self.mem_limit
+        inst_buf.spc <<= self.spc
+        inst_buf.tpc <<= self.tpc
+        inst_buf.task_mode <<= self.task_mode
+        inst_buf.do_branch <<= self.do_branch
+
+        inst_queue.do_branch <<= self.do_branch
+
+        inst_assemble.inst_buf <<= inst_queue.assemble
+        self.decode <<= inst_assemble.decode
+        inst_assemble.do_branch <<= self.do_branch
 
 def gen():
-    Build.generate_rtl(Fetch)
+    Build.generate_rtl(FetchStage)
 
 def sim():
 
@@ -142,7 +343,7 @@ def sim():
     inst_stream = []
     class Generator(RvSimSource):
         def construct(self, max_wait_state: int = 0):
-            super().construct(MemToFetchStream, None, max_wait_state)
+            super().construct(MemToFetchIf, None, max_wait_state)
             self.addr = -1
             self.inst_fetch_stream = []
         def generator(self, is_reset):
@@ -207,11 +408,11 @@ def sim():
 
         def body(self):
             seed(0)
-            self.input_stream = Wire(MemToFetchStream)
+            self.input_stream = Wire(MemToFetchIf)
             self.checker = Checker()
             self.generator = Generator()
             self.input_stream <<= self.generator.output_port
-            dut = Fetch()
+            dut = InstAssemble()
             dut.rst <<= self.rst
             dut.clk <<= self.clk
             self.checker.input_port <<= dut(self.input_stream)

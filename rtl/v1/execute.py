@@ -2,8 +2,8 @@
 from random import *
 from typing import *
 from silicon import *
-from brew_types import *
-from brew_utils import *
+from .brew_types import *
+from .brew_utils import *
 
 """
 Execute stage of the V1 pipeline.
@@ -18,90 +18,19 @@ It does the following:
 
 """
 
-class ExecOpCodes(Enum):
-    op_add      = 0
-    op_a_sub_b  = 1
-    op_b_sub_a  = 2
-    op_addr     = 3
-
-    op_and      = 0
-    op_or       = 1
-    op_xor      = 2
-
-    op_shll     = 0
-    op_shlr     = 1
-    op_shar     = 2
-
-    # Codes match FIELD_B[2:0]
-    # These codes are mapped to the register compares and forcing the other input to 0.
-    #op_cb_ez    = 0
-    #op_cb_nz    = 1
-    #op_cb_lz    = 2
-    #op_cb_gez   = 3
-    #op_cb_gz    = 4
-    #op_cb_lez   = 5
-
-    # Codes match FIELD_C[2:0]
-    op_cb_eq    = 1
-    op_cb_ne    = 2
-    op_cb_lts   = 3
-    op_cb_ges   = 4
-    op_cb_lt    = 5
-    op_cb_ge    = 6
-
-    # Bit-selection coming in op_b
-    op_bb_one   = 0
-    # Bit-selection coming in op_a
-    op_bb_zero  = 1
-
-    op_misc_swi   = 0 # SWI index comes in op_a
-    op_misc_stm   = 1
-    op_misc_pc_r  = 2
-    op_misc_tpc_r = 3
-    op_misc_pc_w  = 4
-    op_misc_tpc_w = 5
-    op_misc_bsi   = 6
-    op_misc_wsi   = 7
-
-class ExecUnits(Enum):
-    exec_adder   = 0
-    exec_mult    = 1
-    exec_shift   = 2
-    exec_logic   = 3
-    exec_misc    = 4
-    exec_cbranch = 5
-    exec_bbranch = 6
-
-class Execute(Module):
+class ExecuteStage(Module):
     clk = ClkPort()
     rst = RstPort()
 
-
     # Pipeline input
-    bubble_in = Input(logic)
-    opcode = Input(ExecOpCodes)
-    exec_unit = Input(ExecUnits)
-    op_a = Input(BrewData)
-    op_b = Input(BrewData)
-    op_imm = Input(BrewData)
-    mem_access_len_in = Input(Unsigned(2))
-    inst_len = Input(Unsigned(2))
-
-    # side-band interfaces
-    stall_in = Input(logic)
-    flush = Input(logic)
-    mem_base = Input(BrewMemBase)
-    mem_limit = Input(BrewMemBase)
-    stall_out = Output(logic) # The expectation is that multiply might be multi-cycle. We shall see...
+    decode = Input(DecodeExecIf)
 
     # Pipeline output
-    bubble_out = Output(logic)
-    do_branch = Output(logic)
-    result = Output(BrewData)
-    do_except = Output(logic)
-    mem_access_len_out = Output(Unsigned(2))
+    mem = Output(ExecMemIf)
 
-    # PC manipulation
+    # side-band interfaces
+    mem_base = Input(BrewMemBase)
+    mem_limit = Input(BrewMemBase)
     spc_in  = Input(BrewInstAddr)
     spc_out = Output(BrewInstAddr)
     tpc_in  = Input(BrewInstAddr)
@@ -110,6 +39,10 @@ class Execute(Module):
     task_mode_out = Output(logic)
     ecause_in = Input(Unsigned(8))
     ecause_out = Output(Unsigned(8))
+    rcause_in = Input(Unsigned(8))
+    rcause_out = Output(Unsigned(8))
+    do_branch = Output(logic)
+    interrupt = Input(logic)
 
     def body(self):
         @module(1)
@@ -123,268 +56,221 @@ class Execute(Module):
                 bit_code == 14, 31,
             )
 
-        adder_result = SelectOne(
-            self.opcode == ExecOpCodes.op_add,      self.op_a + self.op_b,
-            self.opcode == ExecOpCodes.op_a_sub_b,  self.op_a + self.op_b,
-            self.opcode == ExecOpCodes.op_b_sub_a,  self.op_b - self.op_a,
-            self.opcode == ExecOpCodes.op_addr,     self.op_b + self.op_imm + (self.mem_base << BrewMemShift),
-        )[31:0]
-        shifter_result = SelectOne(
-            self.opcode == ExecOpCodes.op_shll, self.op_a << self.op_b[5:0],
-            self.opcode == ExecOpCodes.op_shlr, self.op_a >> self.op_b[5:0],
-            self.opcode == ExecOpCodes.op_shar, Signed(32)(self.op_a) >> self.op_b[5:0],
-        )[31:0]
-        logic_result = SelectOne(
-            self.opcode == ExecOpCodes.op_or,   self.op_a | self.op_b,
-            self.opcode == ExecOpCodes.op_and,  self.op_a & self.op_b,
-            self.opcode == ExecOpCodes.op_xor,  self.op_a ^ self.op_b,
-        )
-        cbranch_result = SelectOne(
-            self.opcode == ExecOpCodes.op_cb_eq,   self.op_a == self.op_b,
-            self.opcode == ExecOpCodes.op_cb_ne,   self.op_a != self.op_b,
-            self.opcode == ExecOpCodes.op_cb_lts,  Signed(32)(self.op_a) <  Signed(32)(self.op_b),
-            self.opcode == ExecOpCodes.op_cb_ges,  Signed(32)(self.op_a) >= Signed(32)(self.op_b),
-            self.opcode == ExecOpCodes.op_cb_lt,   self.op_a <  self.op_b,
-            self.opcode == ExecOpCodes.op_cb_ge,   self.op_a >= self.op_b,
-        )
-        bbranch_result = SelectOne(
-            self.opcode == ExecOpCodes.op_bb_one,  self.op_a[bb_bit_idx(self.op_b)],
-            self.opcode == ExecOpCodes.op_bb_zero, self.op_b[bb_bit_idx(self.op_a)],
-        )
-
-        mem_av = self.exec_unit == ExecUnits.exec_adder & self.opcode == ExecOpCodes.op_addr & adder_result > self.mem_limit
-
         pc = Select(self.task_mode_in, self.spc_in, self.tpc_in)
 
-        branch_target = SelectOne(
-            self.exec_unit == ExecUnits.exec_cbranch | self.exec_unit == ExecUnits.exec_bbranch, pc + self.mem_base + self.op_imm,
-            self.exec_unit == ExecUnits.exec_misc & self.opcode == ExecOpCodes.op_misc_pc_w, self.op_imm,
-            self.exec_unit == ExecUnits.exec_misc & self.opcode == ExecOpCodes.op_misc_tpc_w & self.task_mode_in, self.op_imm,
+        adder_result = SelectOne(
+            self.decode.opcode == op.add,      self.decode.op_a + self.decode.op_b,
+            self.decode.opcode == op.a_sub_b,  self.decode.op_a + self.decode.op_b,
+            self.decode.opcode == op.b_sub_a,  self.decode.op_b - self.decode.op_a,
+            self.decode.opcode == op.addr,     self.decode.op_b + self.decode.op_imm + (self.mem_base << BrewMemShift),
+            self.decode.opcode == op.pc_add,   pc + {self.decode.op_a, "1'b0"},
+        )[31:0]
+        shifter_result = SelectOne(
+            self.decode.opcode == op.shll, self.decode.op_a << self.decode.op_b[5:0],
+            self.decode.opcode == op.shlr, self.decode.op_a >> self.decode.op_b[5:0],
+            self.decode.opcode == op.shar, Signed(32)(self.decode.op_a) >> self.decode.op_b[5:0],
+        )[31:0]
+        logic_result = SelectOne(
+            self.decode.opcode == op.b_or,    self.decode.op_a | self.decode.op_b,
+            self.decode.opcode == op.b_and,   self.decode.op_a & self.decode.op_b,
+            self.decode.opcode == op.b_nand, ~self.decode.op_a & self.decode.op_b,
+            self.decode.opcode == op.b_xor,   self.decode.op_a ^ self.decode.op_b,
+        )
+        cbranch_result = SelectOne(
+            self.decode.opcode == op.cb_eq,   self.decode.op_a == self.decode.op_b,
+            self.decode.opcode == op.cb_ne,   self.decode.op_a != self.decode.op_b,
+            self.decode.opcode == op.cb_lts,  Signed(32)(self.decode.op_a) <  Signed(32)(self.decode.op_b),
+            self.decode.opcode == op.cb_ges,  Signed(32)(self.decode.op_a) >= Signed(32)(self.decode.op_b),
+            self.decode.opcode == op.cb_lt,   self.decode.op_a <  self.decode.op_b,
+            self.decode.opcode == op.cb_ge,   self.decode.op_a >= self.decode.op_b,
+        )
+        bbranch_result = SelectOne(
+            self.decode.opcode == op.bb_one,  self.decode.op_a[bb_bit_idx(self.decode.op_b)],
+            self.decode.opcode == op.bb_zero, self.decode.op_b[bb_bit_idx(self.decode.op_a)],
         )
 
-        mult_result_large = self.op_a * self.op_b
+        mem_av = (self.decode.exec_unit == exec.adder) & (self.decode.opcode == op.addr) & (adder_result[31:BrewMemShift] > self.mem_limit)
+        mem_unaligned = (self.decode.exec_unit == exec.adder) & (self.decode.opcode == op.addr) & \
+            Select(self.decode.mem_access_len,
+                0, # 8-bit access is always aligned
+                adder_result[0], # 16-bit access is unaligned if LSB is non-0
+                adder_result[0] | adder_result[1], # 32-bit access is unaligned if lower two bits are non-0
+                1 # This is an invalid length
+            )
+
+        def unmunge_offset(offset):
+            return {
+                offset[0], offset[0], offset[0], offset[0], offset[0], offset[0], offset[0], offset[0],
+                offset[0], offset[0], offset[0], offset[0], offset[0], offset[0], offset[0], offset[0],
+                offset[15:1], 0
+            }
+
+        next_inst_addr = SelectOne(
+            self.decode.exec_unit == exec.cbranch | self.decode.exec_unit == exec.bbranch, pc + unmunge_offset(self.decode.op_imm),
+            self.decode.exec_unit == exec.misc & self.decode.opcode == op.misc_pc_w, self.decode.op_imm,
+            self.decode.exec_unit == exec.misc & self.decode.opcode == op.misc_tpc_w & self.task_mode_in, self.decode.op_imm,
+            default_port = Select(
+                self.task_mode_in,
+                self.spc_in + self.decode.inst_len + 1, # Inst len is 0=16-bit, 1=32-bit, 2=48-bit
+                self.tpc_in + self.decode.inst_len + 1  # Inst len is 0=16-bit, 1=32-bit, 2=48-bit
+            )
+        )
+
+        mult_result_large = self.decode.op_a * self.decode.op_b
         mult_result = mult_result_large[31:0]
         exec_result = SelectOne(
-            self.exec_unit == ExecUnits.exec_adder, adder_result,
-            self.exec_unit == ExecUnits.exec_shift, shifter_result,
-            self.exec_unit == ExecUnits.exec_mult, mult_result,
-            self.exec_unit == ExecUnits.exec_logic, logic_result,
+            self.decode.exec_unit == exec.adder, adder_result,
+            self.decode.exec_unit == exec.shift, shifter_result,
+            self.decode.exec_unit == exec.mult, mult_result,
+            self.decode.exec_unit == exec.logic, logic_result,
+            self.decode.exec_unit == exec.misc, SelectOne(
+                self.decode.opcode == op.misc_swi,   None,
+                self.decode.opcode == op.misc_stm,   None,
+                self.decode.opcode == op.misc_pc_r,  pc,
+                self.decode.opcode == op.misc_tpc_r, self.tpc_in,
+                self.decode.opcode == op.misc_pc_w,  None,
+                self.decode.opcode == op.misc_tpc_w, None,
+            )
         )
         is_branch = SelectOne(
-            self.exec_unit == ExecUnits.exec_adder, mem_av,
-            self.exec_unit == ExecUnits.exec_shift, 0,
-            self.exec_unit == ExecUnits.exec_mult,  0,
-            self.exec_unit == ExecUnits.exec_logic, 0,
-            self.exec_unit == ExecUnits.exec_cbranch, cbranch_result,
-            self.exec_unit == ExecUnits.exec_bbranch, bbranch_result,
-            self.exec_unit == ExecUnits.exec_misc, SelectOne(
-                self.opcode == ExecOpCodes.op_misc_swi,   1,
-                self.opcode == ExecOpCodes.op_misc_stm,   1,
-                self.opcode == ExecOpCodes.op_misc_pc_r,  0,
-                self.opcode == ExecOpCodes.op_misc_tpc_r, 0,
-                self.opcode == ExecOpCodes.op_misc_pc_w,  1,
-                self.opcode == ExecOpCodes.op_misc_tpc_w, self.task_mode_in,
-                self.opcode == ExecOpCodes.op_misc_bsi,   0,
-                self.opcode == ExecOpCodes.op_misc_wsi,   0,
+            self.decode.exec_unit == exec.adder, mem_av,
+            self.decode.exec_unit == exec.shift, 0,
+            self.decode.exec_unit == exec.mult,  0,
+            self.decode.exec_unit == exec.logic, 0,
+            self.decode.exec_unit == exec.cbranch, cbranch_result,
+            self.decode.exec_unit == exec.bbranch, bbranch_result,
+            self.decode.exec_unit == exec.misc, SelectOne(
+                self.decode.opcode == op.misc_swi,   1,
+                self.decode.opcode == op.misc_stm,   1,
+                self.decode.opcode == op.misc_pc_r,  0,
+                self.decode.opcode == op.misc_tpc_r, 0,
+                self.decode.opcode == op.misc_pc_w,  1,
+                self.decode.opcode == op.misc_tpc_w, self.task_mode_in,
 
             )
         )
 
-        branch_av = branch_target > self.mem_limit & is_branch
-
-
-        is_exception = SelectOne(
-            self.exec_unit == ExecUnits.exec_adder, mem_av,
-            self.exec_unit == ExecUnits.exec_shift, 0,
-            self.exec_unit == ExecUnits.exec_mult,  0,
-            self.exec_unit == ExecUnits.exec_logic, 0,
-            self.exec_unit == ExecUnits.exec_cbranch, branch_av,
-            self.exec_unit == ExecUnits.exec_bbranch, branch_av,
-            self.exec_unit == ExecUnits.exec_misc, SelectOne(
-                self.opcode == ExecOpCodes.op_misc_swi,   1,
-                self.opcode == ExecOpCodes.op_misc_stm,   0,
-                self.opcode == ExecOpCodes.op_misc_pc_r,  0,
-                self.opcode == ExecOpCodes.op_misc_tpc_r, 0,
-                self.opcode == ExecOpCodes.op_misc_pc_w,  branch_av,
-                self.opcode == ExecOpCodes.op_misc_tpc_w, branch_av,
-                self.opcode == ExecOpCodes.op_misc_bsi,   0,
-                self.opcode == ExecOpCodes.op_misc_wsi,   0,
-
+        is_exception = self.decode.fetch_av | SelectOne(
+            self.decode.exec_unit == exec.adder, mem_av | mem_unaligned,
+            self.decode.exec_unit == exec.shift, 0,
+            self.decode.exec_unit == exec.mult,  0,
+            self.decode.exec_unit == exec.logic, 0,
+            self.decode.exec_unit == exec.cbranch, 0,
+            self.decode.exec_unit == exec.bbranch, 0,
+            self.decode.exec_unit == exec.misc, SelectOne(
+                self.decode.opcode == op.misc_swi,   1,
+                self.decode.opcode == op.misc_stm,   0,
+                self.decode.opcode == op.misc_pc_r,  0,
+                self.decode.opcode == op.misc_tpc_r, 0,
+                self.decode.opcode == op.misc_pc_w,  0,
+                self.decode.opcode == op.misc_tpc_w, 0,
             )
         )
 
-        self.do_branch <<= Reg(is_branch)
-        self.do_except <<= Reg(is_branch)
-        self.bubble_out <<= Reg(self.bubble_in)
-        self.mem_access_len_out <<= Reg(self.mem_access_len_in)
-        self.result <<= Reg(exec_result)
+        # TODO:: This can probably be optimized as many of the options can't really happen at the same time.
+        #        With some caution in fetch, it can even be the case that all of these are exclusive conditions.
+        #        Because of that, a simple concatenation of the bit-fields could probably work. But for now,
+        #        let's leave it this way and optimize later.
+        ecause_mask = Select(
+            self.decode.fetch_av,
+            Select(
+                mem_unaligned,
+                Select(
+                    mem_av,
+                    Select(
+                        (self.decode.exec_unit == exec.misc) & (self.decode.opcode == op.misc_swi),
+                        0,
+                        1 << (self.decode.op_a & 7)
+                    ),
+                    1 << exc_mdp
+                ),
+                1 << exc_cua
+            ),
+            1 << exc_mip
+        )
+
+        self.do_branch <<= is_branch & reg_en
+
+        reg_en = Wire(logic)
+        handshake_fsm = ForwardBufLogic(
+            input_valid = self.decode.valid,
+            input_ready = self.decode.ready,
+            output_valid = self.mem.valid,
+            output_ready = self.mem.ready,
+            out_reg_en = reg_en
+        )
+
+        self.mem.mem_access_len  <<= RegEn(self.decode.mem_access_len, reg_en)
+        self.mem.result          <<= RegEn(exec_result, reg_en)
+        self.mem.result_reg_addr <<= RegEn(self.decode.result_reg_addr, reg_en)
+        self.mem.mem_addr        <<= RegEn(adder_result, reg_en)
+        self.mem.is_load         <<= RegEn(self.decode.is_load, reg_en)
+        self.mem.is_store        <<= RegEn(self.decode.is_store, reg_en)
+        self.mem.do_bse          <<= RegEn(self.decode.do_bse, reg_en)
+        self.mem.do_wse          <<= RegEn(self.decode.do_wse, reg_en)
+        self.mem.do_bze          <<= RegEn(self.decode.do_bze, reg_en)
+        self.mem.do_wze          <<= RegEn(self.decode.do_wze, reg_en)
 
         # Side-band info output
-        self.spc_out <<= Select(self.bubble_in | self.stall_in,
+        self.spc_out <<= Select(reg_en,
+            self.spc_in,
             Select(
                 self.task_mode_in,
                 # In Scheduler mode
-                Select(
-                    is_branch,
-                    Select(is_exception,
-                        self.spc_in + self.inst_len + 1, # Inst len is 0=16-bit, 1=32-bit, 2=48-bit
-                        0 # Exception in scheduler mode is reset
-                    )
-                ),
+                Select(is_exception, next_inst_addr, 0), # Exception in scheduler mode is reset
                 # In Task mode
                 self.spc_in
-            ),
-            # We're in a bubble or are stalled
-            self.spc_in
+            )
         )
-        self.tpc_out <<= Select(self.bubble_in | self.stall_in,
+        self.tpc_out <<= Select(reg_en,
+            self.tpc_in,
             Select(
                 self.task_mode_in,
-                # In Scheduler mode
+                # In Scheduler mode: TPC can only change through TCP manipulation instructions
                 Select(
-                    self.exec_unit == ExecUnits.exec_misc & self.opcode == ExecOpCodes.op_misc_tpc_w, branch_target,
+                    self.decode.exec_unit == exec.misc & self.decode.opcode == op.misc_tpc_w,
                     self.tpc_in,
-
+                    self.op_imm
                 ),
-                # In Task mode
-                Select(
-                    is_branch,
-                    Select(is_exception,
-                        self.spc_in + self.inst_len + 1, # Inst len is 0=16-bit, 1=32-bit, 2=48-bit
-                        0 # Exception in scheduler mode is reset
-                    )
-                )
-            ),
-            # We're in a bubble or are stalled
-            self.tpc_in
+                # In Task mode: TPC changes through branches, or through normal execution
+                Select(is_exception, next_inst_addr, self.tpc_in) # Exception in task mode: no TPC update
+            )
         )
         # Still needs assignment
-        task_mode_out = Output(logic)
-        ecause_out = Output(Unsigned(8))
+        self.task_mode_out <<= Select(reg_en,
+            self.task_mode_in,
+            Select(
+                self.task_mode_in,
+                # In scheduler mode: exit to ask mode, if STM instruction is executed
+                ~((self.decode.exec_unit == exec.misc) & (self.decode.opcode == op.misc_stm)),
+                # In task mode: we enter scheduler mode in case of an exception
+                ~is_exception
+            )
+        )
 
+        # We set the HWI ECAUSE bit even in scheduler mode: this allows for interrupt polling at least.
+        # The interrupt will not get serviced of course until we're in TASK mode.
+        hwi_mask =  Select(self.interrupt, 0, 1 << exc_hwi)
+        self.ecause_out <<= Select(reg_en,
+            self.ecause_in,
+            Select(
+                is_exception,
+                self.ecause_in | hwi_mask,
+                self.ecause_in | ecause_mask | hwi_mask
+            )
+        )
+        self.rcause_out <<= Select(reg_en,
+            self.rcause_in,
+            Select(
+                is_exception & ~self.task_mode_in,
+                self.rcause_in,
+                self.rcause_in | ecause_mask
+            )
+        )
 
 def gen():
-    Build.generate_rtl(Fetch)
+    Build.generate_rtl(ExecuteStage)
 
-def sim():
-
-    inst_choices = (
-        (0x1100,                        ), # $r1 <- $r0 ^ $r0
-        (0x20f0, 0x2ddd,                ), # $r1 <- short b001
-        (0x300f, 0x3dd0, 0x3dd1,        ), # $r1 <- 0xdeadbeef
-    )
-    inst_stream = []
-    class Generator(RvSimSource):
-        def construct(self, max_wait_state: int = 0):
-            super().construct(MemToFetchStream, None, max_wait_state)
-            self.addr = -1
-            self.inst_fetch_stream = []
-        def generator(self, is_reset):
-            if is_reset:
-                return 0,0
-            self.addr += 1
-            while len(self.inst_fetch_stream) < 2:
-                inst = inst_choices[randint(0,len(inst_choices)-1)]
-                inst_stream.append(inst)
-                self.inst_fetch_stream += inst
-            # Don't combine the two instructions, because I don't want to rely on expression evaluation order. That sounds dangerous...
-            data = self.inst_fetch_stream.pop(0)
-            return self.addr, data
-
-    class Checker(RvSimSink):
-        def construct(self, max_wait_state: int = 0):
-            super().construct(None, max_wait_state)
-            self.cnt = 0
-        def checker(self, value):
-            def get_next_inst():
-                inst = inst_stream.pop(0)
-                print(f"  --- inst:", end="")
-                for i in inst:
-                    print(f" {i:04x}", end="")
-                print("")
-                has_prefix = inst[0] & 0x0ff0 == 0x0ff0
-                if has_prefix:
-                    prefix = inst[0]
-                    inst = inst[1:]
-                else:
-                    prefix = None
-                inst_len = len(inst)-1
-                inst_code = 0
-                for idx, word in enumerate(inst):
-                    inst_code |= word << (16*idx)
-                return prefix, has_prefix, inst_code, inst_len
-
-            expected_prefix, expected_has_prefix, expected_inst_code, expected_inst_len = get_next_inst()
-            print(f"Received: ", end="")
-            if value.inst_bottom.has_prefix:
-                print(f" [{value.inst_bottom.prefix:04x}]", end="")
-            for i in range(value.inst_bottom.inst_len+1):
-                print(f" {(value.inst_bottom.inst >> (16*i)) & 0xffff:04x}", end="")
-            if value.has_top:
-                print(f" top: {value.inst_top:04x}", end="")
-            print("")
-
-            assert expected_has_prefix == value.inst_bottom.has_prefix
-            assert not expected_has_prefix or expected_prefix == value.inst_bottom.prefix
-            assert expected_inst_len == value.inst_bottom.inst_len
-            inst_mask = (1 << (16*(expected_inst_len+1))) - 1
-            assert (expected_inst_code & inst_mask) == (value.inst_bottom.inst & inst_mask)
-            if value.has_top == 1:
-                expected_prefix, expected_has_prefix, expected_inst_code, expected_inst_len = get_next_inst()
-                assert not expected_has_prefix
-                assert expected_inst_len == 0
-                assert expected_inst_code == value.inst_top
-
-    class top(Module):
-        clk = ClkPort()
-        rst = RstPort()
-
-        def body(self):
-            seed(0)
-            self.input_stream = Wire(MemToFetchStream)
-            self.checker = Checker()
-            self.generator = Generator()
-            self.input_stream <<= self.generator.output_port
-            dut = Fetch()
-            dut.rst <<= self.rst
-            dut.clk <<= self.clk
-            self.checker.input_port <<= dut(self.input_stream)
-
-        def simulate(self) -> TSimEvent:
-            def clk() -> int:
-                yield 10
-                self.clk <<= ~self.clk & self.clk
-                yield 10
-                self.clk <<= ~self.clk
-                yield 0
-
-            print("Simulation started")
-
-            self.rst <<= 1
-            self.clk <<= 1
-            yield 10
-            for i in range(5):
-                yield from clk()
-            self.rst <<= 0
-
-            self.generator.max_wait_state = 2
-            self.checker.max_wait_state = 5
-            for i in range(500):
-                yield from clk()
-            self.generator.max_wait_state = 0
-            self.checker.max_wait_state = 0
-            for i in range(500):
-                yield from clk()
-            now = yield 10
-            self.generator.max_wait_state = 5
-            self.checker.max_wait_state = 2
-            for i in range(500):
-                yield from clk()
-            now = yield 10
-            print(f"Done at {now}")
-
-    Build.simulation(top, "fetch.vcd", add_unnamed_scopes=True)
-
-#gen()
-sim()
+gen()
+#sim()
 
