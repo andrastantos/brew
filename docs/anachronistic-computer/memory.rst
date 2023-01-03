@@ -43,7 +43,7 @@ There were two memory module formats: 30 pin and 72 pin.
 Interface to DRAM
 -----------------
 
-DRAMs are relatively straightforward to interface to in our system. /LCAS and /UCAS act as byte-selects, but they need to be qualified by /RGN2 and /RNG3 to create space for the 4 RAM banks. These 4 banks then can be either implemented in a single 72-pin DIMM or 4 30-pin DIMM modules. 
+DRAMs are relatively straightforward to interface to in our system. /LCAS and /UCAS act as byte-selects, but they need to be qualified by /RGN2 and /RNG3 to create space for the 4 RAM banks. These 4 banks then can be either implemented in a single 72-pin DIMM or 4 30-pin DIMM modules.
 
 Due to the loading of all the RAM chips, it's quite likely that /RAS /WE, address and maybe even data needs to be buffered, but that is to be seen.
 
@@ -62,7 +62,7 @@ The earliest devices we potentially care about are 256kbit NMOS parts:
 =========== ===== ===== ===== ===== ===== =====
 Part number       uPD41464         KM41256
 ----------- ----------------- -----------------
-Speed grade  -80   -10   -12   -10   -12   -15 
+Speed grade  -80   -10   -12   -10   -12   -15
 =========== ===== ===== ===== ===== ===== =====
 t_rcd        40ns  50ns  60ns  50ns  60ns  75ns
 t_cas        40ns  50ns  60ns  50ns  60ns  75ns
@@ -73,9 +73,9 @@ t_rp         70ns  90ns  90ns  90ns 100ns 100ns
 Fast-page-mode devices, such as the one used in late-issue A500 boards have significantly improved timing:
 
 =========== ===== ===== ===== ===== ===== =====
-Part number     HYB514256B         MT4C1024    
+Part number     HYB514256B         MT4C1024
 ----------- ----------------- -----------------
-Speed grade  -50   -60   -70   -6    -7    -8  
+Speed grade  -50   -60   -70   -6    -7    -8
 =========== ===== ===== ===== ===== ===== =====
 t_rcd        35ns  45ns  50ns  40ns  50ns  60ns
 t_cas        15ns  15ns  20ns  20ns  20ns  20ns
@@ -84,14 +84,14 @@ t_rp         35ns  40ns  50ns  40ns  50ns  60ns
 =========== ===== ===== ===== ===== ===== =====
 
 =========== ====== ====== ====== ======
-Part number  KM41C16000C  IS41LV16105B 
+Part number  KM41C16000C  IS41LV16105B
 ----------- ------------- -------------
-Speed grade   -5     -6     -50    -60 
+Speed grade   -5     -6     -50    -60
 =========== ====== ====== ====== ======
-t_rcd        37ns   45ns   37ns   45ns 
-t_cas        13ns   15ns    8ns   10ns 
-t_cp         10ns   10ns    9ns    9ns 
-t_rp         35ns   40ns   30ns   40ns 
+t_rcd        37ns   45ns   37ns   45ns
+t_cas        13ns   15ns    8ns   10ns
+t_cp         10ns   10ns    9ns    9ns
+t_rp         35ns   40ns   30ns   40ns
 =========== ====== ====== ====== ======
 
 FPM was a later ('90) invention though. EDO, when introduced in '95 was even faster, but I don't think that matters to us.
@@ -195,8 +195,9 @@ Single-access:
     Data --------<====>------<====>----------
 
 And a 4-beat burst would have this waveform:
+
 ::
-    
+
      CLK __/^^\__/^^\__/^^\__/^^\__/^^\__/^^\
     nRAS ^^^^^\_______________________/^^^^^\
     nCAS ^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^
@@ -259,6 +260,45 @@ I suppose there should be a third, compatibility mode as well, at least for the 
 
 Here's the rub though: if I were designing the access cycles in the early '80s, I would not have known about FPM timings. I would have designed for the first set of timing diagrams and would get surprised when FPM memories came out and would need a different timing. At the same time, FPM memories do work with the old timing, provided I don't increase the clock rate. And going to an almost 2x increase in clock frequency certainly means a new chip revision anyway. So, I would say, the bus-masters support either of the first two timing, but not the compatible one.
 
+Double-pumped interface
+-----------------------
+
+This is an interesting idea: since DRAMs only really care about data while nCAS is low, we could double-pump the data-bus and drive two banks of memory over the same wires:
+
+
+::
+
+     CLK  __/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\
+    nRAS  ^^^^^\__________________________/^^^^^^^^\
+    nCASa ^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^^^^^^^
+    nCASb ^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^^^^
+    nWE   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    DataA ----------<>----<>----<>----<>------------
+    DataB -------------<>----<>----<>----<>---------
+    Data  ----------<>-<>-<>-<>-<>-<>-<>-<>---------
+
+::
+
+     CLK  __/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\
+    nRAS  ^^^^^\__________________________/^^^^^^^^\
+    nCASa ^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^^^^^^^
+    nCASb ^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^^^^
+    nWE   ^^^^^^^^\_______________________/^^^^^^^^^
+    Data  --------<==X==X==X==X==X==X==X==>---------
+
+There are a few (not insurmountable) problems with this technique:
+
+#. First a non-problem: writes are actually OK as the RAM captures data on the falling edge of nCAS and the hold-time requirements are less stringent then the minimum width of nCAS.
+#. The DRAM has a pretty lengthy hold time on the data after the rising edge of nCAS. In fact, the hold and setup times are such that the two banks may fight for the bus in the center of the nCAS cycle. Not a problem if our setup/hold time requirements are narrow enough, but still stresses the I/O drivers. Probably the easiest solution is to have a set of series resistors with the data pins. That impacts rise and fall times though, so one should be careful.
+#. The burst is one cycle longer. Even though technically only a half cycle is needed, that would make the start of the subsequent cycle fall on the wrong edge of the clock. So, either we double the (internal) clock-rate, or we wait an extra half clock cycle in pre-charge.
+
+For FPM memories, the usual change applies: nCASx is delayed by half a cycle, trading it for a half-cycle shorter pre-charge. The overall cycle-length (in clock cycles) remains the same, but the bandwidth roughly doubles.
+
+Even with all that, it's intriguing that we can double the DRAM bandwidth for such a small cost.
+
+To make use of this, though we would need 2 extra pins to gain a 32-bit bus, or we can lose 8 data-bits and stay at 16-bits.
+
+
 EPROM
 ~~~~~
 
@@ -296,7 +336,7 @@ By '91, CMOS EPROMs were available with access times roughly half of that: 120ns
 
 At that time same-capacity (and speed) FLASH parts started to appear too - not 5V programmable parts though. They required ~10ns hold-times on data (relative to the rising edge of nWE), which is something that DRAMs didn't have.
 
-To work with these slow devices, several wait-states need to be inserted (3 minimum). Below are single-beat accesses, but bursts work just as well since timing is solely derived from nCAS. 
+To work with these slow devices, several wait-states need to be inserted (3 minimum). Below are single-beat accesses, but bursts work just as well since timing is solely derived from nCAS.
 
 ::
 
