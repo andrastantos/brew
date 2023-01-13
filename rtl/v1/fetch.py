@@ -266,21 +266,21 @@ class InstAssemble(Module):
         # Loading of the datapath registers
         fetch_av = Wire(logic)
         with fsm_advance as clk_en:
-            fetch_av <<= RegEn(
+            fetch_av <<= Reg(
                 Select(
                     self.decode_fsm.state == States.have_0_fragments | self.decode_fsm.state == States.have_all_fragments,
                     fetch_av,
                     self.inst_buf.av
                 )
             )
-            inst_reg[15:0] <<= RegEn(
+            inst_reg[15:0] <<= Reg(
                 Select(
                     self.decode_fsm.state == States.have_0_fragments | self.decode_fsm.state == States.have_all_fragments,
                     inst_reg[15:0],
                     inst_fragment
                 )
             )
-            inst_reg[31:16] <<= RegEn(
+            inst_reg[31:16] <<= Reg(
                 Select(
                     (self.decode_fsm.state == States.need_1_fragments & inst_len_reg == inst_len_32) |
                     (self.decode_fsm.state == States.need_2_fragments),
@@ -288,10 +288,10 @@ class InstAssemble(Module):
                     inst_fragment
                 )
             )
-            inst_reg[47:32] <<= RegEn(
+            inst_reg[47:32] <<= Reg(
                 inst_fragment
             )
-            inst_len_reg <<= RegEn(
+            inst_len_reg <<= Reg(
                 Select(
                     self.decode_fsm.state == States.have_0_fragments | self.decode_fsm.state == States.have_all_fragments,
                     inst_len_reg,

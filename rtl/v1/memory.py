@@ -97,7 +97,7 @@ class MemoryStage(Module):
         data_h = Wire(Unsigned(16))
         data_h <<= Select(
             state == States.read_2,
-            RegEn(self.exec.result[31:16], clock_en=(state == States.idle)),
+            Reg(self.exec.result[31:16], clock_en=(state == States.idle)),
             self.bus_if.data_out
         )
         data_l = Wire(Unsigned(16))
@@ -136,8 +136,8 @@ class MemoryStage(Module):
             self.exec.do_wze, full_result[15:0],
             default_port = full_result
         )
-        self.w_result_reg_addr <<= RegEn(self.exec.result_reg_addr, clk_en=(state == States.idle))
-        pass_through <<= RegEn(~(self.exec.is_read | self.exec.is_write), clock_en=accept_next)
+        self.w_result_reg_addr <<= Reg(self.exec.result_reg_addr, clk_en=(state == States.idle))
+        pass_through <<= Reg(~(self.exec.is_read | self.exec.is_write), clock_en=accept_next)
         self.w_request <<= pass_through | state == States.read_2
 
         self.bus_if.request         <<= accept_next

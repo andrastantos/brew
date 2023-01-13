@@ -45,19 +45,19 @@ class FetchStage(Module):
     exec = Output(DecodeExecIf)
 
     # Interface to the register file
-    read1_addr = Output(BrewRegAddr)
-    read1_data = Input(BrewData)
-    read1_request = Output(logic)
-    read1_response = Input(logic)
+    rf_request = Output(logic)
+    rf_response = Input(logic)
 
-    read2_addr = Output(BrewRegAddr)
-    read2_data = Input(BrewData)
-    read2_request = Output(logic)
-    read2_response = Input(logic)
+    rf_read1_addr = Output(BrewRegAddr)
+    rf_read1_data = Input(BrewData)
+    rf_read1_valid = Output(logic)
 
-    rsv_addr = Output(BrewRegAddr)
-    rsv_request = Output(logic)
-    rsv_response = Input(logic)
+    rf_read2_addr = Output(BrewRegAddr)
+    rf_read2_data = Input(BrewData)
+    rf_read2_valid = Output(logic)
+
+    rf_rsv_addr = Output(BrewRegAddr)
+    rf_rsv_valid = Output(logic)
 
     def body(self):
         field_d = self.fetch.inst[15:12]
@@ -360,68 +360,41 @@ class FetchStage(Module):
         read2_needed = SelectOne(*select_list_read2_needed)
         rsv_needed   = SelectOne(*select_list_rsv_needed)
 
-        # BUG BUG! This doesn't work: we wait here for the ready to go high before starting the reservation process, which is good,
-        #          but below we're waiting on it to complete before we give ready, which isn't.
-        #          The root cause of this is that I'm eternally confused about how to insert wait-states into a ready-valid stage.
-        #          And I think the problem there is that I imagine the registers at the output of the stage, whereas ready-valid inherently wants to register the inputs.
-        #          Grrr.... That's going to take some rework...
-        rsv_request = Reg(
-            Select(
-                self.fetch.ready & self.fetch.valid,
-                Select(
-                    self.rsv_response & rsv_needed,
-                    rsv_needed,
-                    0
-                ),
-                rsv_needed
-            )
-        )
-        rsv_response = Reg(
-            Select(
-                self.fetch.ready & self.fetch.valid,
-                Select(
-                    self.rsv_response & rsv_needed,
-                    rsv_response,
-                    0
-                ),
-                0
-            )
-        )
 
-        self.read1_addr <<= rd1_addr
-        self.read1_request <<= read1_needed
-        self.read2_addr <<= rd2_addr
-        self.read2_request <<= read2_needed
-        self.rsv_addr <<= res_addr
-        self.rsv_request <<= rsv_request
+        self.rf_read1_addr <<= rd1_addr
+        self.rf_read1_valid <<= read1_needed
 
-        ready_to_exec = rsv_response & (self.read1_response | ~read1_needed) & (self.read2_response | ~read2_needed)
+        self.rf_read2_addr <<= rd2_addr
+        self.rf_read2_valid <<= read2_needed
 
-        in_ready = self.fetch.ready
-        in_valid = self.fetch.valid
+        self.rf_rsv_addr <<= res_addr
+        self.rf_rsv_valid <<= rsv_needed
 
-        out_ready = Wire(logic)
-        buf_valid = Wire(logic)
+        self.rf_read1_data = Input(BrewData)
+        self.rf_read2_data = Input(BrewData)
 
-        out_reg_en <<= in_valid & in_ready
-        buf_valid <<= Reg(Select(in_valid & in_ready, Select(out_ready & buf_valid, buf_valid, 0), 1))
+        exec_out = Wire(DecodeExecIf)
 
-        self.exec.valid <<= buf_valid
-        out_ready <<= self.exec.ready
-        in_ready <<= (~buf_valid | out_ready) & ready_to_exec
+        self.rf_request = exec_out.ready & self.fetch.valid
+        self.rf_response = Input(logic)
 
-        self.exe.opcode          <<= RegEn(op_code, clk_en = out_reg_en)
-        self.exe.exec_unit       <<= RegEn(exec_unit, clk_en = out_reg_en)
-        self.exe.op_a            <<= RegEn(op_a, clk_en = out_reg_en)
-        self.exe.op_b            <<= RegEn(op_b, clk_en = out_reg_en)
-        self.exe.op_imm          <<= RegEn(op_imm, clk_en = out_reg_en)
-        self.exe.mem_access_len  <<= RegEn(mem_len, clk_en = out_reg_en)
-        self.exe.inst_len        <<= RegEn(self.fetch.inst_len, clk_en = out_reg_en)
-        self.exe.is_load         <<= RegEn(is_ld, clk_en = out_reg_en)
-        self.exe.is_store        <<= RegEn(is_st, clk_en = out_reg_en)
-        self.exe.do_bse          <<= RegEn(bse, clk_en = out_reg_en)
-        self.exe.do_wse          <<= RegEn(wse, clk_en = out_reg_en)
-        self.exe.do_bze          <<= RegEn(bze, clk_en = out_reg_en)
-        self.exe.do_wze          <<= RegEn(wze, clk_en = out_reg_en)
-        self.exe.result_reg_addr <<= RegEn(res_addr, clk_en = out_reg_en)
-        self.exe.fetch_av        <<= RegEn(self.fetch.av, clk_en = out_reg_en)
+        self.fetch.ready <<= self.rf_response & exec_out.ready
+        exec_out.valid <<= self.rf_response & self.fetch.valid
+
+        exec_out.opcode          <<= op_code
+        exec_out.exec_unit       <<= exec_unit
+        exec_out.op_a            <<= op_a
+        exec_out.op_b            <<= op_b
+        exec_out.op_imm          <<= op_imm
+        exec_out.mem_access_len  <<= mem_len
+        exec_out.inst_len        <<= self.fetch.inst_len
+        exec_out.is_load         <<= is_ld
+        exec_out.is_store        <<= is_st
+        exec_out.do_bse          <<= bse
+        exec_out.do_wse          <<= wse
+        exec_out.do_bze          <<= bze
+        exec_out.do_wze          <<= wze
+        exec_out.result_reg_addr <<= res_addr
+        exec_out.fetch_av        <<= self.fetch.av
+
+        self.exec <<= ForwardBuf(exec_out)

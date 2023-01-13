@@ -200,16 +200,16 @@ class ExecuteStage(Module):
             out_reg_en = reg_en
         )
 
-        self.mem.mem_access_len  <<= RegEn(self.decode.mem_access_len, reg_en)
-        self.mem.result          <<= RegEn(exec_result, reg_en)
-        self.mem.result_reg_addr <<= RegEn(self.decode.result_reg_addr, reg_en)
-        self.mem.mem_addr        <<= RegEn(adder_result, reg_en)
-        self.mem.is_load         <<= RegEn(self.decode.is_load, reg_en)
-        self.mem.is_store        <<= RegEn(self.decode.is_store, reg_en)
-        self.mem.do_bse          <<= RegEn(self.decode.do_bse, reg_en)
-        self.mem.do_wse          <<= RegEn(self.decode.do_wse, reg_en)
-        self.mem.do_bze          <<= RegEn(self.decode.do_bze, reg_en)
-        self.mem.do_wze          <<= RegEn(self.decode.do_wze, reg_en)
+        self.mem.mem_access_len  <<= Reg(self.decode.mem_access_len, reg_en)
+        self.mem.result          <<= Reg(exec_result, reg_en)
+        self.mem.result_reg_addr <<= Reg(self.decode.result_reg_addr, reg_en)
+        self.mem.mem_addr        <<= Reg(adder_result, reg_en)
+        self.mem.is_load         <<= Reg(self.decode.is_load, reg_en)
+        self.mem.is_store        <<= Reg(self.decode.is_store, reg_en)
+        self.mem.do_bse          <<= Reg(self.decode.do_bse, reg_en)
+        self.mem.do_wse          <<= Reg(self.decode.do_wse, reg_en)
+        self.mem.do_bze          <<= Reg(self.decode.do_bze, reg_en)
+        self.mem.do_wze          <<= Reg(self.decode.do_wze, reg_en)
 
         # Side-band info output
         self.spc_out <<= Select(reg_en,
