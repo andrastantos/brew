@@ -75,7 +75,7 @@ class exec(Enum):
     adder   = 0
     mult    = 1
     shift   = 2
-    logic   = 3
+    bitwise = 3
     misc    = 4
     cbranch = 5
     bbranch = 6
@@ -87,17 +87,17 @@ class BusIfPortIf(Interface):
     byte_en         = Unsigned(2)
     addr            = BrewBusAddr
     data_in         = BrewBusData
-    response        = reversed(logic)
-    data_out        = reversed(BrewBusData)
-    last            = reversed(logic)
+    response        = Reverse(logic)
+    data_out        = Reverse(BrewBusData)
+    last            = Reverse(logic)
 class FetchDecodeIf(ReadyValid):
     inst = Unsigned(48)
     inst_len = Unsigned(2) # Len 3 is reserved
     av = logic
 
 class DecodeExecIf(ReadyValid):
-    opcode = op
-    exec_unit = exec
+    opcode = EnumNet(op)
+    exec_unit = EnumNet(exec)
     op_a = BrewData
     op_b = BrewData
     op_imm = BrewData
