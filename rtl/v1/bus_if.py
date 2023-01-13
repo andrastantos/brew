@@ -2,8 +2,12 @@
 from random import *
 from typing import *
 from silicon import *
-from .brew_types import *
-from .brew_utils import *
+try:
+    from .brew_types import *
+    from .brew_utils import *
+except ImportError:
+    from brew_types import *
+    from brew_utils import *
 
 """
 Bus interface of the V1 pipeline.
@@ -32,7 +36,7 @@ class BusIf(Module):
     DRAM_nRAS         = Output(logic)
     DRAM_nCAS_l       = Output(logic)
     DRAM_nCAS_h       = Output(logic)
-    DRAM_ADDR         = Unsigned(12)
+    DRAM_ADDR         = Output(Unsigned(12))
     DRAM_nWE          = Output(logic)
     DRAM_DATA_rd      = Input(BrewBusData)
     DRAM_DATA_wr      = Output(BrewBusData)
@@ -107,7 +111,7 @@ class BusIf(Module):
                 start,
                 Select(
                     self.wait_states == 0,
-                    self.wait_states - 1,
+                    (self.wait_states - 1)[3:0],
                     0
                 ),
                 Select(
@@ -121,9 +125,9 @@ class BusIf(Module):
         )
 
         read_not_write  <<= Reg(Select(start, read_not_write, Select(self.fetch.request, self.mem.read_not_write, self.fetch.read_not_write)))
-        page_addr       <<= Reg(Select(start, page_addr, Select(self.fetch.request, self.mem.addr[31:8], self.fetch.addr[31:8])))
-        page_offs       <<= Reg(Select(start, Select(advance, page_offs, page_offs + 1), Select(self.fetch.request, self.mem.addr[7:0], self.fetch.addr[7:0])))
-        beats_remaining <<= Reg(Select(start, Select(advance, beats_remaining, beats_remaining - Select(self.wait_states == 0, 0, 1)), Select(self.fetch.request, self.mem.burst_len, self.fetch.burst_len)))
+        page_addr       <<= Reg(Select(start, page_addr, Select(self.fetch.request, self.mem.addr[31:9], self.fetch.addr[31:9])))
+        page_offs       <<= Reg(Select(start, Select(advance, page_offs, (page_offs + 1)[7:0]), Select(self.fetch.request, self.mem.addr[8:1], self.fetch.addr[8:1])))
+        beats_remaining <<= Reg(Select(start, Select(advance, beats_remaining, (beats_remaining - Select(self.wait_states == 0, 0, 1))[1:0]), Select(self.fetch.request, self.mem.burst_len, self.fetch.burst_len)))
         byte_en         <<= Reg(Select(start, Select(self.wait_states == 0, byte_en, 3), Select(self.fetch.request, self.mem.byte_en, self.fetch.byte_en)))
         data_in         <<= Reg(Select(arb_next_state == ArbStates.fetch, self.mem.data_in, self.fetch.data_in))
 
@@ -145,8 +149,8 @@ class BusIf(Module):
         A19_18   A19         A18
         ======== =========== ============
         '''
-        row_addr = {page_addr[11], page_addr[9], page_addr[7:0]}
-        col_addr = {page_addr[10], page_addr[8], page_offs[7:0]}
+        row_addr = concat(page_addr[11], page_addr[9], page_addr[7:0])
+        col_addr = concat(page_addr[10], page_addr[8], page_offs[7:0])
 
         '''
         Single-access:
@@ -250,14 +254,16 @@ class BusIf(Module):
         '''
 
         self.DRAM_nRAS <<= arb_state == ArbStates.idle
-        self.DRAM_nRASd <<= Reg(self.DRAM_nRAS, clk=~self.clk)
+        self.DRAM_nRASd = Wire(logic)
+        self.DRAM_nRASd <<= NegReg(self.DRAM_nRAS)
+        self.CAS_nEN = Wire(logic)
         self.CAS_nEN <<= self.DRAM_nRAS & self.DRAM_nRASd
         self.DRAM_nCAS_h <<= ~byte_en[1] | self.CAS_nEN | ((self.wait_states == 0) & ~self.clk)
         self.DRAM_nCAS_l <<= ~byte_en[0] | self.CAS_nEN | ((self.wait_states == 0) & ~self.clk)
         self.DRAM_nWE <<= read_not_write
 
         self.DRAM_ADDR <<= Select(self.clk, row_addr, col_addr)
-        self.DRAM_DATA_wr <<= Reg(data_in, clk=~self.clk) # This needs a half-cycle delay, so use the negated clock
+        self.DRAM_DATA_wr <<= NegReg(data_in) # This needs a half-cycle delay, so use the negated clock
         data_out <<= Reg(self.DRAM_DATA_rd)
 
 
@@ -265,5 +271,5 @@ class BusIf(Module):
 def gen():
     Build.generate_rtl(BusIf)
 
-gen()
+#gen()
 

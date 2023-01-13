@@ -2,9 +2,12 @@
 from typing import *
 from silicon import *
 from silicon.memory import SimpleDualPortMemory
-#sys.path.append(str(Path(__file__).parent))
-
-from .brew_types import *
+try:
+    from .brew_types import *
+    from .brew_utils import *
+except ImportError:
+    from brew_types import *
+    from brew_utils import *
 
 """
 The register file for Brew consists of a single write and two read ports.
@@ -99,4 +102,3 @@ class RegFile(Module):
         decode_response <<= read1_response & read2_response & rsv_response
 
         self.response <<= decode_response
-    

@@ -2,8 +2,12 @@
 from random import *
 from typing import *
 from silicon import *
-from .brew_types import *
-from .brew_utils import *
+try:
+    from .brew_types import *
+    from .brew_utils import *
+except ImportError:
+    from brew_types import *
+    from brew_utils import *
 
 """
 Execute stage of the V1 pipeline.
@@ -271,6 +275,6 @@ class ExecuteStage(Module):
 def gen():
     Build.generate_rtl(ExecuteStage)
 
-gen()
+#gen()
 #sim()
 

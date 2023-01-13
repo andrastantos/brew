@@ -2,8 +2,12 @@
 from random import *
 from typing import *
 from silicon import *
-from .brew_types import *
-from .brew_utils import *
+try:
+    from .brew_types import *
+    from .brew_utils import *
+except ImportError:
+    from brew_types import *
+    from brew_utils import *
 
 """
 In V1, fetch works from a 16-bit read port: it gets (up to) 16-bits of data at a time.
@@ -469,5 +473,5 @@ def sim():
     Build.simulation(top, "fetch.vcd", add_unnamed_scopes=True)
 
 #gen()
-sim()
+#sim()
 

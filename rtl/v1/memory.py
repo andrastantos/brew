@@ -2,8 +2,12 @@
 from random import *
 from typing import *
 from silicon import *
-from .brew_types import *
-from .brew_utils import *
+try:
+    from .brew_types import *
+    from .brew_utils import *
+except ImportError:
+    from brew_types import *
+    from brew_utils import *
 
 """
 Memory stage of the V1 pipeline.
@@ -162,5 +166,5 @@ class MemoryStage(Module):
 def gen():
     Build.generate_rtl(MemoryStage)
 
-gen()
+#gen()
 
