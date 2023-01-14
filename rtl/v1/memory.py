@@ -140,7 +140,7 @@ class MemoryStage(Module):
             self.exec.do_wze, full_result[15:0],
             default_port = full_result
         )
-        self.w_result_reg_addr <<= Reg(self.exec.result_reg_addr, clock_en=(state == MemoryStates.idle))
+        self.w_result_reg_addr <<= BrewRegAddr(Reg(self.exec.result_reg_addr, clock_en=(state == MemoryStates.idle)))
         pass_through = Wire()
         pass_through <<= Reg(~(self.exec.is_load | self.exec.is_store), clock_en=accept_next)
         self.w_request <<= pass_through | state == MemoryStates.read_2

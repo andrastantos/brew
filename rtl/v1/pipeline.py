@@ -34,6 +34,7 @@ def test_verilog():
     #test.rtl_generation(FetchStage, "fetch_stage")
     #test.rtl_generation(DecodeStage, "decode_stage")
     #test.rtl_generation(ExecuteStage, "execute_stage")
-    test.rtl_generation(MemoryStage, "memory_stage")
+    #test.rtl_generation(MemoryStage, "memory_stage")
+    test.rtl_generation(RegFile, "reg_file")
 
 test_verilog()

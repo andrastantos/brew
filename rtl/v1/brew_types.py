@@ -13,7 +13,8 @@ BrewBusAddr = Unsigned(31)
 BrewBusData = Unsigned(16)
 BrewData = Unsigned(32)
 BrewRegCnt = 15
-BrewRegAddr = Unsigned(BrewRegCnt.bit_length())
+#BrewRegAddr = Unsigned(BrewRegCnt.bit_length())
+BrewRegAddr = Number(min_val=0, max_val=BrewRegCnt-1)
 
 BrewMemBase = Unsigned(22)
 BrewMemShift = 10 # This is in bytes

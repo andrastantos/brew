@@ -90,11 +90,13 @@ class RegFile(Module):
 
         decode_response = Wire(logic)
 
-        set_mask = Select(self.rsv_request & decode_response & self.request, 0, 1 << self.rsv_addr)
+        set_mask = Select(self.rsv_valid & decode_response & self.request, 0, 1 << self.rsv_addr)
 
         rsv_board <<= Reg(rsv_board & ~clear_mask | set_mask)
 
         # The logic is this: if we don't have a valid request, we always are providing a response.
+        read1_response = Wire()
+        read2_response = Wire()
         read1_response <<= ~self.read1_valid | (((rsv_board & (1 << self.read1_addr)) == 0) | ((self.write_addr == self.read1_addr) & self.write_request))
         read2_response <<= ~self.read2_valid | (((rsv_board & (1 << self.read2_addr)) == 0) | ((self.write_addr == self.read2_addr) & self.write_request))
         rsv_response <<= ~self.rsv_valid | (((rsv_board & (1 << self.rsv_addr)) == 0) | ((self.write_addr == self.rsv_addr) & self.write_request))
