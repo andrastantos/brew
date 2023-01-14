@@ -41,14 +41,14 @@ class MemoryStage(Module):
         # Burst and stall generation state-machine
         self.fsm = FSM()
 
-        class States(Enum):
+        class MemoryStates(Enum):
             idle = 0
             read_1 = 1
             read_2 = 3
             write = 5
 
-        self.fsm.reset_value   <<= States.idle
-        self.fsm.default_state <<= States.idle
+        self.fsm.reset_value   <<= MemoryStates.idle
+        self.fsm.default_state <<= MemoryStates.idle
 
         state = Wire()
         next_state = Wire()
@@ -74,42 +74,42 @@ class MemoryStage(Module):
             b_data_out        ---------------------------------<=====>---------------
 
         '''
-        do_nothing = self.stall_in | self.e_bubble
-        self.fsm.add_transition(States.idle, ~self.exec.valid, States.idle)
-        self.fsm.add_transition(States.idle, self.exec.valid & self.exec.is_load, States.read_1)
-        self.fsm.add_transition(States.idle, self.exec.valid & self.exec.is_store, States.write)
+        self.fsm.add_transition(MemoryStates.idle, ~self.exec.valid, MemoryStates.idle)
+        self.fsm.add_transition(MemoryStates.idle, self.exec.valid & self.exec.is_load, MemoryStates.read_1)
+        self.fsm.add_transition(MemoryStates.idle, self.exec.valid & self.exec.is_store, MemoryStates.write)
         # For writes all the state management is done by the bus-interface for us, and is reported back through 'last'.
-        self.fsm.add_transition(States.write, ~self.bus_if.response, States.write)
-        self.fsm.add_transition(States.write, self.bus_if.response & self.bus_if.last & ~self.exec.valid, States.idle)
-        self.fsm.add_transition(States.write, self.bus_if.response & self.bus_if.last &  self.exec.valid & self.exec.is_load, States.read_1)
-        self.fsm.add_transition(States.write, self.bus_if.response & self.bus_if.last &  self.exec.valid & self.exec.is_store, States.write)
+        self.fsm.add_transition(MemoryStates.write, ~self.bus_if.response, MemoryStates.write)
+        self.fsm.add_transition(MemoryStates.write, self.bus_if.response & self.bus_if.last & ~self.exec.valid, MemoryStates.idle)
+        self.fsm.add_transition(MemoryStates.write, self.bus_if.response & self.bus_if.last &  self.exec.valid & self.exec.is_load, MemoryStates.read_1)
+        self.fsm.add_transition(MemoryStates.write, self.bus_if.response & self.bus_if.last &  self.exec.valid & self.exec.is_store, MemoryStates.write)
         # For read cycles, we get the data back one-cycle delayed compared to 'response'. So we need to stay an extra cycle longer in read states,
         # stalling the rest of the pipeline, thus need an extra read state
-        self.fsm.add_transition(States.read_1, ~self.bus_if.response, States.read_1)
-        self.fsm.add_transition(States.read_1, self.bus_if.response & ~self.bus_if.last, States.read_1)
-        self.fsm.add_transition(States.read_1, self.bus_if.response & self.bus_if.last, States.read_2)
+        self.fsm.add_transition(MemoryStates.read_1, ~self.bus_if.response, MemoryStates.read_1)
+        self.fsm.add_transition(MemoryStates.read_1, self.bus_if.response & ~self.bus_if.last, MemoryStates.read_1)
+        self.fsm.add_transition(MemoryStates.read_1, self.bus_if.response & self.bus_if.last, MemoryStates.read_2)
 
-        self.fsm.add_transition(States.read_2, ~self.exec.valid, States.idle)
-        self.fsm.add_transition(States.read_2,  self.exec.valid & self.exec.is_load, States.read_1)
-        self.fsm.add_transition(States.read_2,  self.exec.valid & self.exec.is_store, States.write)
+        self.fsm.add_transition(MemoryStates.read_2, ~self.exec.valid, MemoryStates.idle)
+        self.fsm.add_transition(MemoryStates.read_2,  self.exec.valid & self.exec.is_load, MemoryStates.read_1)
+        self.fsm.add_transition(MemoryStates.read_2,  self.exec.valid & self.exec.is_store, MemoryStates.write)
 
         # The only reason we would apply back-pressure is if we're waiting on the bus interface
-        exec_ready <<= state == States.idle | state == States.read_2 | (state == States.write & self.bus_if.last)
+        exec_ready = Wire()
+        exec_ready <<= (state == MemoryStates.idle) | (state == MemoryStates.read_2) | ((state == MemoryStates.write) & self.bus_if.last)
         self.exec.ready <<= exec_ready
         accept_next = self.exec.valid & exec_ready
 
         data_h = Wire(Unsigned(16))
         data_h <<= Select(
-            state == States.read_2,
-            Reg(self.exec.result[31:16], clock_en=(state == States.idle)),
+            state == MemoryStates.read_2,
+            Reg(self.exec.result[31:16], clock_en=(state == MemoryStates.idle)),
             self.bus_if.data_out
         )
         data_l = Wire(Unsigned(16))
         data_l <<= Reg(
             Select(
-                state == States.idle,
+                state == MemoryStates.idle,
                 Select(
-                    state == States.read_1,
+                    state == MemoryStates.read_1,
                     data_l,
                     self.bus_if.data_out
                 ),
@@ -118,21 +118,21 @@ class MemoryStage(Module):
         )
 
         def bse(value):
-            return {
+            return concat(
                 value[7], value[7], value[7], value[7], value[7], value[7], value[7], value[7],
                 value[7], value[7], value[7], value[7], value[7], value[7], value[7], value[7],
                 value[7], value[7], value[7], value[7], value[7], value[7], value[7], value[7],
                 value[7:0]
-            }
+            )
 
         def wse(value):
-            return {
+            return concat(
                 value[15], value[15], value[15], value[15], value[15], value[15], value[15], value[15],
                 value[15], value[15], value[15], value[15], value[15], value[15], value[15], value[15],
                 value[15:0]
-            }
+            )
 
-        full_result = {data_h, data_l}
+        full_result = concat(data_h, data_l)
         self.w_result <<= SelectOne(
             self.exec.do_bse, bse(full_result),
             self.exec.do_wse, wse(full_result),
@@ -140,21 +140,22 @@ class MemoryStage(Module):
             self.exec.do_wze, full_result[15:0],
             default_port = full_result
         )
-        self.w_result_reg_addr <<= Reg(self.exec.result_reg_addr, clk_en=(state == States.idle))
-        pass_through <<= Reg(~(self.exec.is_read | self.exec.is_write), clock_en=accept_next)
-        self.w_request <<= pass_through | state == States.read_2
+        self.w_result_reg_addr <<= Reg(self.exec.result_reg_addr, clock_en=(state == MemoryStates.idle))
+        pass_through = Wire()
+        pass_through <<= Reg(~(self.exec.is_load | self.exec.is_store), clock_en=accept_next)
+        self.w_request <<= pass_through | state == MemoryStates.read_2
 
         self.bus_if.request         <<= accept_next
         self.bus_if.read_not_write  <<= self.exec.is_load
         self.bus_if.burst_len       <<= self.exec.mem_access_len[1] # 8- and 16-bit accesses need a burst length of 1, while 32-bit accesses need a burst-length of 2.
         self.bus_if.byte_en         <<= Select(
-            self.exec_mem_access_len == 0,
+            self.exec.mem_access_len == 0,
             3, # 16- or 32-bit accesses use both byte-enables
-            {self.exec.mem_addr[0], ~self.exec.mem_addr[0]} # 8-bit accesses byte-enables depend on address LSB
+            concat(self.exec.mem_addr[0], ~self.exec.mem_addr[0]) # 8-bit accesses byte-enables depend on address LSB
         )
-        self.bus_if.addr            = self.exec.mem_addr[31:1]
-        self.bus_if.data_in         = Select(
-            state == States.idle,
+        self.bus_if.addr            <<= self.exec.mem_addr[31:1]
+        self.bus_if.data_in         <<= Select(
+            state == MemoryStates.idle,
             data_h,
             self.exec.result[15:0]
         )
