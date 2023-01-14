@@ -41,23 +41,32 @@ class ExecuteStage(Module):
     tpc_out = Output(BrewInstAddr)
     task_mode_in  = Input(logic)
     task_mode_out = Output(logic)
-    ecause_in = Input(Unsigned(8))
-    ecause_out = Output(Unsigned(8))
-    rcause_in = Input(Unsigned(8))
-    rcause_out = Output(Unsigned(8))
+    ecause_in = Input(Unsigned(12))
+    ecause_out = Output(Unsigned(12))
+    rcause_in = Input(Unsigned(12))
+    rcause_out = Output(Unsigned(12))
     do_branch = Output(logic)
     interrupt = Input(logic)
 
     def body(self):
         @module(1)
-        def bb_bit_idx(bit_code):
-            SelectOne(
-                bit_code < 9, bit_code,
-                bit_code == 10, 14,
-                bit_code == 11, 15,
-                bit_code == 12, 16,
-                bit_code == 13, 30,
-                bit_code == 14, 31,
+        def bb_get_bit(word, bit_code):
+            return SelectOne(
+                bit_code == 0,  word[0],
+                bit_code == 1,  word[1],
+                bit_code == 2,  word[2],
+                bit_code == 3,  word[3],
+                bit_code == 4,  word[4],
+                bit_code == 5,  word[5],
+                bit_code == 6,  word[6],
+                bit_code == 7,  word[7],
+                bit_code == 8,  word[8],
+                bit_code == 9,  word[9],
+                bit_code == 10, word[14],
+                bit_code == 11, word[15],
+                bit_code == 12, word[16],
+                bit_code == 13, word[30],
+                bit_code == 14, word[31],
             )
 
         pc = Select(self.task_mode_in, self.spc_in, self.tpc_in)
@@ -67,7 +76,7 @@ class ExecuteStage(Module):
             self.decode.opcode == op.a_sub_b,  (self.decode.op_a + self.decode.op_b)[31:0],
             self.decode.opcode == op.b_sub_a,  (self.decode.op_b - self.decode.op_a)[31:0],
             self.decode.opcode == op.addr,     (self.decode.op_b + self.decode.op_imm + (self.mem_base << BrewMemShift))[31:0],
-            self.decode.opcode == op.pc_add,   (pc + {self.decode.op_a, "1'b0"})[31:0],
+            self.decode.opcode == op.pc_add,   (pc + concat(self.decode.op_a, "1'b0"))[31:0],
         )[31:0]
         shifter_result = SelectOne(
             self.decode.opcode == op.shll, self.decode.op_a << self.decode.op_b[5:0],
@@ -89,8 +98,8 @@ class ExecuteStage(Module):
             self.decode.opcode == op.cb_ge,   self.decode.op_a >= self.decode.op_b,
         )
         bbranch_result = SelectOne(
-            self.decode.opcode == op.bb_one,  self.decode.op_a[bb_bit_idx(self.decode.op_b)],
-            self.decode.opcode == op.bb_zero, self.decode.op_b[bb_bit_idx(self.decode.op_a)],
+            self.decode.opcode == op.bb_one,  bb_get_bit(self.decode.op_a, self.decode.op_b),
+            self.decode.opcode == op.bb_zero, bb_get_bit(self.decode.op_b, self.decode.op_a),
         )
 
         mem_av = (self.decode.exec_unit == exec.adder) & (self.decode.opcode == op.addr) & (adder_result[31:BrewMemShift] > self.mem_limit)
@@ -103,20 +112,20 @@ class ExecuteStage(Module):
             )
 
         def unmunge_offset(offset):
-            return {
+            return concat(
                 offset[0], offset[0], offset[0], offset[0], offset[0], offset[0], offset[0], offset[0],
                 offset[0], offset[0], offset[0], offset[0], offset[0], offset[0], offset[0], offset[0],
                 offset[15:1], 0
-            }
+            )
 
         next_inst_addr = SelectOne(
-            self.decode.exec_unit == exec.cbranch | self.decode.exec_unit == exec.bbranch, pc + unmunge_offset(self.decode.op_imm),
-            self.decode.exec_unit == exec.misc & self.decode.opcode == op.misc_pc_w, self.decode.op_imm,
-            self.decode.exec_unit == exec.misc & self.decode.opcode == op.misc_tpc_w & self.task_mode_in, self.decode.op_imm,
+            (self.decode.exec_unit == exec.cbranch) | (self.decode.exec_unit == exec.bbranch), (pc + unmunge_offset(self.decode.op_imm))[30:0],
+            (self.decode.exec_unit == exec.misc) & (self.decode.opcode == op.misc_pc_w), self.decode.op_imm[31:1],
+            (self.decode.exec_unit == exec.misc) & (self.decode.opcode == op.misc_tpc_w) & self.task_mode_in, self.decode.op_imm[31:1],
             default_port = Select(
                 self.task_mode_in,
-                self.spc_in + self.decode.inst_len + 1, # Inst len is 0=16-bit, 1=32-bit, 2=48-bit
-                self.tpc_in + self.decode.inst_len + 1  # Inst len is 0=16-bit, 1=32-bit, 2=48-bit
+                (self.spc_in + self.decode.inst_len + 1)[30:0], # Inst len is 0=16-bit, 1=32-bit, 2=48-bit
+                (self.tpc_in + self.decode.inst_len + 1)[30:0]  # Inst len is 0=16-bit, 1=32-bit, 2=48-bit
             )
         )
 
@@ -126,7 +135,7 @@ class ExecuteStage(Module):
             self.decode.exec_unit == exec.adder, adder_result,
             self.decode.exec_unit == exec.shift, shifter_result,
             self.decode.exec_unit == exec.mult, mult_result,
-            self.decode.exec_unit == exec.logic, logic_result,
+            self.decode.exec_unit == exec.bitwise, logic_result,
             self.decode.exec_unit == exec.misc, SelectOne(
                 self.decode.opcode == op.misc_swi,   None,
                 self.decode.opcode == op.misc_stm,   None,
@@ -140,7 +149,7 @@ class ExecuteStage(Module):
             self.decode.exec_unit == exec.adder, mem_av,
             self.decode.exec_unit == exec.shift, 0,
             self.decode.exec_unit == exec.mult,  0,
-            self.decode.exec_unit == exec.logic, 0,
+            self.decode.exec_unit == exec.bitwise, 0,
             self.decode.exec_unit == exec.cbranch, cbranch_result,
             self.decode.exec_unit == exec.bbranch, bbranch_result,
             self.decode.exec_unit == exec.misc, SelectOne(
@@ -158,7 +167,7 @@ class ExecuteStage(Module):
             self.decode.exec_unit == exec.adder, mem_av | mem_unaligned,
             self.decode.exec_unit == exec.shift, 0,
             self.decode.exec_unit == exec.mult,  0,
-            self.decode.exec_unit == exec.logic, 0,
+            self.decode.exec_unit == exec.bitwise, 0,
             self.decode.exec_unit == exec.cbranch, 0,
             self.decode.exec_unit == exec.bbranch, 0,
             self.decode.exec_unit == exec.misc, SelectOne(
@@ -181,10 +190,11 @@ class ExecuteStage(Module):
                 mem_unaligned,
                 Select(
                     mem_av,
+                    0,
                     Select(
                         (self.decode.exec_unit == exec.misc) & (self.decode.opcode == op.misc_swi),
                         0,
-                        1 << (self.decode.op_a & 7)
+                        1 << ((self.decode.op_a & 7)[2:0])
                     ),
                     1 << exc_mdp
                 ),
@@ -192,28 +202,31 @@ class ExecuteStage(Module):
             ),
             1 << exc_mip
         )
+        ecause_mask = 0
+
+        reg_en = Wire(logic) # output of handshake_fsm
 
         self.do_branch <<= is_branch & reg_en
 
-        reg_en = Wire(logic)
-        handshake_fsm = ForwardBufLogic(
-            input_valid = self.decode.valid,
-            input_ready = self.decode.ready,
-            output_valid = self.mem.valid,
-            output_ready = self.mem.ready,
-            out_reg_en = reg_en
-        )
+        handshake_fsm = ForwardBufLogic()
 
-        self.mem.mem_access_len  <<= Reg(self.decode.mem_access_len, reg_en)
-        self.mem.result          <<= Reg(exec_result, reg_en)
-        self.mem.result_reg_addr <<= Reg(self.decode.result_reg_addr, reg_en)
-        self.mem.mem_addr        <<= Reg(adder_result, reg_en)
-        self.mem.is_load         <<= Reg(self.decode.is_load, reg_en)
-        self.mem.is_store        <<= Reg(self.decode.is_store, reg_en)
-        self.mem.do_bse          <<= Reg(self.decode.do_bse, reg_en)
-        self.mem.do_wse          <<= Reg(self.decode.do_wse, reg_en)
-        self.mem.do_bze          <<= Reg(self.decode.do_bze, reg_en)
-        self.mem.do_wze          <<= Reg(self.decode.do_wze, reg_en)
+        handshake_fsm.input_valid <<= self.decode.valid
+        self.decode.ready <<= handshake_fsm.input_ready
+        self.mem.valid <<= handshake_fsm.output_valid
+        handshake_fsm.output_ready <<= self.mem.ready
+        reg_en <<= handshake_fsm.out_reg_en
+
+
+        self.mem.mem_access_len  <<= Reg(self.decode.mem_access_len, clock_en=reg_en)
+        self.mem.result          <<= Reg(exec_result, clock_en=reg_en)
+        self.mem.result_reg_addr <<= Reg(self.decode.result_reg_addr, clock_en=reg_en)
+        self.mem.mem_addr        <<= Reg(adder_result, clock_en=reg_en)
+        self.mem.is_load         <<= Reg(self.decode.is_load, clock_en=reg_en)
+        self.mem.is_store        <<= Reg(self.decode.is_store, clock_en=reg_en)
+        self.mem.do_bse          <<= Reg(self.decode.do_bse, clock_en=reg_en)
+        self.mem.do_wse          <<= Reg(self.decode.do_wse, clock_en=reg_en)
+        self.mem.do_bze          <<= Reg(self.decode.do_bze, clock_en=reg_en)
+        self.mem.do_wze          <<= Reg(self.decode.do_wze, clock_en=reg_en)
 
         # Side-band info output
         self.spc_out <<= Select(reg_en,
@@ -232,9 +245,9 @@ class ExecuteStage(Module):
                 self.task_mode_in,
                 # In Scheduler mode: TPC can only change through TCP manipulation instructions
                 Select(
-                    self.decode.exec_unit == exec.misc & self.decode.opcode == op.misc_tpc_w,
+                    (self.decode.exec_unit == exec.misc) & (self.decode.opcode == op.misc_tpc_w),
                     self.tpc_in,
-                    self.op_imm
+                    self.decode.op_imm[31:1]
                 ),
                 # In Task mode: TPC changes through branches, or through normal execution
                 Select(is_exception, next_inst_addr, self.tpc_in) # Exception in task mode: no TPC update
