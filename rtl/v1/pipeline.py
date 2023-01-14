@@ -30,7 +30,8 @@ except ImportError:
 from test_utils import *
 
 def test_verilog():
-    test.rtl_generation(BusIf, "bus_if")
+    #test.rtl_generation(BusIf, "bus_if")
+    test.rtl_generation(FetchStage, "fetch_stage")
     #test.rtl_generation(DecodeStage, "decode_stage")
 
 test_verilog()

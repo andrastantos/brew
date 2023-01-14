@@ -63,11 +63,11 @@ class ExecuteStage(Module):
         pc = Select(self.task_mode_in, self.spc_in, self.tpc_in)
 
         adder_result = SelectOne(
-            self.decode.opcode == op.add,      self.decode.op_a + self.decode.op_b,
-            self.decode.opcode == op.a_sub_b,  self.decode.op_a + self.decode.op_b,
-            self.decode.opcode == op.b_sub_a,  self.decode.op_b - self.decode.op_a,
-            self.decode.opcode == op.addr,     self.decode.op_b + self.decode.op_imm + (self.mem_base << BrewMemShift),
-            self.decode.opcode == op.pc_add,   pc + {self.decode.op_a, "1'b0"},
+            self.decode.opcode == op.add,      (self.decode.op_a + self.decode.op_b)[31:0],
+            self.decode.opcode == op.a_sub_b,  (self.decode.op_a + self.decode.op_b)[31:0],
+            self.decode.opcode == op.b_sub_a,  (self.decode.op_b - self.decode.op_a)[31:0],
+            self.decode.opcode == op.addr,     (self.decode.op_b + self.decode.op_imm + (self.mem_base << BrewMemShift))[31:0],
+            self.decode.opcode == op.pc_add,   (pc + {self.decode.op_a, "1'b0"})[31:0],
         )[31:0]
         shifter_result = SelectOne(
             self.decode.opcode == op.shll, self.decode.op_a << self.decode.op_b[5:0],

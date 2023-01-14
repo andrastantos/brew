@@ -66,21 +66,25 @@ class InstBuffer(Module):
                 Select(self.task_mode, self.spc[BrewLineAddrBtm-1:0], self.tpc[BrewLineAddrBtm-1:0])
             )
         )
-        self.fetch_addr = Reg(
+        self.fetch_addr <<= Reg(
             Select(
                 self.do_branch,
                 # Normal incremental fetch
-                self.fetch_addr + fetch_increment,
+                (self.fetch_addr + fetch_increment)[BrewLineAddrWidth-1:0],
                 # Branch - compute new physical address
-                Select(self.task_mode, self.spc[31:BrewLineAddrBtm], self.tpc[31:BrewLineAddrBtm]) + (self.mem_base << (BrewMemShift-BrewLineAddrBtm))
+                (Select(
+                    self.task_mode,
+                    self.spc[30:BrewLineAddrBtm],
+                    self.tpc[30:BrewLineAddrBtm]
+                ) + (self.mem_base << (BrewMemShift-1-BrewLineAddrBtm)))[BrewLineAddrWidth-1:0]
             )
         )
 
-        fetch_av = self.fetch_addr[31:BrewMemShift-BrewLineAddrBtm] > self.mem_limit
+        fetch_av = self.fetch_addr[30-BrewLineAddrBtm:BrewMemShift-1-BrewLineAddrBtm] > self.mem_limit
 
         self.fsm = FSM()
 
-        class States(Enum):
+        class InstBufferStates(Enum):
             idle = 0
             request_start = 1
             request = 2
@@ -88,8 +92,8 @@ class InstBuffer(Module):
             flush_start = 4
             flush = 5
 
-        self.fsm.reset_value <<= States.idle
-        self.fsm.default_state <<= States.idle
+        self.fsm.reset_value <<= InstBufferStates.idle
+        self.fsm.default_state <<= InstBufferStates.idle
 
         state = Wire()
         state <<= self.fsm.state
@@ -108,25 +112,25 @@ class InstBuffer(Module):
         '''
 
         start_new_request = (self.queue_free_cnt >= 4) | self.do_branch
-        self.fsm.add_transition(States.idle, ~start_new_request, States.idle)
-        self.fsm.add_transition(States.idle,  start_new_request, States.request_start)
-        self.fsm.add_transition(States.request_start, ~self.do_branch & ~self.bus_if.response, States.request_start)
-        self.fsm.add_transition(States.request_start, ~self.do_branch &  self.bus_if.response & ~self.bus_if.last, States.request)
-        self.fsm.add_transition(States.request_start, ~self.do_branch &  self.bus_if.response &  self.bus_if.last, States.request_last)
-        self.fsm.add_transition(States.request_start,  self.do_branch,                         States.flush_start)
-        self.fsm.add_transition(States.request, ~self.do_branch & ~self.bus_if.response,                     States.request)
-        self.fsm.add_transition(States.request, ~self.do_branch &  self.bus_if.response & ~self.bus_if.last, States.request)
-        self.fsm.add_transition(States.request, ~self.do_branch &  self.bus_if.response &  self.bus_if.last, States.request_last)
-        self.fsm.add_transition(States.request,  self.do_branch & ~self.bus_if.response,                     States.flush)
-        self.fsm.add_transition(States.request,  self.do_branch &  self.bus_if.response & ~self.bus_if.last, States.flush)
-        self.fsm.add_transition(States.request,  self.do_branch &  self.bus_if.response &  self.bus_if.last, States.idle)
-        self.fsm.add_transition(States.request_last, ~start_new_request, States.idle)
-        self.fsm.add_transition(States.request_last,  start_new_request, States.request_start)
-        self.fsm.add_transition(States.flush_start, ~self.bus_if.response, States.flush_start)
-        self.fsm.add_transition(States.flush_start,  self.bus_if.response, States.flush)
-        self.fsm.add_transition(States.flush, ~self.bus_if.response,                     States.flush)
-        self.fsm.add_transition(States.flush,  self.bus_if.response & ~self.bus_if.last, States.flush)
-        self.fsm.add_transition(States.flush,  self.bus_if.response &  self.bus_if.last, States.idle)
+        self.fsm.add_transition(InstBufferStates.idle, ~start_new_request, InstBufferStates.idle)
+        self.fsm.add_transition(InstBufferStates.idle,  start_new_request, InstBufferStates.request_start)
+        self.fsm.add_transition(InstBufferStates.request_start, ~self.do_branch & ~self.bus_if.response, InstBufferStates.request_start)
+        self.fsm.add_transition(InstBufferStates.request_start, ~self.do_branch &  self.bus_if.response & ~self.bus_if.last, InstBufferStates.request)
+        self.fsm.add_transition(InstBufferStates.request_start, ~self.do_branch &  self.bus_if.response &  self.bus_if.last, InstBufferStates.request_last)
+        self.fsm.add_transition(InstBufferStates.request_start,  self.do_branch,                         InstBufferStates.flush_start)
+        self.fsm.add_transition(InstBufferStates.request, ~self.do_branch & ~self.bus_if.response,                     InstBufferStates.request)
+        self.fsm.add_transition(InstBufferStates.request, ~self.do_branch &  self.bus_if.response & ~self.bus_if.last, InstBufferStates.request)
+        self.fsm.add_transition(InstBufferStates.request, ~self.do_branch &  self.bus_if.response &  self.bus_if.last, InstBufferStates.request_last)
+        self.fsm.add_transition(InstBufferStates.request,  self.do_branch & ~self.bus_if.response,                     InstBufferStates.flush)
+        self.fsm.add_transition(InstBufferStates.request,  self.do_branch &  self.bus_if.response & ~self.bus_if.last, InstBufferStates.flush)
+        self.fsm.add_transition(InstBufferStates.request,  self.do_branch &  self.bus_if.response &  self.bus_if.last, InstBufferStates.idle)
+        self.fsm.add_transition(InstBufferStates.request_last, ~start_new_request, InstBufferStates.idle)
+        self.fsm.add_transition(InstBufferStates.request_last,  start_new_request, InstBufferStates.request_start)
+        self.fsm.add_transition(InstBufferStates.flush_start, ~self.bus_if.response, InstBufferStates.flush_start)
+        self.fsm.add_transition(InstBufferStates.flush_start,  self.bus_if.response, InstBufferStates.flush)
+        self.fsm.add_transition(InstBufferStates.flush, ~self.bus_if.response,                     InstBufferStates.flush)
+        self.fsm.add_transition(InstBufferStates.flush,  self.bus_if.response & ~self.bus_if.last, InstBufferStates.flush)
+        self.fsm.add_transition(InstBufferStates.flush,  self.bus_if.response &  self.bus_if.last, InstBufferStates.idle)
 
         """
                   +--------+--------+--------+--------+
@@ -135,12 +139,13 @@ class InstBuffer(Module):
         address:      0        1        2        3
         burst_len:    3        2        1        0
         """
-        self.bus_if.addr <<= {self.fetch_addr, "2'b0"}
+        self.bus_if.addr <<= concat(self.fetch_addr, "2'b0")
         self.bus_if.read_not_write <<= 1
         self.bus_if.burst_len <<= 3 - self.fetch_btm
         self.bus_if.byte_en <<= 3
         self.bus_if.data_in <<= None # This is a read-only port
 
+        response_d = Wire()
         response_d <<= Reg(self.bus_if.response)
 
         self.queue.data <<= self.bus_if.data_out
@@ -171,10 +176,10 @@ class InstQueue(Module):
         self.empty_cnt <<= Reg(
             Select(
                 self.do_branch,
-                self.empty_cnt + inc - dec,
+                (self.empty_cnt + inc - dec)[2:0],
                 depth
             ),
-            rst_val = depth
+            reset_value_port = depth
         )
         self.queue_free_cnt <<= self.empty_cnt
 
@@ -225,43 +230,43 @@ class InstAssemble(Module):
         # State machine
         self.decode_fsm = FSM()
 
-        class States(Enum):
+        class InstAssembleStates(Enum):
             have_0_fragments = 0
             need_1_fragments = 1
             need_2_fragments = 2
             have_all_fragments = 3
 
-        self.decode_fsm.reset_value <<= States.have_0_fragments
-        self.decode_fsm.default_state <<= States.have_0_fragments
+        self.decode_fsm.reset_value <<= InstAssembleStates.have_0_fragments
+        self.decode_fsm.default_state <<= InstAssembleStates.have_0_fragments
 
         fsm_state = Wire()
         fsm_state <<= self.decode_fsm.state
 
         # We're in a state where we don't have anything partial
-        self.decode_fsm.add_transition(States.have_0_fragments, ~self.do_branch &  fsm_advance & (inst_len == inst_len_16), States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_0_fragments, ~self.do_branch &  fsm_advance & (inst_len == inst_len_32), States.need_1_fragments)
-        self.decode_fsm.add_transition(States.have_0_fragments, ~self.do_branch &  fsm_advance & (inst_len == inst_len_48), States.need_2_fragments)
-        self.decode_fsm.add_transition(States.have_0_fragments, ~self.do_branch & ~fsm_advance                            , States.have_0_fragments)
-        self.decode_fsm.add_transition(States.have_0_fragments,  self.do_branch                                           , States.have_0_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_0_fragments, ~self.do_branch &  fsm_advance & (inst_len == inst_len_16), InstAssembleStates.have_all_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_0_fragments, ~self.do_branch &  fsm_advance & (inst_len == inst_len_32), InstAssembleStates.need_1_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_0_fragments, ~self.do_branch &  fsm_advance & (inst_len == inst_len_48), InstAssembleStates.need_2_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_0_fragments, ~self.do_branch & ~fsm_advance                            , InstAssembleStates.have_0_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_0_fragments,  self.do_branch                                           , InstAssembleStates.have_0_fragments)
         # We're in a state where we have 1 parcel for the bottom
-        self.decode_fsm.add_transition(States.need_1_fragments, ~self.do_branch &  fsm_advance, States.have_all_fragments)
-        self.decode_fsm.add_transition(States.need_1_fragments, ~self.do_branch & ~fsm_advance, States.need_1_fragments)
-        self.decode_fsm.add_transition(States.need_1_fragments,  self.do_branch               , States.have_0_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.need_1_fragments, ~self.do_branch &  fsm_advance, InstAssembleStates.have_all_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.need_1_fragments, ~self.do_branch & ~fsm_advance, InstAssembleStates.need_1_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.need_1_fragments,  self.do_branch               , InstAssembleStates.have_0_fragments)
         # We're in a state where we have 2 fragments for the bottom
-        self.decode_fsm.add_transition(States.need_2_fragments, ~self.do_branch &  fsm_advance, States.need_1_fragments)
-        self.decode_fsm.add_transition(States.need_2_fragments, ~self.do_branch & ~fsm_advance, States.need_2_fragments)
-        self.decode_fsm.add_transition(States.need_2_fragments,  self.do_branch,                States.have_0_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.need_2_fragments, ~self.do_branch &  fsm_advance, InstAssembleStates.need_1_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.need_2_fragments, ~self.do_branch & ~fsm_advance, InstAssembleStates.need_2_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.need_2_fragments,  self.do_branch,                InstAssembleStates.have_0_fragments)
         # We have all the fragments: we either advance to the next set of instructions, or reset if the source is not valid
-        self.decode_fsm.add_transition(States.have_all_fragments, ~self.do_branch &  fsm_advance & self.inst_buf.valid & (inst_len == inst_len_16), States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments, ~self.do_branch &  fsm_advance & self.inst_buf.valid & (inst_len == inst_len_32), States.need_1_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments, ~self.do_branch &  fsm_advance & self.inst_buf.valid & (inst_len == inst_len_48), States.need_2_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments, ~self.do_branch &  fsm_advance & ~self.inst_buf.valid                           , States.have_0_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments, ~self.do_branch & ~fsm_advance                                                  , States.have_all_fragments)
-        self.decode_fsm.add_transition(States.have_all_fragments,  self.do_branch                                                                 , States.have_0_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch &  fsm_advance & self.inst_buf.valid & (inst_len == inst_len_16), InstAssembleStates.have_all_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch &  fsm_advance & self.inst_buf.valid & (inst_len == inst_len_32), InstAssembleStates.need_1_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch &  fsm_advance & self.inst_buf.valid & (inst_len == inst_len_48), InstAssembleStates.need_2_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch &  fsm_advance & ~self.inst_buf.valid                           , InstAssembleStates.have_0_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch & ~fsm_advance                                                  , InstAssembleStates.have_all_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments,  self.do_branch                                                                 , InstAssembleStates.have_0_fragments)
 
         # Handshake logic: we're widening the datapath, so it's essentially the same as a ForwardBuf
         terminal_fsm_state = Wire(logic)
-        terminal_fsm_state <<= (self.decode_fsm.state == States.have_all_fragments)
+        terminal_fsm_state <<= (self.decode_fsm.state == InstAssembleStates.have_all_fragments)
         fetch_ready = ~terminal_fsm_state | self.decode.ready | self.do_branch
         self.inst_buf.ready <<= fetch_ready
         self.decode.valid <<= terminal_fsm_state & ~self.do_branch
@@ -272,22 +277,22 @@ class InstAssemble(Module):
         with fsm_advance as clk_en:
             fetch_av <<= Reg(
                 Select(
-                    self.decode_fsm.state == States.have_0_fragments | self.decode_fsm.state == States.have_all_fragments,
+                    (self.decode_fsm.state == InstAssembleStates.have_0_fragments) | (self.decode_fsm.state == InstAssembleStates.have_all_fragments),
                     fetch_av,
                     self.inst_buf.av
                 )
             )
             inst_reg[15:0] <<= Reg(
                 Select(
-                    self.decode_fsm.state == States.have_0_fragments | self.decode_fsm.state == States.have_all_fragments,
+                    (self.decode_fsm.state == InstAssembleStates.have_0_fragments) | (self.decode_fsm.state == InstAssembleStates.have_all_fragments),
                     inst_reg[15:0],
                     inst_fragment
                 )
             )
             inst_reg[31:16] <<= Reg(
                 Select(
-                    (self.decode_fsm.state == States.need_1_fragments & inst_len_reg == inst_len_32) |
-                    (self.decode_fsm.state == States.need_2_fragments),
+                    ((self.decode_fsm.state == InstAssembleStates.need_1_fragments) & (inst_len_reg == inst_len_32)) |
+                    (self.decode_fsm.state == InstAssembleStates.need_2_fragments),
                     inst_reg[31:16],
                     inst_fragment
                 )
@@ -297,7 +302,7 @@ class InstAssemble(Module):
             )
             inst_len_reg <<= Reg(
                 Select(
-                    self.decode_fsm.state == States.have_0_fragments | self.decode_fsm.state == States.have_all_fragments,
+                    (self.decode_fsm.state == InstAssembleStates.have_0_fragments) | (self.decode_fsm.state == InstAssembleStates.have_all_fragments),
                     inst_len_reg,
                     inst_len
                 )

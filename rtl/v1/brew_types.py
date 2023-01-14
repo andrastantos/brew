@@ -2,11 +2,13 @@
 from typing import *
 from silicon import *
 
+BrewLineAddrWidth = 29
+
 BrewAddr = Unsigned(32)
 BrewInstAddr = Unsigned(31)
 BrewDWordAddr = Unsigned(30)
-BrewLineAddr = Unsigned(29)
-BrewLineAddrBtm = 3
+BrewLineAddr = Unsigned(BrewLineAddrWidth)
+BrewLineAddrBtm = 2 # This is in words
 BrewBusAddr = Unsigned(31)
 BrewBusData = Unsigned(16)
 BrewData = Unsigned(32)
@@ -14,7 +16,7 @@ BrewRegCnt = 15
 BrewRegAddr = Unsigned(BrewRegCnt.bit_length())
 
 BrewMemBase = Unsigned(22)
-BrewMemShift = 10
+BrewMemShift = 10 # This is in bytes
 
 
 inst_len_16 = 0
