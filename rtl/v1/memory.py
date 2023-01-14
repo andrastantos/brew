@@ -21,6 +21,7 @@ It does the following:
 
 """
 
+# TODO: I think the memory stage is completely busted
 class MemoryStage(Module):
     clk = ClkPort()
     rst = RstPort()
@@ -37,7 +38,16 @@ class MemoryStage(Module):
     # Interface to the bus interface
     bus_if = Output(BusIfPortIf)
 
+    # Interface to the CSR registers
+    csr_if = Output(CsrIf)
+
+    #def construct(self, csr_base: int):
+    #    assert csr_base & 0x0fffffff == 0, "CSR address decode uses the top 4 bits of the address"
+    #    self.csr_base = csr_base >> 28
+
     def body(self):
+        self.csr_base = 0xc
+
         # Burst and stall generation state-machine
         self.fsm = FSM()
 
@@ -46,6 +56,8 @@ class MemoryStage(Module):
             read_1 = 1
             read_2 = 3
             write = 5
+            csr_read = 8
+            csr_write = 9
 
         self.fsm.reset_value   <<= MemoryStates.idle
         self.fsm.default_state <<= MemoryStates.idle
@@ -74,14 +86,24 @@ class MemoryStage(Module):
             b_data_out        ---------------------------------<=====>---------------
 
         '''
+        is_csr = self.exec.mem_addr[31:28] == self.csr_base
+
+        csr_request = Wire(logic)
+        csr_response = Wire(logic)
+        csr_response <<= self.csr_if.response
+
         self.fsm.add_transition(MemoryStates.idle, ~self.exec.valid, MemoryStates.idle)
-        self.fsm.add_transition(MemoryStates.idle, self.exec.valid & self.exec.is_load, MemoryStates.read_1)
-        self.fsm.add_transition(MemoryStates.idle, self.exec.valid & self.exec.is_store, MemoryStates.write)
+        self.fsm.add_transition(MemoryStates.idle, self.exec.valid & ~is_csr & self.exec.is_load, MemoryStates.read_1)
+        self.fsm.add_transition(MemoryStates.idle, self.exec.valid & ~is_csr & self.exec.is_store, MemoryStates.write)
+        self.fsm.add_transition(MemoryStates.idle, self.exec.valid & is_csr & self.exec.is_load & ~csr_response, MemoryStates.csr_read)
+        self.fsm.add_transition(MemoryStates.idle, self.exec.valid & is_csr & self.exec.is_store & ~csr_response, MemoryStates.csr_write)
         # For writes all the state management is done by the bus-interface for us, and is reported back through 'last'.
         self.fsm.add_transition(MemoryStates.write, ~self.bus_if.response, MemoryStates.write)
         self.fsm.add_transition(MemoryStates.write, self.bus_if.response & self.bus_if.last & ~self.exec.valid, MemoryStates.idle)
-        self.fsm.add_transition(MemoryStates.write, self.bus_if.response & self.bus_if.last &  self.exec.valid & self.exec.is_load, MemoryStates.read_1)
-        self.fsm.add_transition(MemoryStates.write, self.bus_if.response & self.bus_if.last &  self.exec.valid & self.exec.is_store, MemoryStates.write)
+        self.fsm.add_transition(MemoryStates.write, self.bus_if.response & self.bus_if.last &  self.exec.valid & ~is_csr & self.exec.is_load, MemoryStates.read_1)
+        self.fsm.add_transition(MemoryStates.write, self.bus_if.response & self.bus_if.last &  self.exec.valid & ~is_csr & self.exec.is_store, MemoryStates.write)
+        self.fsm.add_transition(MemoryStates.write, self.bus_if.response & self.bus_if.last &  self.exec.valid & is_csr & self.exec.is_load & ~csr_response, MemoryStates.csr_read)
+        self.fsm.add_transition(MemoryStates.write, self.bus_if.response & self.bus_if.last &  self.exec.valid & is_csr & self.exec.is_store & ~csr_response, MemoryStates.csr_write)
         # For read cycles, we get the data back one-cycle delayed compared to 'response'. So we need to stay an extra cycle longer in read states,
         # stalling the rest of the pipeline, thus need an extra read state
         self.fsm.add_transition(MemoryStates.read_1, ~self.bus_if.response, MemoryStates.read_1)
@@ -89,33 +111,64 @@ class MemoryStage(Module):
         self.fsm.add_transition(MemoryStates.read_1, self.bus_if.response & self.bus_if.last, MemoryStates.read_2)
 
         self.fsm.add_transition(MemoryStates.read_2, ~self.exec.valid, MemoryStates.idle)
-        self.fsm.add_transition(MemoryStates.read_2,  self.exec.valid & self.exec.is_load, MemoryStates.read_1)
-        self.fsm.add_transition(MemoryStates.read_2,  self.exec.valid & self.exec.is_store, MemoryStates.write)
+        self.fsm.add_transition(MemoryStates.read_2,  self.exec.valid & ~is_csr & self.exec.is_load, MemoryStates.read_1)
+        self.fsm.add_transition(MemoryStates.read_2,  self.exec.valid & ~is_csr & self.exec.is_store, MemoryStates.write)
+        self.fsm.add_transition(MemoryStates.read_2,  self.exec.valid & is_csr & self.exec.is_load & ~csr_response, MemoryStates.csr_read)
+        self.fsm.add_transition(MemoryStates.read_2,  self.exec.valid & is_csr & self.exec.is_store & ~csr_response, MemoryStates.csr_write)
+
+        self.fsm.add_transition(MemoryStates.csr_read, ~csr_response, MemoryStates.csr_read)
+        self.fsm.add_transition(MemoryStates.csr_read, csr_response & ~self.exec.valid, MemoryStates.idle)
+        self.fsm.add_transition(MemoryStates.csr_read, csr_response & self.exec.valid & ~is_csr & self.exec.is_load, MemoryStates.read_1)
+        self.fsm.add_transition(MemoryStates.csr_read, csr_response & self.exec.valid & ~is_csr & self.exec.is_store, MemoryStates.write)
+        self.fsm.add_transition(MemoryStates.csr_read, csr_response & self.exec.valid & is_csr & self.exec.is_load & ~csr_response, MemoryStates.csr_read)
+        self.fsm.add_transition(MemoryStates.csr_read, csr_response & self.exec.valid & is_csr & self.exec.is_store & ~csr_response, MemoryStates.csr_write)
+
+        self.fsm.add_transition(MemoryStates.csr_write, ~csr_response, MemoryStates.csr_write)
+        self.fsm.add_transition(MemoryStates.csr_write, csr_response & ~self.exec.valid, MemoryStates.idle)
+        self.fsm.add_transition(MemoryStates.csr_write, csr_response & self.exec.valid & ~is_csr & self.exec.is_load, MemoryStates.read_1)
+        self.fsm.add_transition(MemoryStates.csr_write, csr_response & self.exec.valid & ~is_csr & self.exec.is_store, MemoryStates.write)
+        self.fsm.add_transition(MemoryStates.csr_write, csr_response & self.exec.valid & is_csr & self.exec.is_load & ~csr_response, MemoryStates.csr_read)
+        self.fsm.add_transition(MemoryStates.csr_write, csr_response & self.exec.valid & is_csr & self.exec.is_store & ~csr_response, MemoryStates.csr_write)
 
         # The only reason we would apply back-pressure is if we're waiting on the bus interface
         exec_ready = Wire()
-        exec_ready <<= (state == MemoryStates.idle) | (state == MemoryStates.read_2) | ((state == MemoryStates.write) & self.bus_if.last)
+        exec_ready <<= (
+            (state == MemoryStates.idle) |
+            (state == MemoryStates.read_2) |
+            ((state == MemoryStates.write) & self.bus_if.last) |
+            (state == MemoryStates.csr_read & csr_response) |
+            (state == MemoryStates.csr_write & csr_response)
+        )
         self.exec.ready <<= exec_ready
         accept_next = self.exec.valid & exec_ready
 
         data_h = Wire(Unsigned(16))
         data_h <<= Select(
             state == MemoryStates.read_2,
-            Reg(self.exec.result[31:16], clock_en=(state == MemoryStates.idle)),
-            self.bus_if.data_out
+            Select(
+                csr_request & csr_response & self.csr_if.read_not_write,
+                Reg(self.exec.result[31:16], clock_en=(state == MemoryStates.idle)),
+                self.csr_if.rd_data[31:16] # CSR read
+            ),
+            self.bus_if.data_out # Receiving read response from bus_if
         )
         data_l = Wire(Unsigned(16))
-        data_l <<= Reg(
+        data_l <<= \
             Select(
-                state == MemoryStates.idle,
-                Select(
-                    state == MemoryStates.read_1,
-                    data_l,
-                    self.bus_if.data_out
+                csr_request & csr_response & self.csr_if.read_not_write,
+                Reg(
+                    Select(
+                        state == MemoryStates.idle,
+                        Select(
+                            state == MemoryStates.read_1,
+                            data_l,
+                            self.bus_if.data_out
+                        ),
+                        self.exec.result[15:0]
+                    )
                 ),
-                self.exec.result[15:0]
+                self.csr_if.rd_data[15:0] # CSR read
             )
-        )
 
         def bse(value):
             return concat(
@@ -145,7 +198,7 @@ class MemoryStage(Module):
         pass_through <<= Reg(~(self.exec.is_load | self.exec.is_store), clock_en=accept_next)
         self.w_request <<= pass_through | state == MemoryStates.read_2
 
-        self.bus_if.request         <<= accept_next
+        self.bus_if.request         <<= accept_next & (self.exec.is_store | self.exec.is_load) & ~is_csr
         self.bus_if.read_not_write  <<= self.exec.is_load
         self.bus_if.burst_len       <<= self.exec.mem_access_len[1] # 8- and 16-bit accesses need a burst length of 1, while 32-bit accesses need a burst-length of 2.
         self.bus_if.byte_en         <<= Select(
@@ -160,7 +213,11 @@ class MemoryStage(Module):
             self.exec.result[15:0]
         )
 
-
+        csr_request <<= accept_next & (self.exec.is_store | self.exec.is_load) & is_csr
+        self.csr_if.request <<= csr_request
+        self.csr_if.addr <<= self.exec.mem_addr[12:2] # CSRs are always 32-bits long, don't care about the low-oreder 2 bits
+        self.csr_if.wr_data <<= self.exec.result
+        self.csr_if.read_not_write <<= self.exec.is_load
 
 
 

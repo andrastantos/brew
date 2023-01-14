@@ -19,6 +19,8 @@ BrewRegAddr = Number(min_val=0, max_val=BrewRegCnt-1)
 BrewMemBase = Unsigned(22)
 BrewMemShift = 10 # This is in bytes
 
+BrewCsrAddr = Unsigned(10) # We have 4kB of CSR space, in 1024 32-bit registers
+BrewCsrData = Unsigned(32)
 
 inst_len_16 = 0
 inst_len_32 = 1
@@ -127,7 +129,14 @@ class ExecMemIf(ReadyValid):
     mem_addr = BrewAddr
     mem_access_len = Unsigned(2) # 0 for 8-bit, 1 for 16-bit, 2 for 32-bit
 
+class CsrIf(Interface):
+    request = logic
+    response = Reverse(logic)
 
+    addr = BrewCsrAddr
+    wr_data = BrewCsrData
+    rd_data = Reverse(BrewCsrData)
+    read_not_write = logic
 
 
 # Exception types:
