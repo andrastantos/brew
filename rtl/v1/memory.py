@@ -213,7 +213,7 @@ class MemoryStage(Module):
             self.exec.result[15:0]
         )
 
-        csr_request <<= accept_next & (self.exec.is_store | self.exec.is_load) & is_csr
+        csr_request <<= self.exec.valid & (self.exec.is_store | self.exec.is_load) & is_csr
         self.csr_if.request <<= csr_request
         self.csr_if.addr <<= self.exec.mem_addr[12:2] # CSRs are always 32-bits long, don't care about the low-oreder 2 bits
         self.csr_if.wr_data <<= self.exec.result

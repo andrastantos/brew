@@ -430,13 +430,13 @@ class DecodeStage(Module):
         rsv_needed   = SelectOne(*select_list_rsv_needed, default_port=0)
 
 
-        self.rf_read1_addr <<= rd1_addr
+        self.rf_read1_addr <<= BrewRegAddr(rd1_addr)
         self.rf_read1_valid <<= read1_needed
 
-        self.rf_read2_addr <<= rd2_addr
+        self.rf_read2_addr <<= BrewRegAddr(rd2_addr)
         self.rf_read2_valid <<= read2_needed
 
-        self.rf_rsv_addr <<= res_addr
+        self.rf_rsv_addr <<= BrewRegAddr(res_addr)
         self.rf_rsv_valid <<= rsv_needed
 
         exec_out = Wire(DecodeExecIf)
@@ -459,7 +459,7 @@ class DecodeStage(Module):
         exec_out.do_wse          <<= wse
         exec_out.do_bze          <<= bze
         exec_out.do_wze          <<= wze
-        exec_out.result_reg_addr <<= res_addr
+        exec_out.result_reg_addr <<= BrewRegAddr(res_addr)
         exec_out.fetch_av        <<= self.fetch.av
 
         self.exec <<= ForwardBuf(exec_out)
