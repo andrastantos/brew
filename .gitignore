@@ -37,3 +37,10 @@ __pycache__
 
 .deps
 .libs
+
+**/quartus/db/*
+**/quartus/incremental_db/*
+**/quartus/output_files/*
+**/quartus/simulation/*
+**/*_pin_model_dump.txt
+**/rtl/**/output/*
