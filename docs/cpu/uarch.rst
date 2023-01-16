@@ -208,8 +208,18 @@ Scaling that to current levels:
 
 And with that, ladies and gentlemen, we have something to shoot for. In fact, here's an idea: can we actually **try to build these chips?**. One `sample design <https://github.com/miscellaneousbits/caravel_sha3_256_crypto_miner>`_ claims about 300k cells. In the same area, we can probably fit the whole chipset, and somehow select between them using strapping. Now **that** would be something!!
 
+Now, accroding to `this guy <http://www.righto.com/2020/06/die-shrink-how-intel-scaled-down-8086.html>`_ the 8086 was introduced in HMOS-II in '79 and was shrunken to HMOS-III in '82. If true, maybe I can also afford a 2um node in the early '80s? At the same time, according to `Wikipedia <http://www.righto.com/2020/06/die-shrink-how-intel-scaled-down-8086.html>`_ the 8086 started it's life as a 3um HMOS-I die at 33mm^2 and 29k transistors.
 
 
+As far as the 68000 goes, it contains about 68000 transistors in an area of `44.5mm^2 <http://www.easy68k.com/paulrsm/doc/dpbm68k2.htm>`_.
+
+According to `Wikiwand https://www.wikiwand.com/en/3_%C2%B5m_process`_ both the 8086 and the 68k were manufactured in 3um land.
+
+.. note::
+
+  First synthesis of the V1 pipeline into 130um shows 0.075mm^2 area, which is right on target, albeit without an instruction buffer.
+
+  The first Quartus runs of the same reported timing closure at 100MHz, suggesting that we should be able to close at around 230MHz in silicon too.
 
 Some more links:
 
