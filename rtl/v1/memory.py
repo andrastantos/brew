@@ -142,6 +142,7 @@ class MemoryStage(Module):
         self.exec.ready <<= exec_ready
         accept_next = self.exec.valid & exec_ready
 
+        lsb = Reg(self.exec.mem_addr[0], clock_en=accept_next)
         data_h = Wire(Unsigned(16))
         data_h <<= Select(
             state == MemoryStates.read_2,
@@ -162,7 +163,12 @@ class MemoryStage(Module):
                         Select(
                             state == MemoryStates.read_1,
                             data_l,
-                            self.bus_if.data_out
+                            # Have to be careful here with 8-bit reads: we need to move the upper to the lower bytes for odd addresses
+                            Select(
+                                lsb,
+                                self.bus_if.data_out,
+                                concat(self.bus_if.data_out[15:8], self.bus_if.data_out[15:8])
+                            )
                         ),
                         self.exec.result[15:0]
                     )
