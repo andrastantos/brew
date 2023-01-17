@@ -24,6 +24,12 @@ It does the following:
 
 """
 
+"""
+TODO:
+
+- Should we have double-pumped data-bus?
+- Should we delay 'response' and 'last' by one cycle for reads to line up with the data? - this will come into the fore as we firm up 'fetch' and 'memory'
+"""
 class BusIf(Module):
     clk = ClkPort()
     rst = RstPort()
@@ -407,6 +413,12 @@ def sim():
                 yield from read(0xe,0,3)
                 yield from wait_clk()
                 yield from read(0x12,1,3)
+                yield from wait_clk()
+                yield from read(0x24,3,3)
+                yield from wait_clk()
+                yield from read(0x3,0,1)
+                yield from wait_clk()
+                yield from read(0x4,0,2)
             elif self.mode == "mem":
                 pass
 
@@ -535,7 +547,7 @@ def sim():
                 yield from clk()
             self.rst <<= 0
 
-            for i in range(12):
+            for i in range(50):
                 yield from clk()
             now = yield 10
             print(f"Done at {now}")
