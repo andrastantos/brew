@@ -4,6 +4,7 @@ from silicon import *
 
 BrewLineAddrWidth = 29
 
+BrewByte = Unsigned(8)
 BrewAddr = Unsigned(32)
 BrewInstAddr = Unsigned(31)
 BrewDWordAddr = Unsigned(30)
