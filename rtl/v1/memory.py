@@ -226,9 +226,236 @@ class MemoryStage(Module):
         self.csr_if.read_not_write <<= self.exec.is_load
 
 
+def sim():
+
+    class CsrEmulator(Module):
+        clk = ClkPort()
+        rst = RstPort()
+
+        csr_if = Input(CsrIf)
+
+        def simulate(self) -> TSimEvent:
+            def wait_clk():
+                yield (self.clk, )
+                while self.clk.get_sim_edge() != EdgeType.Positive:
+                    yield (self.clk, )
+
+            self.csr_if.response <<= 0
+            self.csr_if.rd_data <<= None
+            while True:
+                yield from wait_clk()
+
+                if self.rst == 1:
+                    self.csr_if.response <<= 0
+                    self.csr_if.rd_data <<= None
+                else:
+                    if self.csr_if.request == 1:
+                        if self.csr_if.read_not_write:
+                            # Read request
+                            print(f"Reading CSR {self.csr_if.addr:x}")
+                            self.csr_if.response <<= 0
+                            self.csr_if.rd_data <<= None
+                            yield from wait_clk()
+                            self.csr_if_response <<= 1
+                            self.csr_if.rd_data <<= self.csr_if.addr
+                        else:
+                            # Write request
+                            print(f"Writing CSR {self.csr_if.addr:x} with {self.csr_if.wr_data:x}")
+                            self.csr_if_response <<= 1
+                            self.csr_if.rd_data <<= None
+                    else:
+                        self.csr_if.response <<= 0
+                        self.csr_if.rd_data <<= None
+
+    class BusEmulator(Module):
+        clk = ClkPort()
+        rst = RstPort()
+
+        bus_if = Input(BusIfPortIf)
+
+        def simulate(self) -> TSimEvent:
+            def wait_clk():
+                yield (self.clk, )
+                while self.clk.get_sim_edge() != EdgeType.Positive:
+                    yield (self.clk, )
+
+            self.bus_if.response <<= 0
+            self.bus_if.data_out <<= None
+            self.bus_if.last <<= None
+            while True:
+                yield from wait_clk()
+
+                if self.rst == 1:
+                    self.bus_if.response <<= 0
+                    self.bus_if.data_out <<= None
+                    self.bus_if.last <<= None
+                else:
+                    if self.bus_if.request == 1:
+                        burst_cnt = self.bus_if.burst_len.sim_value+1
+                        if self.bus_if.read_not_write:
+                            # Read request
+                            print(f"Reading BUS {self.bus_if.addr:x} burst:{self.bus_if.burst_len} byte_en:{self.bus_if.byte_en}")
+                            self.bus_if.response <<= 0
+                            self.bus_if.last <<= 0
+                            self.bus_if.data_out <<= None
+                            yield from wait_clk()
+                            self.bus_if.response <<= 1
+                            for i in range(burst_cnt):
+                                self.bus_if.last <<= 1 if i == burst_cnt-1 else 0
+                                self.bus_if.response <<= 1 if i <= burst_cnt-1 else 0
+                                yield from wait_clk()
+                                data = self.bus_if.addr[15:0] + i
+                                print(f"    data:{data:x}")
+                                self.bus_if.data_out <<= data
+                            self.bus_if.response <<= 0
+                            self.bus_if.last <<= 0
+                        else:
+                            # Write request
+                            print(f"Writing BUS {self.bus_if.addr:x} burst:{self.bus_if.burst_len} byte_en:{self.bus_if.byte_en}")
+                            self.bus_if.response <<= 0
+                            self.bus_if.last <<= 0
+                            self.bus_if.data_out <<= None
+                            print(f"    data:{self.bus_if.data_in}")
+                            yield from wait_clk()
+                            self.bus_if.response <<= 1
+                            for i in range(burst_cnt):
+                                print(f"    data:{self.bus_if.data_in:x}")
+                                self.bus_if.last <<= 1 if i < burst_cnt-1 else 0
+                                self.bus_if.response <<= 1 if i < burst_cnt-1 else 0
+                                yield from wait_clk()
+                    else:
+                        self.bus_if.response <<= 0
+                        self.bus_if.data_out <<= None
+                        self.bus_if.last <<= None
+
+
+    class RegFileEmulator(Module):
+        clk = ClkPort()
+        rst = RstPort()
+
+        w_result_reg_addr = Input(BrewRegAddr)
+        w_result = Input(BrewData)
+        w_request = Input(logic)
+
+        def simulate(self) -> TSimEvent:
+            def wait_clk():
+                yield (self.clk, )
+                while self.clk.get_sim_edge() != EdgeType.Positive:
+                    yield (self.clk, )
+
+            while True:
+                yield from wait_clk()
+
+                if self.w_request == 1:
+                    print(f"Writing REG $r{self.w_result_reg_addr:x} with value {self.w_result:x}")
+
+
+    class ExecEmulator(Module):
+        clk = ClkPort()
+        rst = RstPort()
+
+        exec = Output(ExecMemIf)
+
+        def simulate(self) -> TSimEvent:
+            def wait_clk():
+                yield (self.clk, )
+                while self.clk.get_sim_edge() != EdgeType.Positive:
+                    yield (self.clk, )
+
+            def wait_rst():
+                yield from wait_clk()
+                while self.rst == 1:
+                    yield from wait_clk()
+
+            def wait_transfer():
+                self.exec.valid <<= 1
+                yield from wait_clk()
+                while (self.exec.valid & self.exec.ready) != 1:
+                    yield from wait_clk()
+                self.exec.valid <<= 0
+
+            self.exec.valid <<= 0
+            yield from wait_rst()
+            for i in range(4):
+                yield from wait_clk()
+
+            self.exec.is_load <<= 1
+            self.exec.is_store <<= 0
+            self.exec.do_bse <<= 0
+            self.exec.do_wse <<= 0
+            self.exec.do_bze <<= 0
+            self.exec.do_wze <<= 0
+            self.exec.result_reg_addr <<= 3
+            self.exec.result <<= 0x12345678
+            self.exec.mem_addr <<= 0x140
+            self.exec.mem_access_len <<= 2 # 32-bit access
+
+            yield from wait_transfer()
+
+
+    class top(Module):
+        clk = ClkPort()
+        rst = RstPort()
+
+        def body(self):
+            seed(0)
+            self.exec = Wire(ExecMemIf)
+            self.w_result_reg_addr = Wire(BrewRegAddr)
+            self.w_result = Wire(BrewData)
+            self.w_request = Wire(logic)
+            self.bus_if = Wire(BusIfPortIf)
+            self.csr_if = Wire(CsrIf)
+
+            self.exec_emulator = ExecEmulator()
+            self.csr_emulator = CsrEmulator()
+            self.bus_emulator = BusEmulator()
+            self.reg_file_emulator = RegFileEmulator()
+
+            self.dut = MemoryStage()
+
+            self.exec <<= self.exec_emulator.exec
+            self.dut.exec <<= self.exec
+
+            self.w_request <<= self.dut.w_request
+            self.w_result <<= self.dut.w_result
+            self.w_result_reg_addr <<= self.dut.w_result_reg_addr
+            self.reg_file_emulator.w_request <<= self.w_request
+            self.reg_file_emulator.w_result <<= self.w_result
+            self.reg_file_emulator.w_result_reg_addr <<= self.w_result_reg_addr
+
+            self.bus_if <<= self.dut.bus_if
+            self.bus_emulator.bus_if <<= self.bus_if
+
+            self.csr_if <<= self.dut.csr_if
+            self.csr_emulator.csr_if <<= self.csr_if
+
+
+        def simulate(self) -> TSimEvent:
+            def clk() -> int:
+                yield 10
+                self.clk <<= ~self.clk & self.clk
+                yield 10
+                self.clk <<= ~self.clk
+                yield 0
+
+            print("Simulation started")
+
+            self.rst <<= 1
+            self.clk <<= 1
+            yield 10
+            for i in range(5):
+                yield from clk()
+            self.rst <<= 0
+
+            for i in range(50):
+                yield from clk()
+            now = yield 10
+            print(f"Done at {now}")
+
+    Build.simulation(top, "memory.vcd", add_unnamed_scopes=True)
 
 def gen():
     Build.generate_rtl(MemoryStage)
 
 #gen()
-
+sim()

@@ -1,0 +1,90 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Thu Jan 19 04:00:50 2023
+[*]
+[dumpfile] "/home/tantos/brew/rtl/v1/memory.vcd"
+[dumpfile_mtime] "Thu Jan 19 02:53:56 2023"
+[dumpfile_size] 92069
+[savefile] "/home/tantos/brew/rtl/v1/memory.gtkw"
+[timestart] 0
+[size] 1920 990
+[pos] -1 -1
+*-7.167175 285 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.u4.
+[sst_width] 233
+[signals_width] 206
+[sst_expanded] 1
+[sst_vpaned_height] 269
+@28
+top.clk
+top.rst
+@c00200
+-EXEC
+@28
+top.exec_do_bse
+top.exec_do_bze
+top.exec_do_wse
+top.exec_do_wze
+top.exec_is_load
+top.exec_is_store
+top.exec_mem_access_len[1:0]
+@22
+top.exec_mem_addr[31:0]
+@28
+top.exec_ready
+@22
+top.exec_result[31:0]
+top.exec_result_reg_addr[3:0]
+@28
+top.exec_valid
+@1401200
+-EXEC
+@800200
+-BUS_IF
+@22
+top.u4.bus_if_addr[30:0]
+@28
+top.u4.bus_if_burst_len
+top.u4.bus_if_byte_en[1:0]
+@22
+top.u4.bus_if_data_in[15:0]
+top.u4.bus_if_data_out[15:0]
+@28
+top.u4.bus_if_last
+top.u4.bus_if_read_not_write
+top.u4.bus_if_request
+top.u4.bus_if_response
+@1000200
+-BUS_IF
+@800200
+-CSR_IF
+@22
+top.u4.csr_if_addr[10:0]
+top.u4.csr_if_rd_data[31:0]
+@28
+top.u4.csr_if_read_not_write
+top.u4.csr_if_request
+top.u4.csr_if_response
+@22
+top.u4.csr_if_wr_data[31:0]
+@28
+top.u4.csr_request
+top.u4.csr_response
+@1000200
+-CSR_IF
+@800200
+-REG_FILE_IF
+@28
+top.u4.w_request
+@22
+top.u4.w_result[31:0]
+top.u4.w_result_reg_addr[3:0]
+@1000200
+-REG_FILE_IF
+@201
+-INTERNAL
+@22
+top.u4.full_result[31:0]
+[pattern_trace] 1
+[pattern_trace] 0
