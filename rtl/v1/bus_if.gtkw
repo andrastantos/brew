@@ -1,0 +1,93 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Thu Jan 19 02:40:36 2023
+[*]
+[dumpfile] "/home/tantos/brew/rtl/v1/bus_if.vcd"
+[dumpfile_mtime] "Tue Jan 17 03:22:55 2023"
+[dumpfile_size] 69319
+[savefile] "/home/tantos/brew/rtl/v1/bus_if.gtkw"
+[timestart] 84
+[size] 1920 990
+[pos] -1 -1
+*-5.976983 406 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.dut.
+[treeopen] top.u3.
+[sst_width] 367
+[signals_width] 268
+[sst_expanded] 1
+[sst_vpaned_height] 280
+@28
+top.clk
+top.rst
+@800200
+-FETCH_IF
+@28
+top.fetch_if_request
+@22
+top.fetch_if_addr[30:0]
+@28
+top.fetch_if_burst_len[1:0]
+top.fetch_if_byte_en[1:0]
+@22
+top.fetch_if_data_in[15:0]
+top.fetch_if_data_out[15:0]
+@28
+top.fetch_if_last
+top.fetch_if_read_not_write
+top.fetch_if_response
+@1000200
+-FETCH_IF
+@c00200
+-MEM_IF
+@22
+top.mem_if_addr[30:0]
+@28
+top.mem_if_burst_len[1:0]
+top.mem_if_byte_en[1:0]
+@22
+top.mem_if_data_in[15:0]
+top.mem_if_data_out[15:0]
+@28
+top.mem_if_last
+top.mem_if_read_not_write
+top.mem_if_request
+top.mem_if_response
+@1401200
+-MEM_IF
+@800200
+-DRAM
+@22
+top.dut.DRAM_ADDR[11:0]
+top.dut.DRAM_DATA_rd_h[7:0]
+top.dut.DRAM_DATA_rd_l[7:0]
+top.dut.DRAM_DATA_wr[15:0]
+@28
+top.dut.DRAM_nRAS
+top.dut.DRAM_nCAS_h
+top.dut.DRAM_nCAS_l
+top.dut.CAS_nEN
+top.dut.DRAM_nWE
+@1000200
+-DRAM
+@200
+-DUT
+@28
+top.dut.advance
+top.dut.arb_state
+top.dut.arb_next_state
+top.dut.fetch_request
+top.dut.mem_request
+top.dut.last
+top.dut.beats_remaining[1:0]
+@800029
+top.dut.byte_en[1:0]
+@29
+(0)top.dut.byte_en[1:0]
+(1)top.dut.byte_en[1:0]
+@1001201
+-group_end
+@22
+top.dut.wait_states[3:0]
+[pattern_trace] 1
+[pattern_trace] 0
