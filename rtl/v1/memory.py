@@ -151,7 +151,13 @@ class MemoryStage(Module):
                 Reg(self.exec.result[31:16], clock_en=(state == MemoryStates.idle)),
                 self.csr_if.rd_data[31:16] # CSR read
             ),
-            self.bus_if.data_out # Receiving read response from bus_if
+            # Receiving read response from bus_if
+            # Have to be careful here with 8-bit reads: we need to move the upper to the lower bytes for odd addresses
+            Select(
+                lsb,
+                self.bus_if.data_out,
+                concat(self.bus_if.data_out[15:8], self.bus_if.data_out[15:8])
+            )
         )
         data_l = Wire(Unsigned(16))
         data_l <<= \
@@ -163,12 +169,7 @@ class MemoryStage(Module):
                         Select(
                             state == MemoryStates.read_1,
                             data_l,
-                            # Have to be careful here with 8-bit reads: we need to move the upper to the lower bytes for odd addresses
-                            Select(
-                                lsb,
-                                self.bus_if.data_out,
-                                concat(self.bus_if.data_out[15:8], self.bus_if.data_out[15:8])
-                            )
+                            self.bus_if.data_out,
                         ),
                         self.exec.result[15:0]
                     )
@@ -192,11 +193,15 @@ class MemoryStage(Module):
             )
 
         full_result = concat(data_h, data_l)
+        do_bse = Reg(self.exec.do_bse, clock_en=accept_next)
+        do_wse = Reg(self.exec.do_wse, clock_en=accept_next)
+        do_bze = Reg(self.exec.do_bze, clock_en=accept_next)
+        do_wze = Reg(self.exec.do_wze, clock_en=accept_next)
         self.w_result <<= SelectOne(
-            self.exec.do_bse, bse(full_result),
-            self.exec.do_wse, wse(full_result),
-            self.exec.do_bze, full_result[7:0],
-            self.exec.do_wze, full_result[15:0],
+            do_bse, bse(data_h),
+            do_wse, wse(data_h),
+            do_bze, data_h[7:0],
+            do_wze, data_h[15:0],
             default_port = full_result
         )
         self.w_result_reg_addr <<= BrewRegAddr(Reg(self.exec.result_reg_addr, clock_en=(state == MemoryStates.idle)))
@@ -294,7 +299,9 @@ def sim():
                         burst_cnt = self.bus_if.burst_len.sim_value+1
                         if self.bus_if.read_not_write:
                             # Read request
-                            print(f"Reading BUS {self.bus_if.addr:x} burst:{self.bus_if.burst_len} byte_en:{self.bus_if.byte_en}")
+                            addr = self.bus_if.addr
+                            data = self.bus_if.addr[15:0]
+                            print(f"Reading BUS {addr:x} burst:{self.bus_if.burst_len} byte_en:{self.bus_if.byte_en}")
                             self.bus_if.response <<= 0
                             self.bus_if.last <<= 0
                             self.bus_if.data_out <<= None
@@ -304,9 +311,9 @@ def sim():
                                 self.bus_if.last <<= 1 if i == burst_cnt-1 else 0
                                 self.bus_if.response <<= 1 if i <= burst_cnt-1 else 0
                                 yield from wait_clk()
-                                data = self.bus_if.addr[15:0] + i
                                 print(f"    data:{data:x}")
                                 self.bus_if.data_out <<= data
+                                data = data + 1
                             self.bus_if.response <<= 0
                             self.bus_if.last <<= 0
                         else:
@@ -374,23 +381,39 @@ def sim():
                     yield from wait_clk()
                 self.exec.valid <<= 0
 
+            def do_load(reg_addr: int, mem_addr: int, mem_access_len: int, sign_extend: bool = False):
+                self.exec.is_load <<= 1
+                self.exec.is_store <<= 0
+                self.exec.result <<= None
+                self.exec.result_reg_addr <<= reg_addr
+                self.exec.mem_addr <<= mem_addr
+                self.exec.mem_access_len <<= mem_access_len
+                if mem_access_len == access_len_8:
+                    self.exec.do_bse <<= 1 if sign_extend else 0
+                    self.exec.do_bze <<= 0 if sign_extend else 1
+                    self.exec.do_wse <<= 0
+                    self.exec.do_wze <<= 0
+                if mem_access_len == access_len_16:
+                    self.exec.do_bse <<= 0
+                    self.exec.do_bze <<= 0
+                    self.exec.do_wse <<= 1 if sign_extend else 0
+                    self.exec.do_wze <<= 0 if sign_extend else 1
+                if mem_access_len == access_len_32:
+                    self.exec.do_bse <<= 0
+                    self.exec.do_bze <<= 0
+                    self.exec.do_wse <<= 0
+                    self.exec.do_wze <<= 0
+                yield from wait_transfer()
+
             self.exec.valid <<= 0
             yield from wait_rst()
             for i in range(4):
                 yield from wait_clk()
 
-            self.exec.is_load <<= 1
-            self.exec.is_store <<= 0
-            self.exec.do_bse <<= 0
-            self.exec.do_wse <<= 0
-            self.exec.do_bze <<= 0
-            self.exec.do_wze <<= 0
-            self.exec.result_reg_addr <<= 3
-            self.exec.result <<= 0x12345678
-            self.exec.mem_addr <<= 0x140
-            self.exec.mem_access_len <<= 2 # 32-bit access
-
-            yield from wait_transfer()
+            yield from do_load(reg_addr=0x3, mem_addr=0x140, mem_access_len=access_len_32)
+            yield from do_load(reg_addr=0x3, mem_addr=0x240, mem_access_len=access_len_16, sign_extend=False)
+            yield from do_load(reg_addr=0x3, mem_addr=0x244, mem_access_len=access_len_8, sign_extend=False)
+            yield from do_load(reg_addr=0x3, mem_addr=0x245, mem_access_len=access_len_8, sign_extend=False)
 
 
     class top(Module):
