@@ -89,7 +89,7 @@ class exec(Enum):
 class BusIfPortIf(Interface):
     request         = logic
     read_not_write  = logic
-    burst_len       = Unsigned(2)
+    burst_len       = Unsigned(2) # 0: single-beat, 1: two-beat, 3: 4-beat
     byte_en         = Unsigned(2)
     addr            = BrewBusAddr
     data_in         = BrewBusData
