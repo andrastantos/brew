@@ -86,6 +86,10 @@ class exec(Enum):
     cbranch = 5
     bbranch = 6
 
+access_len_8 = 0
+access_len_16 = 1
+access_len_32 = 2
+
 class BusIfPortIf(Interface):
     request         = logic
     read_not_write  = logic
