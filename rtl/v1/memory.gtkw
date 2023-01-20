@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Thu Jan 19 04:29:31 2023
+[*] Fri Jan 20 02:57:16 2023
 [*]
 [dumpfile] "/home/tantos/brew/rtl/v1/memory.vcd"
-[dumpfile_mtime] "Thu Jan 19 04:29:08 2023"
-[dumpfile_size] 88709
+[dumpfile_mtime] "Fri Jan 20 02:56:30 2023"
+[dumpfile_size] 131782
 [savefile] "/home/tantos/brew/rtl/v1/memory.gtkw"
 [timestart] 0
 [size] 1920 990
 [pos] -1 -1
-*-7.167175 297 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-7.167175 638 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.u4.
 [sst_width] 233
@@ -19,7 +19,7 @@
 @28
 top.clk
 top.rst
-@c00200
+@800200
 -EXEC
 @28
 top.exec_do_bse
@@ -38,7 +38,7 @@ top.exec_result[31:0]
 top.exec_result_reg_addr[3:0]
 @28
 top.exec_valid
-@1401200
+@1000200
 -EXEC
 @800200
 -BUS_IF
@@ -47,23 +47,20 @@ top.u4.bus_if_request
 @22
 top.u4.bus_if_addr[30:0]
 @28
+top.u4.bus_if_read_not_write
 top.u4.bus_if_burst_len
+@29
 top.u4.bus_if_byte_en[1:0]
 @22
 top.u4.bus_if_data_in[15:0]
 @28
-top.u4.bus_if_read_not_write
 top.u4.bus_if_last
 top.u4.bus_if_response
-@800022
-#{top.u4.bus_if_data_out[0:15]} (15)top.u4.bus_if_data_out[15:0] (14)top.u4.bus_if_data_out[15:0] (13)top.u4.bus_if_data_out[15:0] (12)top.u4.bus_if_data_out[15:0] (11)top.u4.bus_if_data_out[15:0] (10)top.u4.bus_if_data_out[15:0] (9)top.u4.bus_if_data_out[15:0] (8)top.u4.bus_if_data_out[15:0] (7)top.u4.bus_if_data_out[15:0] (6)top.u4.bus_if_data_out[15:0] (5)top.u4.bus_if_data_out[15:0] (4)top.u4.bus_if_data_out[15:0] (3)top.u4.bus_if_data_out[15:0] (2)top.u4.bus_if_data_out[15:0] (1)top.u4.bus_if_data_out[15:0] (0)top.u4.bus_if_data_out[15:0]
 @22
-top.u4.bus_if_data_out[15:0]
-@1001200
--group_end
+top.bus_if_data_out[15:0]
 @1000200
 -BUS_IF
-@800200
+@c00200
 -CSR_IF
 @22
 top.u4.csr_if_addr[10:0]
@@ -74,7 +71,7 @@ top.u4.csr_if_request
 top.u4.csr_if_response
 @22
 top.u4.csr_if_wr_data[31:0]
-@1000200
+@1401200
 -CSR_IF
 @800200
 -REG_FILE_IF
@@ -87,7 +84,13 @@ top.u4.w_result_reg_addr[3:0]
 -REG_FILE_IF
 @200
 -INTERNAL
-@23
+@22
 top.u4.full_result[31:0]
+top.u4.data_h[15:0]
+top.u4.data_l[15:0]
+@28
+top.u4.first
+top.u4.first_and_last
+top.u4.state
 [pattern_trace] 1
 [pattern_trace] 0

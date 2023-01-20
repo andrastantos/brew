@@ -99,11 +99,7 @@ class MemoryStage(Module):
         self.fsm.add_transition(MemoryStates.idle, self.exec.valid & is_csr & self.exec.is_store & ~csr_response, MemoryStates.csr_write)
         # For writes all the state management is done by the bus-interface for us, and is reported back through 'last'.
         self.fsm.add_transition(MemoryStates.write, ~self.bus_if.response, MemoryStates.write)
-        self.fsm.add_transition(MemoryStates.write, self.bus_if.response & self.bus_if.last & ~self.exec.valid, MemoryStates.idle)
-        self.fsm.add_transition(MemoryStates.write, self.bus_if.response & self.bus_if.last &  self.exec.valid & ~is_csr & self.exec.is_load, MemoryStates.read_1)
-        self.fsm.add_transition(MemoryStates.write, self.bus_if.response & self.bus_if.last &  self.exec.valid & ~is_csr & self.exec.is_store, MemoryStates.write)
-        self.fsm.add_transition(MemoryStates.write, self.bus_if.response & self.bus_if.last &  self.exec.valid & is_csr & self.exec.is_load & ~csr_response, MemoryStates.csr_read)
-        self.fsm.add_transition(MemoryStates.write, self.bus_if.response & self.bus_if.last &  self.exec.valid & is_csr & self.exec.is_store & ~csr_response, MemoryStates.csr_write)
+        self.fsm.add_transition(MemoryStates.write, self.bus_if.response & self.bus_if.last, MemoryStates.idle)
         # For read cycles, we get the data back one-cycle delayed compared to 'response'. So we need to stay an extra cycle longer in read states,
         # stalling the rest of the pipeline, thus need an extra read state
         self.fsm.add_transition(MemoryStates.read_1, ~self.bus_if.response, MemoryStates.read_1)
@@ -135,7 +131,6 @@ class MemoryStage(Module):
         exec_ready <<= (
             (state == MemoryStates.idle) |
             (state == MemoryStates.read_2) |
-            ((state == MemoryStates.write) & self.bus_if.last) |
             (state == MemoryStates.csr_read & csr_response) |
             (state == MemoryStates.csr_write & csr_response)
         )
@@ -239,7 +234,14 @@ class MemoryStage(Module):
         self.bus_if.data_in         <<= Select(
             state == MemoryStates.idle,
             data_h,
-            self.exec.result[15:0]
+            concat(
+                Select(
+                    self.exec.mem_addr[0] & (self.exec.mem_access_len == access_len_8),
+                    self.exec.result[15:8],
+                    self.exec.result[7:0]
+                ),
+                self.exec.result[7:0]
+            )
         )
 
         csr_request <<= self.exec.valid & (self.exec.is_store | self.exec.is_load) & is_csr
@@ -296,7 +298,7 @@ def sim():
 
         bus_if = Input(BusIfPortIf)
 
-        def simulate(self) -> TSimEvent:
+        def simulate(self, simulator: 'Simulator') -> TSimEvent:
             def wait_clk():
                 yield (self.clk, )
                 while self.clk.get_sim_edge() != EdgeType.Positive:
@@ -323,7 +325,7 @@ def sim():
                             self.bus_if.response <<= 0
                             self.bus_if.last <<= 0
                             self.bus_if.data_out <<= None
-                            yield from wait_clk()
+                            #yield from wait_clk()
                             self.bus_if.response <<= 1
                             for i in range(burst_cnt):
                                 self.bus_if.last <<= 1 if i == burst_cnt-1 else 0
@@ -340,14 +342,16 @@ def sim():
                             self.bus_if.response <<= 0
                             self.bus_if.last <<= 0
                             self.bus_if.data_out <<= None
-                            print(f"    data:{self.bus_if.data_in}")
-                            yield from wait_clk()
+                            #print(f"    data:{self.bus_if.data_in:x} at {simulator.now}")
+                            #yield from wait_clk()
                             self.bus_if.response <<= 1
                             for i in range(burst_cnt):
-                                print(f"    data:{self.bus_if.data_in:x}")
-                                self.bus_if.last <<= 1 if i < burst_cnt-1 else 0
-                                self.bus_if.response <<= 1 if i < burst_cnt-1 else 0
+                                print(f"    data:{self.bus_if.data_in:x} at {simulator.now}")
+                                self.bus_if.last <<= 1 if i == burst_cnt-1 else 0
+                                self.bus_if.response <<= 1 if i <= burst_cnt-1 else 0
                                 yield from wait_clk()
+                            self.bus_if.response <<= 0
+                            self.bus_if.last <<= 0
                     else:
                         self.bus_if.response <<= 0
                         self.bus_if.data_out <<= None
@@ -423,6 +427,19 @@ def sim():
                     self.exec.do_wze <<= 0
                 yield from wait_transfer()
 
+            def do_store(value: int, mem_addr: int, mem_access_len: int):
+                self.exec.is_load <<= 0
+                self.exec.is_store <<= 1
+                self.exec.result <<= value
+                self.exec.result_reg_addr <<= None
+                self.exec.mem_addr <<= mem_addr
+                self.exec.mem_access_len <<= mem_access_len
+                self.exec.do_bse <<= None
+                self.exec.do_bze <<= None
+                self.exec.do_wse <<= None
+                self.exec.do_wze <<= None
+                yield from wait_transfer()
+
             self.exec.valid <<= 0
             yield from wait_rst()
             for i in range(4):
@@ -432,6 +449,13 @@ def sim():
             yield from do_load(reg_addr=0x3, mem_addr=0x240, mem_access_len=access_len_16, sign_extend=False)
             yield from do_load(reg_addr=0x3, mem_addr=0x244, mem_access_len=access_len_8, sign_extend=False)
             yield from do_load(reg_addr=0x3, mem_addr=0x245, mem_access_len=access_len_8, sign_extend=False)
+            for i in range(4):
+                yield from wait_clk()
+            yield from do_store(value=0x12345678, mem_addr=0xadd0e55, mem_access_len=access_len_32)
+            yield from do_store(value=0x23456789, mem_addr=0x0002000, mem_access_len=access_len_16)
+            yield from do_store(value=0x3456789a, mem_addr=0x0004000, mem_access_len=access_len_8)
+            yield from do_store(value=0x456789ab, mem_addr=0x0005001, mem_access_len=access_len_8)
+
 
 
     class top(Module):
