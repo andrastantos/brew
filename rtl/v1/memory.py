@@ -151,27 +151,45 @@ class MemoryStage(Module):
                 Reg(self.exec.result[31:16], clock_en=(state == MemoryStates.idle)),
                 self.csr_if.rd_data[31:16] # CSR read
             ),
-            # Receiving read response from bus_if
-            # Have to be careful here with 8-bit reads: we need to move the upper to the lower bytes for odd addresses
+            self.bus_if.data_out
+        )
+        first = Wire(logic)
+        first <<= Reg(
             Select(
-                lsb,
-                self.bus_if.data_out,
-                concat(self.bus_if.data_out[15:8], self.bus_if.data_out[15:8])
+                accept_next,
+                Select(
+                    self.bus_if.response,
+                    first,
+                    0
+                ),
+                1
             )
         )
+        first_and_last = Wire()
+        first_and_last <<= Reg(first & self.bus_if.last)
         data_l = Wire(Unsigned(16))
         data_l <<= \
             Select(
                 csr_request & csr_response & self.csr_if.read_not_write,
-                Reg(
-                    Select(
-                        state == MemoryStates.idle,
+                Select(
+                    first_and_last,
+                    Reg(
                         Select(
-                            state == MemoryStates.read_1,
-                            data_l,
-                            self.bus_if.data_out,
-                        ),
-                        self.exec.result[15:0]
+                            state == MemoryStates.idle,
+                            Select(
+                                state == MemoryStates.read_1,
+                                data_l,
+                                self.bus_if.data_out,
+                            ),
+                            self.exec.result[15:0]
+                        )
+                    ),
+                    # Receiving read response from bus_if
+                    # Have to be careful here with 8-bit reads: we need to move the upper to the lower bytes for odd addresses
+                    Select(
+                        lsb,
+                        self.bus_if.data_out,
+                        concat(self.bus_if.data_out[15:8], self.bus_if.data_out[15:8])
                     )
                 ),
                 self.csr_if.rd_data[15:0] # CSR read
@@ -198,10 +216,10 @@ class MemoryStage(Module):
         do_bze = Reg(self.exec.do_bze, clock_en=accept_next)
         do_wze = Reg(self.exec.do_wze, clock_en=accept_next)
         self.w_result <<= SelectOne(
-            do_bse, bse(data_h),
-            do_wse, wse(data_h),
-            do_bze, data_h[7:0],
-            do_wze, data_h[15:0],
+            do_bse, bse(data_l),
+            do_wse, wse(data_l),
+            do_bze, data_l[7:0],
+            do_wze, data_l[15:0],
             default_port = full_result
         )
         self.w_result_reg_addr <<= BrewRegAddr(Reg(self.exec.result_reg_addr, clock_en=(state == MemoryStates.idle)))
