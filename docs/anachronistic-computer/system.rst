@@ -1,6 +1,61 @@
 System considerations
 =====================
 
+High level specs
+~~~~~~~~~~~~~~~~
+
+For the processor:
+
+* Internal data-path: 32-bit
+* External data width: 16-bit
+* Clock speed: 10MHz
+* Performance: 4MIPS sustained with graphics, 10MIPS peak
+
+Memory:
+
+* Data width: 16-bit
+* Size: 128kB to 4MB
+* Number of banks: 2
+* Technology: NMOS DRAM
+
+Graphics:
+
+* Resolution:
+   * 320x240, 8 bits per pixel, 60Hz frame rate, 6.25MHz pixel clock rate
+   * 640x240, 4 bits per pixel, 60Hz frame rate, 12.5MHz pixel clock rate
+   * 640x480, 4 bits per pixel, 30Hz frame rate (interlaced), 12.5MHz pixel clock rate
+* Number of colors: 5-bit per channel; 32768 total colors
+* Sprites: 8 sprites
+   * 32xN pixels, 1 bit/pixel (0: transparent)
+   * 16xN pixels, 2 bits/pixel (0: transparent)
+   * 8xN pixels, 4 bits/pixel (0: transparent)
+
+Sound:
+
+* 8 mono sampling sound channels
+   * Independent panning control
+   * Independent volume control
+   * Re-sampling
+   * Looping support
+   * 8-bit/sample resolution
+* Stereo output
+
+Storage:
+
+* 720k, 3.5" floppy drive (PC compatible)
+
+Communication and networking:
+
+* LAN through RS-422
+* WAN through modem over RS-232
+
+Human interface:
+
+* Keyboard
+* Mouse
+* Joystick (switch-based)
+* Joystick (analog)
+
 Memory map
 ~~~~~~~~~~
 
@@ -45,7 +100,7 @@ All other address regions go through a buffer stage to relieve the CPU and DMA c
 .. note::
     nNREN does not have extensive loading on it, but it is still buffered to equalize delay between that and the address lines which it qualifies.
 
-The address bus buffers are bi-directional 74LS245 devices. They are controlled by the following signals:
+The data bus buffers are bi-directional 74LS245 devices. They are controlled by the following signals:
 
 ::
 
@@ -63,7 +118,7 @@ To support 8-bit transactions on the buffered bus, we need a third 74LS245 conne
     BD0..BD7  <<=>> A0..A7
 
 .. note::
-    The DMA controller generates addresses directly on the DRAM bus, but the data transfer is happening though these buffers and the requestor. Thus, during DMA operations, the buffers operate in the reverse direction compared to CPU cycles. Another consequence of this setup is that DMA can only happen to/from DRAM.
+    The DMA controller generates addresses directly on the DRAM bus, but the data transfer is happening though these buffers and the requestor. Thus, during DMA operations, the buffers operate in the reverse directio_silicon_techn compared to CPU cycles. Another consequence of this setup is that DMA can only happen to/from DRAM.
 
 Address decode and address latching
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

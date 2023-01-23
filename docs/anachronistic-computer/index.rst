@@ -11,12 +11,14 @@ Anachronistic Computer
    :caption: Contents:
 
    introduction
+   silicon
+   tech_landscape
+   system
    cpu
    memory
    clock
    video
    gate-counts
-   system
    dma
    graphics
    sound
