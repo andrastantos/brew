@@ -1,7 +1,14 @@
 #!/usr/bin/python3
 from random import *
 from typing import *
-from silicon import *
+try:
+    from silicon import *
+except ImportError:
+    import sys
+    from pathlib import Path
+    sys.path.append(str((Path() / ".." / ".." / ".." / "silicon").absolute()))
+    from silicon import *
+
 try:
     from .brew_types import *
     from .brew_utils import *

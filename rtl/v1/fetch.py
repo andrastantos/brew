@@ -1,7 +1,14 @@
 #!/usr/bin/python3
 from random import *
 from typing import *
-from silicon import *
+try:
+    from silicon import *
+except ImportError:
+    import sys
+    from pathlib import Path
+    sys.path.append(str((Path() / ".." / ".." / ".." / "silicon").absolute()))
+    from silicon import *
+
 try:
     from .brew_types import *
     from .brew_utils import *
@@ -25,10 +32,30 @@ The composition of fetch comes from 3 modules:
 
 """
 
+"""
+NOTES: On the BusIf, there's no way to cancel a request: once it's out, it's out.
+       We don't know if it's taken or not, until the response comes back. This
+       has two implications:
+       1. We need to keep 'request' active until 'response' comes back.
+       2. We need to throw away data during flushing
+
+Things to test:
+- Cancellation in all stages of a fetch
+    - Cancelling in the same cycle we issue a request is busted: we update ADDR from the request,
+      but cancel the first burst, so we start to fetch from the wrong address.
+- Test all sorts of invalid instruction sequences. There was something about jumping into the middle
+  of the instruction sequence that seemed to jam the instruction assembler
+
+NOTE: Fetch as-is now has a minimum 4-cycle latency:
+    1 cycle to initiate the bus request
+    1 cycle for the bus to give the reply
+    1 cycle to get the data through the FIFO
+    1 cycle to assemble the instruction
+"""
+
 class MemToFetchIf(ReadyValid):
     data = Unsigned(16)
     av = logic
-
 
 class InstBuffer(Module):
     """
@@ -54,33 +81,35 @@ class InstBuffer(Module):
     do_branch = Input(logic)
 
     def body(self):
-        self.fetch_addr = Wire(BrewLineAddr)
+        def truncate_addr(a):
+            return a[BrewInstAddr.get_length()-1:0]
+
+        self.fetch_addr = Wire(BrewInstAddr)
 
         fetch_increment = Wire(logic)
 
-        # The bottom few bits control the burst length after a branch
-        self.fetch_btm = Reg(
-            Select(
-                self.do_branch,
-                0,
-                Select(self.task_mode, self.spc[BrewLineAddrBtm-1:0], self.tpc[BrewLineAddrBtm-1:0])
-            )
-        )
-        self.fetch_addr <<= Reg(
-            Select(
-                self.do_branch,
-                # Normal incremental fetch
-                (self.fetch_addr + fetch_increment)[BrewLineAddrWidth-1:0],
-                # Branch - compute new physical address
-                (Select(
-                    self.task_mode,
-                    self.spc[30:BrewLineAddrBtm],
-                    self.tpc[30:BrewLineAddrBtm]
-                ) + (self.mem_base << (BrewMemShift-1-BrewLineAddrBtm)))[BrewLineAddrWidth-1:0]
-            )
+        branch_target = Wire()
+        branch_target <<= truncate_addr(Select(
+            self.task_mode,
+            self.spc,
+            self.tpc
+        ) + (self.mem_base << BrewMemShift))
+
+        self.fetch_addr <<= Select(
+            self.do_branch,
+            Reg(
+                Select(
+                    self.do_branch,
+                    # Normal incremental fetch
+                    truncate_addr(self.fetch_addr + fetch_increment),
+                    # Branch - compute new physical address
+                    branch_target
+                )
+            ),
+            branch_target
         )
 
-        fetch_av = self.fetch_addr[30-BrewLineAddrBtm:BrewMemShift-1-BrewLineAddrBtm] > self.mem_limit
+        fetch_av = self.fetch_addr[BrewInstAddr.get_length()-1:BrewMemShift] > self.mem_limit
 
         self.fsm = FSM()
 
@@ -139,14 +168,17 @@ class InstBuffer(Module):
         address:      0        1        2        3
         burst_len:    3        2        1        0
         """
-        self.bus_if.addr <<= concat(self.fetch_addr, "2'b0")
+        self.bus_if.addr <<= self.fetch_addr
         self.bus_if.read_not_write <<= 1
-        self.bus_if.burst_len <<= 3 - self.fetch_btm
+        self.bus_if.burst_len <<= 3 - self.fetch_addr[1:0]
         self.bus_if.byte_en <<= 3
         self.bus_if.data_in <<= None # This is a read-only port
+        self.bus_if.request <<= state == InstBufferStates.request_start
+
+        fetch_increment <<= self.bus_if.response
 
         response_d = Wire()
-        response_d <<= Reg(self.bus_if.response)
+        response_d <<= Reg(self.bus_if.response & ((state == InstBufferStates.request_start) | (state == InstBufferStates.request)))
 
         self.queue.data <<= self.bus_if.data_out
         self.queue.av <<= fetch_av
@@ -220,8 +252,9 @@ class InstAssemble(Module):
 
         # Datapath registers
         inst_len_reg = Wire(Unsigned(2))
-        inst_reg = Wire(Unsigned(48))
-        inst_fetch_addr = Wire(BrewInstAddr)
+        inst_reg_0 = Wire(Unsigned(16))
+        inst_reg_1 = Wire(Unsigned(16))
+        inst_reg_2 = Wire(Unsigned(16))
 
         # Instruction pre-decode: in this stage, all we care about is whether an instruction is a prefix and what it's length is
         inst_fragment = self.inst_buf.data
@@ -282,22 +315,22 @@ class InstAssemble(Module):
                     self.inst_buf.av
                 )
             )
-            inst_reg[15:0] <<= Reg(
+            inst_reg_0 <<= Reg(
                 Select(
                     (self.decode_fsm.state == InstAssembleStates.have_0_fragments) | (self.decode_fsm.state == InstAssembleStates.have_all_fragments),
-                    inst_reg[15:0],
+                    inst_reg_0,
                     inst_fragment
                 )
             )
-            inst_reg[31:16] <<= Reg(
+            inst_reg_1 <<= Reg(
                 Select(
                     ((self.decode_fsm.state == InstAssembleStates.need_1_fragments) & (inst_len_reg == inst_len_32)) |
                     (self.decode_fsm.state == InstAssembleStates.need_2_fragments),
-                    inst_reg[31:16],
+                    inst_reg_1,
                     inst_fragment
                 )
             )
-            inst_reg[47:32] <<= Reg(
+            inst_reg_2 <<= Reg(
                 inst_fragment
             )
             inst_len_reg <<= Reg(
@@ -309,7 +342,9 @@ class InstAssemble(Module):
             )
 
         # Filling the output data
-        self.decode.inst <<= inst_reg
+        self.decode.inst_0 <<= inst_reg_0
+        self.decode.inst_1 <<= inst_reg_1
+        self.decode.inst_2 <<= inst_reg_2
         self.decode.inst_len <<= inst_len_reg
         self.decode.av <<= fetch_av
 
@@ -358,6 +393,7 @@ class FetchStage(Module):
 def gen():
     Build.generate_rtl(FetchStage)
 
+"""
 def sim():
 
     inst_choices = (
@@ -434,13 +470,13 @@ def sim():
         def body(self):
             seed(0)
             self.input_stream = Wire(MemToFetchIf)
-            self.checker = Checker()
+            self.checker_module = Checker()
             self.generator = Generator()
             self.input_stream <<= self.generator.output_port
             dut = InstAssemble()
             dut.rst <<= self.rst
             dut.clk <<= self.clk
-            self.checker.input_port <<= dut(self.input_stream)
+            self.checker_module.input_port <<= dut(self.input_stream)
 
         def simulate(self) -> TSimEvent:
             def clk() -> int:
@@ -460,23 +496,213 @@ def sim():
             self.rst <<= 0
 
             self.generator.max_wait_state = 2
-            self.checker.max_wait_state = 5
+            self.checker_module.max_wait_state = 5
             for i in range(500):
                 yield from clk()
             self.generator.max_wait_state = 0
-            self.checker.max_wait_state = 0
+            self.checker_module.max_wait_state = 0
             for i in range(500):
                 yield from clk()
             now = yield 10
             self.generator.max_wait_state = 5
-            self.checker.max_wait_state = 2
+            self.checker_module.max_wait_state = 2
             for i in range(500):
                 yield from clk()
             now = yield 10
             print(f"Done at {now}")
 
     Build.simulation(top, "fetch.vcd", add_unnamed_scopes=True)
+"""
+
+
+def sim():
+    class BusEmulator(Module):
+        clk = ClkPort()
+        rst = RstPort()
+
+        bus_if = Input(BusIfPortIf)
+
+        i16 = (0x1100,                        ) # $r1 <- $r0 ^ $r0
+        i32 = (0x20f0, 0x2ddd,                ) # $r1 <- short b001
+        i48 = (0x300f, 0x3dd0, 0x3dd1,        ) # $r1 <- 0xdeadbeef
+
+        mem = (
+            i16 + i16 +
+            i16 + i32 +
+            i16 + i48 +
+            i32 + i16 +
+            i32 + i32 +
+            i32 + i48 +
+            i48 + i16 +
+            i48 + i32 +
+            i48 + i48
+        )
+
+        def simulate(self, simulator: 'Simulator') -> TSimEvent:
+            def wait_clk():
+                yield (self.clk, )
+                while self.clk.get_sim_edge() != EdgeType.Positive:
+                    yield (self.clk, )
+
+            self.bus_if.response <<= 0
+            self.bus_if.data_out <<= None
+            self.bus_if.last <<= None
+            mem_mask = (2 ** len(self.mem).bit_length())-1
+            while True:
+                yield from wait_clk()
+
+                if self.rst == 1:
+                    self.bus_if.response <<= 0
+                    self.bus_if.data_out <<= None
+                    self.bus_if.last <<= None
+                else:
+                    if self.bus_if.request == 1:
+                        burst_cnt = self.bus_if.burst_len.sim_value+1
+                        if self.bus_if.read_not_write:
+                            # Read request
+                            addr = self.bus_if.addr.sim_value
+                            print(f"Reading BUS {addr:x} burst:{self.bus_if.burst_len} byte_en:{self.bus_if.byte_en}")
+                            self.bus_if.response <<= 0
+                            self.bus_if.last <<= 0
+                            self.bus_if.data_out <<= None
+                            #yield from wait_clk()
+                            self.bus_if.response <<= 1
+                            for i in range(burst_cnt):
+                                mem_addr = addr.value & mem_mask
+                                if mem_addr >= len(self.mem):
+                                    data = 0
+                                else:
+                                    data = self.mem[mem_addr]
+                                self.bus_if.last <<= 1 if i == burst_cnt-1 else 0
+                                self.bus_if.response <<= 1 if i <= burst_cnt-1 else 0
+                                yield from wait_clk()
+                                print(f"    data:{data:x} (for addr {addr:x})")
+                                self.bus_if.data_out <<= data
+                                addr = addr + 1
+                            self.bus_if.response <<= 0
+                            self.bus_if.last <<= 0
+                        else:
+                            assert False, "WRITES SHOULD NEVER COME FROM FETCH"
+                    else:
+                        self.bus_if.response <<= 0
+                        self.bus_if.data_out <<= None
+                        self.bus_if.last <<= None
+
+    class DecodeEmulator(Module):
+        clk = ClkPort()
+        rst = RstPort()
+
+        from_fetch = Input(FetchDecodeIf)
+
+        def body(self):
+            self.from_fetch.ready <<= 1
+
+    class SidebandEmulator(Module):
+        clk = ClkPort()
+        rst = RstPort()
+
+        mem_base = Output(BrewMemBase)
+        mem_limit = Output(BrewMemBase)
+        spc  = Output(BrewInstAddr)
+        tpc  = Output(BrewInstAddr)
+        task_mode  = Output(logic)
+        do_branch = Output(logic)
+
+        def simulate(self, simulator: 'Simulator') -> TSimEvent:
+            def wait_clk():
+                yield (self.clk, )
+                while self.clk.get_sim_edge() != EdgeType.Positive:
+                    yield (self.clk, )
+
+            self.mem_base <<= 0
+            self.mem_limit <<= 0x3fffff # TODO: Do we want to reset this to all 1-s???
+            self.spc <<= 0x00000000
+            self.tpc <<= 0x10000000
+            self.task_mode <<= 1 # TODO: whops, do we want to invert this signal so that we can reset to '0'?
+            self.do_branch <<= 0
+
+            state = "start"
+            while True:
+                yield from wait_clk()
+
+                if self.rst == 0:
+                    if state == "start":
+                        #self.do_branch <<= 1
+                        #yield from wait_clk()
+                        #self.do_branch <<= 0
+                        state = "after_start"
+
+    class top(Module):
+        clk = ClkPort()
+        rst = RstPort()
+
+        def body(self):
+            seed(0)
+
+            # Side-band interfaces
+            self.mem_base = Wire(BrewMemBase)
+            self.mem_limit = Wire(BrewMemBase)
+            self.spc  = Wire(BrewInstAddr)
+            self.tpc  = Wire(BrewInstAddr)
+            self.task_mode  = Wire(logic)
+            self.do_branch = Wire(logic)
+
+            self.fetch_to_decode = Wire(FetchDecodeIf)
+
+            self.bus_if = Wire(BusIfPortIf)
+
+            self.dut = FetchStage()
+            self.decode_emulator = DecodeEmulator()
+            self.bus_emulator = BusEmulator()
+            self.sideband_emulator = SidebandEmulator()
+
+            self.bus_if <<= self.dut.bus_if
+            self.bus_emulator.bus_if <<= self.bus_if
+
+            self.fetch_to_decode <<= self.dut.decode
+            self.decode_emulator.from_fetch <<= self.fetch_to_decode
+
+            self.dut.mem_base <<= self.mem_base
+            self.dut.mem_limit <<= self.mem_limit
+            self.dut.spc <<= self.spc
+            self.dut.tpc <<= self.tpc
+            self.dut.task_mode <<= self.task_mode
+            self.dut.do_branch <<= self.do_branch
+
+            self.mem_base <<= self.sideband_emulator.mem_base
+            self.mem_limit <<= self.sideband_emulator.mem_limit
+            self.spc <<= self.sideband_emulator.spc
+            self.tpc <<= self.sideband_emulator.tpc
+            self.task_mode <<= self.sideband_emulator.task_mode
+            self.do_branch <<= self.sideband_emulator.do_branch
+
+
+        def simulate(self) -> TSimEvent:
+            def clk() -> int:
+                yield 10
+                self.clk <<= ~self.clk & self.clk
+                yield 10
+                self.clk <<= ~self.clk
+                yield 0
+
+            print("Simulation started")
+
+            self.rst <<= 1
+            self.clk <<= 1
+            yield 10
+            for i in range(5):
+                yield from clk()
+            self.rst <<= 0
+
+            for i in range(50):
+                yield from clk()
+            now = yield 10
+            print(f"Done at {now}")
+
+    Build.simulation(top, "fetch.vcd", add_unnamed_scopes=True)
+
+
 
 #gen()
-#sim()
+sim()
 

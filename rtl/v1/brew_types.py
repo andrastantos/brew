@@ -101,7 +101,9 @@ class BusIfPortIf(Interface):
     data_out        = Reverse(BrewBusData)
     last            = Reverse(logic)
 class FetchDecodeIf(ReadyValid):
-    inst = Unsigned(48)
+    inst_0 = Unsigned(16)
+    inst_1 = Unsigned(16)
+    inst_2 = Unsigned(16)
     inst_len = Unsigned(2) # Len 3 is reserved
     av = logic
 
