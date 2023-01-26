@@ -41,6 +41,8 @@ class MemoryStage(Module):
     w_result_reg_addr = Output(BrewRegAddr)
     w_result = Output(BrewData)
     w_request = Output(logic)
+    w_pre_request = Output(logic)
+
 
     # Interface to the bus interface
     bus_if = Output(BusIfPortIf)
@@ -228,6 +230,10 @@ class MemoryStage(Module):
         pass_through = Wire()
         pass_through <<= Reg(~(self.exec.is_load | self.exec.is_store), clock_en=accept_next)
         self.w_request <<= pass_through | state == MemoryStates.read_2
+        self.w_pre_request <<= (
+            (~(self.exec.is_load | self.exec.is_store) & accept_next) | # Pass through data will come in next cycle
+            (self.bus_if.response & self.bus_if.last & ((state == MemoryStates.read_1) | (state == MemoryStates.read_2))) # Last piece of read data comes in the next cycle
+        )
 
         self.bus_if.request         <<= (accept_next | first) & (self.exec.is_store | self.exec.is_load) & ~is_csr
         self.bus_if.read_not_write  <<= self.exec.is_load
@@ -371,6 +377,7 @@ def sim():
 
         w_result_reg_addr = Input(BrewRegAddr)
         w_result = Input(BrewData)
+        w_pre_request = Input(logic)
         w_request = Input(logic)
 
         def simulate(self) -> TSimEvent:
@@ -475,6 +482,7 @@ def sim():
             self.w_result_reg_addr = Wire(BrewRegAddr)
             self.w_result = Wire(BrewData)
             self.w_request = Wire(logic)
+            self.w_pre_request = Wire(logic)
             self.bus_if = Wire(BusIfPortIf)
             self.csr_if = Wire(CsrIf)
 
@@ -489,9 +497,11 @@ def sim():
             self.dut.exec <<= self.exec
 
             self.w_request <<= self.dut.w_request
+            self.w_pre_request <<= self.dut.w_pre_request
             self.w_result <<= self.dut.w_result
             self.w_result_reg_addr <<= self.dut.w_result_reg_addr
             self.reg_file_emulator.w_request <<= self.w_request
+            self.reg_file_emulator.w_pre_request <<= self.w_pre_request
             self.reg_file_emulator.w_result <<= self.w_result
             self.reg_file_emulator.w_result_reg_addr <<= self.w_result_reg_addr
 

@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.100 (w)1999-2019 BSI
-[*] Thu Jan 26 19:22:21 2023
+[*] Thu Jan 26 20:11:33 2023
 [*]
 [dumpfile] "C:\personal\brew\rtl\v1\memory.vcd"
-[dumpfile_mtime] "Thu Jan 26 19:19:23 2023"
-[dumpfile_size] 150496
+[dumpfile_mtime] "Thu Jan 26 20:05:30 2023"
+[dumpfile_size] 154182
 [savefile] "C:\personal\brew\rtl\v1\memory.gtkw"
 [timestart] 0
 [size] 1920 1017
 [pos] -1 -1
-*-7.167175 638 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-7.167175 390 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [sst_width] 233
 [signals_width] 332
@@ -54,10 +54,9 @@ top.bus_emulator.bus_if_last
 top.bus_emulator.bus_if_read_not_write
 top.bus_emulator.bus_if_request
 top.bus_emulator.bus_if_response
-top.dut.first
 @1000200
 -BUS_IF
-@c00201
+@c00200
 -CSR_IF
 @22
 top.csr_emulator.csr_if_addr[10:0]
@@ -68,13 +67,24 @@ top.csr_emulator.csr_if_request
 top.csr_emulator.csr_if_response
 @22
 top.csr_emulator.csr_if_wr_data[31:0]
-@1401201
+@1401200
 -CSR_IF
 @800200
 -REG_FILE_IF
+@29
+top.reg_file_emulator.w_pre_request
+@28
+top.reg_file_emulator.w_request
+@22
+top.reg_file_emulator.w_result[31:0]
+top.reg_file_emulator.w_result_reg_addr[3:0]
 @1000200
 -REG_FILE_IF
 @200
 -INTERNAL
+@28
+top.dut.state
+top.dut.first
+top.dut.first_and_last
 [pattern_trace] 1
 [pattern_trace] 0

@@ -50,7 +50,26 @@ class RegFile(Module):
     write_data = Input(BrewData)
     write_addr = Input(BrewRegAddr)
     write_request = Input(logic)
+    write_pre_request = Input(logic)
 
+    '''
+    CLK            /^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__
+    write_pre_req  ______/^^^^^\_______________________/^^^^^\_________________________________________
+    write_request  ____________/^^^^^\_______________________/^^^^^\___________________________________
+    write_addr     ------<===========>-----------------<===========>-----------------------------------
+    write_data     ------------<=====>-----------------------<=====>-----------------------------------
+    CLK            /^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__
+    score_clr      ______/^^^^^\_______________________/^^^^^\_________________________________________
+    score_set
+    score_value    ^^^^^^^^^^^^\_____________ ^^^^^^^^^^^^^^^\_________________________________________
+    CLK            /^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__
+    request        ______________________________/^^^^^^^^^^^\_________________________________________
+    read_valid     ______________________________/^^^^^^^^^^^\_________________________________________
+    read_addr      ------------------------------<===========>-----------------------------------------
+    read_data      ------------------------------------------<=====>-----------------------------------
+    response       ____________________________________/^^^^^\__________________________________________
+
+    '''
 
 
     def body(self):
@@ -66,16 +85,19 @@ class RegFile(Module):
         mem2.port1_data_in <<= self.write_data
         mem2.port1_addr <<= self.write_addr
 
+        read1_addr_d <<= Reg(self.read1_addr)
+        read2_addr_d <<= Reg(self.read2_addr)
+
         # Read ports have bypass logic
         self.read1_data <<= Select(
-            (self.write_addr == self.read1_addr) & self.write_request,
+            (self.write_addr == read1_addr_d) & self.write_request,
             mem1.port2_data_out,
             self.write_data
         )
         mem1.port2_addr <<= self.read1_addr
 
         self.read2_data <<= Select(
-            (self.write_addr == self.read2_addr) & self.write_request,
+            (self.write_addr == read2_addr_d) & self.write_request,
             mem2.port2_data_out,
             self.write_data
         )
@@ -84,7 +106,7 @@ class RegFile(Module):
         # Score-board for reservations
         rsv_board = Wire(Unsigned(BrewRegCnt))
 
-        clear_mask = Select(self.write_request, 0, 1 << self.write_addr)
+        clear_mask = Select(self.write_pre_request, 0, 1 << self.write_addr)
 
         rsv_response = Wire(logic)
 
@@ -97,9 +119,9 @@ class RegFile(Module):
         # The logic is this: if we don't have a valid request, we always are providing a response.
         read1_response = Wire()
         read2_response = Wire()
-        read1_response <<= ~self.read1_valid | (((rsv_board & (1 << self.read1_addr)) == 0) | ((self.write_addr == self.read1_addr) & self.write_request))
-        read2_response <<= ~self.read2_valid | (((rsv_board & (1 << self.read2_addr)) == 0) | ((self.write_addr == self.read2_addr) & self.write_request))
-        rsv_response <<= ~self.rsv_valid | (((rsv_board & (1 << self.rsv_addr)) == 0) | ((self.write_addr == self.rsv_addr) & self.write_request))
+        read1_response <<= ~self.read1_valid | (((rsv_board & (1 << self.read1_addr)) == 0) | ((self.write_addr == self.read1_addr) & self.write_pre_request))
+        read2_response <<= ~self.read2_valid | (((rsv_board & (1 << self.read2_addr)) == 0) | ((self.write_addr == self.read2_addr) & self.write_pre_request))
+        rsv_response <<= ~self.rsv_valid | (((rsv_board & (1 << self.rsv_addr)) == 0) | ((self.write_addr == self.rsv_addr) & self.write_pre_request))
 
         decode_response <<= read1_response & read2_response & rsv_response
 
