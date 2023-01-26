@@ -1,0 +1,129 @@
+[*]
+[*] GTKWave Analyzer v3.3.100 (w)1999-2019 BSI
+[*] Thu Jan 26 00:30:18 2023
+[*]
+[dumpfile] "C:\personal\brew\rtl\v1\fetch.vcd"
+[dumpfile_mtime] "Thu Jan 26 00:27:32 2023"
+[dumpfile_size] 318585
+[savefile] "C:\personal\brew\rtl\v1\fetch.gtkw"
+[timestart] 0
+[size] 1920 1017
+[pos] -1 -1
+*-7.383204 239 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.dut.
+[sst_width] 275
+[signals_width] 471
+[sst_expanded] 1
+[sst_vpaned_height] 300
+@28
+top.clk
+top.rst
+@800200
+-BUS_IF
+@22
+top.bus_if_addr[30:0]
+@28
+top.bus_if_burst_len[1:0]
+top.bus_if_byte_en[1:0]
+top.bus_if_data_in
+@22
+top.bus_if_data_out[15:0]
+@28
+top.bus_if_last
+top.bus_if_read_not_write
+top.bus_if_request
+top.bus_if_response
+@1000200
+-BUS_IF
+@800200
+-QUEUE_IN
+@28
+top.dut.inst_buf.queue_av
+@22
+top.dut.inst_buf.queue_data[15:0]
+@28
+top.dut.inst_buf.queue_free_cnt[2:0]
+top.dut.inst_buf.queue_ready
+top.dut.inst_buf.queue_valid
+@1000200
+-QUEUE_IN
+@28
+top.dut.inst_queue.queue_free_cnt[2:0]
+top.dut.inst_queue.rst
+@29
+top.dut.inst_queue.do_branch
+@800200
+-QUEUE_OUT
+@28
+top.dut.inst_queue.assemble_av
+@22
+top.dut.inst_queue.assemble_data[15:0]
+@28
+top.dut.inst_queue.assemble_ready
+top.dut.inst_queue.assemble_valid
+@1000200
+-QUEUE_OUT
+@800200
+-DECODE_IF
+@28
+top.fetch_to_decode_av
+@22
+top.dut.decode_inst_0[15:0]
+top.dut.decode_inst_1[15:0]
+top.dut.decode_inst_2[15:0]
+@24
+top.fetch_to_decode_inst_len[1:0]
+@28
+top.fetch_to_decode_ready
+top.fetch_to_decode_valid
+@1000200
+-DECODE_IF
+@800200
+-SIDE_BAND
+@c00022
+top.mem_base[21:0]
+@28
+(0)top.mem_base[21:0]
+(1)top.mem_base[21:0]
+(2)top.mem_base[21:0]
+(3)top.mem_base[21:0]
+(4)top.mem_base[21:0]
+(5)top.mem_base[21:0]
+(6)top.mem_base[21:0]
+(7)top.mem_base[21:0]
+(8)top.mem_base[21:0]
+(9)top.mem_base[21:0]
+(10)top.mem_base[21:0]
+(11)top.mem_base[21:0]
+(12)top.mem_base[21:0]
+(13)top.mem_base[21:0]
+(14)top.mem_base[21:0]
+(15)top.mem_base[21:0]
+(16)top.mem_base[21:0]
+(17)top.mem_base[21:0]
+(18)top.mem_base[21:0]
+(19)top.mem_base[21:0]
+(20)top.mem_base[21:0]
+(21)top.mem_base[21:0]
+@1401200
+-group_end
+@22
+top.mem_limit[21:0]
+top.spc[30:0]
+@28
+top.task_mode
+@22
+top.tpc[30:0]
+@28
+top.do_branch
+@1000200
+-SIDE_BAND
+@200
+-INTERNAL
+@28
+top.dut.inst_buf.state
+top.dut.inst_buf.fetch_increment
+top.dut.inst_buf.response_d
+[pattern_trace] 1
+[pattern_trace] 0
