@@ -1,90 +1,86 @@
 [*]
 [*] GTKWave Analyzer v3.3.100 (w)1999-2019 BSI
-[*] Thu Jan 26 20:51:46 2023
+[*] Thu Jan 26 22:39:35 2023
 [*]
 [dumpfile] "C:\personal\brew\rtl\v1\memory.vcd"
-[dumpfile_mtime] "Thu Jan 26 20:05:30 2023"
-[dumpfile_size] 154182
+[dumpfile_mtime] "Thu Jan 26 22:37:12 2023"
+[dumpfile_size] 151938
 [savefile] "C:\personal\brew\rtl\v1\memory.gtkw"
 [timestart] 0
 [size] 1920 1017
 [pos] -1 -1
-*-7.167175 390 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-7.240880 402 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
-[sst_width] 233
-[signals_width] 332
+[sst_width] 197
+[signals_width] 304
 [sst_expanded] 1
-[sst_vpaned_height] 527
+[sst_vpaned_height] 289
 @28
-top.clk
-top.rst
-@800200
--EXEC
-@28
-top.exec_do_bse
-top.exec_do_bze
-top.exec_do_wse
-top.exec_do_wze
-top.exec_is_load
-top.exec_is_store
-top.exec_mem_access_len[1:0]
-@22
-top.exec_mem_addr[31:0]
-@28
-top.exec_ready
-@22
-top.exec_result[31:0]
-top.exec_result_reg_addr[3:0]
-@28
-top.exec_valid
-@1000200
--EXEC
-@800200
+top.dut.rst
+top.dut.clk
+@c00200
 -BUS_IF
 @22
-top.bus_emulator.bus_if_addr[30:0]
+top.dut.bus_if_addr[30:0]
 @28
-top.bus_emulator.bus_if_burst_len
-top.bus_emulator.bus_if_byte_en[1:0]
+top.dut.bus_if_burst_len
+top.dut.bus_if_byte_en[1:0]
 @22
-top.bus_emulator.bus_if_data_in[15:0]
-top.bus_emulator.bus_if_data_out[15:0]
+top.dut.bus_if_data_in[15:0]
+top.dut.bus_if_data_out[15:0]
 @28
-top.bus_emulator.bus_if_last
-top.bus_emulator.bus_if_read_not_write
-top.bus_emulator.bus_if_request
-top.bus_emulator.bus_if_response
-@1000200
+top.dut.bus_if_last
+top.dut.bus_if_read_not_write
+top.dut.bus_if_request
+top.dut.bus_if_response
+@1401200
 -BUS_IF
 @c00200
 -CSR_IF
 @22
-top.csr_emulator.csr_if_addr[10:0]
-top.csr_emulator.csr_if_rd_data[31:0]
+top.dut.csr_if_addr[10:0]
+top.dut.csr_if_rd_data[31:0]
 @28
-top.csr_emulator.csr_if_read_not_write
-top.csr_emulator.csr_if_request
-top.csr_emulator.csr_if_response
+top.dut.csr_if_read_not_write
+top.dut.csr_if_request
+top.dut.csr_if_response
 @22
-top.csr_emulator.csr_if_wr_data[31:0]
+top.dut.csr_if_wr_data[31:0]
+@28
+top.dut.csr_request
+top.dut.csr_response
 @1401200
 -CSR_IF
-@800200
--REG_FILE_IF
-@29
-top.reg_file_emulator.w_pre_request
+@c00200
+-EXEC_IF
 @28
-top.reg_file_emulator.w_request
+top.dut.exec_do_bse
+top.dut.exec_do_bze
+top.dut.exec_do_wse
+top.dut.exec_do_wze
+top.dut.exec_is_load
+top.dut.exec_is_store
+top.dut.exec_mem_access_len[1:0]
 @22
-top.reg_file_emulator.w_result[31:0]
-top.reg_file_emulator.w_result_reg_addr[3:0]
-@1000200
--REG_FILE_IF
-@200
--INTERNAL
+top.dut.exec_mem_addr[31:0]
 @28
-top.dut.state
-top.dut.first
-top.dut.first_and_last
+top.dut.exec_ready
+top.dut.exec_ready_1
+@22
+top.dut.exec_result[31:0]
+top.dut.exec_result_reg_addr[3:0]
+@28
+top.dut.exec_valid
+@1401200
+-EXEC_IF
+@800200
+-REG_WRITE_IF
+@28
+top.dut.w_request
+@22
+top.dut.w_result[31:0]
+top.dut.w_result_reg_addr[3:0]
+@1000200
+-REG_WRITE_IF
 [pattern_trace] 1
 [pattern_trace] 0

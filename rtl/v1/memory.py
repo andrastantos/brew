@@ -41,7 +41,6 @@ class MemoryStage(Module):
     w_result_reg_addr = Output(BrewRegAddr)
     w_result = Output(BrewData)
     w_request = Output(logic)
-    w_pre_request = Output(logic)
 
 
     # Interface to the bus interface
@@ -226,11 +225,14 @@ class MemoryStage(Module):
             do_wze, data_l[15:0],
             default_port = full_result
         )
-        self.w_result_reg_addr <<= BrewRegAddr(Reg(self.exec.result_reg_addr, clock_en=(state == MemoryStates.idle)))
-        pass_through = Wire()
-        pass_through <<= Reg(~(self.exec.is_load | self.exec.is_store), clock_en=accept_next)
-        self.w_request <<= pass_through | state == MemoryStates.read_2
-        self.w_pre_request <<= (
+        self.w_result_reg_addr <<= BrewRegAddr(
+            Select(
+                accept_next,
+                Reg(self.exec.result_reg_addr, clock_en=(state == MemoryStates.idle)),
+                self.exec.result_reg_addr
+            )
+        )
+        self.w_request <<= (
             (~(self.exec.is_load | self.exec.is_store) & accept_next) | # Pass through data will come in next cycle
             (self.bus_if.response & self.bus_if.last & ((state == MemoryStates.read_1) | (state == MemoryStates.read_2))) # Last piece of read data comes in the next cycle
         )
@@ -377,7 +379,6 @@ def sim():
 
         w_result_reg_addr = Input(BrewRegAddr)
         w_result = Input(BrewData)
-        w_pre_request = Input(logic)
         w_request = Input(logic)
 
         def simulate(self) -> TSimEvent:
@@ -386,11 +387,14 @@ def sim():
                 while self.clk.get_sim_edge() != EdgeType.Positive:
                     yield (self.clk, )
 
+            request = False
             while True:
                 yield from wait_clk()
-
-                if self.w_request == 1:
+                if request:
                     print(f"Writing REG $r{self.w_result_reg_addr:x} with value {self.w_result:x}")
+
+                request = self.w_request == 1
+
 
 
     class ExecEmulator(Module):
@@ -482,7 +486,6 @@ def sim():
             self.w_result_reg_addr = Wire(BrewRegAddr)
             self.w_result = Wire(BrewData)
             self.w_request = Wire(logic)
-            self.w_pre_request = Wire(logic)
             self.bus_if = Wire(BusIfPortIf)
             self.csr_if = Wire(CsrIf)
 
@@ -497,11 +500,9 @@ def sim():
             self.dut.exec <<= self.exec
 
             self.w_request <<= self.dut.w_request
-            self.w_pre_request <<= self.dut.w_pre_request
             self.w_result <<= self.dut.w_result
             self.w_result_reg_addr <<= self.dut.w_result_reg_addr
             self.reg_file_emulator.w_request <<= self.w_request
-            self.reg_file_emulator.w_pre_request <<= self.w_pre_request
             self.reg_file_emulator.w_result <<= self.w_result
             self.reg_file_emulator.w_result_reg_addr <<= self.w_result_reg_addr
 
