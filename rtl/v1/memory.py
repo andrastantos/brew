@@ -158,7 +158,7 @@ class MemoryStage(Module):
         first = Wire(logic)
         first <<= Reg(
             Select(
-                accept_next,
+                accept_next & (self.exec.is_store | self.exec.is_load),
                 Select(
                     self.bus_if.response,
                     first,
@@ -229,7 +229,7 @@ class MemoryStage(Module):
         pass_through <<= Reg(~(self.exec.is_load | self.exec.is_store), clock_en=accept_next)
         self.w_request <<= pass_through | state == MemoryStates.read_2
 
-        self.bus_if.request         <<= accept_next & (self.exec.is_store | self.exec.is_load) & ~is_csr
+        self.bus_if.request         <<= (accept_next | first) & (self.exec.is_store | self.exec.is_load) & ~is_csr
         self.bus_if.read_not_write  <<= self.exec.is_load
         self.bus_if.burst_len       <<= self.exec.mem_access_len[1] # 8- and 16-bit accesses need a burst length of 1, while 32-bit accesses need a burst-length of 2.
         self.bus_if.byte_en         <<= Select(
