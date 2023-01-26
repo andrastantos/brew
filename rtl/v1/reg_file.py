@@ -277,6 +277,9 @@ def sim():
             yield from wait_clk()
             write_reg(3,203)
             yield from wait_clk()
+            start_req(1,2,3)
+            yield from wait_clk()
+            yield from wait_clk()
             yield from wait_clk()
 
 
