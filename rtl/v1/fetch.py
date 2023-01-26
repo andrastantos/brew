@@ -43,8 +43,7 @@ Things to test:
 - Cancellation in all stages of a fetch
     - Cancelling in the same cycle we issue a request is busted: we update ADDR from the request,
       but cancel the first burst, so we start to fetch from the wrong address.
-- Test all sorts of invalid instruction sequences. There was something about jumping into the middle
-  of the instruction sequence that seemed to jam the instruction assembler
+- Test all sorts of invalid instruction sequences.
 
 NOTE: Fetch as-is now has a minimum 4-cycle latency:
     1 cycle to initiate the bus request
@@ -146,7 +145,9 @@ class InstBuffer(Module):
         self.fsm.add_transition(InstBufferStates.request_start, ~self.do_branch & ~self.bus_if.response, InstBufferStates.request_start)
         self.fsm.add_transition(InstBufferStates.request_start, ~self.do_branch &  self.bus_if.response & ~self.bus_if.last, InstBufferStates.request)
         self.fsm.add_transition(InstBufferStates.request_start, ~self.do_branch &  self.bus_if.response &  self.bus_if.last, InstBufferStates.request_last)
-        self.fsm.add_transition(InstBufferStates.request_start,  self.do_branch,                         InstBufferStates.flush_start)
+        self.fsm.add_transition(InstBufferStates.request_start,  self.do_branch & ~self.bus_if.response, InstBufferStates.flush_start)
+        self.fsm.add_transition(InstBufferStates.request_start,  self.do_branch &  self.bus_if.response & ~self.bus_if.last, InstBufferStates.flush)
+        self.fsm.add_transition(InstBufferStates.request_start,  self.do_branch &  self.bus_if.response &  self.bus_if.last, InstBufferStates.idle)
         self.fsm.add_transition(InstBufferStates.request, ~self.do_branch & ~self.bus_if.response,                     InstBufferStates.request)
         self.fsm.add_transition(InstBufferStates.request, ~self.do_branch &  self.bus_if.response & ~self.bus_if.last, InstBufferStates.request)
         self.fsm.add_transition(InstBufferStates.request, ~self.do_branch &  self.bus_if.response &  self.bus_if.last, InstBufferStates.request_last)
@@ -173,12 +174,12 @@ class InstBuffer(Module):
         self.bus_if.burst_len <<= 3 - self.fetch_addr[1:0]
         self.bus_if.byte_en <<= 3
         self.bus_if.data_in <<= None # This is a read-only port
-        self.bus_if.request <<= state == InstBufferStates.request_start
+        self.bus_if.request <<= (state == InstBufferStates.request_start) | (state == InstBufferStates.flush_start)
 
-        fetch_increment <<= self.bus_if.response
+        fetch_increment <<= self.bus_if.response & ((state == InstBufferStates.request_start) | (state == InstBufferStates.request))
 
         response_d = Wire()
-        response_d <<= Reg(self.bus_if.response & ((state == InstBufferStates.request_start) | (state == InstBufferStates.request)))
+        response_d <<= Reg(self.bus_if.response & ((state == InstBufferStates.request_start) | (state == InstBufferStates.request)) & ~self.do_branch)
 
         self.queue.data <<= self.bus_if.data_out
         self.queue.av <<= fetch_av
@@ -627,9 +628,14 @@ def sim():
 
                 if self.rst == 0:
                     if state == "start":
-                        #self.do_branch <<= 1
-                        #yield from wait_clk()
-                        #self.do_branch <<= 0
+                        yield from wait_clk()
+                        yield from wait_clk()
+                        yield from wait_clk()
+                        yield from wait_clk()
+                        yield from wait_clk()
+                        self.do_branch <<= 1
+                        yield from wait_clk()
+                        self.do_branch <<= 0
                         state = "after_start"
 
     class top(Module):
