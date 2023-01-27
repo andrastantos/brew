@@ -122,6 +122,7 @@ class DecodeExecIf(ReadyValid):
     do_bze = logic
     do_wze = logic
     result_reg_addr = BrewRegAddr
+    result_reg_addr_valid = logic
     fetch_av = logic
 
 class ExecMemIf(ReadyValid):
@@ -132,6 +133,7 @@ class ExecMemIf(ReadyValid):
     do_bze = logic
     do_wze = logic
     result_reg_addr = BrewRegAddr
+    result_reg_addr_valid = logic
     result = BrewData
     mem_addr = BrewAddr
     mem_access_len = Unsigned(2) # 0 for 8-bit, 1 for 16-bit, 2 for 32-bit

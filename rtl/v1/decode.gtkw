@@ -1,0 +1,86 @@
+[*]
+[*] GTKWave Analyzer v3.3.100 (w)1999-2019 BSI
+[*] Fri Jan 27 00:27:11 2023
+[*]
+[dumpfile] "C:\personal\brew\rtl\v1\decode.vcd"
+[dumpfile_mtime] "Fri Jan 27 00:26:42 2023"
+[dumpfile_size] 86197
+[savefile] "C:\personal\brew\rtl\v1\decode.gtkw"
+[timestart] 0
+[size] 1920 1017
+[pos] -1 -1
+*-7.127596 281 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[sst_width] 435
+[signals_width] 355
+[sst_expanded] 1
+[sst_vpaned_height] 289
+@28
+top.dut.clk
+top.dut.rst
+@800200
+-EXEC_IF
+@28
+top.exec_emulator.exec_do_bse
+top.exec_emulator.exec_do_bze
+top.exec_emulator.exec_do_wse
+top.exec_emulator.exec_do_wze
+top.exec_emulator.exec_exec_unit
+top.exec_emulator.exec_fetch_av
+top.exec_emulator.exec_inst_len[1:0]
+top.exec_emulator.exec_is_load
+top.exec_emulator.exec_is_store
+top.exec_emulator.exec_mem_access_len[1:0]
+@22
+top.exec_emulator.exec_op_a[31:0]
+top.exec_emulator.exec_op_b[31:0]
+top.exec_emulator.exec_op_imm[31:0]
+@28
+top.exec_emulator.exec_opcode
+top.exec_emulator.exec_ready
+@22
+top.exec_emulator.exec_result_reg_addr[3:0]
+@29
+top.dut.exec_result_reg_addr_valid
+@28
+top.exec_emulator.exec_valid
+@1000200
+-EXEC_IF
+@800200
+-FETCH_IF
+@28
+top.fetch_emulator.fetch_av
+@22
+top.fetch_emulator.fetch_inst_0[15:0]
+top.fetch_emulator.fetch_inst_1[15:0]
+top.fetch_emulator.fetch_inst_2[15:0]
+@28
+top.fetch_emulator.fetch_inst_len[1:0]
+top.fetch_emulator.fetch_ready
+top.fetch_emulator.fetch_valid
+@1000200
+-FETCH_IF
+@800200
+-REF_FILE_IF
+@22
+top.reg_file_emulator.rf_read1_addr[3:0]
+top.reg_file_emulator.rf_read1_data[31:0]
+@28
+top.reg_file_emulator.rf_read1_valid
+@22
+top.reg_file_emulator.rf_read2_addr[3:0]
+top.reg_file_emulator.rf_read2_data[31:0]
+@28
+top.reg_file_emulator.rf_read2_valid
+top.reg_file_emulator.rf_request
+top.reg_file_emulator.rf_response
+@22
+top.reg_file_emulator.rf_rsv_addr[3:0]
+@28
+top.reg_file_emulator.rf_rsv_valid
+@1000200
+-REF_FILE_IF
+@28
+top.dut.exec_unit
+[pattern_trace] 1
+[pattern_trace] 0

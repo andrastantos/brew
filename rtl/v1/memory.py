@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 from random import *
 from typing import *
+from copy import copy
+
 try:
     from silicon import *
 except ImportError:
@@ -233,7 +235,7 @@ class MemoryStage(Module):
             )
         )
         self.w_request <<= (
-            (~(self.exec.is_load | self.exec.is_store) & accept_next) | # Pass through data will come in next cycle
+            (~(self.exec.is_load | self.exec.is_store) & accept_next & self.exec.result_reg_addr_valid) | # Pass through data will come in next cycle
             (self.bus_if.response & self.bus_if.last & ((state == MemoryStates.read_1) | (state == MemoryStates.read_2))) # Last piece of read data comes in the next cycle
         )
 
@@ -388,12 +390,15 @@ def sim():
                     yield (self.clk, )
 
             request = False
+            reg_addr = None
             while True:
                 yield from wait_clk()
                 if request:
-                    print(f"Writing REG $r{self.w_result_reg_addr:x} with value {self.w_result:x}")
+                    print(f"Writing REG $r{reg_addr:x} with value {self.w_result:x}")
 
                 request = self.w_request == 1
+                reg_addr = copy(self.w_result_reg_addr.sim_value)
+
 
 
 
@@ -426,6 +431,7 @@ def sim():
                 self.exec.is_store <<= 0
                 self.exec.result <<= None
                 self.exec.result_reg_addr <<= reg_addr
+                self.exec.result_reg_addr_valid <<= 1
                 self.exec.mem_addr <<= mem_addr
                 self.exec.mem_access_len <<= mem_access_len
                 if mem_access_len == access_len_8:
@@ -450,6 +456,7 @@ def sim():
                 self.exec.is_store <<= 1
                 self.exec.result <<= value
                 self.exec.result_reg_addr <<= None
+                self.exec.result_reg_addr_valid <<= 0
                 self.exec.mem_addr <<= mem_addr
                 self.exec.mem_access_len <<= mem_access_len
                 self.exec.do_bse <<= None
