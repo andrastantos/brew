@@ -44,3 +44,5 @@ __pycache__
 **/quartus/simulation/*
 **/*_pin_model_dump.txt
 **/rtl/**/output/*
+
+*.vcd
