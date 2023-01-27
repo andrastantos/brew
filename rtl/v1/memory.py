@@ -547,5 +547,6 @@ def sim():
 def gen():
     Build.generate_rtl(MemoryStage)
 
-#gen()
-sim()
+if __name__ == "__main__":
+    #gen()
+    sim()

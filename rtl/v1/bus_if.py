@@ -558,6 +558,7 @@ def sim():
 def gen():
     Build.generate_rtl(BusIf)
 
-#gen()
-sim()
+if __name__ == "__main__":
+    #gen()
+    sim()
 

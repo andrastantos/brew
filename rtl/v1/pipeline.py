@@ -37,7 +37,8 @@ class Pipeline(Module):
     DRAM_nCAS_h       = Output(logic)
     DRAM_ADDR         = Output(Unsigned(12))
     DRAM_nWE          = Output(logic)
-    DRAM_DATA_rd      = Input(BrewBusData)
+    DRAM_DATA_rd_l    = Input(BrewByte)
+    DRAM_DATA_rd_h    = Input(BrewByte)
     DRAM_DATA_wr      = Output(BrewBusData)
 
     # External bus-request
@@ -107,15 +108,16 @@ class Pipeline(Module):
         bus_if.fetch <<= fetch_to_bus
         bus_if.mem <<= mem_to_bus
 
-        self.DRAM_nRAS       <<= bus_if.DRAM_nRAS
-        self.DRAM_nCAS_l     <<= bus_if.DRAM_nCAS_l
-        self.DRAM_nCAS_h     <<= bus_if.DRAM_nCAS_h
-        self.DRAM_ADDR       <<= bus_if.DRAM_ADDR
-        self.DRAM_nWE        <<= bus_if.DRAM_nWE
-        bus_if.DRAM_DATA_rd  <<= self.DRAM_DATA_rd
-        self.DRAM_DATA_wr    <<= bus_if.DRAM_DATA_wr
-        bus_if.ext_req       <<= self.ext_req
-        self.ext_grnt        <<= bus_if.ext_grnt
+        self.DRAM_nRAS         <<= bus_if.DRAM_nRAS
+        self.DRAM_nCAS_l       <<= bus_if.DRAM_nCAS_l
+        self.DRAM_nCAS_h       <<= bus_if.DRAM_nCAS_h
+        self.DRAM_ADDR         <<= bus_if.DRAM_ADDR
+        self.DRAM_nWE          <<= bus_if.DRAM_nWE
+        bus_if.DRAM_DATA_rd_l  <<= self.DRAM_DATA_rd_l
+        bus_if.DRAM_DATA_rd_h  <<= self.DRAM_DATA_rd_h
+        self.DRAM_DATA_wr      <<= bus_if.DRAM_DATA_wr
+        bus_if.ext_req         <<= self.ext_req
+        self.ext_grnt          <<= bus_if.ext_grnt
 
         bus_if.wait_states_0 <<= wait_states_0
         bus_if.wait_states_1 <<= wait_states_1
@@ -235,15 +237,25 @@ class Pipeline(Module):
         wait_states_1 <<= Reg(csr_if.rd_data[ 7: 4], clock_en=(csr_addr == 5) & ~csr_if.read_not_write & csr_if.request)
         wait_states_0 <<= Reg(csr_if.rd_data[ 3: 0], clock_en=(csr_addr == 5) & ~csr_if.read_not_write & csr_if.request)
 
-from test_utils import *
+#from test_utils import *
+#
+#def test_verilog():
+#    #test.rtl_generation(BusIf, "bus_if")
+#    #test.rtl_generation(FetchStage, "fetch_stage")
+#    #test.rtl_generation(DecodeStage, "decode_stage")
+#    #test.rtl_generation(ExecuteStage, "execute_stage")
+#    #test.rtl_generation(MemoryStage, "memory_stage")
+#    #test.rtl_generation(RegFile, "reg_file")
+#    test.rtl_generation(Pipeline, "pipeline")
+#
+#test_verilog()
+#
 
-def test_verilog():
-    #test.rtl_generation(BusIf, "bus_if")
-    #test.rtl_generation(FetchStage, "fetch_stage")
-    #test.rtl_generation(DecodeStage, "decode_stage")
-    #test.rtl_generation(ExecuteStage, "execute_stage")
-    #test.rtl_generation(MemoryStage, "memory_stage")
-    #test.rtl_generation(RegFile, "reg_file")
-    test.rtl_generation(Pipeline, "pipeline")
+def gen():
+    Build.generate_rtl(Pipeline)
 
-test_verilog()
+if __name__ == "__main__":
+    gen()
+    #sim()
+
+

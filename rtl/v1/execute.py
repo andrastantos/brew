@@ -288,6 +288,7 @@ class ExecuteStage(Module):
 def gen():
     Build.generate_rtl(ExecuteStage)
 
-#gen()
-#sim()
+if __name__ == "__main__":
+    gen()
+    #sim()
 
