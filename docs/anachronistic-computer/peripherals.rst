@@ -25,7 +25,7 @@ A much more modern version (this one is still in stock in some places):
 
 This guy can interface directly to our bus and our DMA bridge for DMAs. No issues what so ever, except that the reset input is active-high.
 
-There were other controllers as well: 
+There were other controllers as well:
  - http://www.bitsavers.org/components/westernDigital/WD57C65_Floppy_Disk_Subsystem_Controller_May88.pdf
  - http://www.bitsavers.org/components/westernDigital/FD179X-02_Data_Sheet_May1980.pdf
  - http://info-coach.fr/atari/documents/_mydoc/WD1772-JLG.pdf
@@ -45,7 +45,7 @@ For SCSI, the interface is rather common. It seems that the only thing we would 
 This 5380 chip seems to have been rather popular with many clones:
 - Z53C80 was until fairly recently in production from Zilog (http://www.zilog.com/docs/serial/ps0108.pdf). Even Mouser has some limited stock and it's still in Digikeys' catalog.
 - NCR53c80
-There is a whole family of these as well: 
+There is a whole family of these as well:
 - 53c90/94/95/96
 - 53c400 (still available at least for some retailers)
 - 53c416 (16-bit version)
@@ -127,7 +127,7 @@ I would have cobbled together something in a custom chip, or tagged it on to one
 
 That's a total of... a lot of pins. I would not be able to tag it on to anything I already have. The sound chip can take 10 more pins, so that would be 1 mouse/joy port, including analog inputs and a keyboard interface. The DMA bridge has 8 pins available which could be the second joystick. But... yuck!
 
-I would be really tempted to use a `Z8430 <https://www.zilog.com/docs/z80/ps0181.pdf>`_ CTC for the mouse counters and analog inputs. However it's only good for timing the analog joysticks, not for the mouse: it doesn't support up/down counters. There was the 74LS469 which was an 8-bit up/down counter, but I'm not sure when it was introduced. Certainly after '84. You could use pairs of SN74LS192 to get the same, that was available already in '81. And at that point you have 4 chips just to get the counters and then a few to latch and read the counter values. 
+I would be really tempted to use a `Z8430 <https://www.zilog.com/docs/z80/ps0181.pdf>`_ CTC for the mouse counters and analog inputs. However it's only good for timing the analog joysticks, not for the mouse: it doesn't support up/down counters. There was the 74LS469 which was an 8-bit up/down counter, but I'm not sure when it was introduced. Certainly after '84. You could use pairs of SN74LS192 to get the same, that was available already in '81. And at that point you have 4 chips just to get the counters and then a few to latch and read the counter values.
 
 GALs had something like 8 registers in them, so they are just a very expensive replacement for the 74LS469.
 
@@ -155,28 +155,28 @@ Pin Number Pin Name    Description
 14         nRST        Active low reset input
 15         nINT        Open collector, active low interrupt output
 16         SYS_CLK     System clock input
-17         M1_X1       Mouse/Joystick port 1, X direction encoder input 1
-18         M1_X2       Mouse/Joystick port 1, X direction encoder input 2
-19         M1_Y1       Mouse/Joystick port 1, Y direction encoder input 1
-20         M1_Y2       Mouse/Joystick port 1, Y direction encoder input 2
-21         M1_BTN1     Mouse/Joystick port 1, button 1 input
-22         M1_BTN2     Mouse/Joystick port 1, button 2 input
-23         M1_TMR1     Mouse/Joystick port 1, analog timer 1 input
-24         M1_TMR2     Mouse/Joystick port 1, analog timer 2 input
-25         M2_X1       Mouse/Joystick port 2, X direction encoder input 1
-26         M2_X2       Mouse/Joystick port 2, X direction encoder input 2
-27         M2_Y1       Mouse/Joystick port 2, Y direction encoder input 1
-28         M2_Y2       Mouse/Joystick port 2, Y direction encoder input 2
-29         M2_BTN1     Mouse/Joystick port 2, button 1 input
-30         M2_BTN2     Mouse/Joystick port 2, button 2 input
-31         M2_TMR1     Mouse/Joystick port 2, analog timer 1 input
-32         M2_TMR2     Mouse/Joystick port 2, analog timer 2 input
+17         M1_X1       PORT A GPIO / Mouse/Joystick port 1, X direction encoder input 1
+18         M1_X2       PORT A GPIO / Mouse/Joystick port 1, X direction encoder input 2
+19         M1_Y1       PORT A GPIO / Mouse/Joystick port 1, Y direction encoder input 1
+20         M1_Y2       PORT A GPIO / Mouse/Joystick port 1, Y direction encoder input 2
+21         M1_BTN1     PORT A GPIO / Mouse/Joystick port 1, button 1 input
+22         M1_BTN2     PORT A GPIO / Mouse/Joystick port 1, button 2 input
+23         M1_TMR1     PORT A GPIO / Mouse/Joystick port 1, analog timer 1 input
+24         M1_TMR2     PORT A GPIO / Mouse/Joystick port 1, analog timer 2 input
+25         M2_X1       PORT B GPIO / Mouse/Joystick port 2, X direction encoder input 1
+26         M2_X2       PORT B GPIO / Mouse/Joystick port 2, X direction encoder input 2
+27         M2_Y1       PORT B GPIO / Mouse/Joystick port 2, Y direction encoder input 1
+28         M2_Y2       PORT B GPIO / Mouse/Joystick port 2, Y direction encoder input 2
+29         M2_BTN1     PORT B GPIO / Mouse/Joystick port 2, button 1 input
+30         M2_BTN2     PORT B GPIO / Mouse/Joystick port 2, button 2 input
+31         M2_TMR1     PORT B GPIO / Mouse/Joystick port 2, analog timer 1 input
+32         M2_TMR2     PORT B GPIO / Mouse/Joystick port 2, analog timer 2 input
 33         KBD_CLK     PS/2 keyboard port clock pin
 34         KBD_DATA    PS/2 keyboard port data pin
-35         GPIO_0      Gpio port 0
-36         GPIO_1      Gpio port 1
-37         GPIO_2      Gpio port 2
-38         GPIO_3      Gpio port 3
+35         GPIO_0      Gpio port 0; serial RX
+36         GPIO_1      Gpio port 1; serial TX
+37         GPIO_2      Gpio port 2; serial RST
+38         GPIO_3      Gpio port 3; serial DST
 39         VCC         Power input
 40         GND         Ground input
 ========== =========== ===========
