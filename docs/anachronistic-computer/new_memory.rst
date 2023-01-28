@@ -12,6 +12,40 @@ This will allow the combination of DMA+Graphics+Sound into a single, 44-pin chip
 This will allow for 8-bit peripheral (nNREN) bus.
 This will allow for 8-bit DMAs (on the DMA controller, if it exists)
 
+So the latest run shows that we're 0.12mm^2 (goal is 0.08) and we can't close timing even on 100MHz (goal is 250). My work is cut out for me, I think...
+My guess as to why there is such a dramatic change is that there was a rather serious bug in 'decode'. So, consequently, I think most of my area woes are
+comming from 'decode' as well.
+
+The DRAM bus
+::
+
+                        <------- 4-beat burst -------><- single -><- single -><------- 4-beat burst ------->
+    CLK             \__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/
+    DRAM_nRAS_A     ^^^^^^^^^\_______________________/^^^^^\_____/^^^^^\_____/^^^^^\_______________________/^^^^^^^^^^^^^^^^^^^^^^^^
+    DRAM_nCAS_A     ^^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^^^\__/^^^^^^^^\__/^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^^^^^^^^^^^^^^^^^^^
+    DRAM_nRAS_B     ^^^^^^^^^^^^\_______________________/^^^^^\_____/^^^^^\_____/^^^^^\_______________________/^^^^^^^^^^^^^^^^^^^^^
+    DRAM_nCAS_B     ^^^^^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^^^\__/^^^^^^^^\__/^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^^^^^^^^^^^^^^^^
+    DRAM_ADDR       ---------<==X=====X=====X=====X=====>--<==X=====>--<==X=====>--<==X=====X=====X=====X=====>---------------------
+    DRAM_nWE        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    DRAM_DATA       --------------<>-<>-<>-<>-<>-<>-<>-<>-------<>-<>-------<>-<>-------<>-<>-<>-<>-<>-<>-<>-<>---------------------
+    DRAM_nWE        ^^^^^^^^^\__________________________/^^\________/^^\________/^^\__________________________/^^^^^^^^^^^^^^^^^^^^^
+    DRAM_DATA       ------------<==X==X==X==X==X==X==X==>-----<==X==>-----<==X==>-----<==X==X==X==X==X==X==X==>---------------------
+    CLK             \__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/
+    arb_state       ....idle><         ftch          ><idle><mem ><idle><mem ><idle><         ftch          ><idle..................
+    request         ___/^^^^^^^^^^^\_________________/^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\__________________________________________
+    beats_remaining ---------<  3  X  2  X  1  X  0  >-----<  0  >-----<  0  >-----------<  3  X  2  X  1  X  0  >------------------
+    addr            ---------<  a  X a+1 X a+2 X a+3 >-----<  a  >-----<  a  >-----------<  a  X a+1 X a+2 X a+3 >------------------
+    start           ___/^^^^^\_______________________/^^^^^\_____/^^^^^\___________/^^^^^\__________________________________________
+    response        _________/^^^^^^^^^^^^^^^^^^^^^^^\_____/^^^^^\_____/^^^^^\___________/^^^^^^^^^^^^^^^^^^^^^^^\__________________
+    last            ___________________________/^^^^^\_____/^^^^^\_____/^^^^^\_____________________________/^^^^^\__________________
+    data_in         ---<=====X=====X=====X=====>-----------<=====>-----<=====>-----<=====X=====X=====X=====>------------------------
+    data_out        ---------------------<=====X=====X=====X=====>-----<=====>-----<=====>-----------<=====X=====X=====X=====>------
+    CLK             \__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/
+    read latency       |----------------->           |----------------->
+                                                                 |----------------->
+    pipelineing                                                  ^^^^^^^
+
+
 
 How to make chips at home?
 ==========================
@@ -346,4 +380,129 @@ We will stay with the very common NTSC clock rate of 28.63636MHz (double of what
 * 28.63636MHz/3 -> system clock (~9.54MHz)
 * 28.63636MHz/3 -> Audio clock option l (37.28kHz Fs)
 * 28.63636MHz/4 -> Audio clock option 2 (27.96kHz Fs)
+
+SPEED NOTES
+===========
+
+STEP 1
+------
+
+Apparently memory AV testing is a big problem: this is a large adder (memory offset computation), followed by a comparator, which drives do_branch, which in turn goes all over the place. With it, timing closure only reaches 39MHz.
+
+For now, I've commented out to see what the impact is. But can we delay? If we've registered AV, it would fire on the first cycle of memory, the same time we issue the 'request' to the bus IF. That seems to be fine as long as we combine it into the request signal in memory.
+
+There's also an 'is_exception' signal out of execute, plus ecause and rcause things. Those I think could also be easily registered.
+
+The other consequence is that in the same cycle we signal the AV, we potentially accept the next instruction from decode. So we would need to be able to ignore that as well.
+
+This helped quite a bit, getting from 39 to 47MHz.
+
+STEP 2
+------
+
+Now the problem seems to be the reservation logic. It seems that this path is very much delay dominated. The path goes through 'mask_for_rd_eq_pc', which would be::
+
+    $rd <- $pc
+
+But judging from the path, it seems that the problem is the reservation board.
+
+I have tried a different selector logic (SelectOne instead of '<<' operation). We'll see what that gets us, if anything. Unfortunately, putting a stage into this path is very bad for speed: it would mean that we woult not know if we've cleared the read-after-write hazards a cycle later.
+
+STEP 3
+------
+
+We are hitting some butterfly effect now? The path (with slightly *worse* timing) is in the cbranch path. This *must* be through do_branch again, as we're hitting the fetch stage, but really the path is probably somewhat different as I don't see it on the path.
+
+As a test, I'll add a register to do_branch in 'pipeline'. That of course is wrong, but should break these long paths.
+
+STEP 4
+------
+
+We've arrived at the multiplier. I'm just going to comment it out for now, but first record the area as well. So, before area:
+
+Well, shit, I've re-ran the router, instead of looking at the report...
+
+    ---------------------------------------
+    Resource Usage Report for BREW_V1
+
+    Mapping to part: ice40hx8kcm225
+    Cell usage:
+    GND             26 uses
+    SB_CARRY        638 uses
+    SB_DFF          11 uses
+    SB_DFFE         32 uses
+    SB_DFFESR       336 uses
+    SB_DFFSR        231 uses
+    SB_DFFSS        6 uses
+    SB_GB           5 uses
+    SB_RAM256x16    6 uses
+    VCC             26 uses
+    SB_LUT4         3699 uses
+
+    I/O ports: 38
+    I/O primitives: 38
+    SB_GB_IO       2 uses
+    SB_IO          36 uses
+
+    I/O Register bits:                  0
+    Register bits not including I/Os:   616 (8%)
+
+    RAM/ROM usage summary
+    Block Rams : 6 of 32 (18%)
+
+    Total load per clock:
+    clk: 1
+
+    @S |Mapping Summary:
+    Total  LUTs: 3699 (48%)
+
+    Distribution of All Consumed LUTs = LUT4
+    Distribution of All Consumed Luts 3699 = 3699
+
+After:
+
+    ---------------------------------------
+    Resource Usage Report for BREW_V1
+
+    Mapping to part: ice40hx8kcm225
+    Cell usage:
+    GND             27 uses
+    SB_CARRY        173 uses
+    SB_DFF          11 uses
+    SB_DFFE         57 uses
+    SB_DFFESR       224 uses
+    SB_DFFSR        310 uses
+    SB_DFFSS        6 uses
+    SB_GB           5 uses
+    SB_RAM256x16    6 uses
+    VCC             27 uses
+    SB_LUT4         2839 uses
+
+    I/O ports: 38
+    I/O primitives: 38
+    SB_GB_IO       2 uses
+    SB_IO          36 uses
+
+    I/O Register bits:                  0
+    Register bits not including I/Os:   608 (7%)
+
+    RAM/ROM usage summary
+    Block Rams : 6 of 32 (18%)
+
+    Total load per clock:
+    clk: 1
+
+    @S |Mapping Summary:
+    Total  LUTs: 2839 (36%)
+
+So, we've dropped from 3700 to 2840 LUTs. That's ~25% reduction. Nice!!
+
+Still no benefit in speed though: we're still looking at ~50MHz clock rate.
+
+STEP 5
+------
+
+We're not getting too far: we're back to the problem with reservation logic.
+
+This is not looking good. The problem seems to be that the reservation logic holds up the acceptance from fetch (combinatorially), which holds up instruction assemble and through that inst_queue.
 
