@@ -90,6 +90,28 @@ access_len_8 = 0
 access_len_16 = 1
 access_len_32 = 2
 
+class BusIfRequestIf(ReadyValid):
+    read_not_write  = logic
+    byte_en         = Unsigned(2)
+    addr            = Unsigned(22)
+    dram_not_ext    = logic
+    data            = BrewBusData
+    last            = logic
+
+class BusIfResponseIf(ReadyValid):
+    data            = BrewBusData
+
+class ExternalBusIf(Interface):
+    nRAS          = logic
+    nCAS_a        = logic
+    nCAS_b        = logic
+    addr          = Unsigned(11)
+    nWE           = logic
+    data_in       = Reverse(BrewByte)
+    data_out      = BrewByte
+    nNREN         = logic
+    nWAIT         = Reverse(logic)
+
 class BusIfPortIf(Interface):
     request         = logic
     read_not_write  = logic
