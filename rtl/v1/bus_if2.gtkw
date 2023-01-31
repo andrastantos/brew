@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Mon Jan 30 03:15:10 2023
+[*] Tue Jan 31 19:13:17 2023
 [*]
 [dumpfile] "/home/tantos/brew/rtl/v1/bus_if2.vcd"
-[dumpfile_mtime] "Mon Jan 30 03:12:58 2023"
-[dumpfile_size] 101469
+[dumpfile_mtime] "Tue Jan 31 19:12:46 2023"
+[dumpfile_size] 118313
 [savefile] "/home/tantos/brew/rtl/v1/bus_if2.gtkw"
 [timestart] 0
 [size] 1920 990
 [pos] -1 -1
-*-6.360241 204 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-6.360241 200 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [sst_width] 233
 [signals_width] 301
@@ -56,13 +56,39 @@ top.fetch_rsp_ready
 top.fetch_rsp_valid
 @1000200
 -FETCH_RSP
+@800200
+-MEM_REQ
+@22
+top.dut.mem_request_addr[21:0]
+@28
+top.dut.mem_request_byte_en[1:0]
+@22
+top.dut.mem_request_data[15:0]
+@28
+top.dut.mem_request_dram_not_ext
+top.dut.mem_request_last
+top.dut.mem_request_read_not_write
+top.dut.mem_request_ready
+top.dut.mem_request_valid
+@1000200
+-MEM_REQ
+@800200
+-MEM_RSP
+@22
+top.dut.mem_response_data[15:0]
+@29
+top.dut.mem_response_ready
+@28
+top.dut.mem_response_valid
+@1000200
+-MEM_RSP
 @22
 top.dut.row_addr[10:0]
 top.dut.col_addr[10:0]
 @28
 top.dut.state
 top.dut.req_dram_not_ext
-@29
 top.dut.dram_not_ext
+top.dut.arb_mem_not_fetch
 [pattern_trace] 1
 [pattern_trace] 0

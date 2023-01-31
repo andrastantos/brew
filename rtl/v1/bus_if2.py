@@ -102,8 +102,10 @@ class BusIf(Module):
     rst = RstPort()
 
     # Interface to fetch and memory
-    request  = Input(BusIfRequestIf)
-    response = Output(BusIfResponseIf)
+    fetch_request  = Input(BusIfRequestIf)
+    fetch_response = Output(BusIfResponseIf)
+    mem_request  = Input(BusIfRequestIf)
+    mem_response = Output(BusIfResponseIf)
 
     # DRAM interface
     dram = Output(ExternalBusIf)
@@ -141,27 +143,35 @@ class BusIf(Module):
         state <<= self.fsm.state
         next_state <<= self.fsm.next_state
 
+        arb_mem_not_fetch = Wire(logic)
+
         req_ready = Wire()
         req_ready <<= (state == BusIfStates.idle) | (state == BusIfStates.first) | (state == BusIfStates.middle)
-        self.request.ready <<= req_ready
+        self.mem_request.ready <<= req_ready & arb_mem_not_fetch
+        self.fetch_request.ready <<= req_ready & ~arb_mem_not_fetch
         # We create wires for these things in anticipation for the arbitrator between several inputs
         req_valid = Wire()
-        req_valid <<= self.request.valid
+        req_valid <<= Select(arb_mem_not_fetch, self.fetch_request.valid, self.mem_request.valid)
         req_last = Wire()
-        req_last <<= self.request.last
+        req_last <<= Select(arb_mem_not_fetch, self.fetch_request.last, self.mem_request.last)
         start = Wire()
-        start <<= (state == BusIfStates.idle) & self.request.valid
+        start <<= (state == BusIfStates.idle) & Select(arb_mem_not_fetch, self.fetch_request.valid, self.mem_request.valid)
         req_addr = Wire()
-        req_addr <<= self.request.addr
+        req_addr <<= Select(arb_mem_not_fetch, self.fetch_request.addr, self.mem_request.addr)
         req_data = Wire()
-        req_data <<= self.request.data
+        req_data <<= Select(arb_mem_not_fetch, self.fetch_request.data, self.mem_request.data)
         req_read_not_write = Wire()
-        req_read_not_write <<= self.request.read_not_write
+        req_read_not_write <<= Select(arb_mem_not_fetch, self.fetch_request.read_not_write, self.mem_request.read_not_write)
         req_byte_en = Wire()
-        req_byte_en <<= self.request.byte_en
+        req_byte_en <<= Select(arb_mem_not_fetch, self.fetch_request.byte_en, self.mem_request.byte_en)
         req_dram_not_ext = Wire()
-        req_dram_not_ext <<= self.request.dram_not_ext
+        req_dram_not_ext <<= Select(arb_mem_not_fetch, self.fetch_request.dram_not_ext, self.mem_request.dram_not_ext)
 
+        arb_mem_not_fetch <<= Select(
+            state == BusIfStates.idle,
+            Reg(self.mem_request.valid, clock_en=state == BusIfStates.idle),
+            self.mem_request.valid
+        )
         self.fsm.add_transition(BusIfStates.idle,         self.ext_req & ~req_valid,                                            BusIfStates.external)
         self.fsm.add_transition(BusIfStates.idle,                         req_valid & ~req_last,                                BusIfStates.first)
         self.fsm.add_transition(BusIfStates.idle,                         req_valid &  req_last & ~req_dram_not_ext,            BusIfStates.non_dram_first)
@@ -313,8 +323,10 @@ class BusIf(Module):
         resp_data = Wire()
         resp_data <<= Reg(concat(data_in_high, data_in_low))
 
-        self.response.valid <<= Reg(Reg(read_active))
-        self.response.data <<= resp_data
+        self.mem_response.valid <<= Reg(Reg(read_active & arb_mem_not_fetch))
+        self.fetch_response.valid <<= Reg(Reg(read_active & ~arb_mem_not_fetch))
+        self.mem_response.data <<= resp_data
+        self.fetch_response.data <<= resp_data
 
 def sim():
     inst_stream = []
@@ -489,7 +501,10 @@ def sim():
                 yield from read(0x34,True,0,2)
                 yield from read(0x4,False,0,3)
             elif self.mode == "mem":
-                pass
+                yield from wait_clk()
+                while self.rst == 1:
+                    yield from wait_clk()
+                yield from read(0x100e,False,0,3)
 
 
     '''
@@ -550,18 +565,21 @@ def sim():
             fetch_generator.set_mode("fetch")
             fetch_req <<= fetch_generator.request_port
 
-            #self.mem_if = Wire(BusIfPortIf)
-            #self.mem_generator = Generator()
-            #self.mem_generator.set_mode("mem")
-            #self.mem_if <<= self.mem_generator.request_port
+            mem_req = Wire(BusIfRequestIf)
+            mem_rsp = Wire(BusIfResponseIf)
+            mem_generator = Generator()
+            mem_generator.set_mode("mem")
+            mem_req <<= mem_generator.request_port
 
             dram_if = Wire(ExternalBusIf)
             dram_sim = DRAM_sim()
 
             dut = BusIf()
 
-            dut.request <<= fetch_req
-            fetch_rsp <<= dut.response
+            dut.fetch_request <<= fetch_req
+            fetch_rsp <<= dut.fetch_response
+            dut.mem_request <<= mem_req
+            mem_rsp <<= dut.mem_response
             dram_if <<= dut.dram
             dram_sim.bus_if <<= dram_if
 
