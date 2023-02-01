@@ -96,7 +96,6 @@ class BusIfRequestIf(ReadyValid):
     addr            = Unsigned(22)
     dram_not_ext    = logic
     data            = BrewBusData
-    last            = logic
 
 class BusIfResponseIf(ReadyValid):
     data            = BrewBusData

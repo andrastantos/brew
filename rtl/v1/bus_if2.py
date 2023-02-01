@@ -36,7 +36,6 @@ It does the following:
     CLK             \__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/
     req_valid       ___/^^^^^^^^^^^^^^^^^^^^^^^\___________/^^^^^\___________/^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\____________
     req_ready       ^^^^^^^^^^^^^^^^^^^^^^^^^^^\___________/^^^^^\___________/^^^^^\___________/^^^^^^^^^^^^^^^^^^^^^^^\___________/
-    req_last        _____________________/^^^^^\___________/^^^^^\___________/^^^^^\_____________________________/^^^^^\____________
     req_wr          _________________________________________________________/^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\____________
     req_addr        ---<=====X=====X=====X=====>-----------<=====>-----------<=====X=================X=====X=====X=====\____________
     req_data        ---------------------------------------------------------------<=================X=====X=====X=====>------------
@@ -46,14 +45,22 @@ It does the following:
     rsp_data        ---------------------<=====X=====X=====X=====>-----------<=====>-----------<=====>------------------------------
 
 Notes:
-1. req_ready goes low for two cycles after req_last (during a transfer) is asserted. This is to allow for the pre-charge cycle to occur
-2. addresses must be consecutive and must not cross page-boundary within a burst. The bus_if doesn't check for this (maybe it should assert???) and blindly puts the address on the DRAM bus. Address incrementing is the responsibility of the requestor (it probably does it anyway).
-3. Burst length is not communicated a-priory over the interface: only the 'last' signal is provided.
-4. write data is captured with the address on every transaction.
-5. rsp_ready is not allowed to go low with outstanding reads.
-6. writes don't have any response
-7. Reads and writes are not allowed to be mixed within a burst. This is - again - not checked by the bus_if.
-8. Client arbitration happens only after the idle cycle: i.e. we don't support clients taking over bursts from each other
+1. Burst length is not communicated over the interface: only the de-assertion of req_valid/req_ready signals the end of a burst.
+2. write data is captured with the address on every transaction.
+3. rsp_ready is not monitored. It is expected to stay asserted at all times when there are outstanding reads.
+4. Writes don't have any response
+5. Client arbitration happens only during the idle state: i.e. we don't support clients taking over bursts from each other
+
+Contract details:
+1. If requestor lowers req_valid, it means the end of a burst: the bus interface will immediately lower req_ready and go through
+   pre-charge and arbitration cycles.
+2. Bus interface is allowed to de-assert req_ready independent of req_valid. This is the case for non-burst targets, such as
+   ROMs or I/O.
+3. Addresses must be consecutive and must not cross page-boundary within a burst. The bus_if doesn't check for this
+   (maybe it should assert???) and blindly puts the address on the DRAM bus. Address incrementing is the responsibility
+   of the requestor (it probably does it anyway). Bursts don't have to be from/to contiguous addresses, as long as they
+   stay within one page (only lower 8 address bits change).
+4. Reads and writes are not allowed to be mixed within a burst. This is - again - not checked by the bus_if.
 
 
 Non-DRAM accesses:
@@ -62,7 +69,7 @@ Non-DRAM accesses:
     CLK             \__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/
     nNREN           ^^^^^^^^^\___________/^^^^^\___________/^^^^^\_________________/^^^^^^
     DRAM_nCAS_A     ^^^^^^^^^^^^\________/^^^^^^^^^^^^^^^^^^^^^^^^^^\______________/^^^^^^
-    DRAM_nCAS_B     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\_____/^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    DRAM_nCAS_B     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\_______/^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     DRAM_ADDR       ---------<==X========>-----<==X========>-----<==X==============>------
     DRAM_nWE        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     DRAM_DATA       ---------------------<>----------------<>----------------------<>-----
@@ -72,7 +79,6 @@ Non-DRAM accesses:
     CLK             \__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/
     req_valid       ___/^^^^^\_____/^^^^^^^^^^^\___________/^^^^^\________________________
     req_ready       ^^^^^^^^^\___________/^^^^^\___________/^^^^^\_________________/^^^^^^
-    req_last        ___/^^^^^\___________/^^^^^\___________/^^^^^\________________________
     req_wr          _______________/^^^^^^^^^^^\__________________________________________
     req_addr        ---<=====>-----<===========>-----------<=====>------------------------
     req_data        ---------------<===========>------------------------------------------
@@ -81,22 +87,13 @@ Non-DRAM accesses:
     rsp_ready       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     rsp_data        ---------------------<=====>-----------------------------------<=====>
 
-1. Bursts are not allowed
-2. Only 8-bit transfers are allowed
-3. LSB can be recovered by an R/S flop: nR <<= DRAM_nCAS_A; nS <<= DRAM_nCAS_B. It is guaranteed
-   that these signals never fall at the same time. It is also guaranteed that only one is low at
-   any given time.
+1. Bursts are not supported: req_ready goes low after the request is accepted
+2. Only 8-bit transfers are allowed; LSB address can be recovered from DRAM_nCAS_A.
 4. nWAIT is sampled on the rising edge of every cycle, after internal wait-states are accounted for
 5. There is at least one internal wait-state
 6. For writes, the relevant byte of 'req_data' should be valid.
 """
 
-"""
-TODO:
-
-- Should we have double-pumped data-bus?
-- Should we delay 'response' and 'last' by one cycle for reads to line up with the data? - this will come into the fore as we firm up 'fetch' and 'memory'
-"""
 class BusIf(Module):
     clk = ClkPort()
     rst = RstPort()
@@ -120,18 +117,19 @@ class BusIf(Module):
     wait_states_2     = Input(Unsigned(4))
     wait_states_3     = Input(Unsigned(4))
 
+    def construct(self):
+        pass
+
     def body(self):
         class BusIfStates(Enum):
-            idle = 0
-            first = 1
-            single = 2
-            middle = 3
-            last = 4
-            external = 5
-            precharge = 6
-            pre_external = 7
-            non_dram_first = 8
-            non_dram_wait = 9
+            idle           = 0
+            first          = 1
+            middle         = 2
+            external       = 3
+            precharge      = 4
+            pre_external   = 5
+            non_dram_first = 6
+            non_dram_wait  = 7
 
         self.fsm = FSM()
 
@@ -152,8 +150,6 @@ class BusIf(Module):
         # We create wires for these things in anticipation for the arbitrator between several inputs
         req_valid = Wire()
         req_valid <<= Select(arb_mem_not_fetch, self.fetch_request.valid, self.mem_request.valid)
-        req_last = Wire()
-        req_last <<= Select(arb_mem_not_fetch, self.fetch_request.last, self.mem_request.last)
         start = Wire()
         start <<= (state == BusIfStates.idle) & Select(arb_mem_not_fetch, self.fetch_request.valid, self.mem_request.valid)
         req_addr = Wire()
@@ -173,15 +169,12 @@ class BusIf(Module):
             self.mem_request.valid
         )
         self.fsm.add_transition(BusIfStates.idle,         self.ext_req & ~req_valid,                                            BusIfStates.external)
-        self.fsm.add_transition(BusIfStates.idle,                         req_valid & ~req_last,                                BusIfStates.first)
-        self.fsm.add_transition(BusIfStates.idle,                         req_valid &  req_last & ~req_dram_not_ext,            BusIfStates.non_dram_first)
-        self.fsm.add_transition(BusIfStates.idle,                         req_valid &  req_last &  req_dram_not_ext,            BusIfStates.single)
+        self.fsm.add_transition(BusIfStates.idle,                         req_valid & ~req_dram_not_ext,                        BusIfStates.non_dram_first)
+        self.fsm.add_transition(BusIfStates.idle,                         req_valid &  req_dram_not_ext,                        BusIfStates.first)
         self.fsm.add_transition(BusIfStates.external,    ~self.ext_req,                                                         BusIfStates.idle)
-        self.fsm.add_transition(BusIfStates.first,                        req_valid & ~req_last,                                BusIfStates.middle)
-        self.fsm.add_transition(BusIfStates.first,                        req_valid &  req_last,                                BusIfStates.last)
-        self.fsm.add_transition(BusIfStates.middle,                       req_valid &  req_last,                                BusIfStates.last)
-        self.fsm.add_transition(BusIfStates.single,      1,                                                                     BusIfStates.precharge)
-        self.fsm.add_transition(BusIfStates.last,        1,                                                                     BusIfStates.precharge)
+        self.fsm.add_transition(BusIfStates.first,                       ~req_valid,                                            BusIfStates.precharge)
+        self.fsm.add_transition(BusIfStates.first,                        req_valid,                                            BusIfStates.middle)
+        self.fsm.add_transition(BusIfStates.middle,                      ~req_valid,                                            BusIfStates.precharge)
         self.fsm.add_transition(BusIfStates.precharge,   ~self.ext_req,                                                         BusIfStates.idle)
         self.fsm.add_transition(BusIfStates.precharge,    self.ext_req,                                                         BusIfStates.pre_external)
         self.fsm.add_transition(BusIfStates.pre_external, self.ext_req,                                                         BusIfStates.external)
@@ -210,13 +203,16 @@ class BusIf(Module):
             )
         )
 
-        row_addr = Wire()
-        row_addr <<= Reg(concat(
+        input_row_addr = Wire()
+        input_row_addr <<= concat(
             req_addr[21],
             req_addr[19],
             req_addr[17],
             req_addr[15:8]
-        ), clock_en=start)
+        )
+        row_addr = Wire()
+        row_addr <<= Reg(input_row_addr, clock_en=start)
+
         col_addr = Wire()
         col_addr <<= Reg(concat(
             req_addr[20],
@@ -296,7 +292,7 @@ class BusIf(Module):
         self.dram.nCAS_a     <<= ~byte_en[0] | ((CAS_nEN_A |  self.clk) & NR_CAS_nEN)
         self.dram.nCAS_b     <<= ~byte_en[1] | ((CAS_nEN_B | ~self.clk) & NR_CAS_nEN)
         self.dram.addr       <<= Select(
-            ((state == BusIfStates.first) | (state == BusIfStates.single) | (state == BusIfStates.non_dram_first)) & self.clk,
+            ((state == BusIfStates.first) | (state == BusIfStates.non_dram_first)) & self.clk,
             NegReg(col_addr),
             row_addr
         )
@@ -409,7 +405,6 @@ def sim():
                 self.request_port.byte_en <<= None
                 self.request_port.addr <<= None
                 self.request_port.data <<= None
-                self.request_port.last <<= None
                 self.request_port.dram_not_ext <<= None
 
             def read_or_write(addr, is_dram, burst_len, byte_en, data, do_write):
@@ -431,7 +426,6 @@ def sim():
                 self.request_port.byte_en <<= byte_en
                 self.request_port.addr <<= self.burst_addr
                 self.request_port.data <<= data
-                self.request_port.last <<= self.burst_cnt == 0
                 self.request_port.dram_not_ext <<= not self.is_dram
 
             def start_read(addr, is_dram, burst_len, byte_en):
