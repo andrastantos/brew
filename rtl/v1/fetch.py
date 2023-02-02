@@ -52,23 +52,42 @@ NOTE: Fetch as-is now has a minimum 4-cycle latency:
     1 cycle to assemble the instruction
 """
 
-class MemToFetchIf(ReadyValid):
+class FetchQueueIf(ReadyValid):
     data = Unsigned(16)
     av = logic
 
+fetch_queue_length = 16
+fetch_threshold = (fetch_queue_length+1)//2
+QueuePointerType = Unsigned(fetch_queue_length.bit_length())
+
+def truncate_queue_ptr(ptr):
+    return ptr[QueuePointerType.get_length()-1:0]
 class InstBuffer(Module):
     """
     This module deals with the interfacing to the bus interface and generating an instruction word stream for the fetch stage.
+
+    Here, all we care about is to generate requests to the bus interface and stuff the responses into the queue.
+
+    We will try to generate long bursts, but keep count of how many requests we've sent out to ensure the
+    queue won't overflow, should we get all the responses back. We also make sure that we won't hold the bus
+    for too long, limiting our bursts to the size of the free queue.
+
+    To simplify implementation, we won't start a new request, until the queue is at least half empty, but we don't
+    monitor subsequent pops from the queue.
+
+    We also of course have to pay attention to branches and restart ourselves as needed.
     """
     clk = ClkPort()
     rst = RstPort()
 
+
     # Bus interface
-    bus_if = Output(BusIfPortIf)
+    bus_if_request = Output(BusIfRequestIf)
+    bus_if_response = Input(BusIfResponseIf)
 
     # Interface towards fetch
-    queue = Output(MemToFetchIf)
-    queue_free_cnt = Input(Unsigned(3)) # We have a queue of 8 words to pre-fetch. The external FIFO logic will provide us with the free count
+    queue = Output(FetchQueueIf)
+    queue_free_cnt = Input(QueuePointerType) # We have a queue of 8 words to pre-fetch. The external FIFO logic will provide us with the free count
 
 
     # Side-band interfaces
@@ -77,48 +96,57 @@ class InstBuffer(Module):
     spc  = Input(BrewInstAddr)
     tpc  = Input(BrewInstAddr)
     task_mode  = Input(logic)
-    do_branch = Input(logic)
+    do_branch = Input(logic) # do_branch is active for one cycle only; in the same cycle the new spc/tpc/task_mode values are available
+
+    def construct(self):
+        self.page_bits = 8
 
     def body(self):
         def truncate_addr(a):
             return a[BrewInstAddr.get_length()-1:0]
 
-        self.fetch_addr = Wire(BrewInstAddr)
-
-        fetch_increment = Wire(logic)
+        advance_request = self.bus_if_request.valid & self.bus_if_request.ready
+        advance_response = self.bus_if_response.valid & self.bus_if_response.ready
 
         branch_target = Wire()
-        branch_target <<= truncate_addr(Select(
+        branch_target <<= Select(
             self.task_mode,
             self.spc,
-            self.tpc
-        ) + (self.mem_base << BrewMemShift))
-
-        self.fetch_addr <<= Select(
-            self.do_branch,
-            Reg(
-                Select(
-                    self.do_branch,
-                    # Normal incremental fetch
-                    truncate_addr(self.fetch_addr + fetch_increment),
-                    # Branch - compute new physical address
-                    branch_target
-                )
-            ),
-            branch_target
+            truncate_addr(self.tpc + (self.mem_base << BrewMemShift))
         )
 
-        fetch_av = self.fetch_addr[BrewInstAddr.get_length()-1:BrewMemShift] > self.mem_limit
+        # Capture task mode into a register to make sure we don't AV in scheduler mode
+        task_mode_fetch = Wire(logic)
+        task_mode_fetch <<= Reg(
+            Select(
+                self.do_branch,
+                task_mode_fetch,
+                self.task_mode
+            )
+        )
+
+        fetch_addr = Wire(BrewInstAddr)
+        fetch_addr <<= Reg(
+            Select(
+                self.do_branch,
+                # Normal incremental fetch
+                truncate_addr(fetch_addr + advance_request),
+                # Branch - compute new physical address
+                branch_target
+            )
+        )
+        fetch_page_limit = Wire(logic)
+        fetch_page_limit <<= Reg((~fetch_addr[self.page_bits-1:0]) == 0)
+
+        fetch_av = task_mode_fetch & (fetch_addr[BrewInstAddr.get_length()-1:BrewMemShift] > self.mem_limit)
 
         self.fsm = FSM()
 
         class InstBufferStates(Enum):
             idle = 0
-            request_start = 1
-            request = 2
-            request_last = 3
-            flush_start = 4
-            flush = 5
+            request = 1
+            flush_start = 2
+            flush = 3
 
         self.fsm.reset_value <<= InstBufferStates.idle
         self.fsm.default_state <<= InstBufferStates.idle
@@ -126,64 +154,65 @@ class InstBuffer(Module):
         state = Wire()
         state <<= self.fsm.state
 
-        '''
-        4-beat access timing
+        # branch_req will remain high until our request is accepted by the bus_if
+        branch_req = Wire(logic)
+        branch_req <<= Reg(
+            Select(
+                self.do_branch,
+                Select(
+                    advance_request,
+                    branch_req,
+                    0
+                ),
+                1
+            )
+        )
 
-                                     ...idle>< r_s ><  r ><  r ><  r >< r_l><idle.......
-            CLK               /^^\__/^^\__/^^\~__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/
-            b_request         _________/^^^^^^~\______________________________________
-            b_addr            ---------<  a  >~---------------------------------------
-            b_response        ________________~/^^^^^^^^^^^^^^^^^^^^^^\_______________
-            b_last            ________________~_________________/^^^^^\_______________
-            b_data_in         ----------------~-----<=====X=====X=====X=====>---------
+        start_new_request = ((self.queue_free_cnt >= fetch_threshold) | branch_req) & (state == InstBufferStates.idle)
 
-        '''
+        req_len = Wire(QueuePointerType)
+        req_len <<= Reg(
+            Select(
+                start_new_request,
+                Select(advance_request, req_len, Select(req_len > 0, 0, truncate_queue_ptr(req_len - 1))), # No new request: simply decrement
+                Select(self.do_branch, self.queue_free_cnt, fetch_threshold) # New request: capture the new value
+            ),
+            reset_value_port = fetch_threshold
+        )
+        # We capture the AV state at the beginning of the burst. We will terminate the burst if the AV state changes.
+        # This way, the AV state is the same within a burst.
+        req_av = Wire(logic)
+        req_av <<= Reg(
+            Select(
+                start_new_request,
+                req_av,
+                fetch_av
+            )
+        )
 
-        start_new_request = (self.queue_free_cnt >= 4) | self.do_branch
-        self.fsm.add_transition(InstBufferStates.idle, ~start_new_request, InstBufferStates.idle)
-        self.fsm.add_transition(InstBufferStates.idle,  start_new_request, InstBufferStates.request_start)
-        self.fsm.add_transition(InstBufferStates.request_start, ~self.do_branch & ~self.bus_if.response, InstBufferStates.request_start)
-        self.fsm.add_transition(InstBufferStates.request_start, ~self.do_branch &  self.bus_if.response & ~self.bus_if.last, InstBufferStates.request)
-        self.fsm.add_transition(InstBufferStates.request_start, ~self.do_branch &  self.bus_if.response &  self.bus_if.last, InstBufferStates.request_last)
-        self.fsm.add_transition(InstBufferStates.request_start,  self.do_branch & ~self.bus_if.response, InstBufferStates.flush_start)
-        self.fsm.add_transition(InstBufferStates.request_start,  self.do_branch &  self.bus_if.response & ~self.bus_if.last, InstBufferStates.flush)
-        self.fsm.add_transition(InstBufferStates.request_start,  self.do_branch &  self.bus_if.response &  self.bus_if.last, InstBufferStates.idle)
-        self.fsm.add_transition(InstBufferStates.request, ~self.do_branch & ~self.bus_if.response,                     InstBufferStates.request)
-        self.fsm.add_transition(InstBufferStates.request, ~self.do_branch &  self.bus_if.response & ~self.bus_if.last, InstBufferStates.request)
-        self.fsm.add_transition(InstBufferStates.request, ~self.do_branch &  self.bus_if.response &  self.bus_if.last, InstBufferStates.request_last)
-        self.fsm.add_transition(InstBufferStates.request,  self.do_branch & ~self.bus_if.response,                     InstBufferStates.flush)
-        self.fsm.add_transition(InstBufferStates.request,  self.do_branch &  self.bus_if.response & ~self.bus_if.last, InstBufferStates.flush)
-        self.fsm.add_transition(InstBufferStates.request,  self.do_branch &  self.bus_if.response &  self.bus_if.last, InstBufferStates.idle)
-        self.fsm.add_transition(InstBufferStates.request_last, ~start_new_request, InstBufferStates.idle)
-        self.fsm.add_transition(InstBufferStates.request_last,  start_new_request, InstBufferStates.request_start)
-        self.fsm.add_transition(InstBufferStates.flush_start, ~self.bus_if.response, InstBufferStates.flush_start)
-        self.fsm.add_transition(InstBufferStates.flush_start,  self.bus_if.response, InstBufferStates.flush)
-        self.fsm.add_transition(InstBufferStates.flush, ~self.bus_if.response,                     InstBufferStates.flush)
-        self.fsm.add_transition(InstBufferStates.flush,  self.bus_if.response & ~self.bus_if.last, InstBufferStates.flush)
-        self.fsm.add_transition(InstBufferStates.flush,  self.bus_if.response &  self.bus_if.last, InstBufferStates.idle)
+        self.bus_if_request.valid           <<= (state == InstBufferStates.request) & (~fetch_page_limit)
+        self.bus_if_request.read_not_write  <<= 1
+        self.bus_if_request.byte_en         <<= 3
+        self.bus_if_request.addr            <<= fetch_addr[21:0]
+        self.bus_if_request.dram_not_ext    <<= fetch_addr[22] # TODO: what is the memory map for ROMs???
+        self.bus_if_request.data            <<= None
 
-        """
-                  +--------+--------+--------+--------+
-                  | word 0 | word 1 | word 2 | word 3 |
-                  +--------+--------+--------+--------+
-        address:      0        1        2        3
-        burst_len:    3        2        1        0
-        """
-        self.bus_if.addr <<= self.fetch_addr
-        self.bus_if.read_not_write <<= 1
-        self.bus_if.burst_len <<= 3 - self.fetch_addr[1:0]
-        self.bus_if.byte_en <<= 3
-        self.bus_if.data_in <<= None # This is a read-only port
-        self.bus_if.request <<= (state == InstBufferStates.request_start) | (state == InstBufferStates.flush_start)
+        self.fsm.add_transition(InstBufferStates.idle,         start_new_request,              InstBufferStates.request)
+        self.fsm.add_transition(InstBufferStates.request,     ~branch_req & (~advance_request | (req_len == 0)),  InstBufferStates.idle)
+        self.fsm.add_transition(InstBufferStates.request,      branch_req &  advance_request & ~advance_response,  InstBufferStates.flush_start)
+        self.fsm.add_transition(InstBufferStates.request,      branch_req &  advance_request &  advance_response,  InstBufferStates.flush)
+        self.fsm.add_transition(InstBufferStates.flush_start,                                   advance_response,  InstBufferStates.flush)
+        self.fsm.add_transition(InstBufferStates.flush,                                        ~advance_response,  InstBufferStates.idle)
 
-        fetch_increment <<= self.bus_if.response & ((state == InstBufferStates.request_start) | (state == InstBufferStates.request))
 
-        response_d = Wire()
-        response_d <<= Reg(self.bus_if.response & ((state == InstBufferStates.request_start) | (state == InstBufferStates.request)) & ~self.do_branch)
-
-        self.queue.data <<= self.bus_if.data_out
-        self.queue.av <<= fetch_av
-        self.queue.valid <<= response_d
+        # The response interface is almost completely a pass-through. All we need to do is to handle the AV flag.
+        self.queue.data <<= self.bus_if_response.data
+        self.queue.av <<= req_av
+        self.queue.valid <<= self.bus_if_response.valid & (state != InstBufferStates.flush)
+        self.bus_if_response.ready <<= 1 # We can't back-pressure the response interface (it doesn't even really check for it)
+        #AssertOnClk(
+        #    state != InstBufferStates.idle | self.queue.ready | (state != InstBufferStates.flush)
+        #)
 
 # A simple FIFO with some extra sprinkles to handle bursts and flushing. It sits between the instruction buffer and fetch
 class InstQueue(Module):
@@ -191,28 +220,27 @@ class InstQueue(Module):
     rst = RstPort()
 
     # Interface towards instruction buffer
-    inst = Input(MemToFetchIf)
-    queue_free_cnt = Output(Unsigned(3)) # We have a queue of 8 words to pre-fetch. The external FIFO logic will provide us with the free count
+    inst = Input(FetchQueueIf)
+    queue_free_cnt = Output(QueuePointerType) # We have a queue of 8 words to pre-fetch. The external FIFO logic will provide us with the free count
     # Interface towards fetch
-    assemble = Output(MemToFetchIf)
+    assemble = Output(FetchQueueIf)
 
     # Side-band interfaces
     do_branch = Input(logic)
 
     def body(self):
-        depth = 7
-        self.assemble <<= Fifo(depth=depth)(self.inst, clear = self.do_branch)
+        self.assemble <<= Fifo(depth=fetch_queue_length)(self.inst, clear = self.do_branch)
 
-        self.empty_cnt = Wire(Unsigned(3))
+        self.empty_cnt = Wire(QueuePointerType)
         dec = self.inst.ready & self.inst.valid
         inc = self.assemble.ready & self.assemble.valid
         self.empty_cnt <<= Reg(
             Select(
                 self.do_branch,
-                (self.empty_cnt + inc - dec)[2:0],
-                depth
+                truncate_queue_ptr(self.empty_cnt + inc - dec),
+                fetch_queue_length
             ),
-            reset_value_port = depth
+            reset_value_port = fetch_queue_length
         )
         self.queue_free_cnt <<= self.empty_cnt
 
@@ -220,7 +248,7 @@ class InstAssemble(Module):
     clk = ClkPort()
     rst = RstPort()
 
-    inst_buf = Input(MemToFetchIf)
+    inst_buf = Input(FetchQueueIf)
     decode = Output(FetchDecodeIf)
 
     do_branch = Input(logic)
@@ -356,7 +384,8 @@ class FetchStage(Module):
     rst = RstPort()
 
     # Bus interface
-    bus_if = Output(BusIfPortIf)
+    bus_if_request = Output(BusIfRequestIf)
+    bus_if_response = Input(BusIfResponseIf)
 
     # Decode interface
     decode = Output(FetchDecodeIf)
@@ -374,7 +403,9 @@ class FetchStage(Module):
         inst_queue = InstQueue()
         inst_assemble = InstAssemble()
 
-        self.bus_if <<= inst_buf.bus_if
+        self.bus_if_request <<= inst_buf.bus_if_request
+        inst_buf.bus_if_response <<= self.bus_if_response
+
         inst_queue.inst <<= inst_buf.queue
         inst_buf.queue_free_cnt <<= inst_queue.queue_free_cnt
 
@@ -405,7 +436,7 @@ def sim():
     inst_stream = []
     class Generator(RvSimSource):
         def construct(self, max_wait_state: int = 0):
-            super().construct(MemToFetchIf, None, max_wait_state)
+            super().construct(FetchQueueIf, None, max_wait_state)
             self.addr = -1
             self.inst_fetch_stream = []
         def generator(self, is_reset):
@@ -470,7 +501,7 @@ def sim():
 
         def body(self):
             seed(0)
-            self.input_stream = Wire(MemToFetchIf)
+            self.input_stream = Wire(FetchQueueIf)
             self.checker_module = Checker()
             self.generator = Generator()
             self.input_stream <<= self.generator.output_port
@@ -517,11 +548,13 @@ def sim():
 
 
 def sim():
+
     class BusEmulator(Module):
         clk = ClkPort()
         rst = RstPort()
 
-        bus_if = Input(BusIfPortIf)
+        bus_if_request = Input(BusIfRequestIf)
+        bus_if_response = Output(BusIfResponseIf)
 
         i16 = (0x1100,                        ) # $r1 <- $r0 ^ $r0
         i32 = (0x20f0, 0x2ddd,                ) # $r1 <- short b001
@@ -540,54 +573,50 @@ def sim():
         )
 
         def simulate(self, simulator: 'Simulator') -> TSimEvent:
-            def wait_clk():
-                yield (self.clk, )
-                while self.clk.get_sim_edge() != EdgeType.Positive:
-                    yield (self.clk, )
+            delay_queue = [None, None, None]
 
-            self.bus_if.response <<= 0
-            self.bus_if.data_out <<= None
-            self.bus_if.last <<= None
+            def wait_clk():
+                now = yield (self.clk, )
+                while self.clk.get_sim_edge() != EdgeType.Positive:
+                    now = yield (self.clk, )
+                return now
+
+            self.bus_if_request.ready <<= 0
+            self.bus_if_response.valid <<= 0
+            self.bus_if_response.data <<= None
+
             mem_mask = (2 ** len(self.mem).bit_length())-1
+
             while True:
-                yield from wait_clk()
+                now = yield from wait_clk()
 
                 if self.rst == 1:
-                    self.bus_if.response <<= 0
-                    self.bus_if.data_out <<= None
-                    self.bus_if.last <<= None
+                    self.bus_if_request.ready <<= 0
+                    self.bus_if_response.valid <<= 0
+                    self.bus_if_response.data <<= None
                 else:
-                    if self.bus_if.request == 1:
-                        burst_cnt = self.bus_if.burst_len.sim_value+1
-                        if self.bus_if.read_not_write:
-                            # Read request
-                            addr = self.bus_if.addr.sim_value
-                            print(f"Reading BUS {addr:x} burst:{self.bus_if.burst_len} byte_en:{self.bus_if.byte_en}")
-                            self.bus_if.response <<= 0
-                            self.bus_if.last <<= 0
-                            self.bus_if.data_out <<= None
-                            #yield from wait_clk()
-                            self.bus_if.response <<= 1
-                            for i in range(burst_cnt):
-                                mem_addr = addr.value & mem_mask
-                                if mem_addr >= len(self.mem):
-                                    data = 0
-                                else:
-                                    data = self.mem[mem_addr]
-                                self.bus_if.last <<= 1 if i == burst_cnt-1 else 0
-                                self.bus_if.response <<= 1 if i <= burst_cnt-1 else 0
-                                yield from wait_clk()
-                                print(f"    data:{data:x} (for addr {addr:x})")
-                                self.bus_if.data_out <<= data
-                                addr = addr + 1
-                            self.bus_if.response <<= 0
-                            self.bus_if.last <<= 0
+                    self.bus_if_request.ready <<= 1
+                    if self.bus_if_request.valid == 1:
+                        assert self.bus_if_request.read_not_write == 1
+                        assert self.bus_if_request.byte_en == 3
+                        # Read request
+                        addr = self.bus_if_request.addr.sim_value
+                        mem_addr = addr.value & mem_mask
+                        if mem_addr >= len(self.mem):
+                            data = 0
                         else:
-                            assert False, "WRITES SHOULD NEVER COME FROM FETCH"
+                            data = self.mem[mem_addr]
+                        print(f"Reading BUS {addr:x} data:{data:x} at {now}")
+                        delay_queue[-1] = data
+                    if delay_queue[0] is not None:
+                        assert self.bus_if_response.ready
+                        self.bus_if_response.data <<= delay_queue[0]
+                        self.bus_if_response.valid <<= 1
+                        print(f"    response data:{data:x} at {now}")
                     else:
-                        self.bus_if.response <<= 0
-                        self.bus_if.data_out <<= None
-                        self.bus_if.last <<= None
+                        self.bus_if_response.data <<= None
+                        self.bus_if_response.valid <<= 0
+                    delay_queue = delay_queue[1:] + [None, ]
 
     class DecodeEmulator(Module):
         clk = ClkPort()
@@ -633,9 +662,9 @@ def sim():
                         yield from wait_clk()
                         yield from wait_clk()
                         yield from wait_clk()
-                        self.do_branch <<= 1
-                        yield from wait_clk()
-                        self.do_branch <<= 0
+                        #self.do_branch <<= 1
+                        #yield from wait_clk()
+                        #self.do_branch <<= 0
                         state = "after_start"
 
     class top(Module):
@@ -655,15 +684,18 @@ def sim():
 
             self.fetch_to_decode = Wire(FetchDecodeIf)
 
-            self.bus_if = Wire(BusIfPortIf)
+            self.bus_if_req = Wire(BusIfRequestIf)
+            self.bus_if_rsp = Wire(BusIfResponseIf)
 
             self.dut = FetchStage()
             self.decode_emulator = DecodeEmulator()
             self.bus_emulator = BusEmulator()
             self.sideband_emulator = SidebandEmulator()
 
-            self.bus_if <<= self.dut.bus_if
-            self.bus_emulator.bus_if <<= self.bus_if
+            self.bus_if_req <<= self.dut.bus_if_request
+            self.bus_emulator.bus_if_request <<= self.bus_if_req
+            self.bus_if_rsp <<= self.bus_emulator.bus_if_response
+            self.dut.bus_if_response <<= self.bus_if_rsp
 
             self.fetch_to_decode <<= self.dut.decode
             self.decode_emulator.from_fetch <<= self.fetch_to_decode
