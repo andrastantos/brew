@@ -146,7 +146,6 @@ class InstBuffer(Module):
             idle = 0
             request = 1
             flush_start = 2
-            flush = 3
 
         self.fsm.reset_value <<= InstBufferStates.idle
         self.fsm.default_state <<= InstBufferStates.idle
@@ -189,6 +188,18 @@ class InstBuffer(Module):
                 fetch_av
             )
         )
+        flushing = Wire(logic)
+        flushing <<= Reg(
+            Select(
+                branch_req | (state == InstBufferStates.flush_start),
+                Select(
+                    advance_response,
+                    0,
+                    flushing
+                ),
+                1
+            )
+        )
 
         self.bus_if_request.valid           <<= (state == InstBufferStates.request) & (~fetch_page_limit)
         self.bus_if_request.read_not_write  <<= 1
@@ -200,15 +211,14 @@ class InstBuffer(Module):
         self.fsm.add_transition(InstBufferStates.idle,         start_new_request,              InstBufferStates.request)
         self.fsm.add_transition(InstBufferStates.request,     ~branch_req & (~advance_request | (req_len == 0)),  InstBufferStates.idle)
         self.fsm.add_transition(InstBufferStates.request,      branch_req &  advance_request & ~advance_response,  InstBufferStates.flush_start)
-        self.fsm.add_transition(InstBufferStates.request,      branch_req &  advance_request &  advance_response,  InstBufferStates.flush)
-        self.fsm.add_transition(InstBufferStates.flush_start,                                   advance_response,  InstBufferStates.flush)
-        self.fsm.add_transition(InstBufferStates.flush,                                        ~advance_response,  InstBufferStates.idle)
+        self.fsm.add_transition(InstBufferStates.request,      branch_req &  advance_request &  advance_response,  InstBufferStates.idle)
+        self.fsm.add_transition(InstBufferStates.flush_start,                                   advance_response,  InstBufferStates.idle)
 
 
         # The response interface is almost completely a pass-through. All we need to do is to handle the AV flag.
         self.queue.data <<= self.bus_if_response.data
         self.queue.av <<= req_av
-        self.queue.valid <<= self.bus_if_response.valid & (state != InstBufferStates.flush)
+        self.queue.valid <<= self.bus_if_response.valid & ~flushing
         self.bus_if_response.ready <<= 1 # We can't back-pressure the response interface (it doesn't even really check for it)
         #AssertOnClk(
         #    state != InstBufferStates.idle | self.queue.ready | (state != InstBufferStates.flush)
@@ -658,14 +668,21 @@ def sim():
                 if self.rst == 0:
                     if state == "start":
                         yield from wait_clk()
+                        self.do_branch <<= 1
                         yield from wait_clk()
-                        yield from wait_clk()
-                        yield from wait_clk()
-                        yield from wait_clk()
-                        #self.do_branch <<= 1
-                        #yield from wait_clk()
-                        #self.do_branch <<= 0
+                        self.do_branch <<= 0
                         state = "after_start"
+                    if state == "after_start":
+                        yield from wait_clk()
+                        yield from wait_clk()
+                        yield from wait_clk()
+                        yield from wait_clk()
+                        yield from wait_clk()
+                        yield from wait_clk()
+                        self.do_branch <<= 1
+                        yield from wait_clk()
+                        self.do_branch <<= 0
+                        state = "done"
 
     class top(Module):
         clk = ClkPort()
