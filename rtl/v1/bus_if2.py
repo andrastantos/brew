@@ -61,6 +61,9 @@ Contract details:
    of the requestor (it probably does it anyway). Bursts don't have to be from/to contiguous addresses, as long as they
    stay within one page (only lower 8 address bits change).
 4. Reads and writes are not allowed to be mixed within a burst. This is - again - not checked by the bus_if.
+5. Resposes to bursts are uninterrupted, that is to say, rsp_valid will go inactive (and *will* go inactive) only on burst boundaries.
+6. There isn't pipelining between requests and responses. That is to say, that in the cycle the next request is accepted, the
+   previous response is either completed or the last response is provided in the same cycle.
 
 
 Non-DRAM accesses:
@@ -229,6 +232,7 @@ class BusIf(Module):
         dram_not_ext = Wire()
         dram_not_ext <<= Reg(req_dram_not_ext, clock_en=req_valid)
 
+        AssertOnClk((input_row_addr == row_addr) | (state == BusIfStates.idle))
 
         '''
         CAS generation:

@@ -26,6 +26,10 @@ except ImportError:
     from memory import MemoryStage
     from reg_file import RegFile
 
+"""
+TODO: Should we change mem_limit to something that's measured in logical addresses instead of physical ones?
+
+"""
 
 class Pipeline(Module):
     clk = ClkPort()
