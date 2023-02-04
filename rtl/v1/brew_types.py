@@ -156,8 +156,28 @@ class ExecMemIf(ReadyValid):
     result_reg_addr = BrewRegAddr
     result_reg_addr_valid = logic
     result = BrewData
+    result_data_valid = logic
     mem_addr = BrewAddr
     mem_access_len = Unsigned(2) # 0 for 8-bit, 1 for 16-bit, 2 for 32-bit
+
+class RegFileWriteBackIf(Interface):
+    valid = logic
+    data = BrewData
+    data_en = logic
+    addr = BrewRegAddr
+
+class RegFileReadRequestIf(ReadyValid):
+    read1_addr = BrewRegAddr
+    read1_valid = logic
+    read2_addr = BrewRegAddr
+    read2_valid = logic
+    rsv_addr = BrewRegAddr
+    rsv_valid = logic
+
+class RegFileReadResponseIf(ReadyValid):
+    read1_data = BrewData
+    read2_data = BrewData
+
 
 class CsrIf(Interface):
     request = logic

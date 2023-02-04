@@ -1,180 +1,110 @@
 [*]
-[*] GTKWave Analyzer v3.3.100 (w)1999-2019 BSI
-[*] Thu Jan 26 22:24:20 2023
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Sat Feb  4 21:20:20 2023
 [*]
-[dumpfile] "C:\personal\brew\rtl\v1\reg_file.vcd"
-[dumpfile_mtime] "Thu Jan 26 22:23:49 2023"
-[dumpfile_size] 27749
-[savefile] "C:\personal\brew\rtl\v1\reg_file.gtkw"
-[timestart] 0
-[size] 1920 1017
+[dumpfile] "/home/tantos/brew/rtl/v1/reg_file.vcd"
+[dumpfile_mtime] "Sat Feb  4 21:19:50 2023"
+[dumpfile_size] 107599
+[savefile] "/home/tantos/brew/rtl/v1/reg_file.gtkw"
+[timestart] 2
+[size] 1920 990
 [pos] -1 -1
-*-7.205952 422 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-7.423877 781 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.dut.
-[sst_width] 197
-[signals_width] 261
+[sst_width] 233
+[signals_width] 330
 [sst_expanded] 1
 [sst_vpaned_height] 300
 @28
 top.dut.clk
 top.dut.rst
 @800200
--READ_IF
+-READ_REQ
+@28
+top.dut.read_req_valid
+top.dut.read_req_ready
 @22
-top.dut.read1_addr[3:0]
-top.dut.read1_addr_d[3:0]
-@c00024
-top.dut.read1_data[31:0]
+top.dut.read_req_read1_addr[3:0]
 @28
-(0)top.dut.read1_data[31:0]
-(1)top.dut.read1_data[31:0]
-(2)top.dut.read1_data[31:0]
-(3)top.dut.read1_data[31:0]
-(4)top.dut.read1_data[31:0]
-(5)top.dut.read1_data[31:0]
-(6)top.dut.read1_data[31:0]
-(7)top.dut.read1_data[31:0]
-(8)top.dut.read1_data[31:0]
-(9)top.dut.read1_data[31:0]
-(10)top.dut.read1_data[31:0]
-(11)top.dut.read1_data[31:0]
-(12)top.dut.read1_data[31:0]
-(13)top.dut.read1_data[31:0]
-(14)top.dut.read1_data[31:0]
-(15)top.dut.read1_data[31:0]
-(16)top.dut.read1_data[31:0]
-(17)top.dut.read1_data[31:0]
-(18)top.dut.read1_data[31:0]
-(19)top.dut.read1_data[31:0]
-(20)top.dut.read1_data[31:0]
-(21)top.dut.read1_data[31:0]
-(22)top.dut.read1_data[31:0]
-(23)top.dut.read1_data[31:0]
-(24)top.dut.read1_data[31:0]
-(25)top.dut.read1_data[31:0]
-(26)top.dut.read1_data[31:0]
-(27)top.dut.read1_data[31:0]
-(28)top.dut.read1_data[31:0]
-(29)top.dut.read1_data[31:0]
-(30)top.dut.read1_data[31:0]
-(31)top.dut.read1_data[31:0]
-@1401204
--group_end
-@28
-top.dut.read1_response
-top.dut.read1_valid
+top.dut.read_req_read1_valid
 @22
-top.dut.read2_addr[3:0]
-top.dut.read2_addr_d[3:0]
-@24
-top.dut.read2_data[31:0]
+top.dut.read_req_read2_addr[3:0]
 @28
-top.dut.read2_response
-top.dut.read2_valid
-top.dut.request
-top.dut.response
+top.dut.read_req_read2_valid
+@22
+top.dut.read_req_rsv_addr[3:0]
+@28
+top.dut.read_req_rsv_valid
 @1000200
--READ_IF
+-READ_REQ
 @800200
--WRITE_IF
+-READ_RSP
+@24
+top.dut.read_rsp_read1_data[31:0]
+@25
+top.dut.read_rsp_read2_data[31:0]
+@28
+top.dut.read_rsp_ready
+top.dut.read_rsp_valid
+@1000200
+-READ_RSP
+@800200
+-WRITE
 @22
 top.dut.write_addr[3:0]
-@c00024
-top.dut.write_data[31:0]
-@28
-(0)top.dut.write_data[31:0]
-(1)top.dut.write_data[31:0]
-(2)top.dut.write_data[31:0]
-(3)top.dut.write_data[31:0]
-(4)top.dut.write_data[31:0]
-(5)top.dut.write_data[31:0]
-(6)top.dut.write_data[31:0]
-(7)top.dut.write_data[31:0]
-(8)top.dut.write_data[31:0]
-(9)top.dut.write_data[31:0]
-(10)top.dut.write_data[31:0]
-(11)top.dut.write_data[31:0]
-(12)top.dut.write_data[31:0]
-(13)top.dut.write_data[31:0]
-(14)top.dut.write_data[31:0]
-(15)top.dut.write_data[31:0]
-(16)top.dut.write_data[31:0]
-(17)top.dut.write_data[31:0]
-(18)top.dut.write_data[31:0]
-(19)top.dut.write_data[31:0]
-(20)top.dut.write_data[31:0]
-(21)top.dut.write_data[31:0]
-(22)top.dut.write_data[31:0]
-(23)top.dut.write_data[31:0]
-(24)top.dut.write_data[31:0]
-(25)top.dut.write_data[31:0]
-(26)top.dut.write_data[31:0]
-(27)top.dut.write_data[31:0]
-(28)top.dut.write_data[31:0]
-(29)top.dut.write_data[31:0]
-(30)top.dut.write_data[31:0]
-(31)top.dut.write_data[31:0]
-@1401200
--group_end
-@28
-top.dut.write_request
-@1000200
--WRITE_IF
-@200
--INTERNAL
-@28
-top.dut.decode_response
-top.dut.read1_response
-top.dut.read2_response
-@22
-top.dut.mem1.port1_addr[3:0]
-@c00024
-top.dut.mem1.port1_data_in[31:0]
-@28
-(0)top.dut.mem1.port1_data_in[31:0]
-(1)top.dut.mem1.port1_data_in[31:0]
-(2)top.dut.mem1.port1_data_in[31:0]
-(3)top.dut.mem1.port1_data_in[31:0]
-(4)top.dut.mem1.port1_data_in[31:0]
-(5)top.dut.mem1.port1_data_in[31:0]
-(6)top.dut.mem1.port1_data_in[31:0]
-(7)top.dut.mem1.port1_data_in[31:0]
-(8)top.dut.mem1.port1_data_in[31:0]
-(9)top.dut.mem1.port1_data_in[31:0]
-(10)top.dut.mem1.port1_data_in[31:0]
-(11)top.dut.mem1.port1_data_in[31:0]
-(12)top.dut.mem1.port1_data_in[31:0]
-(13)top.dut.mem1.port1_data_in[31:0]
-(14)top.dut.mem1.port1_data_in[31:0]
-(15)top.dut.mem1.port1_data_in[31:0]
-(16)top.dut.mem1.port1_data_in[31:0]
-(17)top.dut.mem1.port1_data_in[31:0]
-(18)top.dut.mem1.port1_data_in[31:0]
-(19)top.dut.mem1.port1_data_in[31:0]
-(20)top.dut.mem1.port1_data_in[31:0]
-(21)top.dut.mem1.port1_data_in[31:0]
-(22)top.dut.mem1.port1_data_in[31:0]
-(23)top.dut.mem1.port1_data_in[31:0]
-(24)top.dut.mem1.port1_data_in[31:0]
-(25)top.dut.mem1.port1_data_in[31:0]
-(26)top.dut.mem1.port1_data_in[31:0]
-(27)top.dut.mem1.port1_data_in[31:0]
-(28)top.dut.mem1.port1_data_in[31:0]
-(29)top.dut.mem1.port1_data_in[31:0]
-(30)top.dut.mem1.port1_data_in[31:0]
-(31)top.dut.mem1.port1_data_in[31:0]
-@1401200
--group_end
-@28
-top.dut.mem1.port1_write_en
-@22
-top.dut.mem1.port2_addr[3:0]
 @24
-top.dut.mem1.port2_data_out[31:0]
+top.dut.write_data[31:0]
 @22
-top.dut.mem2.port2_addr[3:0]
-@25
-top.dut.mem2.port2_data_out[31:0]
+top.dut.write_data_d[31:0]
+@28
+top.dut.write_data_en
+top.dut.write_valid
+@1000200
+-WRITE
+@c00022
+top.dut.rsv_board[14:0]
+@28
+(0)top.dut.rsv_board[14:0]
+(1)top.dut.rsv_board[14:0]
+(2)top.dut.rsv_board[14:0]
+(3)top.dut.rsv_board[14:0]
+(4)top.dut.rsv_board[14:0]
+(5)top.dut.rsv_board[14:0]
+(6)top.dut.rsv_board[14:0]
+(7)top.dut.rsv_board[14:0]
+(8)top.dut.rsv_board[14:0]
+(9)top.dut.rsv_board[14:0]
+(10)top.dut.rsv_board[14:0]
+(11)top.dut.rsv_board[14:0]
+(12)top.dut.rsv_board[14:0]
+(13)top.dut.rsv_board[14:0]
+(14)top.dut.rsv_board[14:0]
+@1401200
+-group_end
+@28
+top.dut.req_advance
+top.dut.rsp_advance
+@22
+top.dut.write_data_d[31:0]
+@28
+top.dut.read1_valid
+top.dut.read2_valid
+@22
+top.dut.read1_addr[3:0]
+top.dut.read2_addr[3:0]
+@28
+top.dut.wait_for_write
+top.dut.out_buf_full
+top.dut.rsv_clr_valid
+top.dut.rsv_set_valid
+top.dut.rsv_valid
+top.dut.rsv_rsv_bit
+@22
+top.dut.rsv_addr[3:0]
+@28
+top.dut.wait_for_read1
+top.dut.wait_for_rsv
+top.dut.wait_for_read2
 [pattern_trace] 1
 [pattern_trace] 0

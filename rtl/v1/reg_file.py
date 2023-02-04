@@ -27,118 +27,151 @@ For FPGAs, BRAMs can be used to implement the register file.
 The register file also implements the score-board for the rest of the pipeline to handle reservations
 """
 
-# TODO: should we have a request-response interface on top of ready-valid?
-#       The logic is the same, except that response provides data on the same
-#       cycle that request is accepted.
-#       For now, I'm going to keep it as individual wires to experiment some more.
 class RegFile(Module):
     clk = ClkPort()
     rst = RstPort()
 
     # Interface towards decode
-
-    # This is important! We have several sub-interfaces, but one global request/response pair
-    # That is because we want to handle all sub-requests as a single transaction.
-
-    request = Input(logic)
-    response = Output(logic)
-
-    read1_addr = Input(BrewRegAddr)
-    read1_data = Output(BrewData)
-    read1_valid = Input(logic)
-
-    read2_addr = Input(BrewRegAddr)
-    read2_data = Output(BrewData)
-    read2_valid = Input(logic)
-
-    rsv_addr = Input(BrewRegAddr)
-    rsv_valid = Input(logic)
+    read_req = Input(RegFileReadRequestIf)
+    read_rsp = Output(RegFileReadResponseIf)
 
     # Interface towards the write-back of the pipeline
-    write_data = Input(BrewData)
-    write_addr = Input(BrewRegAddr)
-    write_request = Input(logic)
+    write = Input(RegFileWriteBackIf)
 
     '''
-    CLK            /^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__
-    write_request  ______/^^^^^\_______________________/^^^^^\_________________________________________
-    write_addr     ------<=====>-----------------------<=====>-----------------------------------------
-    write_data     ------------<=====>-----------------------<=====>-----------------------------------
-    CLK            /^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__
-    score_clr      ______/^^^^^\_______________________/^^^^^\_________________________________________
-    score_set
-    score_value    ^^^^^^^^^^^^\_____________ ^^^^^^^^^^^^^^^\_________________________________________
-    CLK            /^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__
-    request        ______________________________/^^^^^^^^^^^\_________________________________________
-    read_valid     ______________________________/^^^^^^^^^^^\_________________________________________
-    read_addr      ------------------------------<===========>-----------------------------------------
-    read_data      ------------------------------------------<=====>-----------------------------------
-    response       ____________________________________/^^^^^\__________________________________________
-
+    CLK                    /^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__
+    write.valid            ______/^^^^^\_______________________/^^^^^\_______________________________________________/^^^^^\___________
+    write.addr             ------<=====>-----------------------<=====>-----------------------------------------------<=====>-----------
+    write.data             ------<=====>-----------------------<=====>-----------------------------------------------<=====>-----------
+    CLK                    /^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__
+    score_clr              ______/^^^^^\_______________________/^^^^^\_______________________________________________/^^^^^\___________
+    score_set              ______/^^^^^\_______________________/^^^^^\___________/^^^^^\_____/^^^^^^^^^^^\_____/^^^^^^^^^^^\___________
+    score_value            ^^^^^^^^^^^^\_____________ ^^^^^^^^^^^^^^^\______________________________________________ ^^^^^^\___________
+    CLK                    /^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__
+    read_req.valid         ______/^^^^^\_________________/^^^^^\_________________/^^^^^\_____/^^^^^^^^^^^\_____/^^^^^^^^^^^\___________
+    read_req.ready         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\_____/^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    read_req.readX_valid   ______/^^^^^\_________________/^^^^^\_________________/^^^^^\_____/^^^^^^^^^^^\_____/^^^^^^^^^^^\___________
+    read_req.readX_addr    ------<=====>-----------------<=====>-----------------<=====>-----<=====X=====>-----<=====X=====>-----------
+    read_rsp.valid         ____________/^^^^^\_______________________/^^^^^\___________/^^^^^\_____/^^^^^^^^^^^\_____/^^^^^^^^^^^\_____
+    read_rsp.readX_data    ------------<=====>-----------------------<=====>-----------<=====>-----<=====X=====>-----<=====X=====>-----
+                                 bypass behavior           bypass behavior       simple read   back-to-back read  back-to-back read w bypass
     '''
 
+
+    read1_rsv_bit = Output(logic)
+    read2_rsv_bit = Output(logic)
+    rsv_rsv_bit = Output(logic)
 
     def body(self):
+        req_advance = self.read_req.ready & self.read_req.valid
+        rsp_advance = self.read_rsp.ready & self.read_rsp.valid
+
+        def remember(thing):
+            return Select(req_advance, Reg(thing, clock_en=req_advance), thing)
+
+        read1_valid = remember(self.read_req.read1_valid)
+        read1_addr  = remember(self.read_req.read1_addr)
+        read2_valid = remember(self.read_req.read2_valid)
+        read2_addr  = remember(self.read_req.read2_addr)
+        rsv_valid   = remember(self.read_req.rsv_valid)
+        rsv_addr    = remember(self.read_req.rsv_addr)
+
         # We have two memory instances, one for each read port. The write ports of
         # these instances are connected together so they get written the same data
         mem1 = SimpleDualPortMemory(addr_type=BrewRegAddr, data_type=BrewData)
         mem2 = SimpleDualPortMemory(addr_type=BrewRegAddr, data_type=BrewData)
 
-        write_request_d = Wire()
-        write_request_d <<= Reg(self.write_request)
-        write_addr_d = Wire()
-        write_addr_d <<= Reg(self.write_request)
-        mem1.port1_write_en <<= write_addr_d
-        mem1.port1_data_in <<= self.write_data
-        mem1.port1_addr <<= Reg(self.write_addr)
-        mem2.port1_write_en <<= write_addr_d
-        mem2.port1_data_in <<= self.write_data
-        mem2.port1_addr <<= Reg(self.write_addr)
+        # We disable forwarding and wirting to the RF if write.data_en is not asserted.
+        # This allows for clearing a reservation without touching the data
+        # during (branch/exception recovery).
+        mem1.port1_write_en <<= self.write.valid & self.write.data_en
+        mem1.port1_data_in <<= self.write.data
+        mem1.port1_addr <<= self.write.addr
+        mem2.port1_write_en <<= self.write.valid & self.write.data_en
+        mem2.port1_data_in <<= self.write.data
+        mem2.port1_addr <<= self.write.addr
 
-        read1_addr_d = Wire()
-        read2_addr_d = Wire()
+        write_data_d = Wire()
+        write_data_d <<= Reg(self.write.data)
 
-        read1_addr_d <<= Reg(self.read1_addr)
-        read2_addr_d <<= Reg(self.read2_addr)
-
-        # Read ports have bypass logic
-        self.read1_data <<= Select(
-            (self.write_addr == read1_addr_d) & write_request_d,
+        # Read ports have bypass logic, but with the same latency as normal register reads
+        # NOTE: if we are *sure* the underlying memories support 'read new data' we can get
+        #       away with no special logic here. For now, I'm not taking on that dependency.
+        mem1.port2_addr <<= read1_addr
+        self.read_rsp.read1_data <<= Select(
+            Reg((self.write.addr == read1_addr) & self.write.valid & self.write.data_en),
             mem1.port2_data_out,
-            self.write_data
+            write_data_d
         )
-        mem1.port2_addr <<= self.read1_addr
 
-        self.read2_data <<= Select(
-            (self.write_addr == read2_addr_d) & write_request_d,
+        mem2.port2_addr <<= read2_addr
+        self.read_rsp.read2_data <<= Select(
+            Reg((self.write.addr == read2_addr) & self.write.valid & self.write.data_en),
             mem2.port2_data_out,
-            self.write_data
+            write_data_d
         )
-        mem2.port2_addr <<= self.read2_addr
 
         # Score-board for reservations
         rsv_board = Wire(Unsigned(BrewRegCnt))
 
-        clear_mask = Select(self.write_request, 0, 1 << self.write_addr)
+        def get_rsv_bit(addr):
+            return Select(addr, *rsv_board)
 
-        rsv_response = Wire(logic)
+        def wait(read_valid, read_addr):
+            return read_valid & get_rsv_bit(read_addr) & ~((self.write.addr == read_addr) & self.write.valid)
 
-        decode_response = Wire(logic)
+        rsv_board_as_bits = tuple(rsv_board)
+        self.read1_rsv_bit <<= Select(read1_addr, *rsv_board_as_bits)
+        self.read2_rsv_bit <<= Select(read2_addr, *rsv_board_as_bits)
+        self.rsv_rsv_bit   <<= Select(rsv_addr,   *rsv_board_as_bits)
 
-        set_mask = Select(self.rsv_valid & decode_response & self.request, 0, 1 << self.rsv_addr)
+        wait_for_read1 = wait(read1_valid, read1_addr)
+        wait_for_read2 = wait(read2_valid, read2_addr)
+        wait_for_rsv   = wait(rsv_valid,   rsv_addr)
+        wait_for_some = wait_for_read1 | wait_for_read2 | wait_for_rsv
+        wait_for_write = Wire(logic)
+        wait_for_write = Select(
+            req_advance | self.write.valid,
+            Reg(wait_for_some, clock_en = req_advance | self.write.valid),
+            wait_for_some
+        )
 
-        rsv_board <<= Reg(rsv_board & ~clear_mask | set_mask)
 
-        # The logic is this: if we don't have a valid request, we always are providing a response.
-        read1_response = Wire()
-        read2_response = Wire()
-        read1_response <<= self.request & (~self.read1_valid | (((rsv_board & (1 << self.read1_addr)) == 0) | ((self.write_addr == self.read1_addr) & self.write_request)))
-        read2_response <<= self.request & (~self.read2_valid | (((rsv_board & (1 << self.read2_addr)) == 0) | ((self.write_addr == self.read2_addr) & self.write_request)))
-        rsv_response   <<= self.request & (~self.rsv_valid | (((rsv_board & (1 << self.rsv_addr)) == 0) | ((self.write_addr == self.rsv_addr) & self.write_request)))
+        # Setting and clearing reservation bits (if we set and clear at the same cycle, set takes priority)
+        rsv_set_valid = rsv_valid & ~wait_for_write
+        rsv_clr_valid = self.write.valid & ~wait_for_rsv
+        for i in range(BrewRegCnt):
+            rsv_board[i] <<= Reg(
+                Select(
+                    rsv_set_valid & (rsv_addr == i),
+                    Select(
+                        rsv_clr_valid & (self.write.addr == i),
+                        rsv_board[i],
+                        0
+                    ),
+                    1
+                )
+            )
 
-        decode_response <<= read1_response & read2_response & rsv_response
 
-        self.response <<= decode_response
+        outstanding_req = Wire(logic)
+        outstanding_req <<= Reg(Select(
+            req_advance,
+            Select(
+                rsp_advance,
+                outstanding_req,
+                0
+            ),
+            1
+        ))
+
+        wait_for_write_d = Reg(wait_for_write)
+        out_buf_full = Wire(logic)
+        out_buf_full <<= Reg(Select(req_advance, Select(rsp_advance, out_buf_full, 0), 1))
+
+        self.read_req.ready <<= ~wait_for_write_d & (self.read_rsp.ready | ~out_buf_full)
+        self.read_rsp.valid <<= ~wait_for_write_d & out_buf_full
+
 
 
 
@@ -150,88 +183,84 @@ def sim():
         clk = ClkPort()
         rst = RstPort()
 
-        request = Output(logic)
-        response = Input(logic)
-
-        read1_addr = Output(BrewRegAddr)
-        read1_data = Input(BrewData)
-        read1_valid = Output(logic)
-
-        read2_addr = Output(BrewRegAddr)
-        read2_data = Input(BrewData)
-        read2_valid = Output(logic)
-
-        rsv_addr = Output(BrewRegAddr)
-        rsv_valid = Output(logic)
+        # Interface towards decode
+        read_req = Output(RegFileReadRequestIf)
+        read_rsp = Input(RegFileReadResponseIf)
 
         # Interface towards the write-back of the pipeline
-        write_data = Output(BrewData)
-        write_addr = Output(BrewRegAddr)
-        write_request = Output(logic)
+        write = Output(RegFileWriteBackIf)
 
         def simulate(self) -> TSimEvent:
 
             self.sim_write_state = "idle"
-            self.sim_write_data = None
-            def write_reg(addr, data):
-                self.sim_write_data = data
-                self.sim_write_state = "pre_write"
-                self.write_addr <<= addr
-                self.write_request <<= 1
+
+            def write_reg(addr, data, enable = 1):
+                self.sim_write_state = "write"
+                self.write.valid <<= 1
+                self.write.addr <<= addr
+                self.write.data <<= data
+                self.write.data_en <<= enable
 
             def write_sm():
                 if self.rst == 1:
-                    self.write_request <<= 0
-                    self.write_data <<= None
-                    self.write_addr <<= None
+                    self.write.valid <<= 0
+                    self.write.data <<= None
+                    self.write.data_en <<= None
+                    self.write.addr <<= None
                     self.sim_write_state = "idle"
                 elif self.sim_write_state == "idle":
                     pass
-                elif self.sim_write_state == "pre_write":
-                    self.write_request <<= 0
-                    self.write_data <<= self.sim_write_data
-                    self.sim_write_state = "write"
                 elif self.sim_write_state == "write":
-                    self.write_request <<= 0
-                    self.write_data <<= None
-                    self.write_addr <<= None
+                    self.write.valid <<= 0
                     self.sim_write_state = "idle"
 
             self.sim_req_state = "idle"
 
             def start_req(read1, read2, rsv):
                 assert self.sim_req_state == "idle"
-                self.read1_addr <<= read1
-                self.read1_valid <<= read1 is not None
-                self.read2_addr <<= read2
-                self.read2_valid <<= read2 is not None
-                self.rsv_addr <<= rsv
-                self.rsv_valid <<= rsv is not None
-                self.request <<= 1
+                self.read_req.read1_addr <<= read1
+                self.read_req.read1_valid <<= read1 is not None
+                self.read_req.read2_addr <<= read2
+                self.read_req.read2_valid <<= read2 is not None
+                self.read_req.rsv_addr <<= rsv
+                self.read_req.rsv_valid <<= rsv is not None
+                self.read_req.valid <<= 1
                 self.sim_req_state = "request"
 
             def req_sm():
                 if self.rst == 1:
-                    self.read1_addr <<= None
-                    self.read1_valid <<= None
-                    self.read2_addr <<= None
-                    self.read2_valid <<= None
-                    self.rsv_addr <<= None
-                    self.rsv_valid <<= None
-                    self.request <<= 0
+                    self.read_req.read1_addr <<= None
+                    self.read_req.read1_valid <<= None
+                    self.read_req.read2_addr <<= None
+                    self.read_req.read2_valid <<= None
+                    self.read_req.rsv_addr <<= None
+                    self.read_req.rsv_valid <<= None
+                    self.read_req.valid <<= 0
                     self.sim_req_state = "idle"
                 elif self.sim_req_state == "idle":
                     pass
                 elif self.sim_req_state == "request":
-                    if self.response == 1:
-                        self.read1_addr <<= None
-                        self.read1_valid <<= None
-                        self.read2_addr <<= None
-                        self.read2_valid <<= None
-                        self.rsv_addr <<= None
-                        self.rsv_valid <<= None
-                        self.request <<= 0
+                    if self.read_req.valid == 1:
+                        self.read_req.read1_addr <<= None
+                        self.read_req.read1_valid <<= None
+                        self.read_req.read2_addr <<= None
+                        self.read_req.read2_valid <<= None
+                        self.read_req.rsv_addr <<= None
+                        self.read_req.rsv_valid <<= None
+                        self.read_req.valid <<= 0
                         self.sim_req_state = "idle"
+
+            self.block_rsp_cnt = 0
+            def block_rsp(clock_cnt):
+                self.block_rsp_cnt = clock_cnt
+                self.read_rsp.ready <<= 0
+
+            def rsp_sm():
+                if self.rst == 1:
+                    self.read_rsp.ready <<= 1
+                elif self.block_rsp_cnt > 0:
+                    self.block_rsp_cnt -= 1
+                    self.read_rsp.ready <<= self.block_rsp_cnt == 0
 
             def wait_clk():
                 yield (self.clk, )
@@ -239,6 +268,7 @@ def sim():
                     yield (self.clk, )
                     req_sm()
                     write_sm()
+                    rsp_sm()
 
 
             def wait_rst():
@@ -246,8 +276,8 @@ def sim():
                 while self.rst == 1:
                     yield from wait_clk()
 
-            self.request <<= 0
-            self.write_request <<= 0
+            self.read_req.valid <<= 0
+            self.write.valid <<= 0
             yield from wait_rst()
             for i in range(4):
                 yield from wait_clk()
@@ -281,6 +311,20 @@ def sim():
             yield from wait_clk()
             yield from wait_clk()
             yield from wait_clk()
+            write_reg(3,303)
+            yield from wait_clk()
+            start_req(1,2,3)
+            write_reg(3,403)
+            yield from wait_clk()
+            yield from wait_clk()
+            start_req(0,1,None)
+            yield from wait_clk()
+            start_req(3,3,None)
+            yield from wait_clk()
+            yield from wait_clk()
+            write_reg(3,503)
+            yield from wait_clk()
+            yield from wait_clk()
 
 
 
@@ -294,24 +338,10 @@ def sim():
             self.excericeser = Excerciser()
             self.dut = RegFile()
 
+            self.dut.read_req <<= self.excericeser.read_req
+            self.excericeser.read_rsp <<= self.dut.read_rsp
 
-            self.dut.request <<= self.excericeser.request
-            self.excericeser.response <<= self.dut.response
-
-            self.dut.read1_addr <<= self.excericeser.read1_addr
-            self.excericeser.read1_data <<= self.dut.read1_data
-            self.dut.read1_valid <<= self.excericeser.read1_valid
-
-            self.dut.read2_addr <<= self.excericeser.read2_addr
-            self.excericeser.read2_data <<= self.dut.read2_data
-            self.dut.read2_valid <<= self.excericeser.read2_valid
-
-            self.dut.rsv_addr <<= self.excericeser.rsv_addr
-            self.dut.rsv_valid <<= self.excericeser.rsv_valid
-
-            self.dut.write_data <<= self.excericeser.write_data
-            self.dut.write_addr <<= self.excericeser.write_addr
-            self.dut.write_request <<= self.excericeser.write_request
+            self.dut.write <<= self.excericeser.write
 
 
         def simulate(self) -> TSimEvent:
