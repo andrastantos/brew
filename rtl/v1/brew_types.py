@@ -70,12 +70,14 @@ class op(Enum):
     # Bit-selection coming in op_a
     bb_zero  = 1
 
-    misc_swi   = 0 # SWI index comes in op_a
-    misc_stm   = 1
-    misc_pc_r  = 2
-    misc_tpc_r = 3
-    misc_pc_w  = 4
-    misc_tpc_w = 5
+    misc_swi     = 0 # SWI index comes in op_a
+    misc_stm     = 1
+    misc_pc_r    = 2
+    misc_tpc_r   = 3
+    misc_pc_w    = 4
+    misc_tpc_w   = 5
+    misc_pc_w_r  = 6
+    misc_tpc_w_r = 7
 
 class exec(Enum):
     adder   = 0
