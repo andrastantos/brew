@@ -122,6 +122,8 @@ class ExecuteStage(Module):
             (self.decode.exec_unit == exec.cbranch) | (self.decode.exec_unit == exec.bbranch), (pc + unmunge_offset(self.decode.op_imm))[30:0],
             (self.decode.exec_unit == exec.misc) & (self.decode.opcode == op.misc_pc_w), self.decode.op_imm[31:1],
             (self.decode.exec_unit == exec.misc) & (self.decode.opcode == op.misc_tpc_w) & self.task_mode_in, self.decode.op_imm[31:1],
+            (self.decode.exec_unit == exec.misc) & (self.decode.opcode == op.misc_pc_w_r), self.decode.op_imm[31:1],
+            (self.decode.exec_unit == exec.misc) & (self.decode.opcode == op.misc_tpc_w_r) & self.task_mode_in, self.decode.op_imm[31:1],
             default_port = Select(
                 self.task_mode_in,
                 (self.spc_in + self.decode.inst_len + 1)[30:0], # Inst len is 0=16-bit, 1=32-bit, 2=48-bit
@@ -137,12 +139,14 @@ class ExecuteStage(Module):
             self.decode.exec_unit == exec.mult, mult_result,
             self.decode.exec_unit == exec.bitwise, logic_result,
             self.decode.exec_unit == exec.misc, SelectOne(
-                self.decode.opcode == op.misc_swi,   None,
-                self.decode.opcode == op.misc_stm,   None,
-                self.decode.opcode == op.misc_pc_r,  pc,
-                self.decode.opcode == op.misc_tpc_r, self.tpc_in,
-                self.decode.opcode == op.misc_pc_w,  None,
-                self.decode.opcode == op.misc_tpc_w, None,
+                self.decode.opcode == op.misc_swi,     None,
+                self.decode.opcode == op.misc_stm,     None,
+                self.decode.opcode == op.misc_pc_r,    pc,
+                self.decode.opcode == op.misc_tpc_r,   self.tpc_in,
+                self.decode.opcode == op.misc_pc_w,    None,
+                self.decode.opcode == op.misc_tpc_w,   None,
+                self.decode.opcode == op.misc_pc_w_r,  None,
+                self.decode.opcode == op.misc_tpc_w_r, None,
             )
         )
         is_branch = SelectOne(
@@ -153,13 +157,14 @@ class ExecuteStage(Module):
             self.decode.exec_unit == exec.cbranch, cbranch_result,
             self.decode.exec_unit == exec.bbranch, bbranch_result,
             self.decode.exec_unit == exec.misc, SelectOne(
-                self.decode.opcode == op.misc_swi,   1,
-                self.decode.opcode == op.misc_stm,   1,
-                self.decode.opcode == op.misc_pc_r,  0,
-                self.decode.opcode == op.misc_tpc_r, 0,
-                self.decode.opcode == op.misc_pc_w,  1,
-                self.decode.opcode == op.misc_tpc_w, self.task_mode_in,
-
+                self.decode.opcode == op.misc_swi,     1,
+                self.decode.opcode == op.misc_stm,     1,
+                self.decode.opcode == op.misc_pc_r,    0,
+                self.decode.opcode == op.misc_tpc_r,   0,
+                self.decode.opcode == op.misc_pc_w,    1,
+                self.decode.opcode == op.misc_tpc_w,   self.task_mode_in,
+                self.decode.opcode == op.misc_pc_w_r,  1,
+                self.decode.opcode == op.misc_tpc_w_r, self.task_mode_in,
             )
         )
 
@@ -171,12 +176,14 @@ class ExecuteStage(Module):
             self.decode.exec_unit == exec.cbranch, 0,
             self.decode.exec_unit == exec.bbranch, 0,
             self.decode.exec_unit == exec.misc, SelectOne(
-                self.decode.opcode == op.misc_swi,   1,
-                self.decode.opcode == op.misc_stm,   0,
-                self.decode.opcode == op.misc_pc_r,  0,
-                self.decode.opcode == op.misc_tpc_r, 0,
-                self.decode.opcode == op.misc_pc_w,  0,
-                self.decode.opcode == op.misc_tpc_w, 0,
+                self.decode.opcode == op.misc_swi,     1,
+                self.decode.opcode == op.misc_stm,     0,
+                self.decode.opcode == op.misc_pc_r,    0,
+                self.decode.opcode == op.misc_tpc_r,   0,
+                self.decode.opcode == op.misc_pc_w,    0,
+                self.decode.opcode == op.misc_tpc_w,   0,
+                self.decode.opcode == op.misc_pc_w_r,  0,
+                self.decode.opcode == op.misc_tpc_w_r, 0,
             )
         )
 
@@ -206,7 +213,7 @@ class ExecuteStage(Module):
 
         reg_en = Wire(logic) # output of handshake_fsm
 
-        self.do_branch <<= is_branch & reg_en
+        self.do_branch <<= Reg(is_branch, clock_en=reg_en)
 
         handshake_fsm = ForwardBufLogic()
 
@@ -217,16 +224,17 @@ class ExecuteStage(Module):
         reg_en <<= handshake_fsm.out_reg_en
 
 
-        self.mem.mem_access_len  <<= Reg(self.decode.mem_access_len, clock_en=reg_en)
-        self.mem.result          <<= Reg(exec_result, clock_en=reg_en)
-        self.mem.result_reg_addr <<= Reg(self.decode.result_reg_addr, clock_en=reg_en)
-        self.mem.mem_addr        <<= Reg(adder_result, clock_en=reg_en)
-        self.mem.is_load         <<= Reg(self.decode.is_load, clock_en=reg_en)
-        self.mem.is_store        <<= Reg(self.decode.is_store, clock_en=reg_en)
-        self.mem.do_bse          <<= Reg(self.decode.do_bse, clock_en=reg_en)
-        self.mem.do_wse          <<= Reg(self.decode.do_wse, clock_en=reg_en)
-        self.mem.do_bze          <<= Reg(self.decode.do_bze, clock_en=reg_en)
-        self.mem.do_wze          <<= Reg(self.decode.do_wze, clock_en=reg_en)
+        self.mem.mem_access_len     <<= Reg(self.decode.mem_access_len, clock_en=reg_en)
+        self.mem.result             <<= Reg(exec_result, clock_en=reg_en)
+        self.mem.result_data_valid  <<= self.do_branch
+        self.mem.result_reg_addr    <<= Reg(self.decode.result_reg_addr, clock_en=reg_en)
+        self.mem.mem_addr           <<= Reg(adder_result, clock_en=reg_en)
+        self.mem.is_load            <<= Reg(self.decode.is_load, clock_en=reg_en)
+        self.mem.is_store           <<= Reg(self.decode.is_store, clock_en=reg_en)
+        self.mem.do_bse             <<= Reg(self.decode.do_bse, clock_en=reg_en)
+        self.mem.do_wse             <<= Reg(self.decode.do_wse, clock_en=reg_en)
+        self.mem.do_bze             <<= Reg(self.decode.do_bze, clock_en=reg_en)
+        self.mem.do_wze             <<= Reg(self.decode.do_wze, clock_en=reg_en)
 
         # Side-band info output
         self.spc_out <<= Select(reg_en,
