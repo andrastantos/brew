@@ -40,13 +40,11 @@ class MemoryStage(Module):
     exec = Input(ExecMemIf)
 
     # Pipeline output to register file
-    w_result_reg_addr = Output(BrewRegAddr)
-    w_result = Output(BrewData)
-    w_request = Output(logic)
-
+    reg_file = Output(RegFileWriteBackIf)
 
     # Interface to the bus interface
-    bus_if = Output(BusIfPortIf)
+    bus_req_if = Output(BusIfRequestIf)
+    bus_rsp_if = Input(BusIfResponseIf)
 
     # Interface to the CSR registers
     csr_if = Output(CsrIf)
@@ -63,11 +61,12 @@ class MemoryStage(Module):
 
         class MemoryStates(Enum):
             idle = 0
-            read_1 = 1
-            read_2 = 3
-            write = 5
-            csr_read = 8
-            csr_write = 9
+            mem_read_1 = 1
+            mem_read_2 = 2
+            mem_write_1 = 3
+            mem_write_2 = 4
+            csr_read = 5
+            csr_write = 7
 
         self.fsm.reset_value   <<= MemoryStates.idle
         self.fsm.default_state <<= MemoryStates.idle
@@ -99,106 +98,76 @@ class MemoryStage(Module):
         is_csr = self.exec.mem_addr[31:28] == self.csr_base
 
         csr_request = Wire(logic)
-        csr_response = Wire(logic)
-        csr_response <<= self.csr_if.response
 
-        self.fsm.add_transition(MemoryStates.idle, ~self.exec.valid, MemoryStates.idle)
-        self.fsm.add_transition(MemoryStates.idle, self.exec.valid & ~is_csr & self.exec.is_load, MemoryStates.read_1)
-        self.fsm.add_transition(MemoryStates.idle, self.exec.valid & ~is_csr & self.exec.is_store, MemoryStates.write)
-        self.fsm.add_transition(MemoryStates.idle, self.exec.valid & is_csr & self.exec.is_load & ~csr_response, MemoryStates.csr_read)
-        self.fsm.add_transition(MemoryStates.idle, self.exec.valid & is_csr & self.exec.is_store & ~csr_response, MemoryStates.csr_write)
-        # For writes all the state management is done by the bus-interface for us, and is reported back through 'last'.
-        self.fsm.add_transition(MemoryStates.write, ~self.bus_if.response, MemoryStates.write)
-        self.fsm.add_transition(MemoryStates.write, self.bus_if.response & self.bus_if.last, MemoryStates.idle)
-        # For read cycles, we get the data back one-cycle delayed compared to 'response'. So we need to stay an extra cycle longer in read states,
-        # stalling the rest of the pipeline, thus need an extra read state
-        self.fsm.add_transition(MemoryStates.read_1, ~self.bus_if.response, MemoryStates.read_1)
-        self.fsm.add_transition(MemoryStates.read_1, self.bus_if.response & ~self.bus_if.last, MemoryStates.read_1)
-        self.fsm.add_transition(MemoryStates.read_1, self.bus_if.response & self.bus_if.last, MemoryStates.read_2)
+        self.fsm.add_transition(MemoryStates.idle, self.exec.valid & ~is_csr & self.exec.is_load  & (self.exec.mem_access_len == 2), MemoryStates.mem_read_1)
+        self.fsm.add_transition(MemoryStates.idle, self.exec.valid & ~is_csr & self.exec.is_load  & (self.exec.mem_access_len != 2), MemoryStates.mem_read_2)
+        self.fsm.add_transition(MemoryStates.idle, self.exec.valid & ~is_csr & self.exec.is_store & (self.exec.mem_access_len == 2), MemoryStates.mem_write_1)
+        self.fsm.add_transition(MemoryStates.idle, self.exec.valid & ~is_csr & self.exec.is_store & (self.exec.mem_access_len != 2), MemoryStates.mem_write_2)
+        self.fsm.add_transition(MemoryStates.idle, self.exec.valid &  is_csr & self.exec.is_load,  MemoryStates.csr_read)
+        self.fsm.add_transition(MemoryStates.idle, self.exec.valid &  is_csr & self.exec.is_store, MemoryStates.csr_write)
 
-        self.fsm.add_transition(MemoryStates.read_2, ~self.exec.valid, MemoryStates.idle)
-        self.fsm.add_transition(MemoryStates.read_2,  self.exec.valid & ~is_csr & self.exec.is_load, MemoryStates.read_1)
-        self.fsm.add_transition(MemoryStates.read_2,  self.exec.valid & ~is_csr & self.exec.is_store, MemoryStates.write)
-        self.fsm.add_transition(MemoryStates.read_2,  self.exec.valid & is_csr & self.exec.is_load & ~csr_response, MemoryStates.csr_read)
-        self.fsm.add_transition(MemoryStates.read_2,  self.exec.valid & is_csr & self.exec.is_store & ~csr_response, MemoryStates.csr_write)
+        # For memory reads, we'll have to delay acceptance of next instruction until response is back.
+        # TODO: we actually could let other non-memory stores through and out-of-order retire those instructions.
+        # Since 32-bit reads come back in two parts, we have 2 states. For 16- and 8-bit reads, we immediately start in mem_read_2
+        self.fsm.add_transition(MemoryStates.mem_read_1, self.bus_rsp_if.valid,                                MemoryStates.mem_read_2)
 
-        self.fsm.add_transition(MemoryStates.csr_read, ~csr_response, MemoryStates.csr_read)
-        self.fsm.add_transition(MemoryStates.csr_read, csr_response & ~self.exec.valid, MemoryStates.idle)
-        self.fsm.add_transition(MemoryStates.csr_read, csr_response & self.exec.valid & ~is_csr & self.exec.is_load, MemoryStates.read_1)
-        self.fsm.add_transition(MemoryStates.csr_read, csr_response & self.exec.valid & ~is_csr & self.exec.is_store, MemoryStates.write)
-        self.fsm.add_transition(MemoryStates.csr_read, csr_response & self.exec.valid & is_csr & self.exec.is_load & ~csr_response, MemoryStates.csr_read)
-        self.fsm.add_transition(MemoryStates.csr_read, csr_response & self.exec.valid & is_csr & self.exec.is_store & ~csr_response, MemoryStates.csr_write)
+        self.fsm.add_transition(MemoryStates.mem_read_2, self.bus_rsp_if.valid & ~self.exec.valid,                                MemoryStates.idle)
+        self.fsm.add_transition(MemoryStates.mem_read_2, self.bus_rsp_if.valid &  self.exec.valid & ~is_csr & self.exec.is_load  & (self.exec.mem_access_len == 2), MemoryStates.mem_read_1)
+        self.fsm.add_transition(MemoryStates.mem_read_2, self.bus_rsp_if.valid &  self.exec.valid & ~is_csr & self.exec.is_load  & (self.exec.mem_access_len != 2), MemoryStates.mem_read_2)
+        self.fsm.add_transition(MemoryStates.mem_read_2, self.bus_rsp_if.valid &  self.exec.valid & ~is_csr & self.exec.is_store & (self.exec.mem_access_len == 2), MemoryStates.mem_write_1)
+        self.fsm.add_transition(MemoryStates.mem_read_2, self.bus_rsp_if.valid &  self.exec.valid & ~is_csr & self.exec.is_store & (self.exec.mem_access_len != 2), MemoryStates.mem_write_2)
+        self.fsm.add_transition(MemoryStates.mem_read_2, self.bus_rsp_if.valid &  self.exec.valid &  is_csr & self.exec.is_load,  MemoryStates.csr_read)
+        self.fsm.add_transition(MemoryStates.mem_read_2, self.bus_rsp_if.valid &  self.exec.valid &  is_csr & self.exec.is_store, MemoryStates.csr_write)
 
-        self.fsm.add_transition(MemoryStates.csr_write, ~csr_response, MemoryStates.csr_write)
-        self.fsm.add_transition(MemoryStates.csr_write, csr_response & ~self.exec.valid, MemoryStates.idle)
-        self.fsm.add_transition(MemoryStates.csr_write, csr_response & self.exec.valid & ~is_csr & self.exec.is_load, MemoryStates.read_1)
-        self.fsm.add_transition(MemoryStates.csr_write, csr_response & self.exec.valid & ~is_csr & self.exec.is_store, MemoryStates.write)
-        self.fsm.add_transition(MemoryStates.csr_write, csr_response & self.exec.valid & is_csr & self.exec.is_load & ~csr_response, MemoryStates.csr_read)
-        self.fsm.add_transition(MemoryStates.csr_write, csr_response & self.exec.valid & is_csr & self.exec.is_store & ~csr_response, MemoryStates.csr_write)
+        self.fsm.add_transition(MemoryStates.mem_write_1, 1,                                                  MemoryStates.mem_write_2)
+        self.fsm.add_transition(MemoryStates.mem_write_2, self.bus_req_if.ready & ~self.exec.valid,                                MemoryStates.idle)
+        self.fsm.add_transition(MemoryStates.mem_write_2, self.bus_req_if.ready &  self.exec.valid & ~is_csr & self.exec.is_load  & (self.exec.mem_access_len == 2), MemoryStates.mem_read_1)
+        self.fsm.add_transition(MemoryStates.mem_write_2, self.bus_req_if.ready &  self.exec.valid & ~is_csr & self.exec.is_load  & (self.exec.mem_access_len != 2), MemoryStates.mem_read_2)
+        self.fsm.add_transition(MemoryStates.mem_write_2, self.bus_req_if.ready &  self.exec.valid & ~is_csr & self.exec.is_store & (self.exec.mem_access_len == 2), MemoryStates.mem_write_1)
+        self.fsm.add_transition(MemoryStates.mem_write_2, self.bus_req_if.ready &  self.exec.valid & ~is_csr & self.exec.is_store & (self.exec.mem_access_len != 2), MemoryStates.mem_write_2)
+        self.fsm.add_transition(MemoryStates.mem_write_2, self.bus_req_if.ready &  self.exec.valid &  is_csr & self.exec.is_load,  MemoryStates.csr_read)
+        self.fsm.add_transition(MemoryStates.mem_write_2, self.bus_req_if.ready &  self.exec.valid &  is_csr & self.exec.is_store, MemoryStates.csr_write)
+        # CSR interface has fixed timing: a cycle after the read, we get the resoponse and writes are just pipelined through
+        self.fsm.add_transition(MemoryStates.csr_read, ~self.exec.valid,                                MemoryStates.idle)
+        self.fsm.add_transition(MemoryStates.csr_read,  self.exec.valid & ~is_csr & self.exec.is_load  & (self.exec.mem_access_len == 2), MemoryStates.mem_read_1)
+        self.fsm.add_transition(MemoryStates.csr_read,  self.exec.valid & ~is_csr & self.exec.is_load  & (self.exec.mem_access_len != 2), MemoryStates.mem_read_2)
+        self.fsm.add_transition(MemoryStates.csr_read,  self.exec.valid & ~is_csr & self.exec.is_store & (self.exec.mem_access_len == 2), MemoryStates.mem_write_1)
+        self.fsm.add_transition(MemoryStates.csr_read,  self.exec.valid & ~is_csr & self.exec.is_store & (self.exec.mem_access_len != 2), MemoryStates.mem_write_2)
+        self.fsm.add_transition(MemoryStates.csr_read,  self.exec.valid &  is_csr & self.exec.is_load,  MemoryStates.csr_read)
+        self.fsm.add_transition(MemoryStates.csr_read,  self.exec.valid &  is_csr & self.exec.is_store, MemoryStates.csr_write)
+
+        self.fsm.add_transition(MemoryStates.csr_write, ~self.exec.valid,                                MemoryStates.idle)
+        self.fsm.add_transition(MemoryStates.csr_write,  self.exec.valid & ~is_csr & self.exec.is_load  & (self.exec.mem_access_len == 2), MemoryStates.mem_read_1)
+        self.fsm.add_transition(MemoryStates.csr_write,  self.exec.valid & ~is_csr & self.exec.is_load  & (self.exec.mem_access_len != 2), MemoryStates.mem_read_2)
+        self.fsm.add_transition(MemoryStates.csr_write,  self.exec.valid & ~is_csr & self.exec.is_store & (self.exec.mem_access_len == 2), MemoryStates.mem_write_1)
+        self.fsm.add_transition(MemoryStates.csr_write,  self.exec.valid & ~is_csr & self.exec.is_store & (self.exec.mem_access_len != 2), MemoryStates.mem_write_2)
+        self.fsm.add_transition(MemoryStates.csr_write,  self.exec.valid &  is_csr & self.exec.is_load,  MemoryStates.csr_read)
+        self.fsm.add_transition(MemoryStates.csr_write,  self.exec.valid &  is_csr & self.exec.is_store, MemoryStates.csr_write)
 
         # The only reason we would apply back-pressure is if we're waiting on the bus interface
         exec_ready = Wire()
         exec_ready <<= (
-            (state == MemoryStates.idle) |
-            (state == MemoryStates.read_2) |
-            (state == MemoryStates.csr_read & csr_response) |
-            (state == MemoryStates.csr_write & csr_response)
+            (((state == MemoryStates.mem_write_2) | (state ==MemoryStates.mem_read_2)) & self.bus_req_if.ready) |
+            ((state == MemoryStates.csr_write) | (state ==MemoryStates.csr_read) | (state ==MemoryStates.idle))
         )
+
         self.exec.ready <<= exec_ready
         accept_next = self.exec.valid & exec_ready
 
         lsb = Reg(self.exec.mem_addr[0], clock_en=accept_next)
         data_h = Wire(Unsigned(16))
-        data_h <<= Select(
-            state == MemoryStates.read_2,
-            Select(
-                csr_request & csr_response & self.csr_if.read_not_write,
-                Reg(self.exec.result[31:16], clock_en=(state == MemoryStates.idle)),
-                self.csr_if.rd_data[31:16] # CSR read
-            ),
-            self.bus_if.data_out
+        data_h <<= SelectOne(
+            state == MemoryStates.idle, Reg(self.exec.result[31:16], clock_en=(state == accept_next)),
+            state == MemoryStates.mem_read_2, self.bus_rsp_if.data,
+            state == MemoryStates.csr_read, self.csr_if.rd_data[31:16]
         )
-        first = Wire(logic)
-        first <<= Reg(
-            Select(
-                accept_next & (self.exec.is_store | self.exec.is_load),
-                Select(
-                    self.bus_if.response,
-                    first,
-                    0
-                ),
-                1
-            )
-        )
-        first_and_last = Wire()
-        first_and_last <<= Reg(first & self.bus_if.last)
         data_l = Wire(Unsigned(16))
-        data_l <<= \
-            Select(
-                csr_request & csr_response & self.csr_if.read_not_write,
-                Select(
-                    first_and_last,
-                    Reg(
-                        Select(
-                            state == MemoryStates.idle,
-                            Select(
-                                state == MemoryStates.read_1,
-                                data_l,
-                                self.bus_if.data_out,
-                            ),
-                            self.exec.result[15:0]
-                        )
-                    ),
-                    # Receiving read response from bus_if
-                    # Have to be careful here with 8-bit reads: we need to move the upper to the lower bytes for odd addresses
-                    Select(
-                        lsb,
-                        self.bus_if.data_out,
-                        concat(self.bus_if.data_out[15:8], self.bus_if.data_out[15:8])
-                    )
-                ),
-                self.csr_if.rd_data[15:0] # CSR read
-            )
+        data_l <<= SelectOne(
+            state == MemoryStates.idle, Reg(self.exec.result[15:0], clock_en=(state == accept_next)),
+            # Have to be careful here with 8-bit reads: we need to move the upper to the lower bytes for odd addresses
+            state == MemoryStates.mem_read_1, Reg(Select(lsb, self.bus_rsp_if.data, concat(self.bus_rsp_if.data[15:8], self.bus_rsp_if.data[15:8])), clock_en=self.bus_rsp_if.valid),
+            state == MemoryStates.csr_read, self.csr_if.rd_data[15:0]
+        )
 
         def bse(value):
             return concat(
@@ -215,40 +184,56 @@ class MemoryStage(Module):
                 value[15:0]
             )
 
-        full_result = concat(data_h, data_l)
         do_bse = Reg(self.exec.do_bse, clock_en=accept_next)
         do_wse = Reg(self.exec.do_wse, clock_en=accept_next)
         do_bze = Reg(self.exec.do_bze, clock_en=accept_next)
         do_wze = Reg(self.exec.do_wze, clock_en=accept_next)
-        self.w_result <<= SelectOne(
+        self.reg_file.data <<= SelectOne(
             do_bse, bse(data_l),
             do_wse, wse(data_l),
             do_bze, data_l[7:0],
             do_wze, data_l[15:0],
-            default_port = full_result
+            default_port = concat(data_h, data_l)
         )
-        self.w_result_reg_addr <<= BrewRegAddr(
+        self.reg_file.addr <<= BrewRegAddr(
             Select(
                 accept_next,
                 Reg(self.exec.result_reg_addr, clock_en=(state == MemoryStates.idle)),
                 self.exec.result_reg_addr
             )
         )
-        self.w_request <<= (
-            (~(self.exec.is_load | self.exec.is_store) & accept_next & self.exec.result_reg_addr_valid) | # Pass through data will come in next cycle
-            (self.bus_if.response & self.bus_if.last & ((state == MemoryStates.read_1) | (state == MemoryStates.read_2))) # Last piece of read data comes in the next cycle
+
+        # We don't care about do_branch here: data_en is essentially the same
+        self.reg_file.data_en <<= self.exec.result_data_valid
+
+        write_back_tick = Wire(logic)
+        write_back_tick = Reg(accept_next)
+
+        self.reg_file.valid <<= SelectOne(
+            (state == MemoryStates.idle) & (next_state == MemoryStates.idle), write_back_tick,
+            state == MemoryStates.mem_read_1, 0,
+            state == MemoryStates.mem_read_2, self.bus_rsp_if.valid,
+            state == MemoryStates.csr_read, write_back_tick,
+            state == MemoryStates.csr_write, write_back_tick
         )
 
-        self.bus_if.request         <<= (accept_next | first) & (self.exec.is_store | self.exec.is_load) & ~is_csr
-        self.bus_if.read_not_write  <<= self.exec.is_load
-        self.bus_if.burst_len       <<= self.exec.mem_access_len[1] # 8- and 16-bit accesses need a burst length of 1, while 32-bit accesses need a burst-length of 2.
-        self.bus_if.byte_en         <<= Select(
+        # BUG BUG!!!!! THIS SHOULD BE NEXT_STATE, BUT THAT RESULTS IN A COMB. LOOP.
+        #####################################################################################
+        self.bus_req_if.valid           <<= (state == MemoryStates.mem_read_1) | (state == MemoryStates.mem_write_1) | (state == MemoryStates.mem_read_2) | (state == MemoryStates.mem_write_2)
+        self.bus_req_if.read_not_write  <<= self.exec.is_load
+        self.bus_req_if.byte_en         <<= Select(
             self.exec.mem_access_len == 0,
             3, # 16- or 32-bit accesses use both byte-enables
             concat(self.exec.mem_addr[0], ~self.exec.mem_addr[0]) # 8-bit accesses byte-enables depend on address LSB
         )
-        self.bus_if.addr            <<= self.exec.mem_addr[31:1]
-        self.bus_if.data_in         <<= Select(
+        bus_addr = Select(
+            accept_next,
+            Reg((self.exec.mem_addr[31:1]+self.exec.mem_access_len[1])[30:0], clock_en = accept_next),
+            self.exec.mem_addr[31:1]
+        )
+        self.bus_req_if.addr             <<= bus_addr
+        self.bus_req_if.dram_not_ext     <<= 0
+        self.bus_req_if.data             <<= Select(
             state == MemoryStates.idle,
             data_h,
             concat(
@@ -298,12 +283,10 @@ def sim():
                             self.csr_if.response <<= 0
                             self.csr_if.rd_data <<= None
                             yield from wait_clk()
-                            self.csr_if_response <<= 1
                             self.csr_if.rd_data <<= self.csr_if.addr
                         else:
                             # Write request
                             print(f"Writing CSR {self.csr_if.addr:x} with {self.csr_if.wr_data:x}")
-                            self.csr_if_response <<= 1
                             self.csr_if.rd_data <<= None
                     else:
                         self.csr_if.response <<= 0
@@ -379,9 +362,7 @@ def sim():
         clk = ClkPort()
         rst = RstPort()
 
-        w_result_reg_addr = Input(BrewRegAddr)
-        w_result = Input(BrewData)
-        w_request = Input(logic)
+        write_if = Input(RegFileWriteBackIf)
 
         def simulate(self) -> TSimEvent:
             def wait_clk():
@@ -389,15 +370,10 @@ def sim():
                 while self.clk.get_sim_edge() != EdgeType.Positive:
                     yield (self.clk, )
 
-            request = False
-            reg_addr = None
             while True:
                 yield from wait_clk()
-                if request:
-                    print(f"Writing REG $r{reg_addr:x} with value {self.w_result:x}")
-
-                request = self.w_request == 1
-                reg_addr = copy(self.w_result_reg_addr.sim_value)
+                if self.write_if.valid:
+                    print(f"Writing REG $r{self.write_if.addr:x} with value {self.write_if.data:x} enable: {self.write_if.data_en}")
 
 
 
@@ -490,9 +466,6 @@ def sim():
         def body(self):
             seed(0)
             self.exec = Wire(ExecMemIf)
-            self.w_result_reg_addr = Wire(BrewRegAddr)
-            self.w_result = Wire(BrewData)
-            self.w_request = Wire(logic)
             self.bus_if = Wire(BusIfPortIf)
             self.csr_if = Wire(CsrIf)
 
@@ -506,12 +479,7 @@ def sim():
             self.exec <<= self.exec_emulator.exec
             self.dut.exec <<= self.exec
 
-            self.w_request <<= self.dut.w_request
-            self.w_result <<= self.dut.w_result
-            self.w_result_reg_addr <<= self.dut.w_result_reg_addr
-            self.reg_file_emulator.w_request <<= self.w_request
-            self.reg_file_emulator.w_result <<= self.w_result
-            self.reg_file_emulator.w_result_reg_addr <<= self.w_result_reg_addr
+            self.reg_file_emulator.write_if <<= self.dut.reg_file
 
             self.bus_if <<= self.dut.bus_if
             self.bus_emulator.bus_if <<= self.bus_if
@@ -548,5 +516,5 @@ def gen():
     Build.generate_rtl(MemoryStage)
 
 if __name__ == "__main__":
-    #gen()
-    sim()
+    gen()
+    #sim()

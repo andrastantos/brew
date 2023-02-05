@@ -61,6 +61,8 @@ class DecodeStage(Module):
     reg_file_req = Output(RegFileReadRequestIf)
     reg_file_rsp = Input(RegFileReadResponseIf)
 
+    do_branch = Input(logic)
+
     def body(self):
         field_d = self.fetch.inst_0[15:12]
         field_c = self.fetch.inst_0[11:8]
@@ -446,7 +448,7 @@ class DecodeStage(Module):
 
         # We let the register file handle the hand-shaking for us. We just need to implement the output buffers
         self.fetch.ready <<= self.reg_file_req.ready
-        self.reg_file_req.valid <<= self.fetch.valid
+        self.reg_file_req.valid <<= self.fetch.valid & ~self.do_branch
 
         self.exec.valid <<= self.reg_file_rsp.valid
         self.reg_file_rsp.ready <<= self.exec.ready

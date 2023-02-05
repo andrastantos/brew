@@ -215,6 +215,12 @@ class ExecuteStage(Module):
 
         self.do_branch <<= Reg(is_branch, clock_en=reg_en)
 
+        # We don't want instructions that cause a branch or ones *exactly one clock cycle after*
+        # to cause any side-effects. This later requirement comes from the fact that we register
+        # do_branch, so decode will not be informed early enough about not to decode the next
+        # instruction.
+        cancel_write_back = is_branch | (self.do_branch & self.decode.valid & self.decode.ready)
+
         handshake_fsm = ForwardBufLogic()
 
         handshake_fsm.input_valid <<= self.decode.valid
@@ -226,11 +232,11 @@ class ExecuteStage(Module):
 
         self.mem.mem_access_len     <<= Reg(self.decode.mem_access_len, clock_en=reg_en)
         self.mem.result             <<= Reg(exec_result, clock_en=reg_en)
-        self.mem.result_data_valid  <<= self.do_branch
+        self.mem.result_data_valid  <<= Reg(cancel_write_back, clock_en=reg_en)
         self.mem.result_reg_addr    <<= Reg(self.decode.result_reg_addr, clock_en=reg_en)
         self.mem.mem_addr           <<= Reg(adder_result, clock_en=reg_en)
-        self.mem.is_load            <<= Reg(self.decode.is_load, clock_en=reg_en)
-        self.mem.is_store           <<= Reg(self.decode.is_store, clock_en=reg_en)
+        self.mem.is_load            <<= Reg(self.decode.is_load & ~cancel_write_back, clock_en=reg_en)
+        self.mem.is_store           <<= Reg(self.decode.is_store & ~cancel_write_back, clock_en=reg_en)
         self.mem.do_bse             <<= Reg(self.decode.do_bse, clock_en=reg_en)
         self.mem.do_wse             <<= Reg(self.decode.do_wse, clock_en=reg_en)
         self.mem.do_bze             <<= Reg(self.decode.do_bze, clock_en=reg_en)

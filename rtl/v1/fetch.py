@@ -51,7 +51,42 @@ NOTE: Fetch as-is now has a minimum 4-cycle latency:
     1 cycle to get the data through the FIFO
     1 cycle to assemble the instruction
 """
+"""
+Branch handling:
 
+do_branch is a global signal, that is registered at the output of 'execute'. This goes high for one cycle, signalling that
+a new (non-consecutive, that is) address was loaded into $scp or $tcp or task_mode was changed. The new value of these
+registers gets latched on the same clock cycle when do_branch goes high.
+
+What needs to happen is that we need to cancel all in-process instructions and restart fetching from the new execution point.
+
+1. Execute will not pass the branching instruction to memory. If there is a reservation (such as an AV in a load), it *does*
+   pass a fake resoult over that clears the reservation.
+2. Execute accepts the next instruction (if any), but cancells it. The way to do that is to override the output to be a simple
+   pass-through for memory with write-enable disabled, so no actual change to the target register will occur, but the reservation
+   gets deleted. TODO: the RF supports this, but memory/exec not yet.
+3. Decode will also accept the next instruction (if any), it will however not attempt any reservations and won't pass it to execute either.
+   TODO: decode doesn't actually do any of this yet.
+4. inst_assemble will also accept the next 16-bits from the fetch queue, but will delete and restart
+5. inst_queue will take the next word, but will reset after.
+6. inst_buffer might push one word into the queue, but will cancel subsequent responses from the bus_if, even if they were already queued up.
+
+TODO: should we consider simply cancelling all reservations in the RF upon a branch? The danger is the following:
+   1. We have a loooong oustanding load.
+   2. The next instruction is a branch that ... well, branches
+   3. The first instruction at the branch target is something that depends on the target register of the load.
+   We are lucky though: since the load hugs the bus, fetch will not succeed until the load returns the result, so by the time
+   the fetched instruction winds its way through fetch, the results are safely in the RF. This is very brittle though and the
+   first time we introduce an instruction buffer or some sort of a cache, the assumption is not valid anymore and I would wind up
+   with an extremely hard to find heisen-bug.
+
+   So, I'm not going to depend on this behavior.
+
+TODO: yet another alternative is that we artificially hold off fetch with outstanding loads during a branch. That would mean exposing
+   another wire, called 'doing_load' or something that is incorporated into the branch handling logic.
+
+OVERALL: I think I'm going to stick with the fake write-back idea: that seems relatively clean at least.
+"""
 class FetchQueueIf(ReadyValid):
     data = Unsigned(16)
     av = logic
@@ -154,18 +189,24 @@ class InstBuffer(Module):
         state <<= self.fsm.state
 
         # branch_req will remain high until our request is accepted by the bus_if
+        # NOTE: Acutally, I don't think that's necessary for two reasons:
+        # 1. If there's not active request going on, we can cancel immediately.
+        # 2. The branch request will clear the instruction queue, so queue_free_cnt
+        #    will soon be at it's maximum value, triggering a new request, even if
+        #    start_new_request would otherwise go inactive
         branch_req = Wire(logic)
-        branch_req <<= Reg(
-            Select(
-                self.do_branch,
-                Select(
-                    advance_request,
-                    branch_req,
-                    0
-                ),
-                1
-            )
-        )
+        branch_req <<= self.do_branch
+        #branch_req <<= self.do_branch | Reg(
+        #    Select(
+        #        advance_request,
+        #        Select(
+        #            self.do_branch,
+        #            branch_req,
+        #            1
+        #        ),
+        #        0
+        #    )
+        #)
 
         start_new_request = ((self.queue_free_cnt >= fetch_threshold) | branch_req) & (state == InstBufferStates.idle)
 

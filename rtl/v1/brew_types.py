@@ -183,7 +183,6 @@ class RegFileReadResponseIf(ReadyValid):
 
 class CsrIf(Interface):
     request = logic
-    response = Reverse(logic)
 
     addr = BrewCsrAddr
     wr_data = BrewCsrData

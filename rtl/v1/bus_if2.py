@@ -197,7 +197,8 @@ class BusIf(Module):
                     0
                 ),
                 (Select(
-                    req_addr[30:29],
+                    # BUG BUG: WAIT_STATE SELECTION SHOULD NOT BE BASED ON THESE BITS!!!!!!
+                    req_addr[21:20],
                     self.wait_states_0,
                     self.wait_states_1,
                     self.wait_states_2,
