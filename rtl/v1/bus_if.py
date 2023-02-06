@@ -52,12 +52,6 @@ class BusIf(Module):
     ext_req           = Input(logic)
     ext_grnt          = Output(logic)
 
-    # Side-band interface (CSRs)
-    wait_states_0     = Input(Unsigned(4))
-    wait_states_1     = Input(Unsigned(4))
-    wait_states_2     = Input(Unsigned(4))
-    wait_states_3     = Input(Unsigned(4))
-
     def body(self):
         read_not_write  = Wire(logic)
         beats_remaining = Wire(Unsigned(2))
@@ -121,13 +115,7 @@ class BusIf(Module):
                     (self.wait_states - 1)[3:0],
                     0
                 ),
-                (Select(
-                    Select(self.fetch.request, self.mem.addr[30:29], self.fetch.addr[30:29]),
-                    self.wait_states_0,
-                    self.wait_states_1,
-                    self.wait_states_2,
-                    self.wait_states_3
-                ) - 1)[3:0]
+                (Select(self.fetch.request, self.mem.addr[25:22], self.fetch.addr[25:22]) - 1)[3:0]
             )
         )
 

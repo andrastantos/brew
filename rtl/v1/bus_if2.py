@@ -114,12 +114,6 @@ class BusIf(Module):
     ext_req           = Input(logic)
     ext_grnt          = Output(logic)
 
-    # Side-band interface (CSRs)
-    wait_states_0     = Input(Unsigned(4))
-    wait_states_1     = Input(Unsigned(4))
-    wait_states_2     = Input(Unsigned(4))
-    wait_states_3     = Input(Unsigned(4))
-
     def construct(self):
         pass
 
@@ -165,6 +159,7 @@ class BusIf(Module):
         req_byte_en <<= Select(arb_mem_not_fetch, self.fetch_request.byte_en, self.mem_request.byte_en)
         req_dram_not_ext = Wire()
         req_dram_not_ext <<= Select(arb_mem_not_fetch, self.fetch_request.dram_not_ext, self.mem_request.dram_not_ext)
+        req_advance = req_valid & req_ready
 
         arb_mem_not_fetch <<= Select(
             state == BusIfStates.idle,
@@ -196,14 +191,7 @@ class BusIf(Module):
                     (self.wait_states - 1)[3:0],
                     0
                 ),
-                (Select(
-                    # BUG BUG: WAIT_STATE SELECTION SHOULD NOT BE BASED ON THESE BITS!!!!!!
-                    req_addr[21:20],
-                    self.wait_states_0,
-                    self.wait_states_1,
-                    self.wait_states_2,
-                    self.wait_states_3
-                ) - 1)[3:0]
+                req_addr[25:22]
             )
         )
 
@@ -223,15 +211,15 @@ class BusIf(Module):
             req_addr[18],
             req_addr[16],
             req_addr[7:0]
-        ), clock_en=req_valid & req_ready)
+        ), clock_en=req_advance)
         read_not_write = Wire()
-        read_not_write <<= Reg(req_read_not_write, clock_en=req_valid)
+        read_not_write <<= Reg(req_read_not_write, clock_en=req_advance)
         byte_en = Wire()
-        byte_en <<= Reg(req_byte_en, clock_en=req_valid)
+        byte_en <<= Select(req_advance, Reg(req_byte_en, clock_en=req_advance), req_byte_en)
         data_out = Wire()
-        data_out <<= Reg(req_data, clock_en=req_valid)
+        data_out <<= Reg(req_data, clock_en=req_advance)
         dram_not_ext = Wire()
-        dram_not_ext <<= Reg(req_dram_not_ext, clock_en=req_valid)
+        dram_not_ext <<= Reg(req_dram_not_ext, clock_en=req_advance)
 
         AssertOnClk((input_row_addr == row_addr) | (state == BusIfStates.idle))
 
@@ -272,10 +260,13 @@ class BusIf(Module):
         ) # We re-register the state to remove all glitches
         nNREN = Wire()
         nNREN <<= Reg((next_state != BusIfStates.non_dram_first) & (next_state != BusIfStates.non_dram_wait), reset_value_port = 1) # We re-register the state to remove all glitches
-        NR_CAS_nEN = Wire()
-        NR_CAS_nEN <<= Reg(state != BusIfStates.non_dram_first, reset_value_port = 1) # We re-register the state to remove all glitches
-        CAS_nWINDOW_A = Wire()
-        CAS_nWINDOW_A <<= Reg(
+        NR_nCAS_a = Wire()
+        NR_nCAS_a <<= Reg((state != BusIfStates.non_dram_first) | ~byte_en[0], reset_value_port = 1) # We re-register the state to remove all glitches
+        NR_nCAS_b = Wire()
+        NR_nCAS_b <<= Reg((state != BusIfStates.non_dram_first) | ~byte_en[1], reset_value_port = 1) # We re-register the state to remove all glitches
+        CAS_nWINDOW_A_a = Wire()
+        CAS_nWINDOW_A_a <<= Reg(
+            ~byte_en[0] |
             (next_state == BusIfStates.idle) |
             (next_state == BusIfStates.precharge) |
             (next_state == BusIfStates.pre_external) |
@@ -283,19 +274,31 @@ class BusIf(Module):
             (next_state == BusIfStates.non_dram_wait),
             reset_value_port = 1
         ) # We re-register the state to remove all glitches
-        CAS_nWINDOW_C = Wire()
-        CAS_nWINDOW_C <<= Reg(CAS_nWINDOW_A, reset_value_port = 1)
-        CAS_nWINDOW_B = Wire()
-        CAS_nWINDOW_B <<= NegReg(CAS_nWINDOW_A, reset_value_port = 1)
-        CAS_nEN_A = Wire()
-        CAS_nEN_A <<= (CAS_nWINDOW_A | CAS_nWINDOW_B)
-        CAS_nEN_B = Wire()
-        CAS_nEN_B <<= (CAS_nWINDOW_B | CAS_nWINDOW_C)
+        CAS_nWINDOW_A_b = Wire()
+        CAS_nWINDOW_A_b <<= Reg(
+            ~byte_en[1] |
+            (next_state == BusIfStates.idle) |
+            (next_state == BusIfStates.precharge) |
+            (next_state == BusIfStates.pre_external) |
+            (next_state == BusIfStates.non_dram_first) |
+            (next_state == BusIfStates.non_dram_wait),
+            reset_value_port = 1
+        ) # We re-register the state to remove all glitches
+        CAS_nWINDOW_C_a = Wire()
+        CAS_nWINDOW_C_a <<= Reg(CAS_nWINDOW_A_a, reset_value_port = 1)
+        CAS_nWINDOW_B_a = Wire()
+        CAS_nWINDOW_B_a <<= NegReg(CAS_nWINDOW_A_a, reset_value_port = 1)
+        CAS_nWINDOW_C_b = Wire()
+        CAS_nWINDOW_C_b <<= Reg(CAS_nWINDOW_A_b, reset_value_port = 1)
+        CAS_nWINDOW_B_b = Wire()
+        CAS_nWINDOW_B_b <<= NegReg(CAS_nWINDOW_A_b, reset_value_port = 1)
 
+        DRAM_nCAS_a = CAS_nWINDOW_A_a | CAS_nWINDOW_B_a |  self.clk
+        DRAM_nCAS_b = CAS_nWINDOW_B_b | CAS_nWINDOW_C_b | ~self.clk
 
         self.dram.nRAS       <<= DRAM_nRAS
-        self.dram.nCAS_a     <<= ~byte_en[0] | ((CAS_nEN_A |  self.clk) & NR_CAS_nEN)
-        self.dram.nCAS_b     <<= ~byte_en[1] | ((CAS_nEN_B | ~self.clk) & NR_CAS_nEN)
+        self.dram.nCAS_a     <<= DRAM_nCAS_a & NR_nCAS_a
+        self.dram.nCAS_b     <<= DRAM_nCAS_b & NR_nCAS_b
         self.dram.addr       <<= Select(
             ((state == BusIfStates.first) | (state == BusIfStates.non_dram_first)) & self.clk,
             NegReg(col_addr),
@@ -583,11 +586,6 @@ def sim():
             dram_sim.bus_if <<= dram_if
 
             dut.ext_req <<= 0
-
-            dut.wait_states_0 <<= 1
-            dut.wait_states_1 <<= 1
-            dut.wait_states_2 <<= 1
-            dut.wait_states_3 <<= 1
 
 
         def simulate(self) -> TSimEvent:

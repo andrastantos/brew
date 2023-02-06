@@ -78,8 +78,8 @@ class RegFile(Module):
 
         # We have two memory instances, one for each read port. The write ports of
         # these instances are connected together so they get written the same data
-        mem1 = SimpleDualPortMemory(addr_type=BrewRegAddr, data_type=BrewData)
-        mem2 = SimpleDualPortMemory(addr_type=BrewRegAddr, data_type=BrewData)
+        mem1 = SimpleDualPortMemory(registered_input_b=False, registered_output_b=True, addr_type=BrewRegAddr, data_type=BrewData)
+        mem2 = SimpleDualPortMemory(registered_input_b=False, registered_output_b=True, addr_type=BrewRegAddr, data_type=BrewData)
 
         # We disable forwarding and wirting to the RF if write.data_en is not asserted.
         # This allows for clearing a reservation without touching the data
@@ -95,21 +95,25 @@ class RegFile(Module):
         write_data_d <<= Reg(self.write.data)
 
         # Read ports have bypass logic, but with the same latency as normal register reads
-        # NOTE: if we are *sure* the underlying memories support 'read new data' we can get
-        #       away with no special logic here. For now, I'm not taking on that dependency.
+        # NOTE: Since we are configuring the underlying memories as 'read new data', this
+        #       bypass logic is not necessary. I'll leave it here though since some targets
+        #       might not support such an arrangement. Quartus for instance complains, but
+        #       complies.
         mem1.port2_addr <<= read1_addr
-        self.read_rsp.read1_data <<= Select(
-            Reg((self.write.addr == read1_addr) & self.write.valid & self.write.data_en),
-            mem1.port2_data_out,
-            write_data_d
-        )
-
+        #self.read_rsp.read1_data <<= Select(
+        #    Reg((self.write.addr == read1_addr) & self.write.valid & self.write.data_en),
+        #    mem1.port2_data_out,
+        #    write_data_d
+        #)
+        #
         mem2.port2_addr <<= read2_addr
-        self.read_rsp.read2_data <<= Select(
-            Reg((self.write.addr == read2_addr) & self.write.valid & self.write.data_en),
-            mem2.port2_data_out,
-            write_data_d
-        )
+        #self.read_rsp.read2_data <<= Select(
+        #    Reg((self.write.addr == read2_addr) & self.write.valid & self.write.data_en),
+        #    mem2.port2_data_out,
+        #    write_data_d
+        #)
+        self.read_rsp.read1_data <<= mem1.port2_data_out
+        self.read_rsp.read2_data <<= mem2.port2_data_out
 
         # Score-board for reservations
         rsv_board = Wire(Unsigned(BrewRegCnt))

@@ -231,7 +231,7 @@ class MemoryStage(Module):
             Reg((self.exec.mem_addr[31:1]+self.exec.mem_access_len[1])[30:0], clock_en = accept_next),
             self.exec.mem_addr[31:1]
         )
-        self.bus_req_if.addr             <<= bus_addr
+        self.bus_req_if.addr             <<= bus_addr[21:0]
         self.bus_req_if.dram_not_ext     <<= 0
         self.bus_req_if.data             <<= Select(
             state == MemoryStates.idle,
@@ -248,7 +248,7 @@ class MemoryStage(Module):
 
         csr_request <<= self.exec.valid & (self.exec.is_store | self.exec.is_load) & is_csr
         self.csr_if.request <<= csr_request
-        self.csr_if.addr <<= self.exec.mem_addr[12:2] # CSRs are always 32-bits long, don't care about the low-oreder 2 bits
+        self.csr_if.addr <<= self.exec.mem_addr[11:2] # CSRs are always 32-bits long, don't care about the low-oreder 2 bits
         self.csr_if.wr_data <<= self.exec.result
         self.csr_if.read_not_write <<= self.exec.is_load
 

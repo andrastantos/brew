@@ -95,7 +95,7 @@ access_len_32 = 2
 class BusIfRequestIf(ReadyValid):
     read_not_write  = logic
     byte_en         = Unsigned(2)
-    addr            = Unsigned(22)
+    addr            = Unsigned(26) # Top 4 bits are used to set wait-state. This way anything can be accessed by any wait-state we want.
     dram_not_ext    = logic
     data            = BrewBusData
 

@@ -53,12 +53,6 @@ class Pipeline(Module):
     interrupt         = Input(logic)
 
     def body(self):
-        # wait-state registers
-        wait_states_0 = Wire(Unsigned(4))
-        wait_states_1 = Wire(Unsigned(4))
-        wait_states_2 = Wire(Unsigned(4))
-        wait_states_3 = Wire(Unsigned(4))
-
         # base and limit
         mem_base  = Wire(BrewMemBase)
         mem_limit = Wire(BrewMemBase)
@@ -120,11 +114,6 @@ class Pipeline(Module):
 
         bus_if.ext_req         <<= self.ext_req
         self.ext_grnt          <<= bus_if.ext_grnt
-
-        bus_if.wait_states_0 <<= wait_states_0
-        bus_if.wait_states_1 <<= wait_states_1
-        bus_if.wait_states_2 <<= wait_states_2
-        bus_if.wait_states_3 <<= wait_states_3
 
         # FETCH STAGE
         ############################
@@ -205,15 +194,9 @@ class Pipeline(Module):
             ecause,
             ## CSR4: rcause
             rcause,
-            ## CSR5: wait states
-            concat(wait_states_3, wait_states_2, wait_states_1, wait_states_0),
         ))
         mem_base  <<= Reg(csr_if.rd_data[31:10], clock_en=(csr_addr == 1) & ~csr_if.read_not_write & csr_if.request)
         mem_limit <<= Reg(csr_if.rd_data[31:10], clock_en=(csr_addr == 2) & ~csr_if.read_not_write & csr_if.request)
-        wait_states_3 <<= Reg(csr_if.rd_data[15:12], clock_en=(csr_addr == 5) & ~csr_if.read_not_write & csr_if.request)
-        wait_states_2 <<= Reg(csr_if.rd_data[11: 8], clock_en=(csr_addr == 5) & ~csr_if.read_not_write & csr_if.request)
-        wait_states_1 <<= Reg(csr_if.rd_data[ 7: 4], clock_en=(csr_addr == 5) & ~csr_if.read_not_write & csr_if.request)
-        wait_states_0 <<= Reg(csr_if.rd_data[ 3: 0], clock_en=(csr_addr == 5) & ~csr_if.read_not_write & csr_if.request)
 
 #from test_utils import *
 #
