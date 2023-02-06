@@ -22,6 +22,8 @@ It does the following:
 
 """
 
+TIMING_CLOSURE_TESTS = True
+
 class ExecuteStage(Module):
     clk = ClkPort()
     rst = RstPort()
@@ -75,7 +77,10 @@ class ExecuteStage(Module):
             self.decode.opcode == op.add,      (self.decode.op_a + self.decode.op_b)[31:0],
             self.decode.opcode == op.a_sub_b,  (self.decode.op_a + self.decode.op_b)[31:0],
             self.decode.opcode == op.b_sub_a,  (self.decode.op_b - self.decode.op_a)[31:0],
-            self.decode.opcode == op.addr,     (self.decode.op_b + self.decode.op_imm + (self.mem_base << BrewMemShift))[31:0],
+            self.decode.opcode == op.addr,     (self.decode.op_b + self.decode.op_imm + (
+               Select(self.task_mode_in, 0, (self.mem_base << BrewMemShift)) if not TIMING_CLOSURE_TESTS else 0
+            )
+            )[31:0],
             self.decode.opcode == op.pc_add,   (pc + concat(self.decode.op_a, "1'b0"))[31:0],
         )[31:0]
         shifter_result = SelectOne(
@@ -102,7 +107,10 @@ class ExecuteStage(Module):
             self.decode.opcode == op.bb_zero, bb_get_bit(self.decode.op_b, self.decode.op_a),
         )
 
-        mem_av = (self.decode.exec_unit == exec.adder) & (self.decode.opcode == op.addr) & (adder_result[31:BrewMemShift] > self.mem_limit)
+        if TIMING_CLOSURE_TESTS:
+            mem_av = 0
+        else:
+            mem_av = self.task_mode_in & (self.decode.exec_unit == exec.adder) & (self.decode.opcode == op.addr) & (adder_result[31:BrewMemShift] > self.mem_limit)
         mem_unaligned = (self.decode.exec_unit == exec.adder) & (self.decode.opcode == op.addr) & \
             Select(self.decode.mem_access_len,
                 0, # 8-bit access is always aligned
@@ -131,18 +139,26 @@ class ExecuteStage(Module):
             )
         )
 
-        mult_result_large = self.decode.op_a * self.decode.op_b
-        mult_result = mult_result_large[31:0]
+        if TIMING_CLOSURE_TESTS:
+            mult_result = 0
+        else:
+            mult_result_large = self.decode.op_a * self.decode.op_b
+            mult_result = mult_result_large[31:0]
+
+        def timing_reg(x): return x
+        if TIMING_CLOSURE_TESTS:
+            timing_reg  = Reg
+
         exec_result = SelectOne(
-            self.decode.exec_unit == exec.adder, adder_result,
-            self.decode.exec_unit == exec.shift, shifter_result,
-            self.decode.exec_unit == exec.mult, mult_result,
-            self.decode.exec_unit == exec.bitwise, logic_result,
+            self.decode.exec_unit == exec.adder, timing_reg(adder_result),
+            self.decode.exec_unit == exec.shift, timing_reg(shifter_result),
+            self.decode.exec_unit == exec.mult, timing_reg(mult_result),
+            self.decode.exec_unit == exec.bitwise, timing_reg(logic_result),
             self.decode.exec_unit == exec.misc, SelectOne(
                 self.decode.opcode == op.misc_swi,     None,
                 self.decode.opcode == op.misc_stm,     None,
-                self.decode.opcode == op.misc_pc_r,    pc,
-                self.decode.opcode == op.misc_tpc_r,   self.tpc_in,
+                self.decode.opcode == op.misc_pc_r,    timing_reg(pc),
+                self.decode.opcode == op.misc_tpc_r,   timing_reg(self.tpc_in),
                 self.decode.opcode == op.misc_pc_w,    None,
                 self.decode.opcode == op.misc_tpc_w,   None,
                 self.decode.opcode == op.misc_pc_w_r,  None,
