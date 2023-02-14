@@ -1,0 +1,109 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Tue Feb 14 01:38:16 2023
+[*]
+[dumpfile] "/home/tantos/brew/rtl/v1/execute.vcd"
+[dumpfile_mtime] "Tue Feb 14 01:37:55 2023"
+[dumpfile_size] 238127
+[savefile] "/home/tantos/brew/rtl/v1/execute.gtkw"
+[timestart] 0
+[size] 1920 990
+[pos] -1 -1
+*-7.375637 250 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.dut.
+[sst_width] 316
+[signals_width] 375
+[sst_expanded] 1
+[sst_vpaned_height] 269
+@28
+top.dut.clk
+top.dut.rst
+@800200
+-INPUT_PORT
+@28
+top.dut.input_port_valid
+top.dut.input_port_ready
+top.dut.input_port_alu_op
+top.dut.input_port_branch_op
+top.dut.input_port_do_bse
+top.dut.input_port_do_bze
+top.dut.input_port_do_wse
+top.dut.input_port_do_wze
+top.dut.input_port_exec_unit
+top.dut.input_port_fetch_av
+top.dut.input_port_inst_len[1:0]
+top.dut.input_port_ldst_op
+top.dut.input_port_mem_access_len[1:0]
+@22
+top.dut.input_port_op_a[31:0]
+top.dut.input_port_op_b[31:0]
+top.dut.input_port_op_c[31:0]
+top.dut.input_port_result_reg_addr[3:0]
+@28
+top.dut.input_port_result_reg_addr_valid
+top.dut.input_port_shifter_op
+@1000200
+-INPUT_PORT
+@800200
+-OUTPUT_PORT
+@28
+top.dut.output_port_valid
+top.dut.output_port_ready
+@22
+top.dut.output_port_addr[3:0]
+@28
+top.dut.output_port_data_en
+@22
+top.dut.output_port_data_h[15:0]
+top.dut.output_port_data_l[15:0]
+@28
+top.dut.output_port_do_bse
+top.dut.output_port_do_bze
+top.dut.output_port_do_wse
+top.dut.output_port_do_wze
+@1000200
+-OUTPUT_PORT
+@800200
+-SIDEBAND
+@22
+top.dut.tpc_in[30:0]
+top.dut.tpc_out[30:0]
+top.dut.spc_in[30:0]
+top.dut.spc_out[30:0]
+@28
+top.dut.task_mode_in
+top.dut.task_mode_out
+@22
+top.dut.mem_base[21:0]
+top.dut.mem_limit[21:0]
+top.dut.ecause_in[11:0]
+top.dut.ecause_out[11:0]
+@28
+top.dut.do_branch
+top.dut.interrupt
+@1000200
+-SIDEBAND
+@23
+top.dut.pc[30:0]
+@22
+top.dut.branch_target_unit.input_port_pc[30:0]
+top.dut.branch_target_unit.output_port_straight_addr[30:0]
+@28
+top.dut.stage_1_reg_en
+top.dut.stage_2_reg_en
+@22
+top.dut.s1_tpc_out[30:0]
+top.dut.ldst_unit.output_port_phy_addr[31:0]
+@28
+top.dut.do_branch
+top.dut.multi_cycle_exec_lockout
+top.dut.branch_unit.output_port_do_branch
+top.dut.branch_unit.input_port_mem_av
+top.dut.branch_unit.is_exception
+top.dut.branch_unit.input_port_task_mode
+top.dut.branch_unit.output_port_task_mode_changed
+top.dut.branch_unit.in_mode_branch
+top.dut.branch_unit.input_port_is_branch_insn
+[pattern_trace] 1
+[pattern_trace] 0

@@ -32,32 +32,24 @@ acc_len_8 = 0
 acc_len_16 = 1
 acc_len_32 = 2
 
-class op(Enum):
-    add      = 0
-    a_sub_b  = 1
-    b_sub_a  = 2
-    addr     = 3
-    pc_add   = 4
+class alu_ops(Enum):
+    a_plus_b     = 0
+    a_minus_b    = 1
+    b_minus_a    = 2
+    pc_plus_a    = 3
+    a_and_b      = 4
+    not_a_and_b  = 5
+    a_or_b       = 6
+    a_xor_b      = 7
+    pc           = 8
+    tpc          = 9
 
-    b_and    = 0
-    b_nand   = 1
-    b_or     = 2
-    b_xor    = 3
-
+class shifter_ops(Enum):
     shll     = 0
     shlr     = 1
     shar     = 2
 
-    # Codes match FIELD_B[2:0]
-    # These codes are mapped to the register compares and forcing the other input to 0.
-    #op_cb_ez    = 0
-    #op_cb_nz    = 1
-    #op_cb_lz    = 2
-    #op_cb_gez   = 3
-    #op_cb_gz    = 4
-    #op_cb_lez   = 5
-
-    # Codes match FIELD_C[2:0]
+class branch_ops(Enum):
     cb_eq    = 1
     cb_ne    = 2
     cb_lts   = 3
@@ -66,27 +58,28 @@ class op(Enum):
     cb_ge    = 6
 
     # Bit-selection coming in op_b
-    bb_one   = 0
+    bb_one   = 7
     # Bit-selection coming in op_a
-    bb_zero  = 1
+    bb_zero  = 8
 
-    misc_swi     = 0 # SWI index comes in op_a
-    misc_stm     = 1
-    misc_pc_r    = 2
-    misc_tpc_r   = 3
-    misc_pc_w    = 4
-    misc_tpc_w   = 5
-    misc_pc_w_r  = 6
-    misc_tpc_w_r = 7
+    swi      = 9 # SWI index comes in op_a
+    stm      = 10
+    pc_w     = 13
+    tpc_w    = 14
+    pc_w_r   = 15
+    tpc_w_r  = 16
 
-class exec(Enum):
-    adder   = 0
+class ldst_ops(Enum):
+    ldst_none = 0
+    ldst_load  = 1
+    ldst_store = 2
+
+class op_class(Enum):
+    alu     = 0
     mult    = 1
     shift   = 2
-    bitwise = 3
-    misc    = 4
-    cbranch = 5
-    bbranch = 6
+    branch  = 3
+    ld_st   = 4
 
 access_len_8 = 0
 access_len_16 = 1
@@ -131,15 +124,16 @@ class FetchDecodeIf(ReadyValid):
     av = logic
 
 class DecodeExecIf(ReadyValid):
-    opcode = EnumNet(op)
-    exec_unit = EnumNet(exec)
+    exec_unit = EnumNet(op_class)
+    alu_op = EnumNet(alu_ops)
+    shifter_op = EnumNet(shifter_ops)
+    branch_op = EnumNet(branch_ops)
+    ldst_op = EnumNet(ldst_ops)
     op_a = BrewData
     op_b = BrewData
-    op_imm = BrewData
+    op_c = BrewData
     mem_access_len = Unsigned(2) # 0 for 8-bit, 1 for 16-bit, 2 for 32-bit
     inst_len = Unsigned(2)
-    is_load = logic
-    is_store = logic
     do_bse = logic
     do_wse = logic
     do_bze = logic
@@ -148,25 +142,34 @@ class DecodeExecIf(ReadyValid):
     result_reg_addr_valid = logic
     fetch_av = logic
 
-class ExecMemIf(ReadyValid):
+class MemInputIf(ReadyValid):
     is_load = logic
     is_store = logic
-    do_bse = logic
-    do_wse = logic
-    do_bze = logic
-    do_wze = logic
     result_reg_addr = BrewRegAddr
     result_reg_addr_valid = logic
     result = BrewData
-    result_data_valid = logic
     mem_addr = BrewAddr
     mem_access_len = Unsigned(2) # 0 for 8-bit, 1 for 16-bit, 2 for 32-bit
+
+class MemOuputIf(ReadyValid):
+    data_l = BrewBusData
+    data_h = BrewBusData
 
 class RegFileWriteBackIf(Interface):
     valid = logic
     data = BrewData
     data_en = logic
     addr = BrewRegAddr
+
+class ResultExtendIf(ReadyValid):
+    data_l = BrewBusData
+    data_h = BrewBusData
+    data_en = logic
+    addr = BrewRegAddr
+    do_bse = logic
+    do_wse = logic
+    do_bze = logic
+    do_wze = logic
 
 class RegFileReadRequestIf(ReadyValid):
     read1_addr = BrewRegAddr

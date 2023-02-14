@@ -37,10 +37,10 @@ class MemoryStage(Module):
 
 
     # Pipeline input from execute
-    exec = Input(ExecMemIf)
+    input_port = Input(MemInputIf)
 
     # Pipeline output to register file
-    reg_file = Output(RegFileWriteBackIf)
+    output_port = Output(MemOuputIf)
 
     # Interface to the bus interface
     bus_req_if = Output(BusIfRequestIf)
@@ -95,54 +95,54 @@ class MemoryStage(Module):
             b_data_out        ---------------------------------<=====>---------------
 
         '''
-        is_csr = self.exec.mem_addr[31:28] == self.csr_base
+        is_csr = self.input_port.mem_addr[31:28] == self.csr_base
 
         csr_request = Wire(logic)
 
-        self.fsm.add_transition(MemoryStates.idle, self.exec.valid & ~is_csr & self.exec.is_load  & (self.exec.mem_access_len == 2), MemoryStates.mem_read_1)
-        self.fsm.add_transition(MemoryStates.idle, self.exec.valid & ~is_csr & self.exec.is_load  & (self.exec.mem_access_len != 2), MemoryStates.mem_read_2)
-        self.fsm.add_transition(MemoryStates.idle, self.exec.valid & ~is_csr & self.exec.is_store & (self.exec.mem_access_len == 2), MemoryStates.mem_write_1)
-        self.fsm.add_transition(MemoryStates.idle, self.exec.valid & ~is_csr & self.exec.is_store & (self.exec.mem_access_len != 2), MemoryStates.mem_write_2)
-        self.fsm.add_transition(MemoryStates.idle, self.exec.valid &  is_csr & self.exec.is_load,  MemoryStates.csr_read)
-        self.fsm.add_transition(MemoryStates.idle, self.exec.valid &  is_csr & self.exec.is_store, MemoryStates.csr_write)
+        self.fsm.add_transition(MemoryStates.idle, self.input_port.valid & ~is_csr & self.input_port.is_load  & (self.input_port.mem_access_len == 2), MemoryStates.mem_read_1)
+        self.fsm.add_transition(MemoryStates.idle, self.input_port.valid & ~is_csr & self.input_port.is_load  & (self.input_port.mem_access_len != 2), MemoryStates.mem_read_2)
+        self.fsm.add_transition(MemoryStates.idle, self.input_port.valid & ~is_csr & self.input_port.is_store & (self.input_port.mem_access_len == 2), MemoryStates.mem_write_1)
+        self.fsm.add_transition(MemoryStates.idle, self.input_port.valid & ~is_csr & self.input_port.is_store & (self.input_port.mem_access_len != 2), MemoryStates.mem_write_2)
+        self.fsm.add_transition(MemoryStates.idle, self.input_port.valid &  is_csr & self.input_port.is_load,  MemoryStates.csr_read)
+        self.fsm.add_transition(MemoryStates.idle, self.input_port.valid &  is_csr & self.input_port.is_store, MemoryStates.csr_write)
 
         # For memory reads, we'll have to delay acceptance of next instruction until response is back.
         # TODO: we actually could let other non-memory stores through and out-of-order retire those instructions.
         # Since 32-bit reads come back in two parts, we have 2 states. For 16- and 8-bit reads, we immediately start in mem_read_2
         self.fsm.add_transition(MemoryStates.mem_read_1, self.bus_rsp_if.valid,                                MemoryStates.mem_read_2)
 
-        self.fsm.add_transition(MemoryStates.mem_read_2, self.bus_rsp_if.valid & ~self.exec.valid,                                MemoryStates.idle)
-        self.fsm.add_transition(MemoryStates.mem_read_2, self.bus_rsp_if.valid &  self.exec.valid & ~is_csr & self.exec.is_load  & (self.exec.mem_access_len == 2), MemoryStates.mem_read_1)
-        self.fsm.add_transition(MemoryStates.mem_read_2, self.bus_rsp_if.valid &  self.exec.valid & ~is_csr & self.exec.is_load  & (self.exec.mem_access_len != 2), MemoryStates.mem_read_2)
-        self.fsm.add_transition(MemoryStates.mem_read_2, self.bus_rsp_if.valid &  self.exec.valid & ~is_csr & self.exec.is_store & (self.exec.mem_access_len == 2), MemoryStates.mem_write_1)
-        self.fsm.add_transition(MemoryStates.mem_read_2, self.bus_rsp_if.valid &  self.exec.valid & ~is_csr & self.exec.is_store & (self.exec.mem_access_len != 2), MemoryStates.mem_write_2)
-        self.fsm.add_transition(MemoryStates.mem_read_2, self.bus_rsp_if.valid &  self.exec.valid &  is_csr & self.exec.is_load,  MemoryStates.csr_read)
-        self.fsm.add_transition(MemoryStates.mem_read_2, self.bus_rsp_if.valid &  self.exec.valid &  is_csr & self.exec.is_store, MemoryStates.csr_write)
+        self.fsm.add_transition(MemoryStates.mem_read_2, self.bus_rsp_if.valid & ~self.input_port.valid,                                MemoryStates.idle)
+        self.fsm.add_transition(MemoryStates.mem_read_2, self.bus_rsp_if.valid &  self.input_port.valid & ~is_csr & self.input_port.is_load  & (self.input_port.mem_access_len == 2), MemoryStates.mem_read_1)
+        self.fsm.add_transition(MemoryStates.mem_read_2, self.bus_rsp_if.valid &  self.input_port.valid & ~is_csr & self.input_port.is_load  & (self.input_port.mem_access_len != 2), MemoryStates.mem_read_2)
+        self.fsm.add_transition(MemoryStates.mem_read_2, self.bus_rsp_if.valid &  self.input_port.valid & ~is_csr & self.input_port.is_store & (self.input_port.mem_access_len == 2), MemoryStates.mem_write_1)
+        self.fsm.add_transition(MemoryStates.mem_read_2, self.bus_rsp_if.valid &  self.input_port.valid & ~is_csr & self.input_port.is_store & (self.input_port.mem_access_len != 2), MemoryStates.mem_write_2)
+        self.fsm.add_transition(MemoryStates.mem_read_2, self.bus_rsp_if.valid &  self.input_port.valid &  is_csr & self.input_port.is_load,  MemoryStates.csr_read)
+        self.fsm.add_transition(MemoryStates.mem_read_2, self.bus_rsp_if.valid &  self.input_port.valid &  is_csr & self.input_port.is_store, MemoryStates.csr_write)
 
         self.fsm.add_transition(MemoryStates.mem_write_1, 1,                                                  MemoryStates.mem_write_2)
-        self.fsm.add_transition(MemoryStates.mem_write_2, self.bus_req_if.ready & ~self.exec.valid,                                MemoryStates.idle)
-        self.fsm.add_transition(MemoryStates.mem_write_2, self.bus_req_if.ready &  self.exec.valid & ~is_csr & self.exec.is_load  & (self.exec.mem_access_len == 2), MemoryStates.mem_read_1)
-        self.fsm.add_transition(MemoryStates.mem_write_2, self.bus_req_if.ready &  self.exec.valid & ~is_csr & self.exec.is_load  & (self.exec.mem_access_len != 2), MemoryStates.mem_read_2)
-        self.fsm.add_transition(MemoryStates.mem_write_2, self.bus_req_if.ready &  self.exec.valid & ~is_csr & self.exec.is_store & (self.exec.mem_access_len == 2), MemoryStates.mem_write_1)
-        self.fsm.add_transition(MemoryStates.mem_write_2, self.bus_req_if.ready &  self.exec.valid & ~is_csr & self.exec.is_store & (self.exec.mem_access_len != 2), MemoryStates.mem_write_2)
-        self.fsm.add_transition(MemoryStates.mem_write_2, self.bus_req_if.ready &  self.exec.valid &  is_csr & self.exec.is_load,  MemoryStates.csr_read)
-        self.fsm.add_transition(MemoryStates.mem_write_2, self.bus_req_if.ready &  self.exec.valid &  is_csr & self.exec.is_store, MemoryStates.csr_write)
+        self.fsm.add_transition(MemoryStates.mem_write_2, self.bus_req_if.ready & ~self.input_port.valid,                                MemoryStates.idle)
+        self.fsm.add_transition(MemoryStates.mem_write_2, self.bus_req_if.ready &  self.input_port.valid & ~is_csr & self.input_port.is_load  & (self.input_port.mem_access_len == 2), MemoryStates.mem_read_1)
+        self.fsm.add_transition(MemoryStates.mem_write_2, self.bus_req_if.ready &  self.input_port.valid & ~is_csr & self.input_port.is_load  & (self.input_port.mem_access_len != 2), MemoryStates.mem_read_2)
+        self.fsm.add_transition(MemoryStates.mem_write_2, self.bus_req_if.ready &  self.input_port.valid & ~is_csr & self.input_port.is_store & (self.input_port.mem_access_len == 2), MemoryStates.mem_write_1)
+        self.fsm.add_transition(MemoryStates.mem_write_2, self.bus_req_if.ready &  self.input_port.valid & ~is_csr & self.input_port.is_store & (self.input_port.mem_access_len != 2), MemoryStates.mem_write_2)
+        self.fsm.add_transition(MemoryStates.mem_write_2, self.bus_req_if.ready &  self.input_port.valid &  is_csr & self.input_port.is_load,  MemoryStates.csr_read)
+        self.fsm.add_transition(MemoryStates.mem_write_2, self.bus_req_if.ready &  self.input_port.valid &  is_csr & self.input_port.is_store, MemoryStates.csr_write)
         # CSR interface has fixed timing: a cycle after the read, we get the resoponse and writes are just pipelined through
-        self.fsm.add_transition(MemoryStates.csr_read, ~self.exec.valid,                                MemoryStates.idle)
-        self.fsm.add_transition(MemoryStates.csr_read,  self.exec.valid & ~is_csr & self.exec.is_load  & (self.exec.mem_access_len == 2), MemoryStates.mem_read_1)
-        self.fsm.add_transition(MemoryStates.csr_read,  self.exec.valid & ~is_csr & self.exec.is_load  & (self.exec.mem_access_len != 2), MemoryStates.mem_read_2)
-        self.fsm.add_transition(MemoryStates.csr_read,  self.exec.valid & ~is_csr & self.exec.is_store & (self.exec.mem_access_len == 2), MemoryStates.mem_write_1)
-        self.fsm.add_transition(MemoryStates.csr_read,  self.exec.valid & ~is_csr & self.exec.is_store & (self.exec.mem_access_len != 2), MemoryStates.mem_write_2)
-        self.fsm.add_transition(MemoryStates.csr_read,  self.exec.valid &  is_csr & self.exec.is_load,  MemoryStates.csr_read)
-        self.fsm.add_transition(MemoryStates.csr_read,  self.exec.valid &  is_csr & self.exec.is_store, MemoryStates.csr_write)
+        self.fsm.add_transition(MemoryStates.csr_read, ~self.input_port.valid,                                MemoryStates.idle)
+        self.fsm.add_transition(MemoryStates.csr_read,  self.input_port.valid & ~is_csr & self.input_port.is_load  & (self.input_port.mem_access_len == 2), MemoryStates.mem_read_1)
+        self.fsm.add_transition(MemoryStates.csr_read,  self.input_port.valid & ~is_csr & self.input_port.is_load  & (self.input_port.mem_access_len != 2), MemoryStates.mem_read_2)
+        self.fsm.add_transition(MemoryStates.csr_read,  self.input_port.valid & ~is_csr & self.input_port.is_store & (self.input_port.mem_access_len == 2), MemoryStates.mem_write_1)
+        self.fsm.add_transition(MemoryStates.csr_read,  self.input_port.valid & ~is_csr & self.input_port.is_store & (self.input_port.mem_access_len != 2), MemoryStates.mem_write_2)
+        self.fsm.add_transition(MemoryStates.csr_read,  self.input_port.valid &  is_csr & self.input_port.is_load,  MemoryStates.csr_read)
+        self.fsm.add_transition(MemoryStates.csr_read,  self.input_port.valid &  is_csr & self.input_port.is_store, MemoryStates.csr_write)
 
-        self.fsm.add_transition(MemoryStates.csr_write, ~self.exec.valid,                                MemoryStates.idle)
-        self.fsm.add_transition(MemoryStates.csr_write,  self.exec.valid & ~is_csr & self.exec.is_load  & (self.exec.mem_access_len == 2), MemoryStates.mem_read_1)
-        self.fsm.add_transition(MemoryStates.csr_write,  self.exec.valid & ~is_csr & self.exec.is_load  & (self.exec.mem_access_len != 2), MemoryStates.mem_read_2)
-        self.fsm.add_transition(MemoryStates.csr_write,  self.exec.valid & ~is_csr & self.exec.is_store & (self.exec.mem_access_len == 2), MemoryStates.mem_write_1)
-        self.fsm.add_transition(MemoryStates.csr_write,  self.exec.valid & ~is_csr & self.exec.is_store & (self.exec.mem_access_len != 2), MemoryStates.mem_write_2)
-        self.fsm.add_transition(MemoryStates.csr_write,  self.exec.valid &  is_csr & self.exec.is_load,  MemoryStates.csr_read)
-        self.fsm.add_transition(MemoryStates.csr_write,  self.exec.valid &  is_csr & self.exec.is_store, MemoryStates.csr_write)
+        self.fsm.add_transition(MemoryStates.csr_write, ~self.input_port.valid,                                MemoryStates.idle)
+        self.fsm.add_transition(MemoryStates.csr_write,  self.input_port.valid & ~is_csr & self.input_port.is_load  & (self.input_port.mem_access_len == 2), MemoryStates.mem_read_1)
+        self.fsm.add_transition(MemoryStates.csr_write,  self.input_port.valid & ~is_csr & self.input_port.is_load  & (self.input_port.mem_access_len != 2), MemoryStates.mem_read_2)
+        self.fsm.add_transition(MemoryStates.csr_write,  self.input_port.valid & ~is_csr & self.input_port.is_store & (self.input_port.mem_access_len == 2), MemoryStates.mem_write_1)
+        self.fsm.add_transition(MemoryStates.csr_write,  self.input_port.valid & ~is_csr & self.input_port.is_store & (self.input_port.mem_access_len != 2), MemoryStates.mem_write_2)
+        self.fsm.add_transition(MemoryStates.csr_write,  self.input_port.valid &  is_csr & self.input_port.is_load,  MemoryStates.csr_read)
+        self.fsm.add_transition(MemoryStates.csr_write,  self.input_port.valid &  is_csr & self.input_port.is_store, MemoryStates.csr_write)
 
         # The only reason we would apply back-pressure is if we're waiting on the bus interface
         exec_ready = Wire()
@@ -151,65 +151,31 @@ class MemoryStage(Module):
             ((state == MemoryStates.csr_write) | (state ==MemoryStates.csr_read) | (state ==MemoryStates.idle))
         )
 
-        self.exec.ready <<= exec_ready
-        accept_next = self.exec.valid & exec_ready
+        self.input_port.ready <<= exec_ready
+        accept_next = self.input_port.valid & exec_ready
 
-        lsb = Reg(self.exec.mem_addr[0], clock_en=accept_next)
+        lsb = Reg(self.input_port.mem_addr[0], clock_en=accept_next)
         data_h = Wire(Unsigned(16))
         data_h <<= SelectOne(
-            state == MemoryStates.idle, Reg(self.exec.result[31:16], clock_en=(state == accept_next)),
+            state == MemoryStates.idle, Reg(self.input_port.result[31:16], clock_en=(state == accept_next)),
             state == MemoryStates.mem_read_2, self.bus_rsp_if.data,
             state == MemoryStates.csr_read, self.csr_if.rd_data[31:16]
         )
         data_l = Wire(Unsigned(16))
         data_l <<= SelectOne(
-            state == MemoryStates.idle, Reg(self.exec.result[15:0], clock_en=(state == accept_next)),
+            state == MemoryStates.idle, Reg(self.input_port.result[15:0], clock_en=(state == accept_next)),
             # Have to be careful here with 8-bit reads: we need to move the upper to the lower bytes for odd addresses
             state == MemoryStates.mem_read_1, Reg(Select(lsb, self.bus_rsp_if.data, concat(self.bus_rsp_if.data[15:8], self.bus_rsp_if.data[15:8])), clock_en=self.bus_rsp_if.valid),
             state == MemoryStates.csr_read, self.csr_if.rd_data[15:0]
         )
 
-        def bse(value):
-            return concat(
-                value[7], value[7], value[7], value[7], value[7], value[7], value[7], value[7],
-                value[7], value[7], value[7], value[7], value[7], value[7], value[7], value[7],
-                value[7], value[7], value[7], value[7], value[7], value[7], value[7], value[7],
-                value[7:0]
-            )
-
-        def wse(value):
-            return concat(
-                value[15], value[15], value[15], value[15], value[15], value[15], value[15], value[15],
-                value[15], value[15], value[15], value[15], value[15], value[15], value[15], value[15],
-                value[15:0]
-            )
-
-        do_bse = Reg(self.exec.do_bse, clock_en=accept_next)
-        do_wse = Reg(self.exec.do_wse, clock_en=accept_next)
-        do_bze = Reg(self.exec.do_bze, clock_en=accept_next)
-        do_wze = Reg(self.exec.do_wze, clock_en=accept_next)
-        self.reg_file.data <<= SelectOne(
-            do_bse, bse(data_l),
-            do_wse, wse(data_l),
-            do_bze, data_l[7:0],
-            do_wze, data_l[15:0],
-            default_port = concat(data_h, data_l)
-        )
-        self.reg_file.addr <<= BrewRegAddr(
-            Select(
-                accept_next,
-                Reg(self.exec.result_reg_addr, clock_en=(state == MemoryStates.idle)),
-                self.exec.result_reg_addr
-            )
-        )
-
-        # We don't care about do_branch here: data_en is essentially the same
-        self.reg_file.data_en <<= self.exec.result_data_valid
+        self.output_port.data_l <<= data_l
+        self.output_port.data_h <<= data_h
 
         write_back_tick = Wire(logic)
         write_back_tick = Reg(accept_next)
 
-        self.reg_file.valid <<= SelectOne(
+        self.output_port.valid <<= SelectOne(
             (state == MemoryStates.idle) & (next_state == MemoryStates.idle), write_back_tick,
             state == MemoryStates.mem_read_1, 0,
             state == MemoryStates.mem_read_2, self.bus_rsp_if.valid,
@@ -220,16 +186,16 @@ class MemoryStage(Module):
         # BUG BUG!!!!! THIS SHOULD BE NEXT_STATE, BUT THAT RESULTS IN A COMB. LOOP.
         #####################################################################################
         self.bus_req_if.valid           <<= (state == MemoryStates.mem_read_1) | (state == MemoryStates.mem_write_1) | (state == MemoryStates.mem_read_2) | (state == MemoryStates.mem_write_2)
-        self.bus_req_if.read_not_write  <<= self.exec.is_load
+        self.bus_req_if.read_not_write  <<= self.input_port.is_load
         self.bus_req_if.byte_en         <<= Select(
-            self.exec.mem_access_len == 0,
+            self.input_port.mem_access_len == 0,
             3, # 16- or 32-bit accesses use both byte-enables
-            concat(self.exec.mem_addr[0], ~self.exec.mem_addr[0]) # 8-bit accesses byte-enables depend on address LSB
+            concat(self.input_port.mem_addr[0], ~self.input_port.mem_addr[0]) # 8-bit accesses byte-enables depend on address LSB
         )
         bus_addr = Select(
             accept_next,
-            Reg((self.exec.mem_addr[31:1]+self.exec.mem_access_len[1])[30:0], clock_en = accept_next),
-            self.exec.mem_addr[31:1]
+            Reg((self.input_port.mem_addr[31:1]+self.input_port.mem_access_len[1])[30:0], clock_en = accept_next),
+            self.input_port.mem_addr[31:1]
         )
         self.bus_req_if.addr             <<= bus_addr[21:0]
         self.bus_req_if.dram_not_ext     <<= 0
@@ -238,19 +204,19 @@ class MemoryStage(Module):
             data_h,
             concat(
                 Select(
-                    self.exec.mem_addr[0] & (self.exec.mem_access_len == access_len_8),
-                    self.exec.result[15:8],
-                    self.exec.result[7:0]
+                    self.input_port.mem_addr[0] & (self.input_port.mem_access_len == access_len_8),
+                    self.input_port.result[15:8],
+                    self.input_port.result[7:0]
                 ),
-                self.exec.result[7:0]
+                self.input_port.result[7:0]
             )
         )
 
-        csr_request <<= self.exec.valid & (self.exec.is_store | self.exec.is_load) & is_csr
+        csr_request <<= self.input_port.valid & (self.input_port.is_store | self.input_port.is_load) & is_csr
         self.csr_if.request <<= csr_request
-        self.csr_if.addr <<= self.exec.mem_addr[11:2] # CSRs are always 32-bits long, don't care about the low-oreder 2 bits
-        self.csr_if.wr_data <<= self.exec.result
-        self.csr_if.read_not_write <<= self.exec.is_load
+        self.csr_if.addr <<= self.input_port.mem_addr[11:2] # CSRs are always 32-bits long, don't care about the low-oreder 2 bits
+        self.csr_if.wr_data <<= self.input_port.result
+        self.csr_if.read_not_write <<= self.input_port.is_load
 
 
 def sim():
@@ -382,7 +348,7 @@ def sim():
         clk = ClkPort()
         rst = RstPort()
 
-        exec = Output(ExecMemIf)
+        exec = Output(MemInputIf)
 
         def simulate(self) -> TSimEvent:
             def wait_clk():
@@ -465,7 +431,7 @@ def sim():
 
         def body(self):
             seed(0)
-            self.exec = Wire(ExecMemIf)
+            self.exec = Wire(MemInputIf)
             self.bus_if = Wire(BusIfPortIf)
             self.csr_if = Wire(CsrIf)
 
@@ -477,9 +443,9 @@ def sim():
             self.dut = MemoryStage()
 
             self.exec <<= self.exec_emulator.exec
-            self.dut.exec <<= self.exec
+            self.dut.input_port <<= self.exec
 
-            self.reg_file_emulator.write_if <<= self.dut.reg_file
+            self.reg_file_emulator.write_if <<= self.dut.output_port
 
             self.bus_if <<= self.dut.bus_if
             self.bus_emulator.bus_if <<= self.bus_if
