@@ -54,7 +54,7 @@ class ExecUnitResultIf(Interface):
     result = BrewData
 
 
-TIMING_CLOSURE_TESTS = True
+TIMING_CLOSURE_TESTS = False
 
 class AluInputIf(Interface):
     opcode = EnumNet(alu_ops)
@@ -88,8 +88,8 @@ class AluUnit(Module):
             self.input_port.opcode == alu_ops.a_and_b,      self.input_port.op_a & self.input_port.op_b,
             self.input_port.opcode == alu_ops.not_a_and_b,  ~self.input_port.op_a & self.input_port.op_b,
             self.input_port.opcode == alu_ops.a_xor_b,      self.input_port.op_a ^ self.input_port.op_b,
-            self.input_port.opcode == alu_ops.pc,           self.input_port.pc,
-            self.input_port.opcode == alu_ops.tpc,          self.input_port.tpc,
+            self.input_port.opcode == alu_ops.pc,           concat(self.input_port.pc, "1'b0"),
+            self.input_port.opcode == alu_ops.tpc,          concat(self.input_port.tpc, "1'b0"),
         )
 
         self.output_port.result <<= adder_result[31:0]
@@ -118,16 +118,18 @@ class ShifterUnit(Module):
 
     def body(self):
         # TODO: this can be optimized quite a bit. As of now, we instantiate 3 barrel shifters
+        self.signed_a = Signed(32)(self.input_port.op_a)
         shifter_result = SelectOne(
-            self.input_port.opcode == shifter_ops.shll, self.input_port.op_a << self.input_port.op_b[5:0],
-            self.input_port.opcode == shifter_ops.shlr, self.input_port.op_a >> self.input_port.op_b[5:0],
-            self.input_port.opcode == shifter_ops.shar, Signed(32)(self.input_port.op_a) >> self.input_port.op_b[5:0],
+            self.input_port.opcode == shifter_ops.shll, self.input_port.op_a << self.input_port.op_b[4:0],
+            self.input_port.opcode == shifter_ops.shlr, self.input_port.op_a >> self.input_port.op_b[4:0],
+            self.input_port.opcode == shifter_ops.shar, self.signed_a >> self.input_port.op_b[4:0],
         )[31:0]
 
         self.output_port.result <<= shifter_result
 
 
 class MultInputIf(Interface):
+    valid = logic
     op_a = BrewData
     op_b = BrewData
 
@@ -145,7 +147,9 @@ class MultUnit(Module):
         if TIMING_CLOSURE_TESTS:
             mult_result = 0
         else:
-            mult_result_large = self.input_port.op_a * self.input_port.op_b
+            op_a = Select(self.input_port.valid, Reg(self.input_port.op_a, clock_en = self.input_port.valid), self.input_port.op_a)
+            op_b = Select(self.input_port.valid, Reg(self.input_port.op_b, clock_en = self.input_port.valid), self.input_port.op_b)
+            mult_result_large = op_a * op_b
             mult_result = mult_result_large[31:0]
 
         self.output_port.result <<= mult_result
@@ -170,7 +174,7 @@ class BranchTargetUnit(Module):
             return concat(
                 offset[0], offset[0], offset[0], offset[0], offset[0], offset[0], offset[0], offset[0],
                 offset[0], offset[0], offset[0], offset[0], offset[0], offset[0], offset[0], offset[0],
-                offset[15:1], 0
+                offset[15:1]
             )
 
         self.output_port.branch_addr   <<= (self.input_port.pc + unmunge_offset(self.input_port.op_c))[30:0]
@@ -406,10 +410,11 @@ class ExecuteStage(Module):
         stage_1_valid = Wire(logic)
         stage_2_ready = Wire(logic)
 
-        stage_1_fsm = ForwardBufLogic()
-        stage_1_fsm.input_valid <<= self.input_port.valid
-        # we 'bite out' a cycle for two-cycle units, such as multiply
         multi_cycle_exec_lockout = Reg(self.input_port.ready & self.input_port.valid & (self.input_port.exec_unit == op_class.mult))
+
+        stage_1_fsm = ForwardBufLogic()
+        stage_1_fsm.input_valid <<= ~multi_cycle_exec_lockout & self.input_port.valid
+        # we 'bite out' a cycle for two-cycle units, such as multiply
         self.input_port.ready <<= ~multi_cycle_exec_lockout & stage_1_fsm.input_ready
         stage_1_valid <<= stage_1_fsm.output_valid
         stage_1_fsm.output_ready <<= stage_2_ready
@@ -478,11 +483,12 @@ class ExecuteStage(Module):
         #result
 
         # Multiplier
-        mult_output = Wire(MultOutputIf)
+        s1_mult_output = Wire(MultOutputIf)
         mult_unit = MultUnit()
+        mult_unit.input_port.valid  <<= stage_1_reg_en
         mult_unit.input_port.op_a   <<= self.input_port.op_a
         mult_unit.input_port.op_b   <<= self.input_port.op_b
-        mult_output <<= mult_unit.output_port
+        s1_mult_output <<= Reg(mult_unit.output_port, clock_en = Reg(stage_1_reg_en)) # Need to delay the capture by one clock cycle
         #result
 
         # Delay inputs that we will need later
@@ -592,7 +598,7 @@ class ExecuteStage(Module):
         # Combine all outputs into a single output register, mux-in memory results
         result = SelectOne(
             s1_exec_unit == op_class.alu, s1_alu_output.result,
-            s1_exec_unit == op_class.mult, mult_output.result,
+            s1_exec_unit == op_class.mult, s1_mult_output.result,
             s1_exec_unit == op_class.shift, s1_shifter_output.result
         )
 
@@ -744,10 +750,10 @@ def sim():
                 self.ecause_in <<= self.sideband_state.ecause
                 self.interrupt <<= self.sideband_state.interrupt
 
-            def send_alu_op(op: alu_ops, op_a: int, op_b: int, op_c: int = None, *, result_reg = 0, result_reg_valid = True, fetch_av = False, inst_len = inst_len_16):
-                self.output_port.exec_unit <<= op_class.alu
-                self.output_port.alu_op <<= op
-                self.output_port.shifter_op <<= None
+            def send_rr_op(unit: op_class, op: alu_ops, op_a: int, op_b: int, op_c: int = None, *, result_reg = 0, result_reg_valid = True, fetch_av = False, inst_len = inst_len_16):
+                self.output_port.exec_unit <<= unit
+                self.output_port.alu_op <<= op if unit == op_class.alu else None
+                self.output_port.shifter_op <<= op if unit == op_class.shift else None
                 self.output_port.branch_op <<= None
                 self.output_port.ldst_op <<= None
                 self.output_port.op_a <<= op_a
@@ -764,23 +770,39 @@ def sim():
                 self.output_port.fetch_av <<= 1 if fetch_av else 0
 
                 mask = 0xffffffff
-                if op == alu_ops.a_plus_b:
-                    result = (op_a + op_b) & mask
-                elif op == alu_ops.a_minus_b:
-                    result = (op_a - op_b) & mask
-                elif op == alu_ops.b_minus_a:
-                    result = (op_b - op_a) & mask
-                #elif op == alu_ops.pc_plus_a:
-                elif op == alu_ops.a_and_b:
-                    result = op_a & op_b
-                elif op == alu_ops.not_a_and_b:
-                    result = ~op_a & op_b
-                elif op == alu_ops.a_or_b:
-                    result = op_a | op_b
-                elif op == alu_ops.a_xor_b:
-                    result = op_a ^ op_b
-                #elif op == alu_ops.pc:
-                #elif op == alu_ops.tpc:
+                if unit == op_class.alu:
+                    if op == alu_ops.a_plus_b:
+                        result = (op_a + op_b) & mask
+                    elif op == alu_ops.a_minus_b:
+                        result = (op_a - op_b) & mask
+                    elif op == alu_ops.b_minus_a:
+                        result = (op_b - op_a) & mask
+                    #elif op == alu_ops.pc_plus_a:
+                    elif op == alu_ops.a_and_b:
+                        result = op_a & op_b
+                    elif op == alu_ops.not_a_and_b:
+                        result = ~op_a & op_b
+                    elif op == alu_ops.a_or_b:
+                        result = op_a | op_b
+                    elif op == alu_ops.a_xor_b:
+                        result = op_a ^ op_b
+                    elif op == alu_ops.pc:
+                        result = (self.sideband_state.tpc if self.sideband_state.task_mode == 1 else self.sideband_state.spc) << 1
+                    elif op == alu_ops.tpc:
+                        result = self.sideband_state.tpc << 1
+                elif unit == op_class.shift:
+                    if op == shifter_ops.shll:
+                        result = (op_a << (op_b & 31)) & mask
+                    elif op == shifter_ops.shlr:
+                        result = (op_a >> (op_b & 31)) & mask
+                    elif op == shifter_ops.shar:
+                        msb = (op_a >> 31) & 1
+                        upper = (msb << 32) - msb
+                        extended_op_a = (upper << 32) | op_a
+                        result = (extended_op_a >> (op_b & 31)) & mask
+                elif unit == op_class.mult:
+                    result = (op_a * op_b) & mask
+
                 next_spc = self.sideband_state.spc
                 next_tpc = self.sideband_state.tpc
                 next_task_mode = self.sideband_state.task_mode
@@ -817,6 +839,13 @@ def sim():
                     do_branch = next_do_branch,
                 ))
 
+            def send_alu_op(op: alu_ops, op_a: int, op_b: int, op_c: int = None, *, result_reg = 0, result_reg_valid = True, fetch_av = False, inst_len = inst_len_16):
+                send_rr_op(op_class.alu, op, op_a, op_b, op_c, result_reg=result_reg, result_reg_valid=result_reg_valid, fetch_av=fetch_av, inst_len=inst_len)
+            def send_shifter_op(op: shifter_ops, op_a: int, op_b: int, op_c: int = None, *, result_reg = 0, result_reg_valid = True, fetch_av = False, inst_len = inst_len_16):
+                send_rr_op(op_class.shift, op, op_a, op_b, op_c, result_reg=result_reg, result_reg_valid=result_reg_valid, fetch_av=fetch_av, inst_len=inst_len)
+            def send_mult_op(op_a: int, op_b: int, op_c: int = None, *, result_reg = 0, result_reg_valid = True, fetch_av = False, inst_len = inst_len_16):
+                send_rr_op(op_class.mult, None, op_a, op_b, op_c, result_reg=result_reg, result_reg_valid=result_reg_valid, fetch_av=fetch_av, inst_len=inst_len)
+
 
             self.output_port.valid <<= 0
             yield from wait_clk()
@@ -840,6 +869,28 @@ def sim():
             yield from wait_for_transfer()
             set_side_band()
             send_alu_op(alu_ops.a_plus_b, 4, 3, fetch_av=True)
+            yield from wait_for_transfer()
+            send_alu_op(alu_ops.not_a_and_b, 4, 3)
+            yield from wait_for_transfer()
+            send_mult_op(41,43)
+            yield from wait_for_transfer()
+            send_shifter_op(shifter_ops.shll,0xf0000001,2)
+            yield from wait_for_transfer()
+            send_shifter_op(shifter_ops.shll,0xf0000001,31)
+            yield from wait_for_transfer()
+            send_shifter_op(shifter_ops.shll,0xf0000001,32)
+            yield from wait_for_transfer()
+            send_shifter_op(shifter_ops.shlr,0xff00ff00,0)
+            yield from wait_for_transfer()
+            send_shifter_op(shifter_ops.shlr,0xff00ff00,1)
+            yield from wait_for_transfer()
+            send_shifter_op(shifter_ops.shlr,0xff00ff00,8)
+            yield from wait_for_transfer()
+            send_shifter_op(shifter_ops.shar,0xff00ff00,0)
+            yield from wait_for_transfer()
+            send_shifter_op(shifter_ops.shar,0xff00ff00,1)
+            yield from wait_for_transfer()
+            send_shifter_op(shifter_ops.shar,0xff00ff00,8)
             yield from wait_for_transfer()
 
 
