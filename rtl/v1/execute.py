@@ -83,7 +83,7 @@ class AluUnit(Module):
             self.input_port.opcode == alu_ops.a_plus_b,     (self.input_port.op_a + self.input_port.op_b),
             self.input_port.opcode == alu_ops.a_minus_b,    Unsigned(33)(self.input_port.op_a - self.input_port.op_b),
             self.input_port.opcode == alu_ops.b_minus_a,    Unsigned(33)(self.input_port.op_b - self.input_port.op_a),
-            self.input_port.opcode == alu_ops.pc_plus_a,    (self.input_port.pc + concat(self.input_port.op_a[30:0], "1'b0")),
+            self.input_port.opcode == alu_ops.pc_plus_a,    (self.input_port.pc + self.input_port.op_a[30:0]),
             self.input_port.opcode == alu_ops.a_or_b,       self.input_port.op_a | self.input_port.op_b,
             self.input_port.opcode == alu_ops.a_and_b,      self.input_port.op_a & self.input_port.op_b,
             self.input_port.opcode == alu_ops.not_a_and_b,  ~self.input_port.op_a & self.input_port.op_b,
@@ -777,7 +777,8 @@ def sim():
                         result = (op_a - op_b) & mask
                     elif op == alu_ops.b_minus_a:
                         result = (op_b - op_a) & mask
-                    #elif op == alu_ops.pc_plus_a:
+                    elif op == alu_ops.pc_plus_a:
+                        result = ((self.sideband_state.tpc if self.sideband_state.task_mode == 1 else self.sideband_state.spc) + op_a) & mask
                     elif op == alu_ops.a_and_b:
                         result = op_a & op_b
                     elif op == alu_ops.not_a_and_b:
@@ -838,13 +839,34 @@ def sim():
                     ecause_out = self.sideband_state.ecause | ecause_mask,
                     do_branch = next_do_branch,
                 ))
+                yield from wait_for_transfer()
 
             def send_alu_op(op: alu_ops, op_a: int, op_b: int, op_c: int = None, *, result_reg = 0, result_reg_valid = True, fetch_av = False, inst_len = inst_len_16):
-                send_rr_op(op_class.alu, op, op_a, op_b, op_c, result_reg=result_reg, result_reg_valid=result_reg_valid, fetch_av=fetch_av, inst_len=inst_len)
+                yield from send_rr_op(op_class.alu, op, op_a, op_b, op_c, result_reg=result_reg, result_reg_valid=result_reg_valid, fetch_av=fetch_av, inst_len=inst_len)
             def send_shifter_op(op: shifter_ops, op_a: int, op_b: int, op_c: int = None, *, result_reg = 0, result_reg_valid = True, fetch_av = False, inst_len = inst_len_16):
-                send_rr_op(op_class.shift, op, op_a, op_b, op_c, result_reg=result_reg, result_reg_valid=result_reg_valid, fetch_av=fetch_av, inst_len=inst_len)
+                yield from send_rr_op(op_class.shift, op, op_a, op_b, op_c, result_reg=result_reg, result_reg_valid=result_reg_valid, fetch_av=fetch_av, inst_len=inst_len)
             def send_mult_op(op_a: int, op_b: int, op_c: int = None, *, result_reg = 0, result_reg_valid = True, fetch_av = False, inst_len = inst_len_16):
-                send_rr_op(op_class.mult, None, op_a, op_b, op_c, result_reg=result_reg, result_reg_valid=result_reg_valid, fetch_av=fetch_av, inst_len=inst_len)
+                yield from send_rr_op(op_class.mult, None, op_a, op_b, op_c, result_reg=result_reg, result_reg_valid=result_reg_valid, fetch_av=fetch_av, inst_len=inst_len)
+            def send_bubble():
+                self.output_port.exec_unit <<= None
+                self.output_port.alu_op <<= None
+                self.output_port.shifter_op <<= None
+                self.output_port.branch_op <<= None
+                self.output_port.ldst_op <<= None
+                self.output_port.op_a <<= None
+                self.output_port.op_b <<= None
+                self.output_port.op_c <<= None
+                self.output_port.mem_access_len <<= None
+                self.output_port.inst_len <<= None
+                self.output_port.do_bse <<= None
+                self.output_port.do_wse <<= None
+                self.output_port.do_bze <<= None
+                self.output_port.do_wze <<= None
+                self.output_port.result_reg_addr <<= None
+                self.output_port.result_reg_addr_valid <<= None
+                self.output_port.fetch_av <<= None
+                self.output_port.valid <<= 0
+                yield from wait_clk()
 
 
             self.output_port.valid <<= 0
@@ -853,45 +875,37 @@ def sim():
                 yield from wait_clk()
             for i in range(5): yield from wait_clk()
             set_side_band()
-            send_alu_op(alu_ops.a_plus_b, 4, 3)
-            yield from wait_for_transfer()
-            send_alu_op(alu_ops.b_minus_a, 5, 6)
-            yield from wait_for_transfer()
-            send_alu_op(alu_ops.a_minus_b, 7, 9)
-            yield from wait_for_transfer()
-            send_alu_op(alu_ops.a_and_b, 4, 3)
-            yield from wait_for_transfer()
-            send_alu_op(alu_ops.a_or_b, 12, 43)
-            yield from wait_for_transfer()
-            send_alu_op(alu_ops.a_xor_b, 23, 12)
-            yield from wait_for_transfer()
-            send_alu_op(alu_ops.not_a_and_b, 4, 3)
-            yield from wait_for_transfer()
+            yield from send_alu_op(alu_ops.a_plus_b, 4, 3)
+            yield from send_alu_op(alu_ops.b_minus_a, 5, 6)
+            yield from send_alu_op(alu_ops.a_minus_b, 7, 9)
+            yield from send_alu_op(alu_ops.a_and_b, 4, 3)
+            yield from send_alu_op(alu_ops.a_or_b, 12, 43)
+            yield from send_alu_op(alu_ops.a_xor_b, 23, 12)
+            yield from send_alu_op(alu_ops.not_a_and_b, 4, 3)
             set_side_band()
-            send_alu_op(alu_ops.a_plus_b, 4, 3, fetch_av=True)
-            yield from wait_for_transfer()
-            send_alu_op(alu_ops.not_a_and_b, 4, 3)
-            yield from wait_for_transfer()
-            send_mult_op(41,43)
-            yield from wait_for_transfer()
-            send_shifter_op(shifter_ops.shll,0xf0000001,2)
-            yield from wait_for_transfer()
-            send_shifter_op(shifter_ops.shll,0xf0000001,31)
-            yield from wait_for_transfer()
-            send_shifter_op(shifter_ops.shll,0xf0000001,32)
-            yield from wait_for_transfer()
-            send_shifter_op(shifter_ops.shlr,0xff00ff00,0)
-            yield from wait_for_transfer()
-            send_shifter_op(shifter_ops.shlr,0xff00ff00,1)
-            yield from wait_for_transfer()
-            send_shifter_op(shifter_ops.shlr,0xff00ff00,8)
-            yield from wait_for_transfer()
-            send_shifter_op(shifter_ops.shar,0xff00ff00,0)
-            yield from wait_for_transfer()
-            send_shifter_op(shifter_ops.shar,0xff00ff00,1)
-            yield from wait_for_transfer()
-            send_shifter_op(shifter_ops.shar,0xff00ff00,8)
-            yield from wait_for_transfer()
+            yield from send_alu_op(alu_ops.a_plus_b, 4, 3, fetch_av=True)
+            yield from send_alu_op(alu_ops.not_a_and_b, 4, 3)
+            yield from send_mult_op(41,43)
+            yield from send_shifter_op(shifter_ops.shll,0xf0000001,2)
+            yield from send_shifter_op(shifter_ops.shll,0xf0000001,31)
+            yield from send_shifter_op(shifter_ops.shll,0xf0000001,32)
+            yield from send_shifter_op(shifter_ops.shlr,0xff00ff00,0)
+            yield from send_shifter_op(shifter_ops.shlr,0xff00ff00,1)
+            yield from send_shifter_op(shifter_ops.shlr,0xff00ff00,8)
+            yield from send_shifter_op(shifter_ops.shar,0xff00ff00,0)
+            yield from send_shifter_op(shifter_ops.shar,0xff00ff00,1)
+            yield from send_shifter_op(shifter_ops.shar,0xff00ff00,8)
+            set_side_band(tpc=0xddccbba, spc=0x2233445, task_mode=True)
+            yield from send_alu_op(alu_ops.pc_plus_a, 3, 2, 1)
+            yield from send_alu_op(alu_ops.pc, 3, 2, 1)
+            yield from send_alu_op(alu_ops.tpc, 3, 2, 1)
+            yield from send_bubble()
+            yield from send_bubble()
+            yield from send_bubble()
+            set_side_band(tpc=0xddccbba, spc=0x2233445, task_mode=False)
+            yield from send_alu_op(alu_ops.pc_plus_a, 3, 2, 1)
+            yield from send_alu_op(alu_ops.pc, 3, 2, 1)
+            yield from send_alu_op(alu_ops.tpc, 3, 2, 1)
 
 
     class ResultChecker(GenericModule):
