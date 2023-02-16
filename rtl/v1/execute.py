@@ -400,6 +400,8 @@ class ExecuteStage(Module):
     do_branch = Output(logic)
     interrupt = Input(logic)
 
+    complete = Output(logic) # goes high for 1 cycle when an instruction completes. Used for verification
+
     def body(self):
         # We have two stages in one, really here
         pc = Select(self.task_mode_in, self.spc_in, self.tpc_in)
@@ -635,8 +637,8 @@ class ExecuteStage(Module):
         )
         self.ecause_out <<= Select(stage_2_reg_en, self.ecause_in, self.ecause_in | branch_output.ecause)
 
-
-
+        #self.complete <<= stage_2_reg_en
+        self.complete <<= stage_2_valid
 
 
 
@@ -651,6 +653,7 @@ def sim():
             data_h,
             data_en,
             addr,
+            result_valid = None,
             do_bse = None,
             do_wse = None,
             do_bze = None,
@@ -665,6 +668,7 @@ def sim():
             self.data_h = data_h
             self.data_en = data_en
             self.addr = addr
+            self.result_valid = result_valid
             self.do_bse = do_bse
             self.do_wse = do_wse
             self.do_bze = do_bze
@@ -688,6 +692,7 @@ def sim():
             assert self.data_h is None or result.data_h == self.data_h
             assert self.data_en is None or result.data_en == self.data_en
             assert self.addr is None or result.addr == self.addr
+            assert self.result_valid is None or result.valid == self.result_valid
             assert self.do_bse is None or result.do_bse == self.do_bse
             assert self.do_wse is None or result.do_wse == self.do_wse
             assert self.do_bze is None or result.do_bze == self.do_bze
@@ -829,6 +834,7 @@ def sim():
                     data_h = result >> 16,
                     data_en = 0 if fetch_av else 1,
                     addr = result_reg,
+                    result_valid = True,
                     do_bse = 0,
                     do_wse = 0,
                     do_bze = 0,
@@ -868,6 +874,71 @@ def sim():
                 self.output_port.valid <<= 0
                 yield from wait_clk()
 
+            def send_cbranch_op(op: branch_ops, op_a: int, op_b: int, op_c: int = None, *, fetch_av = False, inst_len = inst_len_16):
+                self.output_port.exec_unit <<= op_class.branch
+                self.output_port.alu_op <<= alu_ops.a_minus_b
+                self.output_port.shifter_op <<= None
+                self.output_port.branch_op <<= op
+                self.output_port.ldst_op <<= None
+                self.output_port.op_a <<= op_a
+                self.output_port.op_b <<= op_b
+                self.output_port.op_c <<= op_c
+                self.output_port.mem_access_len <<= None
+                self.output_port.inst_len <<= inst_len
+                self.output_port.do_bse <<= 0
+                self.output_port.do_wse <<= 0
+                self.output_port.do_bze <<= 0
+                self.output_port.do_wze <<= 0
+                self.output_port.result_reg_addr <<= None
+                self.output_port.result_reg_addr_valid <<= 0
+                self.output_port.fetch_av <<= 1 if fetch_av else 0
+
+                pc = self.sideband_state.tpc if self.sideband_state.task_mode else self.sideband_state.spc
+
+                offset_msb = op_c & 1
+                if offset_msb != 0:
+                    offset_msb = 0xffff0000
+                offset = offset_msb | ((op_c & 0xfffe) >> 1)
+                if op == branch_ops.cb_eq:
+                    branch = op_a == op_b
+                    branch_target = (pc + offset) & 0x7fffffff
+                elif op == branch_ops.cb_ne:
+                    branch = op_a != op_b
+                    branch_target = (pc + offset) & 0x7fffffff
+
+                next_pc = pc + inst_len + 1 if not branch else branch_target
+                ecause_mask = 0
+                if not fetch_av:
+                    next_spc = self.sideband_state.spc if     self.sideband_state.task_mode else next_pc
+                    next_tpc = self.sideband_state.tpc if not self.sideband_state.task_mode else next_pc
+                    next_task_mode = self.sideband_state.task_mode
+                else:
+                    if self.sideband_state.task_mode:
+                        next_tpc = self.sideband_state.tpc
+                        next_spc = self.sideband_state.spc
+                    else:
+                        next_tpc = self.sideband_state.tpc
+                        next_spc = 0
+                    next_task_mode = 0
+                    ecause_mask |= 1 << exc_mip
+
+                self.result_queue.append(Result(
+                    data_l = None,
+                    data_h = None,
+                    data_en = None, # Since we aren't supposed to get a valid, it doesn't matter what data_en is
+                    addr = None,
+                    result_valid = False,
+                    do_bse = None,
+                    do_wse = None,
+                    do_bze = None,
+                    do_wze = None,
+                    spc_out = next_spc,
+                    tpc_out = next_tpc,
+                    task_mode_out = next_task_mode,
+                    ecause_out = self.sideband_state.ecause | ecause_mask,
+                    do_branch = branch,
+                ))
+                yield from wait_for_transfer()
 
             self.output_port.valid <<= 0
             yield from wait_clk()
@@ -906,7 +977,11 @@ def sim():
             yield from send_alu_op(alu_ops.pc_plus_a, 3, 2, 1)
             yield from send_alu_op(alu_ops.pc, 3, 2, 1)
             yield from send_alu_op(alu_ops.tpc, 3, 2, 1)
-
+            ### branch tests
+            for i in range(5):
+                yield from send_bubble()
+            yield from send_cbranch_op(branch_ops.cb_eq, 3, 4, 0x1000)
+            yield from send_cbranch_op(branch_ops.cb_eq, 15, 15, 0x2000)
 
     class ResultChecker(GenericModule):
         clk = ClkPort()
@@ -918,6 +993,7 @@ def sim():
         task_mode_out = Input(logic)
         ecause_out = Input(Unsigned(12))
         do_branch = Input(logic)
+        complete = Input(logic)
 
         def construct(self, result_queue: Array, sideband_state):
             self.result_queue = result_queue
@@ -942,9 +1018,12 @@ def sim():
             while True:
                 self.input_port.ready <<= 1
                 yield from wait_clk()
-                if self.input_port.valid == 1:
+                if self.complete == 1:
                     expected: Result = self.result_queue.pop(0)
-                    print(f"Writing REG $r{self.input_port.addr:x} with value {self.input_port.data_h:04x}{self.input_port.data_l:04x} (expected: {expected.data_h:04x}{expected.data_l:04x}) enable: {self.input_port.data_en}")
+                    if expected.result_valid:
+                        print(f"Writing REG $r{self.input_port.addr:x} with value {self.input_port.data_h:04x}{self.input_port.data_l:04x} (expected: {expected.data_h:04x}{expected.data_l:04x}) enable: {self.input_port.data_en}")
+                    else:
+                        print(f"Result $tpc:{self.tpc:08x} (expected:{expected.tpc_out:08x}) $spc:{self.spc:08x} (expected:{expected.spc_out:08x}) task_mode:{self.task_mode} (expected:{expected.task_mode_out})")
                     assert expected.compare(self.input_port, self.spc, self.tpc, self.task_mode, self.ecause, self.do_branch)
 
     class CsrEmulator(Module):
@@ -1084,7 +1163,7 @@ def sim():
             result_checker.task_mode_out <<= dut.task_mode_out
             result_checker.ecause_out <<= dut.ecause_out
             result_checker.do_branch <<= dut.do_branch
-
+            result_checker.complete <<= dut.complete
 
         def simulate(self) -> TSimEvent:
             def clk() -> int:
@@ -1103,7 +1182,7 @@ def sim():
                 yield from clk()
             self.rst <<= 0
 
-            for i in range(50):
+            for i in range(100):
                 yield from clk()
             now = yield 10
             print(f"Done at {now}")
