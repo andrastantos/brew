@@ -252,7 +252,7 @@ class BranchUnit(Module):
             self.input_port.opcode == branch_ops.cb_lt,   self.input_port.f_carry,
             self.input_port.opcode == branch_ops.cb_ge,   ~self.input_port.f_carry,
             self.input_port.opcode == branch_ops.bb_one,  bb_get_bit(self.input_port.op_a, self.input_port.op_b),
-            self.input_port.opcode == branch_ops.bb_zero, bb_get_bit(self.input_port.op_b, self.input_port.op_a),
+            self.input_port.opcode == branch_ops.bb_zero, ~bb_get_bit(self.input_port.op_a, self.input_port.op_b),
         )
 
         # Set if we have an exception: in task mode this results in a switch to scheduler mode, in scheduler mode, it's a reset
@@ -272,21 +272,15 @@ class BranchUnit(Module):
         branch_target = SelectOne(
             self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.pc_w),                                   self.input_port.op_c[31:1],
             self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.tpc_w),                                  self.input_port.op_c[31:1],
-            self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.pc_w_r),                                 self.input_port.op_c[31:1],
-            self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.tpc_w_r),                                self.input_port.op_c[31:1],
+            self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.pc_w_r),                                 self.input_port.op_a[31:1],
+            self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.tpc_w_r),                                self.input_port.op_a[31:1],
             self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.stm),                                    self.input_port.tpc,
             default_port =                                                                                                  Select(is_exception | self.input_port.interrupt, self.input_port.branch_addr, self.input_port.tpc),
         )
 
         self.output_port.spc            <<= Select(is_exception, branch_target, 0)
         self.output_port.spc_changed    <<= ~self.input_port.task_mode & (is_exception | in_mode_branch)
-        self.output_port.tpc            <<= Select(
-            self.input_port.task_mode,
-            # In Scheduler mode: TPC can only change through TCP manipulation instructions. For those, the value comes through op_c
-            self.input_port.op_c[31:1],
-            # In task mode, all branches count.
-            branch_target
-        )
+        self.output_port.tpc            <<= branch_target
         self.output_port.tpc_changed    <<= Select(
             self.input_port.task_mode,
             # In Scheduler mode: TPC can only change through TCP manipulation instructions. For those, the value comes through op_c
@@ -315,16 +309,10 @@ class BranchUnit(Module):
             1 << exc_mip
         )
 
-        # We set the HWI ECAUSE bit even in scheduler mode: this allows for interrupt polling at least.
-        # The interrupt will not get serviced of course until we're in TASK mode.
+        # We set the ECAUSE bits even in scheduler mode: this allows for interrupt polling at and after a reset,
+        # we can check it to determine the reason for the reset
         interrupt_mask =  Select(self.input_port.interrupt & self.input_port.task_mode, 0, 1 << exc_hwi)
-        self.output_port.ecause <<= Select(
-            self.input_port.task_mode,
-            # In Scheduler mode: we only set the interrupt bit (which can be polled for, if needed)
-            interrupt_mask,
-            # In Task mode:
-            exception_mask | interrupt_mask
-        )
+        self.output_port.ecause <<= exception_mask | interrupt_mask
 
 
 
@@ -499,6 +487,7 @@ class ExecuteStage(Module):
         s1_ldst_op = Reg(self.input_port.ldst_op, clock_en = stage_1_reg_en)
         s1_op_a = Reg(self.input_port.op_a, clock_en = stage_1_reg_en)
         s1_op_b = Reg(self.input_port.op_b, clock_en = stage_1_reg_en)
+        s1_op_c = Reg(self.input_port.op_c, clock_en = stage_1_reg_en)
         s1_do_bse = Reg(self.input_port.do_bse, clock_en = stage_1_reg_en)
         s1_do_wse = Reg(self.input_port.do_wse, clock_en = stage_1_reg_en)
         s1_do_bze = Reg(self.input_port.do_bze, clock_en = stage_1_reg_en)
@@ -561,6 +550,7 @@ class ExecuteStage(Module):
         branch_input.mem_unaligned   <<= s1_ldst_output.mem_unaligned
         branch_input.op_a            <<= s1_op_a
         branch_input.op_b            <<= s1_op_b
+        branch_input.op_c            <<= s1_op_c
         branch_input.f_zero          <<= s1_alu_output.f_zero
         branch_input.f_sign          <<= s1_alu_output.f_sign
         branch_input.f_carry         <<= s1_alu_output.f_carry
@@ -632,8 +622,8 @@ class ExecuteStage(Module):
         )
         self.task_mode_out <<= Select(
             stage_2_reg_en,
-            self.task_mode_in,
-            Select(branch_output.task_mode_changed, self.task_mode_in, branch_output.task_mode),
+            s1_task_mode,
+            Select(branch_output.task_mode_changed, s1_task_mode, branch_output.task_mode),
         )
         self.ecause_out <<= Select(stage_2_reg_en, self.ecause_in, self.ecause_in | branch_output.ecause)
 
@@ -895,23 +885,105 @@ def sim():
 
                 pc = self.sideband_state.tpc if self.sideband_state.task_mode else self.sideband_state.spc
 
-                offset_msb = op_c & 1
-                if offset_msb != 0:
-                    offset_msb = 0xffff0000
-                offset = offset_msb | ((op_c & 0xfffe) >> 1)
+                def to_signed(i: int, length: int = 32) -> int:
+                    mask = (1 << length) - 1
+                    msb = 1 << (length-1)
+                    i = i & mask
+                    if i & msb == 0:
+                        return i
+                    return i - mask - 1
+
+                def bit_idx(i: int) -> int:
+                    if i == 0x0: return 0
+                    if i == 0x1: return 1
+                    if i == 0x2: return 2
+                    if i == 0x3: return 3
+                    if i == 0x4: return 4
+                    if i == 0x5: return 5
+                    if i == 0x6: return 6
+                    if i == 0x7: return 7
+                    if i == 0x8: return 8
+                    if i == 0x9: return 9
+                    if i == 0xa: return 14
+                    if i == 0xb: return 15
+                    if i == 0xc: return 16
+                    if i == 0xd: return 30
+                    if i == 0xe: return 31
+                    assert False, f"Invalid bit index value: {i}"
+
+                ecause_mask = 0
+                is_exception = fetch_av
+                if fetch_av:
+                    ecause_mask |= 1 << exc_mip
+
+                if op_c is not None:
+                    offset_msb = op_c & 1
+                    if offset_msb != 0:
+                        offset_msb = 0xffff0000
+                    offset = offset_msb | ((op_c & 0xfffe) >> 1)
                 if op == branch_ops.cb_eq:
                     branch = op_a == op_b
                     branch_target = (pc + offset) & 0x7fffffff
                 elif op == branch_ops.cb_ne:
                     branch = op_a != op_b
                     branch_target = (pc + offset) & 0x7fffffff
+                elif op == branch_ops.cb_lts:
+                    branch = to_signed(op_a) < to_signed(op_b)
+                    branch_target = (pc + offset) & 0x7fffffff
+                elif op == branch_ops.cb_ges:
+                    branch = to_signed(op_a) >= to_signed(op_b)
+                    branch_target = (pc + offset) & 0x7fffffff
+                elif op == branch_ops.cb_lt:
+                    branch = op_a < op_b
+                    branch_target = (pc + offset) & 0x7fffffff
+                elif op == branch_ops.cb_ge:
+                    branch = op_a >= op_b
+                    branch_target = (pc + offset) & 0x7fffffff
+                elif op == branch_ops.bb_one:
+                    branch = (op_a & (1 << bit_idx(op_b))) != 0
+                    branch_target = (pc + offset) & 0x7fffffff
+                elif op == branch_ops.bb_zero:
+                    branch = (op_a & (1 << bit_idx(op_b))) == 0
+                    branch_target = (pc + offset) & 0x7fffffff
+                elif op == branch_ops.swi:
+                    if not fetch_av:
+                        ecause_mask |= 1 << (op_a & 7)
+                    is_exception = True
+                    branch = True
+                    branch_target = None
+                elif op == branch_ops.stm:
+                    if not self.sideband_state.task_mode:
+                        branch_target = pc + inst_len + 1
+                        branch = True
+                    else:
+                        branch = False
+                elif op == branch_ops.pc_w:
+                    branch = True
+                    branch_target = op_c >> 1
+                elif op == branch_ops.tpc_w:
+                    if self.sideband_state.task_mode:
+                        branch = True
+                        branch_target = None
+                    else:
+                        branch = False
+                elif op == branch_ops.pc_w_r:
+                    branch = True
+                    branch_target = op_a >> 1
+                elif op == branch_ops.tpc_w_r:
+                    if self.sideband_state.task_mode:
+                        branch = True
+                        branch_target = None
+                    else:
+                        branch = False
 
                 next_pc = pc + inst_len + 1 if not branch else branch_target
-                ecause_mask = 0
-                if not fetch_av:
+                if not is_exception:
                     next_spc = self.sideband_state.spc if     self.sideband_state.task_mode else next_pc
                     next_tpc = self.sideband_state.tpc if not self.sideband_state.task_mode else next_pc
                     next_task_mode = self.sideband_state.task_mode
+                    if op == branch_ops.stm: next_task_mode = 1
+                    if op == branch_ops.tpc_w: next_tpc = op_c >> 1
+                    if op == branch_ops.tpc_w_r: next_tpc = op_a >> 1
                 else:
                     if self.sideband_state.task_mode:
                         next_tpc = self.sideband_state.tpc
@@ -920,7 +992,6 @@ def sim():
                         next_tpc = self.sideband_state.tpc
                         next_spc = 0
                     next_task_mode = 0
-                    ecause_mask |= 1 << exc_mip
 
                 self.result_queue.append(Result(
                     data_l = None,
@@ -982,6 +1053,40 @@ def sim():
                 yield from send_bubble()
             yield from send_cbranch_op(branch_ops.cb_eq, 3, 4, 0x1000)
             yield from send_cbranch_op(branch_ops.cb_eq, 15, 15, 0x2000)
+            yield from send_cbranch_op(branch_ops.cb_ne, 3, 4, 0x1000)
+            yield from send_cbranch_op(branch_ops.cb_ne, 15, 15, 0x2000)
+            yield from send_cbranch_op(branch_ops.cb_lt, 3, 4, 0x1000)
+            yield from send_cbranch_op(branch_ops.cb_lt, 15, 15, 0x2000)
+            yield from send_cbranch_op(branch_ops.cb_lt, 4, 3, 0x3000)
+            yield from send_cbranch_op(branch_ops.cb_lts, 3, 4, 0x1000)
+            yield from send_cbranch_op(branch_ops.cb_lts, 15, 15, 0x2000)
+            yield from send_cbranch_op(branch_ops.cb_lts, 4, 3, 0x3000)
+            yield from send_cbranch_op(branch_ops.cb_ge, 3, 4, 0x1000)
+            yield from send_cbranch_op(branch_ops.cb_ge, 15, 15, 0x2000)
+            yield from send_cbranch_op(branch_ops.cb_ge, 4, 3, 0x3000)
+            yield from send_cbranch_op(branch_ops.cb_ges, 3, 4, 0x1000)
+            yield from send_cbranch_op(branch_ops.cb_ges, 15, 15, 0x2000)
+            yield from send_cbranch_op(branch_ops.cb_ges, 4, 3, 0x3000)
+            yield from send_cbranch_op(branch_ops.bb_one, 15, 3, 0x1000)
+            yield from send_cbranch_op(branch_ops.bb_one, 15, 6, 0x2000)
+            yield from send_cbranch_op(branch_ops.bb_zero, 15, 3, 0x1000)
+            yield from send_cbranch_op(branch_ops.bb_zero, 15, 6, 0x2000)
+            yield from send_cbranch_op(branch_ops.swi, 1, None, None)
+            set_side_band(tpc=0xddccbba, spc=0x2233445, task_mode=True)
+            yield from send_cbranch_op(branch_ops.swi, 2, None, None)
+            yield from send_cbranch_op(branch_ops.swi, 3, None, None, fetch_av=True)
+            yield from send_cbranch_op(branch_ops.pc_w, None, None, 0x1111)
+            yield from send_cbranch_op(branch_ops.pc_w_r, 0x2222, None, None)
+            yield from send_cbranch_op(branch_ops.tpc_w, None, None, 0x3333)
+            yield from send_cbranch_op(branch_ops.tpc_w_r, 0x4444, None, None)
+            set_side_band(tpc=0xddccbba, spc=0x2233445, task_mode=False)
+            yield from send_cbranch_op(branch_ops.pc_w, None, None, 0x1111)
+            yield from send_cbranch_op(branch_ops.pc_w_r, 0x2222, None, None)
+            yield from send_cbranch_op(branch_ops.tpc_w, None, None, 0x3333)
+            yield from send_cbranch_op(branch_ops.tpc_w_r, 0x4444, None, None)
+            yield from send_cbranch_op(branch_ops.stm, None, None, None)
+            set_side_band(tpc=0xddccbba, spc=0x2233445, task_mode=True)
+            yield from send_cbranch_op(branch_ops.stm, None, None, None)
 
     class ResultChecker(GenericModule):
         clk = ClkPort()
