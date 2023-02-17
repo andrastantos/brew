@@ -35,14 +35,12 @@ acc_len_32 = 2
 class alu_ops(Enum):
     a_plus_b     = 0
     a_minus_b    = 1
-    b_minus_a    = 2
-    pc_plus_a    = 3
-    a_and_b      = 4
-    not_a_and_b  = 5
-    a_or_b       = 6
-    a_xor_b      = 7
-    pc           = 8
-    tpc          = 9
+    a_and_b      = 2
+    not_b_and_a  = 3
+    a_or_b       = 4
+    a_xor_b      = 5
+    tpc          = 6
+    pc           = 7
 
 class shifter_ops(Enum):
     shll     = 0

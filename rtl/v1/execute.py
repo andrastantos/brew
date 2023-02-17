@@ -77,28 +77,59 @@ class AluUnit(Module):
     input_port = Input(AluInputIf)
     output_port = Output(AluOutputIf)
 
+    OPTIMIZED = True
     def body(self):
-        adder_result = Wire(Unsigned(33))
-        adder_result <<= SelectOne(
-            self.input_port.opcode == alu_ops.a_plus_b,     (self.input_port.op_a + self.input_port.op_b),
-            self.input_port.opcode == alu_ops.a_minus_b,    Unsigned(33)(self.input_port.op_a - self.input_port.op_b),
-            self.input_port.opcode == alu_ops.b_minus_a,    Unsigned(33)(self.input_port.op_b - self.input_port.op_a),
-            self.input_port.opcode == alu_ops.pc_plus_a,    (self.input_port.pc + self.input_port.op_a[30:0]),
-            self.input_port.opcode == alu_ops.a_or_b,       self.input_port.op_a | self.input_port.op_b,
-            self.input_port.opcode == alu_ops.a_and_b,      self.input_port.op_a & self.input_port.op_b,
-            self.input_port.opcode == alu_ops.not_a_and_b,  ~self.input_port.op_a & self.input_port.op_b,
-            self.input_port.opcode == alu_ops.a_xor_b,      self.input_port.op_a ^ self.input_port.op_b,
-            self.input_port.opcode == alu_ops.pc,           concat(self.input_port.pc, "1'b0"),
-            self.input_port.opcode == alu_ops.tpc,          concat(self.input_port.tpc, "1'b0"),
-        )
+        if self.OPTIMIZED:
+            c_in = Wire(logic)
+            c_in <<= (self.input_port.opcode == alu_ops.a_minus_b)
+            xor_b = Wire(BrewData)
+            xor_b <<= Select((self.input_port.opcode == alu_ops.a_minus_b) | (self.input_port.opcode == alu_ops.not_b_and_a), 0, 0xffffffff)
+            b = xor_b ^ self.input_port.op_b
+            a = self.input_port.op_a
+            sum = a + b + c_in
+            and_result = a & b
+            xor_result = self.input_port.op_a ^ self.input_port.op_b
 
-        self.output_port.result <<= adder_result[31:0]
-        self.output_port.f_zero <<= adder_result[31:0] == 0
-        self.output_port.f_sign <<= adder_result[31]
-        self.output_port.f_carry <<= adder_result[32]
-        # overflow for now is only valid for b_minus_a
-        # See https://en.wikipedia.org/wiki/Overflow_flag for details
-        self.output_port.f_overflow <<= (self.input_port.op_b[31] != self.input_port.op_a[31]) & (self.input_port.op_b[31] != adder_result[31])
+            use_adder = (self.input_port.opcode == alu_ops.a_plus_b) | (self.input_port.opcode == alu_ops.a_minus_b)
+            use_and = (self.input_port.opcode == alu_ops.a_and_b) | (self.input_port.opcode == alu_ops.not_b_and_a)
+            adder_result = Wire(Unsigned(33))
+            adder_result <<= SelectOne(
+                use_adder,                                      sum,
+                self.input_port.opcode == alu_ops.a_or_b,       self.input_port.op_a | self.input_port.op_b,
+                use_and,                                        and_result,
+                self.input_port.opcode == alu_ops.a_xor_b,      xor_result,
+                self.input_port.opcode == alu_ops.tpc,          concat(self.input_port.tpc, "1'b0"),
+                self.input_port.opcode == alu_ops.pc,           concat(self.input_port.pc, "1'b0"),
+            )
+
+            self.output_port.result <<= adder_result[31:0]
+            #self.output_port.f_zero <<= adder_result[31:0] == 0
+            self.output_port.f_zero <<= xor_result == 0
+            self.output_port.f_sign <<= adder_result[31]
+            self.output_port.f_carry <<= adder_result[32] ^ (self.input_port.opcode == alu_ops.a_minus_b)
+            # overflow for now is only valid for a_minus_b
+            # See https://en.wikipedia.org/wiki/Overflow_flag for details
+            self.output_port.f_overflow <<= (self.input_port.op_a[31] != self.input_port.op_b[31]) & (self.input_port.op_a[31] != adder_result[31])
+        else:
+            adder_result = Wire(Unsigned(33))
+            adder_result <<= SelectOne(
+                self.input_port.opcode == alu_ops.a_plus_b,     (self.input_port.op_a + self.input_port.op_b),
+                self.input_port.opcode == alu_ops.a_minus_b,    Unsigned(33)(self.input_port.op_a - self.input_port.op_b),
+                self.input_port.opcode == alu_ops.a_or_b,       self.input_port.op_a | self.input_port.op_b,
+                self.input_port.opcode == alu_ops.a_and_b,      self.input_port.op_a & self.input_port.op_b,
+                self.input_port.opcode == alu_ops.not_b_and_a,  ~self.input_port.op_b & self.input_port.op_a,
+                self.input_port.opcode == alu_ops.a_xor_b,      self.input_port.op_a ^ self.input_port.op_b,
+                self.input_port.opcode == alu_ops.tpc,          concat(self.input_port.tpc, "1'b0"),
+                self.input_port.opcode == alu_ops.pc,           concat(self.input_port.pc, "1'b0"),
+            )
+
+            self.output_port.result <<= adder_result[31:0]
+            self.output_port.f_zero <<= adder_result[31:0] == 0
+            self.output_port.f_sign <<= adder_result[31]
+            self.output_port.f_carry <<= adder_result[32]
+            # overflow for now is only valid for a_minus_b
+            # See https://en.wikipedia.org/wiki/Overflow_flag for details
+            self.output_port.f_overflow <<= (self.input_port.op_a[31] != self.input_port.op_b[31]) & (self.input_port.op_a[31] != adder_result[31])
 
 
 class ShifterInputIf(Interface):
@@ -770,22 +801,18 @@ def sim():
                         result = (op_a + op_b) & mask
                     elif op == alu_ops.a_minus_b:
                         result = (op_a - op_b) & mask
-                    elif op == alu_ops.b_minus_a:
-                        result = (op_b - op_a) & mask
-                    elif op == alu_ops.pc_plus_a:
-                        result = ((self.sideband_state.tpc if self.sideband_state.task_mode == 1 else self.sideband_state.spc) + op_a) & mask
                     elif op == alu_ops.a_and_b:
                         result = op_a & op_b
-                    elif op == alu_ops.not_a_and_b:
-                        result = ~op_a & op_b
+                    elif op == alu_ops.not_b_and_a:
+                        result = op_a & ~op_b
                     elif op == alu_ops.a_or_b:
                         result = op_a | op_b
                     elif op == alu_ops.a_xor_b:
                         result = op_a ^ op_b
-                    elif op == alu_ops.pc:
-                        result = (self.sideband_state.tpc if self.sideband_state.task_mode == 1 else self.sideband_state.spc) << 1
                     elif op == alu_ops.tpc:
                         result = self.sideband_state.tpc << 1
+                    elif op == alu_ops.pc:
+                        result = self.sideband_state.tpc << 1 if self.sideband_state.task_mode else self.sideband_state.spc << 1
                 elif unit == op_class.shift:
                     if op == shifter_ops.shll:
                         result = (op_a << (op_b & 31)) & mask
@@ -1018,15 +1045,14 @@ def sim():
             for i in range(5): yield from wait_clk()
             set_side_band()
             yield from send_alu_op(alu_ops.a_plus_b, 4, 3)
-            yield from send_alu_op(alu_ops.b_minus_a, 5, 6)
             yield from send_alu_op(alu_ops.a_minus_b, 7, 9)
             yield from send_alu_op(alu_ops.a_and_b, 4, 3)
             yield from send_alu_op(alu_ops.a_or_b, 12, 43)
             yield from send_alu_op(alu_ops.a_xor_b, 23, 12)
-            yield from send_alu_op(alu_ops.not_a_and_b, 4, 3)
+            yield from send_alu_op(alu_ops.not_b_and_a, 4, 3)
             set_side_band()
             yield from send_alu_op(alu_ops.a_plus_b, 4, 3, fetch_av=True)
-            yield from send_alu_op(alu_ops.not_a_and_b, 4, 3)
+            yield from send_alu_op(alu_ops.not_b_and_a, 4, 3)
             yield from send_mult_op(41,43)
             yield from send_shifter_op(shifter_ops.shll,0xf0000001,2)
             yield from send_shifter_op(shifter_ops.shll,0xf0000001,31)
@@ -1038,16 +1064,14 @@ def sim():
             yield from send_shifter_op(shifter_ops.shar,0xff00ff00,1)
             yield from send_shifter_op(shifter_ops.shar,0xff00ff00,8)
             set_side_band(tpc=0xddccbba, spc=0x2233445, task_mode=True)
-            yield from send_alu_op(alu_ops.pc_plus_a, 3, 2, 1)
-            yield from send_alu_op(alu_ops.pc, 3, 2, 1)
             yield from send_alu_op(alu_ops.tpc, 3, 2, 1)
+            yield from send_alu_op(alu_ops.pc, 3, 2, 1)
             yield from send_bubble()
             yield from send_bubble()
             yield from send_bubble()
             set_side_band(tpc=0xddccbba, spc=0x2233445, task_mode=False)
-            yield from send_alu_op(alu_ops.pc_plus_a, 3, 2, 1)
-            yield from send_alu_op(alu_ops.pc, 3, 2, 1)
             yield from send_alu_op(alu_ops.tpc, 3, 2, 1)
+            yield from send_alu_op(alu_ops.pc, 3, 2, 1)
             ### branch tests
             for i in range(5):
                 yield from send_bubble()
@@ -1087,6 +1111,18 @@ def sim():
             yield from send_cbranch_op(branch_ops.stm, None, None, None)
             set_side_band(tpc=0xddccbba, spc=0x2233445, task_mode=True)
             yield from send_cbranch_op(branch_ops.stm, None, None, None)
+            ### random ALU tests
+            for i in range(5):
+                yield from send_bubble()
+            for i in range(100):
+                op_a = randint(0, 0xffffffff)
+                op_b = randint(0, 0xffffffff)
+                yield from send_alu_op(alu_ops.a_plus_b,    op_a, op_b)
+                yield from send_alu_op(alu_ops.a_minus_b,   op_a, op_b)
+                yield from send_alu_op(alu_ops.a_and_b,     op_a, op_b)
+                yield from send_alu_op(alu_ops.a_or_b,      op_a, op_b)
+                yield from send_alu_op(alu_ops.a_xor_b,     op_a, op_b)
+                yield from send_alu_op(alu_ops.not_b_and_a, op_a, op_b)
 
     class ResultChecker(GenericModule):
         clk = ClkPort()
@@ -1287,7 +1323,7 @@ def sim():
                 yield from clk()
             self.rst <<= 0
 
-            for i in range(100):
+            for i in range(1000):
                 yield from clk()
             now = yield 10
             print(f"Done at {now}")
@@ -1306,6 +1342,6 @@ def gen():
     flow.run()
 
 if __name__ == "__main__":
-    #gen()
-    sim()
+    gen()
+    #sim()
 
