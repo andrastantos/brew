@@ -174,9 +174,18 @@ class MultUnit(Module):
     input_port = Input(MultInputIf)
     output_port = Output(MultOutputIf)
 
+    OPTIMIZED = True
     def body(self):
         if TIMING_CLOSURE_TESTS:
             mult_result = 0
+        elif self.OPTIMIZED:
+            partial_11 = (self.input_port.op_a[15: 0] * self.input_port.op_b[15: 0])
+            partial_12 = (self.input_port.op_a[31:16] * self.input_port.op_b[15: 0])[15:0]
+            partial_21 = (self.input_port.op_a[15: 0] * self.input_port.op_b[31:16])[15:0]
+            s1_partial_11 = Reg(partial_11, clock_en = self.input_port.valid)
+            s1_partial_12 = Reg(partial_12, clock_en = self.input_port.valid)
+            s1_partial_21 = Reg(partial_21, clock_en = self.input_port.valid)
+            mult_result = (s1_partial_11 + concat(s1_partial_12+s1_partial_21, "16'b0"))[31:0]
         else:
             op_a = Select(self.input_port.valid, Reg(self.input_port.op_a, clock_en = self.input_port.valid), self.input_port.op_a)
             op_b = Select(self.input_port.valid, Reg(self.input_port.op_b, clock_en = self.input_port.valid), self.input_port.op_b)
@@ -504,13 +513,12 @@ class ExecuteStage(Module):
         #result
 
         # Multiplier
-        s1_mult_output = Wire(MultOutputIf)
+        mult_output = Wire(MultOutputIf)
         mult_unit = MultUnit()
         mult_unit.input_port.valid  <<= stage_1_reg_en
         mult_unit.input_port.op_a   <<= self.input_port.op_a
         mult_unit.input_port.op_b   <<= self.input_port.op_b
-        s1_mult_output <<= Reg(mult_unit.output_port, clock_en = Reg(stage_1_reg_en)) # Need to delay the capture by one clock cycle
-        #result
+        mult_output <<= mult_unit.output_port
 
         # Delay inputs that we will need later
         s1_exec_unit = Reg(self.input_port.exec_unit, clock_en = stage_1_reg_en)
@@ -621,7 +629,7 @@ class ExecuteStage(Module):
         # Combine all outputs into a single output register, mux-in memory results
         result = SelectOne(
             s1_exec_unit == op_class.alu, s1_alu_output.result,
-            s1_exec_unit == op_class.mult, s1_mult_output.result,
+            s1_exec_unit == op_class.mult, mult_output.result,
             s1_exec_unit == op_class.shift, s1_shifter_output.result
         )
 
@@ -1044,6 +1052,14 @@ def sim():
                 yield from wait_clk()
             for i in range(5): yield from wait_clk()
             set_side_band()
+            yield from send_mult_op(41,100)
+            for i in range(5):
+                yield from send_bubble()
+            yield from send_mult_op(42,101)
+            yield from send_mult_op(43,102)
+            yield from send_mult_op(44,103)
+            for i in range(5):
+                yield from send_bubble()
             yield from send_alu_op(alu_ops.a_plus_b, 4, 3)
             yield from send_alu_op(alu_ops.a_minus_b, 7, 9)
             yield from send_alu_op(alu_ops.a_and_b, 4, 3)

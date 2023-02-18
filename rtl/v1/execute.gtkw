@@ -1,21 +1,21 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Tue Feb 14 01:38:16 2023
+[*] Thu Feb 16 19:59:38 2023
 [*]
 [dumpfile] "/home/tantos/brew/rtl/v1/execute.vcd"
-[dumpfile_mtime] "Tue Feb 14 01:37:55 2023"
-[dumpfile_size] 238127
+[dumpfile_mtime] "Thu Feb 16 19:58:13 2023"
+[dumpfile_size] 378597
 [savefile] "/home/tantos/brew/rtl/v1/execute.gtkw"
-[timestart] 0
+[timestart] 84
 [size] 1920 990
 [pos] -1 -1
-*-7.375637 250 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-7.375637 962 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.dut.
 [sst_width] 316
-[signals_width] 375
+[signals_width] 462
 [sst_expanded] 1
-[sst_vpaned_height] 269
+[sst_vpaned_height] 280
 @28
 top.dut.clk
 top.dut.rst
@@ -84,9 +84,8 @@ top.dut.do_branch
 top.dut.interrupt
 @1000200
 -SIDEBAND
-@23
-top.dut.pc[30:0]
 @22
+top.dut.pc[30:0]
 top.dut.branch_target_unit.input_port_pc[30:0]
 top.dut.branch_target_unit.output_port_straight_addr[30:0]
 @28
