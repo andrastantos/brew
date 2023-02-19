@@ -10,7 +10,7 @@ BrewInstAddr = Unsigned(31)
 BrewDWordAddr = Unsigned(30)
 BrewLineAddr = Unsigned(BrewLineAddrWidth)
 BrewLineAddrBtm = 2 # This is in words
-BrewBusAddr = Unsigned(31)
+BrewBusAddr = Unsigned(26) # including wait-state selection in top 4 bits
 BrewBusData = Unsigned(16)
 BrewData = Unsigned(32)
 BrewRegCnt = 15
@@ -86,11 +86,12 @@ access_len_32 = 2
 class BusIfRequestIf(ReadyValid):
     read_not_write  = logic
     byte_en         = Unsigned(2)
-    addr            = Unsigned(26) # Top 4 bits are used to set wait-state. This way anything can be accessed by any wait-state we want.
+    addr            = BrewBusAddr # Top 4 bits are used to set wait-state. This way anything can be accessed by any wait-state we want.
     dram_not_ext    = logic
     data            = BrewBusData
 
-class BusIfResponseIf(ReadyValid):
+class BusIfResponseIf(Interface):
+    valid           = logic
     data            = BrewBusData
 
 class ExternalBusIf(Interface):
@@ -104,16 +105,6 @@ class ExternalBusIf(Interface):
     nNREN         = logic
     nWAIT         = Reverse(logic)
 
-class BusIfPortIf(Interface):
-    request         = logic
-    read_not_write  = logic
-    burst_len       = Unsigned(2) # 0: single-beat, 1: two-beat, 3: 4-beat
-    byte_en         = Unsigned(2)
-    addr            = BrewBusAddr
-    data_in         = BrewBusData
-    response        = Reverse(logic)
-    data_out        = Reverse(BrewBusData)
-    last            = Reverse(logic)
 class FetchDecodeIf(ReadyValid):
     inst_0 = Unsigned(16)
     inst_1 = Unsigned(16)
@@ -141,15 +132,13 @@ class DecodeExecIf(ReadyValid):
     fetch_av = logic
 
 class MemInputIf(ReadyValid):
-    is_load = logic
-    is_store = logic
-    result_reg_addr = BrewRegAddr
-    result_reg_addr_valid = logic
-    result = BrewData
-    mem_addr = BrewAddr
-    mem_access_len = Unsigned(2) # 0 for 8-bit, 1 for 16-bit, 2 for 32-bit
+    read_not_write = logic
+    data = BrewData
+    addr = BrewAddr
+    access_len = Unsigned(2) # 0 for 8-bit, 1 for 16-bit, 2 for 32-bit
 
-class MemOuputIf(ReadyValid):
+class MemOutputIf(Interface):
+    valid = logic
     data_l = BrewBusData
     data_h = BrewBusData
 
@@ -182,14 +171,29 @@ class RegFileReadResponseIf(ReadyValid):
     read2_data = BrewData
 
 
-class CsrIf(Interface):
-    request = logic
+class ApbLightIf(Interface):
+    pwrite = logic
+    psel = logic
+    penable = logic
+    pready = Reverse(logic)
 
-    addr = BrewCsrAddr
-    wr_data = BrewCsrData
-    rd_data = Reverse(BrewCsrData)
-    read_not_write = logic
+    paddr = BrewCsrAddr
+    pwdata = BrewCsrData
+    prdata = Reverse(BrewCsrData)
 
+'''
+APB signalling
+
+               <-- read -->      <-- write ->
+    CLK     \__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/
+    psel    ___/^^^^^^^^^^^\_____/^^^^^^^^^^^\______
+    penable _________/^^^^^\___________/^^^^^\______
+    pready  ---------/^^^^^\-----------/^^^^^\------
+    pwrite  ---/^^^^^^^^^^^\-----\___________/------
+    paddr   ---<===========>-----<===========>------
+    prdata  ---------<=====>------------------------
+    pwdata  ---------------------<===========>------
+'''
 
 # Exception types:
 '''
