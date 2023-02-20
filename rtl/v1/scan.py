@@ -141,11 +141,11 @@ class ScanWrapper(GenericModule):
     odin = Input(logic)
     odout = Output(logic)
 
-    def construct(self, Top:Callable, black_list:Sequence[str] = None):
+    def construct(self, Top:Callable, black_list:Sequence[str] = None, *args, **kwargs):
         self.Top = Top
         self.black_list = black_list
 
-        self.top = self.Top()
+        self.top = self.Top(*args, **kwargs)
         for name, port in self.top.get_inputs().items():
             if self.black_list is not None and name in self.black_list:
                 my_port = self.create_named_port(f"top_{name}", port_type=Input)
