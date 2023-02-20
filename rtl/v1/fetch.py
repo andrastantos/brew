@@ -12,9 +12,13 @@ except ImportError:
 try:
     from .brew_types import *
     from .brew_utils import *
+    from .scan import ScanWrapper
+    from .synth import *
 except ImportError:
     from brew_types import *
     from brew_utils import *
+    from scan import ScanWrapper
+    from synth import *
 
 """
 In V1, fetch works from a 16-bit read port: it gets (up to) 16-bits of data at a time.
@@ -44,6 +48,7 @@ Things to test:
     - Cancelling in the same cycle we issue a request is busted: we update ADDR from the request,
       but cancel the first burst, so we start to fetch from the wrong address.
 - Test all sorts of invalid instruction sequences.
+- Bursts through a page boundary
 
 NOTE: Fetch as-is now has a minimum 4-cycle latency:
     1 cycle to initiate the bus request
@@ -141,7 +146,7 @@ class InstBuffer(Module):
             return a[BrewInstAddr.get_length()-1:0]
 
         advance_request = self.bus_if_request.valid & self.bus_if_request.ready
-        advance_response = self.bus_if_response.valid & self.bus_if_response.ready
+        advance_response = self.bus_if_response.valid
 
         branch_target = Wire()
         branch_target <<= Select(
@@ -260,7 +265,6 @@ class InstBuffer(Module):
         self.queue.data <<= self.bus_if_response.data
         self.queue.av <<= req_av
         self.queue.valid <<= self.bus_if_response.valid & ~flushing
-        self.bus_if_response.ready <<= 1 # We can't back-pressure the response interface (it doesn't even really check for it)
         #AssertOnClk(
         #    state != InstBufferStates.idle | self.queue.ready | (state != InstBufferStates.flush)
         #)
@@ -473,9 +477,6 @@ class FetchStage(Module):
         self.decode <<= inst_assemble.decode
         inst_assemble.do_branch <<= self.do_branch
 
-def gen():
-    Build.generate_rtl(FetchStage)
-
 """
 def sim():
 
@@ -660,7 +661,6 @@ def sim():
                         print(f"Reading BUS {addr:x} data:{data:x} at {now}")
                         delay_queue[-1] = data
                     if delay_queue[0] is not None:
-                        assert self.bus_if_response.ready
                         self.bus_if_response.data <<= delay_queue[0]
                         self.bus_if_response.valid <<= 1
                         print(f"    response data:{data:x} at {now}")
@@ -798,8 +798,18 @@ def sim():
     Build.simulation(top, "fetch.vcd", add_unnamed_scopes=True)
 
 
+def gen():
+    def top():
+        return ScanWrapper(FetchStage, {"clk", "rst"})
+
+    netlist = Build.generate_rtl(top, "fetch.sv")
+    top_level_name = netlist.get_module_class_name(netlist.top_level)
+    flow = QuartusFlow(target_dir="q_fetch", top_level=top_level_name, source_files=("fetch.sv",), clocks=(("clk", 10), ("top_clk", 100)), project_name="fetch")
+    flow.generate()
+    flow.run()
+
 
 if __name__ == "__main__":
-    #gen()
-    sim()
+    gen()
+    #sim()
 
