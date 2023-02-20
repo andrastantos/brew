@@ -85,7 +85,7 @@ class AluUnit(Module):
             xor_b = Wire(BrewData)
             xor_b <<= Select((self.input_port.opcode == alu_ops.a_minus_b) | (self.input_port.opcode == alu_ops.not_b_and_a), 0, 0xffffffff)
             b = xor_b ^ self.input_port.op_b
-            a = self.input_port.op_a
+            a = Select((self.input_port.opcode == alu_ops.pc_plus_b), self.input_port.op_a, concat(self.input_port.pc, "1'b0"))
             sum = a + b + c_in
             and_result = a & b
             xor_result = self.input_port.op_a ^ self.input_port.op_b
@@ -99,7 +99,7 @@ class AluUnit(Module):
                 use_and,                                        and_result,
                 self.input_port.opcode == alu_ops.a_xor_b,      xor_result,
                 self.input_port.opcode == alu_ops.tpc,          concat(self.input_port.tpc, "1'b0"),
-                self.input_port.opcode == alu_ops.pc,           concat(self.input_port.pc, "1'b0"),
+                self.input_port.opcode == alu_ops.pc_plus_b,    sum,
             )
 
             self.output_port.result <<= adder_result[31:0]
@@ -120,7 +120,7 @@ class AluUnit(Module):
                 self.input_port.opcode == alu_ops.not_b_and_a,  ~self.input_port.op_b & self.input_port.op_a,
                 self.input_port.opcode == alu_ops.a_xor_b,      self.input_port.op_a ^ self.input_port.op_b,
                 self.input_port.opcode == alu_ops.tpc,          concat(self.input_port.tpc, "1'b0"),
-                self.input_port.opcode == alu_ops.pc,           concat(self.input_port.pc, "1'b0"),
+                self.input_port.opcode == alu_ops.pc_plus_b,    concat(self.input_port.pc, "1'b0") + self.input_port.op_b,
             )
 
             self.output_port.result <<= adder_result[31:0]
@@ -817,8 +817,8 @@ def sim():
                         result = op_a ^ op_b
                     elif op == alu_ops.tpc:
                         result = self.sideband_state.tpc << 1
-                    elif op == alu_ops.pc:
-                        result = self.sideband_state.tpc << 1 if self.sideband_state.task_mode else self.sideband_state.spc << 1
+                    elif op == alu_ops.pc_plus_b:
+                        result = ((self.sideband_state.tpc << 1 if self.sideband_state.task_mode else self.sideband_state.spc << 1) + op_b) & mask
                 elif unit == op_class.shift:
                     if op == shifter_ops.shll:
                         result = (op_a << (op_b & 31)) & mask
@@ -1079,13 +1079,13 @@ def sim():
             yield from send_shifter_op(shifter_ops.shar,0xff00ff00,8)
             set_side_band(tpc=0xddccbba, spc=0x2233445, task_mode=True)
             yield from send_alu_op(alu_ops.tpc, 3, 2, 1)
-            yield from send_alu_op(alu_ops.pc, 3, 2, 1)
+            yield from send_alu_op(alu_ops.pc_plus_b, 3, 2, 1)
             yield from send_bubble()
             yield from send_bubble()
             yield from send_bubble()
             set_side_band(tpc=0xddccbba, spc=0x2233445, task_mode=False)
             yield from send_alu_op(alu_ops.tpc, 3, 2, 1)
-            yield from send_alu_op(alu_ops.pc, 3, 2, 1)
+            yield from send_alu_op(alu_ops.pc_plus_b, 3, 2, 1)
             ### branch tests
             for i in range(5):
                 yield from send_bubble()
@@ -1324,6 +1324,6 @@ def gen():
     flow.run()
 
 if __name__ == "__main__":
-    gen()
-    #sim()
+    #gen()
+    sim()
 

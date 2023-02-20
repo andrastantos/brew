@@ -40,7 +40,7 @@ class alu_ops(Enum):
     a_or_b       = 4
     a_xor_b      = 5
     tpc          = 6
-    pc           = 7
+    pc_plus_b    = 7
 
 class shifter_ops(Enum):
     shll     = 0
