@@ -13,9 +13,13 @@ except ImportError:
 try:
     from .brew_types import *
     from .brew_utils import *
+    from .scan import ScanWrapper
+    from .synth import *
 except ImportError:
     from brew_types import *
     from brew_utils import *
+    from scan import ScanWrapper
+    from synth import *
 
 """
 The register file for Brew consists of a single write and two read ports.
@@ -373,8 +377,15 @@ def sim():
     Build.simulation(top, "reg_file.vcd", add_unnamed_scopes=True)
 
 def gen():
-    Build.generate_rtl(RegFile)
+    def top():
+        return ScanWrapper(RegFile, {"clk", "rst"})
+
+    netlist = Build.generate_rtl(top, "reg_file.sv")
+    top_level_name = netlist.get_module_class_name(netlist.top_level)
+    flow = QuartusFlow(target_dir="q_reg_file", top_level=top_level_name, source_files=("reg_file.sv",), clocks=(("clk", 10), ("top_clk", 100)), project_name="reg_file")
+    flow.generate()
+    flow.run()
 
 if __name__ == "__main__":
-    #gen()
-    sim()
+    gen()
+    #sim()
