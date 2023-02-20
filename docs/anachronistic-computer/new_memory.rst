@@ -20,10 +20,9 @@ The DRAM bus::
 
                         <------- 4-beat burst -------------><---- single ----><---- single ----><---------- 4-beat burst ---------->
     CLK             \__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/
-    DRAM_nRAS_A     ^^^^^^^^^\_____________________________/^^^^^\___________/^^^^^\___________/^^^^^\_____________________________/
-    DRAM_nCAS_A     ^^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^^^^^^^^^\__/^^^^^^^^^^^^^^\__/^^^^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^
-    DRAM_nRAS_B     ^^^^^^^^^\_____________________________/^^^^^\___________/^^^^^\___________/^^^^^\_____________________________/
-    DRAM_nCAS_B     ^^^^^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^^^^^^^^^\__/^^^^^^^^^^^^^^\__/^^^^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^
+    DRAM_nRAS_A/B   ^^^^^^^^^\_____________________________/^^^^^\___________/^^^^^\___________/^^^^^\_____________________________/
+    DRAM_nCAS_0     ^^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^^^^^^^^^\__/^^^^^^^^^^^^^^\__/^^^^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^
+    DRAM_nCAS_1     ^^^^^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^^^^^^^^^\__/^^^^^^^^^^^^^^\__/^^^^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^
     DRAM_ADDR       ---------<==X=====X=====X=====X=====>--------<==X=====>--------<==X=====>--------<==X=====X=====X=====X=====>---
     DRAM_nWE        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     DRAM_DATA       --------------<>-<>-<>-<>-<>-<>-<>-<>-------------<>-<>--------------<>-<>-------------<>-<>-<>-<>-<>-<>-<>-<>--
@@ -57,8 +56,8 @@ Non-DRAM accesses:
                              <-- even read ---><--- odd write ---><- even read w. wait -->
     CLK             \__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/
     nNREN           ^^^^^^^^^\___________/^^^^^\___________/^^^^^\_________________/^^^^^^
-    DRAM_nCAS_A     ^^^^^^^^^^^^\________/^^^^^^^^^^^^^^^^^^^^^^^^^^\______________/^^^^^^
-    DRAM_nCAS_B     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\_____/^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    DRAM_nCAS_0     ^^^^^^^^^^^^^^^\_____/^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\___________/^^^^^^
+    DRAM_nCAS_1     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\_____/^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     DRAM_ADDR       ---------<==X========>-----<==X========>-----<==X==============>------
     DRAM_nWE        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
     DRAM_DATA       ---------------------<>----------------<>----------------------<>-----
@@ -78,16 +77,57 @@ Non-DRAM accesses:
     rsp_data        ---------------------<=====>-----------------------------------<=====>
 
 1. Bursts are not allowed
-2. Only 8-bit transfers are allowed
-3. LSB can be recovered by an R/S flop: nR <<= DRAM_nCAS_A; nS <<= DRAM_nCAS_B. It is guaranteed
-   that these signals never fall at the same time. It is also guaranteed that only one is low at
-   any given time.
+2. Only 8-bit transfers are allowed - bus_if will break up 16-bit transfers
+3. LSB address can be recovered by using DRAM_nCAS_0 as A0
 4. nWAIT is sampled on the rising edge of every cycle, after internal wait-states are accounted for
 5. There is at least one internal wait-state
 6. For writes, the relevant byte of 'req_data' should be valid.
 
+Number of address lines and banks needed
+========================================
 
+Since, I don't think we could either afford or drive more than 32 memory chips on the bus, with up to 4 banks we could support the following memory sizes:
 
+1-bit chips:
+
+====== ======== ========= ======================= ================= =============== ============ ===================
+Year   Capacity Word size Number of address lines Capacity per bank Number of banks Max capacity Number of RAM chips
+====== ======== ========= ======================= ================= =============== ============ ===================
+1978   64kbit   1         8                       128kByte          1               128kByte     16
+1978   64kbit   1         8                       128kByte          2               256kByte     32*
+1982   256kbit  1         9                       512kByte          1               512kByte     16
+1982   256kbit  1         9                       512kByte          2               1MByte       32*
+1986   1Mbit    1         10                      2MByte            1               2MByte       16
+1986   1Mbit    1         10                      2MByte            2               4MByte       32*
+1988   4Mbit    1         11                      8MByte            1               8MByte       16
+1988   4Mbit    1         11                      8MByte            2               16MByte      32*
+1991   16Mbit   1         12                      32MByte           1               32MByte      16
+====== ======== ========= ======================= ================= =============== ============ ===================
+
+4-bit chips:
+
+====== ======== ========= ======================= ================= =============== ============ ===================
+Year   Capacity Word size Number of address lines Capacity per bank Number of banks Max capacity Number of RAM chips
+====== ======== ========= ======================= ================= =============== ============ ===================
+1982   256kbit  4         8                       128kByte          1               128kByte     4
+1982   256kbit  4         8                       128kByte          2               256kByte     8
+1982   256kbit  4         8                       128kByte          4               512kByte     16
+1986   1Mbit    4         9                       512kByte          1               512MByte     4
+1986   1Mbit    4         9                       512kByte          2               1MByte       8
+1988   4Mbit    4         10                      2MByte            1               1MByte       4
+1986   1Mbit    4         9                       512kByte          4               2MByte       16
+1988   4Mbit    4         10                      2MByte            2               4MByte       8
+1991   16Mbit   4         11                      8MByte            1               8MByte       4
+1991   16Mbit   4         11                      8MByte            2               16MByte      8
+====== ======== ========= ======================= ================= =============== ============ ===================
+
+Here we assume that we can't have 4 banks of the larger chips since we mux the address lines with the bank-selects.
+
+This shows that at our introduction year ('84) we should have been able to support 0.5M in 4-bit configs and 1M in 1-bit configs.
+
+For modern systems though, (where we have access to all the DRAM sizes) we should probably go with only supporting 4-bit variants as those can also span the full supported ranges.
+
+4-banks work especially well with EDI-style 72-pin SIMM memories. The 2-bank versions would only be able to use one side of the SIMM, so dual-sided SIMMs would only work at half capacity. We should only need a single memory socket, where a 32MByte double-sided module would get us the full 16MByte capacity.
 
 How to make chips at home?
 ==========================
@@ -132,16 +172,25 @@ External keyboard setup (A1000 layout)
 * custom CPU
 * custom Graphics+sound+DMA
 * custom Classic I/O (mouse/joystick/serial/external keyboard)
+* custom bus-extender (DMA+interrupt)
 * SCSI
 * FDD
 
-External keyboard setup (modern)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+External keyboard setup (modern A500 layout)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 * custom CPU
 * custom Graphics+sound+DMA
-* custom Classic I/O (mouse/joystick/serial/external keyboard)
-* custom Nuvou I/O (keyboard/joystick/mouse over USB; SDCard)
+* custom Nuvou I/O 2 (keyboard/joystick/mouse over USB; SDCard; serial/sysconfig/I2C)
+
+Expandable setup (modern A1000 layout)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+* custom CPU
+* custom Graphics+sound+DMA
+* custom Nuvou I/O 2 (keyboard/joystick/mouse over USB; SDCard; serial/sysconfig/I2C)
+* custom bus-extender (DMA+interrupt)
+
 
 Pinouts
 =======
@@ -192,12 +241,11 @@ Pin Number Pin Name    Description
 34         PC_3_CTS    Port C bit 3; serial CST
 35         PC_4_KB_C   Port C but 4; PS/2 keyboard port clock pin
 36         PC_5_KB_D   Port C but 5; PS/2 keyboard port data pin
-37         PC_4_MS_C   Port C but 6; PS/2 mouse port clock pin
-38         PC_5_MS_D   Port C but 7; PS/2 mouse port data pin
+37         PC_6_MS_C   Port C but 6; PS/2 mouse port clock pin
+38         PC_7_MS_D   Port C but 7; PS/2 mouse port data pin
 39         VCC         Power input
 40         GND         Ground input
 ========== =========== ===========
-
 
 Nuvou I/O
 ---------
@@ -205,55 +253,48 @@ Nuvou I/O
 ========== =========== ===========
 Pin Number Pin Name    Description
 ========== =========== ===========
-1          A8_0        Multiplexed address bus
-2          A9_1        Multiplexed address bus
-3          A10_2       Multiplexed address bus
-4          A11_3       Multiplexed address bus
-5          A12_4       Multiplexed address bus
-6          A13_5       Multiplexed address bus
-7          A14_6       Multiplexed address bus
-8          A15_7       Multiplexed address bus
-9          A17_16      Multiplexed address bus
-10         A19_18      Multiplexed address bus
-11         A20_21      Multiplexed address bus
-12         D0          Data bus
-13         D1          Data bus
-14         D2          Data bus
-15         D3          Data bus
-16         D4          Data bus
-17         D5          Data bus
-18         D6          Data bus
-19         D7          Data bus
-20         nRAS_B0     Active low row-select, bank 0
-21         nCAS_B0     Active low column select, bank 0
-22         nRAS_B1     Active low row-select, bank 1
-23         nCAS_B1     Active low column select, bank 1
-24         nWE         Active low write-enable
-25         SYS_CLK     Clock input
-26         nRST        Active low reset input
-27         nINT        Active low interrupt output
-28         nBREQ_IN    Active low bus-request daisy-chain input
-29         nBREQ_OUT   Active low bus-request daisy-chain output
-30         nBGRANT     Active low bus-grant input
-31         nREG_CS     Active low chip-select for register accesses
-32         D+          USB D+
-33         D-          USB D-
-34         SD_D0       SD card connector
-35         SD_D1       SD card connector
-36         SD_D2       SD card connector
-37         SD_D3       SD card connector
-38         SD_CMD      SD card connector
-39         SD_CLK      SD card connector
-40         XTAL_IN     48MHz crytal oscillator pins
-41         XTAL_OUT    48MHz crytal oscillator pins
-42
-43
-44
-45
-46
-47         VCC         Power input
-48         GND         Ground input
+1          A0          Address bus
+2          A1          Address bus
+3          A2          Address bus
+4          A3          Address bus
+5          D0          Data bus
+6          D1          Data bus
+7          D2          Data bus
+8          D3          Data bus
+9          D4          Data bus
+10         D5          Data bus
+11         D6          Data bus
+12         D7          Data bus
+13         nDRQ        Active low DMA request
+14         nDACK       Active low DMA response
+15         nDMA_TC     DMA terminal count
+16         nCS         Active low chip select
+17         nWE         Active low write-enable
+18         SYS_CLK     Clock input
+19         nRST        Active low reset input
+20         nINT        Active low interrupt output
+21         D+          USB D+
+22         D-          USB D-
+23         SD_D0       SD card connector
+24         SD_D1       SD card connector
+25         SD_D2       SD card connector
+26         SD_D3       SD card connector
+27         SD_CMD      SD card connector
+28         SD_CLK      SD card connector
+29         XTAL_IN     48MHz crytal oscillator pins
+30         XTAL_OUT    48MHz crytal oscillator pins
+31         PA_0_TXD    Port A bit 0; serial RX
+32         PA_1_RXD    Port A bit 1; serial TX
+33         PA_2_RST    Port A bit 2; serial RST
+34         PA_3_CTS    Port A bit 3; serial CST
+35         PA_4_KB_C   Port A but 4; PS/2 keyboard port clock pin
+36         PA_5_KB_D   Port A but 5; PS/2 keyboard port data pin
+37         PA_6_SDA    Port A bit 6; I2C data
+38         PA_7_SCL    Port A bit 7; I2C clock
+39         VCC         Power input
+40         GND         Ground input
 ========== =========== ===========
+
 
 Combined graphics/sound/DMA
 ---------------------------
@@ -270,8 +311,8 @@ Pin Number Pin Name    Description
 7          A14_6       Multiplexed address bus
 8          A15_7       Multiplexed address bus
 9          A17_16      Multiplexed address bus
-10         A19_18      Multiplexed address bus
-11         A20_21      Multiplexed address bus
+10         A19_18      Multiplexed address bus, nRAS_C for bank C
+11         A20_21      Multiplexed address bus, nRAS_D for bank D
 12         D0          Data bus
 13         D1          Data bus
 14         D2          Data bus
@@ -280,10 +321,10 @@ Pin Number Pin Name    Description
 17         D5          Data bus
 18         D6          Data bus
 19         D7          Data bus
-20         nRAS_B0     Active low row-select, bank 0
-21         nCAS_B0     Active low column select, bank 0
-22         nRAS_B1     Active low row-select, bank 1
-23         nCAS_B1     Active low column select, bank 1
+20         nRAS_A      Active low row-select, bank A
+21         nRAS_B      Active low row-select, bank B
+22         nCAS_0      Active low column select, byte 0
+23         nCAS_1      Active low column select, byte 1
 24         nWE         Active low write-enable
 25         SYS_CLK     Clock output
 26         nRST        Active low reset input
@@ -326,8 +367,8 @@ Pin Number Pin Name    Description
 7          A14_6       Multiplexed address bus
 8          A15_7       Multiplexed address bus
 9          A17_16      Multiplexed address bus
-10         A19_18      Multiplexed address bus
-11         A20_21      Multiplexed address bus
+10         A19_18      Multiplexed address bus, nRAS_C for bank C
+11         A20_21      Multiplexed address bus, nRAS_D for bank D
 12         D0          Data bus
 13         D1          Data bus
 14         D2          Data bus
@@ -336,10 +377,10 @@ Pin Number Pin Name    Description
 17         D5          Data bus
 18         D6          Data bus
 19         D7          Data bus
-20         nRAS_B0     Active low row-select, bank 0
-21         nCAS_B0     Active low column select, bank 0
-22         nRAS_B1     Active low row-select, bank 1
-23         nCAS_B1     Active low column select, bank 1
+20         nRAS_A      Active low row-select, bank A
+21         nRAS_B      Active low row-select, bank B
+22         nCAS_0      Active low column select, byte 0
+23         nCAS_1      Active low column select, byte 1
 24         nNREN       Active low non-DRAM bus cycle qualifier
 25         nWE         Active low write-enable
 26         nWAIT       Active low wait-state input
@@ -364,7 +405,7 @@ New additions:
 * A second request/grant pair so that I/O and graphics doesn't have to daisy-chain
 * Built-in DMA controller for external peripherals (if doesn't fit, more bus request/grant channels as those are cheap)
 
-DMA extender
+Bus extender
 ------------
 
 ========== =========== ===========
@@ -379,8 +420,8 @@ Pin Number Pin Name    Description
 7          A14_6       Multiplexed address bus
 8          A15_7       Multiplexed address bus
 9          A17_16      Multiplexed address bus
-10         A19_18      Multiplexed address bus
-11         A20_21      Multiplexed address bus
+10         A19_18      Multiplexed address bus, nRAS_C for bank C
+11         A20_21      Multiplexed address bus, nRAS_D for bank D
 12         D0          Data bus
 13         D1          Data bus
 14         D2          Data bus
@@ -389,10 +430,10 @@ Pin Number Pin Name    Description
 17         D5          Data bus
 18         D6          Data bus
 19         D7          Data bus
-20         nRAS_B0     Active low row-select, bank 0
-21         nCAS_B0     Active low column select, bank 0
-22         nRAS_B1     Active low row-select, bank 1
-23         nCAS_B1     Active low column select, bank 1
+20         nRAS_A      Active low row-select, bank A
+21         nRAS_B      Active low row-select, bank B
+22         nCAS_0      Active low column select, byte 0
+23         nCAS_1      Active low column select, byte 1
 24         nWE         Active low write-enable
 25         SYS_CLK     Clock input
 26         nRST        Active low reset input
@@ -406,10 +447,17 @@ Pin Number Pin Name    Description
 34         nDACK_A     DMA channel A acknowledge output
 35         nDRQ_B      DMA channel B request input
 36         nDACK_B     DMA channel B acknowledge output
-37         DMA_TC      DMA terminal count output
-38
-39         VCC         Power input
-40         GND         Ground input
+37         nDRQ_C      DMA channel C request input
+38         nDACK_C     DMA channel C acknowledge output
+39         DMA_TC      DMA terminal count output
+41         IRQ_A       Interrupt signal A
+42         IRQ_B       Interrupt signal B
+43         IRQ_C       Interrupt signal C
+44         IRQ_D       Interrupt signal D
+45         IRQ_E       Interrupt signal E
+46
+47         VCC         Power input
+48         GND         Ground input
 ========== =========== ===========
 
 
@@ -423,128 +471,12 @@ We will stay with the very common NTSC clock rate of 28.63636MHz (double of what
 * 28.63636MHz/3 -> Audio clock option l (37.28kHz Fs)
 * 28.63636MHz/4 -> Audio clock option 2 (27.96kHz Fs)
 
-SPEED NOTES
-===========
+ISA bus notes
+=============
 
-STEP 1
-------
-
-Apparently memory AV testing is a big problem: this is a large adder (memory offset computation), followed by a comparator, which drives do_branch, which in turn goes all over the place. With it, timing closure only reaches 39MHz.
-
-For now, I've commented out to see what the impact is. But can we delay? If we've registered AV, it would fire on the first cycle of memory, the same time we issue the 'request' to the bus IF. That seems to be fine as long as we combine it into the request signal in memory.
-
-There's also an 'is_exception' signal out of execute, plus ecause and rcause things. Those I think could also be easily registered.
-
-The other consequence is that in the same cycle we signal the AV, we potentially accept the next instruction from decode. So we would need to be able to ignore that as well.
-
-This helped quite a bit, getting from 39 to 47MHz.
-
-STEP 2
-------
-
-Now the problem seems to be the reservation logic. It seems that this path is very much delay dominated. The path goes through 'mask_for_rd_eq_pc', which would be::
-
-    $rd <- $pc
-
-But judging from the path, it seems that the problem is the reservation board.
-
-I have tried a different selector logic (SelectOne instead of '<<' operation). We'll see what that gets us, if anything. Unfortunately, putting a stage into this path is very bad for speed: it would mean that we woult not know if we've cleared the read-after-write hazards a cycle later.
-
-STEP 3
-------
-
-We are hitting some butterfly effect now? The path (with slightly *worse* timing) is in the cbranch path. This *must* be through do_branch again, as we're hitting the fetch stage, but really the path is probably somewhat different as I don't see it on the path.
-
-As a test, I'll add a register to do_branch in 'pipeline'. That of course is wrong, but should break these long paths.
-
-STEP 4
-------
-
-We've arrived at the multiplier. I'm just going to comment it out for now, but first record the area as well. So, before area:
-
-Well, shit, I've re-ran the router, instead of looking at the report...
-
-    ---------------------------------------
-    Resource Usage Report for BREW_V1
-
-    Mapping to part: ice40hx8kcm225
-    Cell usage:
-    GND             26 uses
-    SB_CARRY        638 uses
-    SB_DFF          11 uses
-    SB_DFFE         32 uses
-    SB_DFFESR       336 uses
-    SB_DFFSR        231 uses
-    SB_DFFSS        6 uses
-    SB_GB           5 uses
-    SB_RAM256x16    6 uses
-    VCC             26 uses
-    SB_LUT4         3699 uses
-
-    I/O ports: 38
-    I/O primitives: 38
-    SB_GB_IO       2 uses
-    SB_IO          36 uses
-
-    I/O Register bits:                  0
-    Register bits not including I/Os:   616 (8%)
-
-    RAM/ROM usage summary
-    Block Rams : 6 of 32 (18%)
-
-    Total load per clock:
-    clk: 1
-
-    @S |Mapping Summary:
-    Total  LUTs: 3699 (48%)
-
-    Distribution of All Consumed LUTs = LUT4
-    Distribution of All Consumed Luts 3699 = 3699
-
-After:
-
-    ---------------------------------------
-    Resource Usage Report for BREW_V1
-
-    Mapping to part: ice40hx8kcm225
-    Cell usage:
-    GND             27 uses
-    SB_CARRY        173 uses
-    SB_DFF          11 uses
-    SB_DFFE         57 uses
-    SB_DFFESR       224 uses
-    SB_DFFSR        310 uses
-    SB_DFFSS        6 uses
-    SB_GB           5 uses
-    SB_RAM256x16    6 uses
-    VCC             27 uses
-    SB_LUT4         2839 uses
-
-    I/O ports: 38
-    I/O primitives: 38
-    SB_GB_IO       2 uses
-    SB_IO          36 uses
-
-    I/O Register bits:                  0
-    Register bits not including I/Os:   608 (7%)
-
-    RAM/ROM usage summary
-    Block Rams : 6 of 32 (18%)
-
-    Total load per clock:
-    clk: 1
-
-    @S |Mapping Summary:
-    Total  LUTs: 2839 (36%)
-
-So, we've dropped from 3700 to 2840 LUTs. That's ~25% reduction. Nice!!
-
-Still no benefit in speed though: we're still looking at ~50MHz clock rate.
-
-STEP 5
-------
-
-We're not getting too far: we're back to the problem with reservation logic.
-
-This is not looking good. The problem seems to be that the reservation logic holds up the acceptance from fetch (combinatorially), which holds up instruction assemble and through that inst_queue.
-
+*VGA* cards used both memory and I/O, but really nothing beyond the first 1MB address range. They didn't use DMA. They might have used an interrupt
+*Ethernet* cards used memory mapped ring buffers (I think) and I/O of course. Most were 16-bit, but no DMA and a few interrupts.
+*Serial/parallel* cards used I/O and interrupt(s)
+*IDE* interface used only a few I/O registers (16-bits) and (16-bit) DMA. It used a single interrupt line
+*Sound* cards (at least Sound Blasters) used 16-bit I/O and (both 8- and 16-bot) DMA. They used interrupts as well.
+*SCSI* cards are a bit tricky. Some Adaptec cards might even have been bus-masters. Others, such as the SYM20403 seems to have not even used DMAs. Many contained on-board BIOS, which of course is problematic.
