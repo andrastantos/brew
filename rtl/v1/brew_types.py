@@ -62,8 +62,8 @@ class branch_ops(Enum):
 
     swi      = 9 # SWI index comes in op_a
     stm      = 10
-    pc_w_r   = 11
-    tpc_w_r  = 12
+    pc_w   = 11
+    tpc_w  = 12
 
 class ldst_ops(Enum):
     store = 0

@@ -300,16 +300,16 @@ class BranchUnit(Module):
 
         # Set whenever we branch without a mode change
         in_mode_branch = SelectOne(
-            self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.pc_w_r),   1,
-            self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.tpc_w_r),  self.input_port.task_mode,
+            self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.pc_w),   1,
+            self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.tpc_w),  self.input_port.task_mode,
             is_exception,                                                                     ~self.input_port.task_mode,
             self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.stm),      0,
             default_port =                                                                    condition_result,
         )
 
         branch_target = SelectOne(
-            self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.pc_w_r),                                 self.input_port.op_a[31:1],
-            self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.tpc_w_r),                                self.input_port.op_a[31:1],
+            self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.pc_w),                                 self.input_port.op_a[31:1],
+            self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.tpc_w),                                self.input_port.op_a[31:1],
             self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.stm),                                    self.input_port.tpc,
             default_port =                                                                                                  Select(is_exception | self.input_port.interrupt, self.input_port.branch_addr, self.input_port.tpc),
         )
@@ -320,7 +320,7 @@ class BranchUnit(Module):
         self.output_port.tpc_changed    <<= Select(
             self.input_port.task_mode,
             # In Scheduler mode: TPC can only change through TCP manipulation instructions. For those, the value comes through op_c
-            self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.tpc_w_r),
+            self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.tpc_w),
             # In task mode, all branches count, but so do exceptions which, while don't change TPC, they don't update TPC either.
             in_mode_branch | is_exception | self.input_port.interrupt
         )
@@ -987,10 +987,10 @@ def sim():
                         branch = True
                     else:
                         branch = False
-                elif op == branch_ops.pc_w_r:
+                elif op == branch_ops.pc_w:
                     branch = True
                     branch_target = op_a >> 1
-                elif op == branch_ops.tpc_w_r:
+                elif op == branch_ops.tpc_w:
                     if self.sideband_state.task_mode:
                         branch = True
                         branch_target = None
@@ -1003,7 +1003,7 @@ def sim():
                     next_tpc = self.sideband_state.tpc if not self.sideband_state.task_mode else next_pc
                     next_task_mode = self.sideband_state.task_mode
                     if op == branch_ops.stm: next_task_mode = 1
-                    if op == branch_ops.tpc_w_r: next_tpc = op_a >> 1
+                    if op == branch_ops.tpc_w: next_tpc = op_a >> 1
                 else:
                     if self.sideband_state.task_mode:
                         next_tpc = self.sideband_state.tpc
@@ -1100,11 +1100,11 @@ def sim():
             set_side_band(tpc=0xddccbba, spc=0x2233445, task_mode=True)
             yield from send_cbranch_op(branch_ops.swi, 2, None, None)
             yield from send_cbranch_op(branch_ops.swi, 3, None, None, fetch_av=True)
-            yield from send_cbranch_op(branch_ops.pc_w_r, 0x2222, None, None)
-            yield from send_cbranch_op(branch_ops.tpc_w_r, 0x4444, None, None)
+            yield from send_cbranch_op(branch_ops.pc_w, 0x2222, None, None)
+            yield from send_cbranch_op(branch_ops.tpc_w, 0x4444, None, None)
             set_side_band(tpc=0xddccbba, spc=0x2233445, task_mode=False)
-            yield from send_cbranch_op(branch_ops.pc_w_r, 0x2222, None, None)
-            yield from send_cbranch_op(branch_ops.tpc_w_r, 0x4444, None, None)
+            yield from send_cbranch_op(branch_ops.pc_w, 0x2222, None, None)
+            yield from send_cbranch_op(branch_ops.tpc_w, 0x4444, None, None)
             yield from send_cbranch_op(branch_ops.stm, None, None, None)
             set_side_band(tpc=0xddccbba, spc=0x2233445, task_mode=True)
             yield from send_cbranch_op(branch_ops.stm, None, None, None)
@@ -1307,6 +1307,6 @@ def gen():
     flow.run()
 
 if __name__ == "__main__":
-    gen()
-    #sim()
+    #gen()
+    sim()
 
