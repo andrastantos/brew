@@ -5,9 +5,13 @@ from silicon import *
 try:
     from .brew_types import *
     from .brew_utils import *
+    from .scan import ScanWrapper
+    from .synth import *
 except ImportError:
     from brew_types import *
     from brew_utils import *
+    from scan import ScanWrapper
+    from synth import *
 
 """
 Bus interface of the V1 pipeline.
@@ -609,13 +613,21 @@ def sim():
             now = yield 10
             print(f"Done at {now}")
 
-    Build.simulation(top, "bus_if2.vcd", add_unnamed_scopes=True)
+    Build.simulation(top, "bus_if.vcd", add_unnamed_scopes=True)
 
 
 def gen():
-    Build.generate_rtl(BusIf)
+    def top():
+        return ScanWrapper(BusIf, {"clk", "rst"})
+
+    netlist = Build.generate_rtl(top, "bus_if.sv")
+    top_level_name = netlist.get_module_class_name(netlist.top_level)
+    flow = QuartusFlow(target_dir="q_bus_if", top_level=top_level_name, source_files=("bus_if.sv",), clocks=(("clk", 10), ("top_clk", 100)), project_name="bus_if")
+    flow.generate()
+    flow.run()
+
 
 if __name__ == "__main__":
-    #gen()
-    sim()
+    gen()
+    #sim()
 
