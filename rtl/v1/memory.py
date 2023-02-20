@@ -55,7 +55,7 @@ class MemoryStage(GenericModule):
     bus_rsp_if = Input(BusIfResponseIf)
 
     # Interface to the CSR registers
-    csr_if = Output(ApbLightIf)
+    csr_if = Output(CsrIf)
 
     def construct(self, csr_base: int, nram_base: int):
         self.csr_base = csr_base
@@ -207,7 +207,7 @@ class MemoryStage(GenericModule):
 def sim():
 
     class CsrQueueItem(object):
-        def __init__(self, req: ApbLightIf = None, *, pwrite = None, paddr = None, pwdata = None):
+        def __init__(self, req: CsrIf = None, *, pwrite = None, paddr = None, pwdata = None):
             if req is not None:
                 self.pwrite = req.pwrite
                 self.paddr  = req.paddr
@@ -232,7 +232,7 @@ def sim():
         clk = ClkPort()
         rst = RstPort()
 
-        input_port = Input(ApbLightIf)
+        input_port = Input(CsrIf)
 
         def construct(self, queue: List[CsrQueueItem]):
             self.queue = queue

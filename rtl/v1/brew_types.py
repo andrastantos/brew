@@ -68,9 +68,8 @@ class branch_ops(Enum):
     tpc_w_r  = 16
 
 class ldst_ops(Enum):
-    ldst_none = 0
+    ldst_store = 0
     ldst_load  = 1
-    ldst_store = 2
 
 class op_class(Enum):
     alu     = 0
@@ -148,7 +147,8 @@ class RegFileWriteBackIf(Interface):
     data_en = logic
     addr = BrewRegAddr
 
-class ResultExtendIf(ReadyValid):
+class ResultExtendIf(Interface):
+    valid = logic
     data_l = BrewBusData
     data_h = BrewBusData
     data_en = logic
@@ -171,7 +171,7 @@ class RegFileReadResponseIf(ReadyValid):
     read2_data = BrewData
 
 
-class ApbLightIf(Interface):
+class CsrIf(Interface):
     pwrite = logic
     psel = logic
     penable = logic

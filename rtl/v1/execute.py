@@ -383,8 +383,6 @@ class LoadStoreUnit(Module):
         eff_addr = (self.input_port.op_b + self.input_port.op_c)[31:0]
         phy_addr = (eff_addr + Select(self.input_port.task_mode, 0, (self.input_port.mem_base << BrewMemShift)))[31:0]
 
-        mem_op = self.input_port.opcode != ldst_ops.ldst_none
-
         mem_av = self.input_port.is_ldst & (eff_addr[31:BrewMemShift] > self.input_port.mem_limit)
         mem_unaligned = self.input_port.is_ldst & Select(self.input_port.mem_access_len,
             0, # 8-bit access is always aligned
@@ -394,10 +392,10 @@ class LoadStoreUnit(Module):
         )
 
         self.output_port.phy_addr <<= phy_addr
-        self.output_port.mem_av <<= mem_av & mem_op
-        self.output_port.mem_unaligned <<= mem_unaligned & mem_op
+        self.output_port.mem_av <<= mem_av
+        self.output_port.mem_unaligned <<= mem_unaligned
 
-class ExecuteStage(Module):
+class ExecuteStage(GenericModule):
     clk = ClkPort()
     rst = RstPort()
 
@@ -429,6 +427,10 @@ class ExecuteStage(Module):
     interrupt = Input(logic)
 
     complete = Output(logic) # goes high for 1 cycle when an instruction completes. Used for verification
+
+    def construct(self, csr_base: int, nram_base: int):
+        self.csr_base = csr_base
+        self.nram_base = nram_base
 
     def body(self):
         # We have two stages in one, really here
@@ -543,7 +545,7 @@ class ExecuteStage(Module):
         ########################################
         # Ready-valid FSM
         mem_input = Wire(MemInputIf)
-        s2_mem_output = Wire(MemOuputIf)
+        s2_mem_output = Wire(MemOutputIf)
 
         s2_pc = Select(s1_task_mode, s1_spc, s1_tpc)
 
@@ -551,16 +553,15 @@ class ExecuteStage(Module):
 
         # NOTE: The use of s1_exec_unit here is not exactly nice: we depend on it being static independent of stage_2_ready.
         # It's correct, but it's not nice.
-        # NOTE: since we're going out to the RF write port, self.output_port.ready is constant '1'. That in turn means
-        #       that stage_2_fsm.input_ready is also constant '1'. So, really the only reason we would apply back-pressure
+        # NOTE: since we're going out to the RF write port, self.output_port.ready doesn't exist. That in turn means
+        #       that stage_2_fsm.input_ready is constant '1'. So, really the only reason we would apply back-pressure
         #       is if there's a pending bus operation.
         stage_2_fsm = ForwardBufLogic()
         stage_2_fsm.input_valid <<= stage_1_valid
         mem_input.valid <<= stage_1_valid
         stage_2_ready <<= Select(s1_exec_unit == op_class.ld_st, stage_2_fsm.input_ready, mem_input.ready)
         stage_2_valid <<= Select(s1_exec_unit == op_class.ld_st, stage_2_fsm.output_valid, s2_mem_output.valid)
-        stage_2_fsm.output_ready <<= self.output_port.ready | ~s1_result_reg_addr_valid
-        s2_mem_output.ready <<= self.output_port.ready | ~s1_result_reg_addr_valid
+        stage_2_fsm.output_ready <<= 1
 
         stage_2_reg_en = Wire(logic)
         stage_2_reg_en <<= stage_2_fsm.out_reg_en
@@ -608,16 +609,13 @@ class ExecuteStage(Module):
         #do_branch
 
         # Memory unit
-        memory_unit = MemoryStage()
+        memory_unit = MemoryStage(csr_base=self.csr_base, nram_base=self.nram_base)
 
 
-        mem_input.is_load <<= (s1_exec_unit == op_class.ld_st) & (s1_ldst_op == ldst_ops.ldst_load) & ~s1_ldst_output.mem_av & ~s1_ldst_output.mem_unaligned
-        mem_input.is_store <<= (s1_exec_unit == op_class.ld_st) & (s1_ldst_op == ldst_ops.ldst_store) & ~s1_ldst_output.mem_av & ~s1_ldst_output.mem_unaligned
-        mem_input.result_reg_addr <<= s1_result_reg_addr
-        mem_input.result_reg_addr_valid <<= s1_result_reg_addr_valid
-        mem_input.result <<= s1_op_a
-        mem_input.mem_addr <<= s1_ldst_output.phy_addr
-        mem_input.mem_access_len <<= s1_mem_access_len
+        mem_input.read_not_write <<= (s1_exec_unit == op_class.ld_st) & (s1_ldst_op == ldst_ops.ldst_load) & ~s1_ldst_output.mem_av & ~s1_ldst_output.mem_unaligned
+        mem_input.data <<= s1_op_a
+        mem_input.addr <<= s1_ldst_output.phy_addr
+        mem_input.access_len <<= s1_mem_access_len
         memory_unit.input_port <<= mem_input
         self.bus_req_if <<= memory_unit.bus_req_if
         memory_unit.bus_rsp_if <<= self.bus_rsp_if
@@ -1173,7 +1171,6 @@ def sim():
                     yield (self.clk, )
 
             while True:
-                self.input_port.ready <<= 1
                 yield from wait_clk()
                 if self.complete == 1:
                     expected: Result = self.result_queue.pop(0)
@@ -1183,105 +1180,73 @@ def sim():
                         print(f"Result $tpc:{self.tpc:08x} (expected:{expected.tpc_out:08x}) $spc:{self.spc:08x} (expected:{expected.spc_out:08x}) task_mode:{self.task_mode} (expected:{expected.task_mode_out})")
                     assert expected.compare(self.input_port, self.spc, self.tpc, self.task_mode, self.ecause, self.do_branch)
 
-    class CsrEmulator(Module):
+
+    class CsrQueueItem(object):
+        def __init__(self, req: CsrIf = None, *, pwrite = None, paddr = None, pwdata = None):
+            if req is not None:
+                self.pwrite = req.pwrite
+                self.paddr  = req.paddr
+                self.pwdata = req.pwdata
+            else:
+                self.pwrite = 1 if pwrite else 0
+                self.paddr  = paddr
+                self.pwdata = pwdata
+        def report(self,prefix):
+            if not self.pwrite:
+                print(f"{prefix} reading CSR {self.paddr:03x}")
+            else:
+                data_str = f"{self.pwdata:08x}" if self.pwdata is not None else "--------"
+                print(f"{prefix} writing CSR {self.paddr:03x} data:{data_str}")
+        def compare(self, actual: Union[BusIfRequestIf, 'BusIfQueueItem']):
+            assert self.pwrite is None or actual.pwrite == self.pwrite
+            assert self.paddr is None or actual.paddr == self.paddr
+            assert self.pwdata is None or actual.pwdata == self.pwdata
+
+    class CsrEmulator(GenericModule):
         clk = ClkPort()
         rst = RstPort()
 
         input_port = Input(CsrIf)
 
-        def simulate(self) -> TSimEvent:
+        def construct(self, queue: List[CsrQueueItem]):
+            self.queue = queue
+
+        def simulate(self, simulator) -> TSimEvent:
             def wait_clk():
                 yield (self.clk, )
                 while self.clk.get_sim_edge() != EdgeType.Positive:
                     yield (self.clk, )
 
-            self.input_port.rd_data <<= None
+            self.input_port.pready <<= None
+            self.input_port.prdata <<= None
             while True:
                 yield from wait_clk()
 
                 if self.rst == 1:
-                    self.input_port.rd_data <<= None
+                    self.input_port.pready <<= None
+                    self.input_port.prdata <<= None
                 else:
-                    if self.input_port.request == 1:
-                        if self.input_port.read_not_write:
+                    if (self.input_port.psel == 1):
+                        self.input_port.pready <<= 1
+                        if self.input_port.pwrite == 0:
                             # Read request
-                            print(f"Reading CSR {self.input_port.addr:x}")
-                            self.input_port.rd_data <<= None
-                            yield from wait_clk()
-                            self.input_port.rd_data <<= self.input_port.addr
-                        else:
-                            # Write request
-                            print(f"Writing CSR {self.input_port.addr:x} with {self.input_port.wr_data:x}")
-                            self.input_port.rd_data <<= None
+                            actual = CsrQueueItem(self.input_port)
+                            actual.report(f"{simulator.now:4d}")
+                            if(self.input_port.penable == 0):
+                                expected = self.queue.pop(0)
+                            expected.compare(actual)
+                            self.input_port.prdata <<= self.input_port.paddr | ((self.input_port.paddr+1) << 16)
+                        if(self.input_port.penable == 1):
+                            if self.input_port.pwrite == 1:
+                                # Write request
+                                actual = CsrQueueItem(self.input_port)
+                                actual.report(f"{simulator.now:4d}")
+                                expected = self.queue.pop(0)
+                                expected.compare(actual)
+                                self.input_port.prdata <<= None
                     else:
-                        self.input_port.rd_data <<= None
-
-    '''
-    class BusEmulator(Module):
-        clk = ClkPort()
-        rst = RstPort()
-
-        input_port = Input(BusIfPortIf)
-
-        def simulate(self, simulator: 'Simulator') -> TSimEvent:
-            def wait_clk():
-                yield (self.clk, )
-                while self.clk.get_sim_edge() != EdgeType.Positive:
-                    yield (self.clk, )
-
-            self.input_port.response <<= 0
-            self.input_port.data_out <<= None
-            self.input_port.last <<= None
-            while True:
-                yield from wait_clk()
-
-                if self.rst == 1:
-                    self.input_port.response <<= 0
-                    self.input_port.data_out <<= None
-                    self.input_port.last <<= None
-                else:
-                    if self.input_port.request == 1:
-                        burst_cnt = self.input_port.burst_len.sim_value+1
-                        if self.input_port.read_not_write:
-                            # Read request
-                            addr = self.input_port.addr
-                            data = self.input_port.addr[15:0]
-                            print(f"Reading BUS {addr:x} burst:{self.input_port.burst_len} byte_en:{self.input_port.byte_en}")
-                            self.input_port.response <<= 0
-                            self.input_port.last <<= 0
-                            self.input_port.data_out <<= None
-                            #yield from wait_clk()
-                            self.input_port.response <<= 1
-                            for i in range(burst_cnt):
-                                self.input_port.last <<= 1 if i == burst_cnt-1 else 0
-                                self.input_port.response <<= 1 if i <= burst_cnt-1 else 0
-                                yield from wait_clk()
-                                print(f"    data:{data:x}")
-                                self.input_port.data_out <<= data
-                                data = data + 1
-                            self.input_port.response <<= 0
-                            self.input_port.last <<= 0
-                        else:
-                            # Write request
-                            print(f"Writing BUS {self.input_port.addr:x} burst:{self.input_port.burst_len} byte_en:{self.input_port.byte_en}")
-                            self.input_port.response <<= 0
-                            self.input_port.last <<= 0
-                            self.input_port.data_out <<= None
-                            #print(f"    data:{self.input_port.data_in:x} at {simulator.now}")
-                            #yield from wait_clk()
-                            self.input_port.response <<= 1
-                            for i in range(burst_cnt):
-                                print(f"    data:{self.input_port.data_in:x} at {simulator.now}")
-                                self.input_port.last <<= 1 if i == burst_cnt-1 else 0
-                                self.input_port.response <<= 1 if i <= burst_cnt-1 else 0
-                                yield from wait_clk()
-                            self.input_port.response <<= 0
-                            self.input_port.last <<= 0
-                    else:
-                        self.input_port.response <<= 0
-                        self.input_port.data_out <<= None
-                        self.input_port.last <<= None
-        '''
+                        self.input_port.pready <<= None
+                        self.input_port.prdata <<= None
     class top(Module):
         clk = ClkPort()
         rst = RstPort()
@@ -1289,16 +1254,17 @@ def sim():
         def body(self):
             seed(0)
             result_queue = []
+            csr_queue = []
 
             class SidebandState(object): pass
             sideband_state = SidebandState()
 
             decode_emulator = DecodeEmulator(result_queue, sideband_state)
-            csr_emulator = CsrEmulator()
+            csr_emulator = CsrEmulator(csr_queue)
             #bus_emulator = BusEmulator()
             result_checker = ResultChecker(result_queue, sideband_state)
 
-            dut = ExecuteStage()
+            dut = ExecuteStage(csr_base=0xc, nram_base=0xf)
 
             dut.input_port <<= decode_emulator.output_port
             result_checker.input_port <<= dut.output_port
@@ -1349,7 +1315,7 @@ def sim():
 
 def gen():
     def top():
-        return ScanWrapper(ExecuteStage, {"clk", "rst"})
+        return ScanWrapper(ExecuteStage, {"clk", "rst"}, csr_base=0xc, nram_base=0xf)
 
     netlist = Build.generate_rtl(top, "execute.sv")
     top_level_name = netlist.get_module_class_name(netlist.top_level)
