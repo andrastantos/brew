@@ -2,6 +2,7 @@
 from random import *
 from typing import *
 from copy import copy
+from typing import List
 
 try:
     from silicon import *
@@ -39,42 +40,28 @@ In other words, AV and unaligned exceptions are generated in a previous stage.
 
 """
 
-# TODO: I think the memory stage is completely busted
-class MemoryStage(Module):
+class MemoryStage(GenericModule):
     clk = ClkPort()
     rst = RstPort()
 
 
     # Pipeline input from execute
     input_port = Input(MemInputIf)
-    #      read_not_write = logic
-    #      data_l = BrewBusData
-    #      data_h = BrewBusData
-    #      addr = BrewAddr
-    #      access_len = Unsigned(2) # 0 for 8-bit, 1 for 16-bit, 2 for 32-bit
-
     # Pipeline output to register file
     output_port = Output(MemOutputIf)
 
     # Interface to the bus interface
     bus_req_if = Output(BusIfRequestIf)
-    #      read_not_write  = logic
-    #      byte_en         = Unsigned(2)
-    #      addr            = BrewBusAddr
-    #      dram_not_ext    = logic
-    #      data            = BrewBusData
     bus_rsp_if = Input(BusIfResponseIf)
 
     # Interface to the CSR registers
     csr_if = Output(ApbLightIf)
 
-    #def construct(self, csr_base: int):
-    #    assert csr_base & 0x0fffffff == 0, "CSR address decode uses the top 4 bits of the address"
-    #    self.csr_base = csr_base >> 28
+    def construct(self, csr_base: int, nram_base: int):
+        self.csr_base = csr_base
+        self.nram_base = nram_base
 
     def body(self):
-        self.csr_base = 0xc
-        self.ndram_base = 0xf
 
         '''
                                       +--- 32-bit DRAM read          +--- 16-bit DRAM read   +--- 32-bit I/O read
@@ -152,12 +139,14 @@ class MemoryStage(Module):
 
         csr_pen = Wire(logic)
 
-        is_csr = remember(self.input_port, self.input_port.addr[31:28] == self.csr_base)
-        is_ndram = self.input_port.addr[31:28] == self.ndram_base
+        is_csr = Wire(logic)
+
+        is_nram = self.input_port.addr[31:28] == self.nram_base
 
         input_advance = (self.input_port.ready & self.input_port.valid)
         bus_request_advance = (self.bus_req_if.ready & self.bus_req_if.valid)
         bus_response_advance = self.bus_rsp_if.valid
+        output_advance = self.output_port.valid
 
         multi_cycle = Wire(logic)
         multi_cycle <<= Reg((self.input_port.access_len == access_len_32) & ~is_csr, clock_en = input_advance)
@@ -173,10 +162,21 @@ class MemoryStage(Module):
                 1
             )
         )
+        is_csr <<= Select(
+            input_advance,
+            Reg(
+                Select(
+                    input_advance,
+                    Select(output_advance, is_csr, 0),
+                    self.input_port.addr[31:28] == self.csr_base
+                )
+            ),
+            self.input_port.addr[31:28] == self.csr_base
+        )
 
         self.input_port.ready <<= self.bus_req_if.ready & ~active # this is not ideal: we won't accept a CSR access if the bus is occupied. Yet, I don't think we should depend on is_dram here.
         self.bus_req_if.valid <<= ((self.input_port.valid & ~is_csr) | active) & ~gap
-        self.output_port.valid <<= (self.bus_rsp_if.valid & ~pending) | (csr_pen & self.csr_if.pready)
+        self.output_port.valid <<= (self.bus_rsp_if.valid & ~pending) | (csr_pen & self.csr_if.pready & ~self.csr_if.pwrite)
 
         first_addr = self.input_port.addr[BrewBusAddr.length:1]
         next_addr = Reg((first_addr + 1)[BrewBusAddr.length-1:0], clock_en=input_advance)
@@ -191,7 +191,7 @@ class MemoryStage(Module):
         self.bus_req_if.read_not_write  <<= remember(self.input_port, self.input_port.read_not_write)
         self.bus_req_if.byte_en         <<= remember(self.input_port, byte_en)
         self.bus_req_if.addr            <<= Select(input_advance, next_addr, first_addr)
-        self.bus_req_if.dram_not_ext    <<= remember(self.input_port, ~is_ndram)
+        self.bus_req_if.dram_not_ext    <<= remember(self.input_port, ~is_nram)
         self.bus_req_if.data            <<= Select(input_advance, data_store, self.input_port.data[15:0])
 
         self.output_port.data_l <<= Select(csr_pen, Select(multi_cycle, self.bus_rsp_if.data, data_store), self.csr_if.prdata[15: 0])
@@ -201,18 +201,43 @@ class MemoryStage(Module):
         self.csr_if.psel <<= input_advance & is_csr | csr_pen
         self.csr_if.penable <<= csr_pen
         self.csr_if.pwrite <<= remember(self.input_port, ~self.input_port.read_not_write)
-        self.csr_if.paddr <<= remember(self.input_port, self.input_port.addr[BrewCsrAddr.length-1:0])
+        self.csr_if.paddr <<= remember(self.input_port, self.input_port.addr[BrewCsrAddr.length+1:2])
         self.csr_if.pwdata <<= remember(self.input_port, self.input_port.data)
 
 def sim():
 
-    class CsrEmulator(Module):
+    class CsrQueueItem(object):
+        def __init__(self, req: ApbLightIf = None, *, pwrite = None, paddr = None, pwdata = None):
+            if req is not None:
+                self.pwrite = req.pwrite
+                self.paddr  = req.paddr
+                self.pwdata = req.pwdata
+            else:
+                self.pwrite = 1 if pwrite else 0
+                self.paddr  = paddr
+                self.pwdata = pwdata
+        def report(self,prefix):
+            if not self.pwrite:
+                print(f"{prefix} reading CSR {self.paddr:03x}")
+            else:
+                data_str = f"{self.pwdata:08x}" if self.pwdata is not None else "--------"
+                print(f"{prefix} writing CSR {self.paddr:03x} data:{data_str}")
+        def compare(self, actual: Union[BusIfRequestIf, 'BusIfQueueItem']):
+            assert self.pwrite is None or actual.pwrite == self.pwrite
+            assert self.paddr is None or actual.paddr == self.paddr
+            assert self.pwdata is None or actual.pwdata == self.pwdata
+
+
+    class CsrEmulator(GenericModule):
         clk = ClkPort()
         rst = RstPort()
 
         input_port = Input(ApbLightIf)
 
-        def simulate(self) -> TSimEvent:
+        def construct(self, queue: List[CsrQueueItem]):
+            self.queue = queue
+
+        def simulate(self, simulator) -> TSimEvent:
             def wait_clk():
                 yield (self.clk, )
                 while self.clk.get_sim_edge() != EdgeType.Positive:
@@ -229,28 +254,40 @@ def sim():
                 else:
                     if (self.input_port.psel == 1):
                         self.input_port.pready <<= 1
+                        if self.input_port.pwrite == 0:
+                            # Read request
+                            actual = CsrQueueItem(self.input_port)
+                            actual.report(f"{simulator.now:4d}")
+                            if(self.input_port.penable == 0):
+                                expected = self.queue.pop(0)
+                            expected.compare(actual)
+                            self.input_port.prdata <<= self.input_port.paddr | ((self.input_port.paddr+1) << 16)
                         if(self.input_port.penable == 1):
-                            if self.input_port.pwrite == 0:
-                                # Read request
-                                print(f"Reading CSR {self.input_port.paddr:x}")
-                                self.input_port.prdata <<= self.input_port.paddr
-                            elif self.csr_if.pwrite == 1:
+                            if self.input_port.pwrite == 1:
                                 # Write request
-                                print(f"Writing CSR {self.input_port.paddr:x} with {self.input_port.pwdata:x}")
+                                actual = CsrQueueItem(self.input_port)
+                                actual.report(f"{simulator.now:4d}")
+                                expected = self.queue.pop(0)
+                                expected.compare(actual)
                                 self.input_port.prdata <<= None
-                            else:
-                                assert "pwrite is None?!"
                     else:
                         self.input_port.pready <<= None
                         self.input_port.prdata <<= None
 
     class BusIfQueueItem(object):
-        def __init__(self, req: BusIfRequestIf):
-            self.read_not_write  = req.read_not_write.sim_value.value
-            self.byte_en         = req.byte_en.sim_value.value
-            self.addr            = req.addr.sim_value.value
-            self.dram_not_ext    = req.dram_not_ext.sim_value.value
-            self.data            = req.data.sim_value.value if req.data.sim_value is not None else None
+        def __init__(self, req: BusIfRequestIf = None, *, read_not_write = None, byte_en = None, addr = None, dram_not_ext = None, data = None):
+            if req is not None:
+                self.read_not_write  = req.read_not_write.sim_value.value
+                self.byte_en         = req.byte_en.sim_value.value
+                self.addr            = req.addr.sim_value.value
+                self.dram_not_ext    = req.dram_not_ext.sim_value.value
+                self.data            = req.data.sim_value.value if req.data.sim_value is not None else None
+            else:
+                self.read_not_write  = 1 if read_not_write else 0
+                self.byte_en         = byte_en
+                self.addr            = addr
+                self.dram_not_ext    = 1 if dram_not_ext else 0
+                self.data            = data
         def report(self,prefix):
             assert self.dram_not_ext is not None
             assert self.addr is not None
@@ -261,6 +298,12 @@ def sim():
             else:
                 data_str = f"{self.data:04x}" if self.data is not None else "NONE"
                 print(f"{prefix} writing {access_type} {self.addr:08x} byte_en:{self.byte_en:02b} data:{data_str}")
+        def compare(self, actual: Union[BusIfRequestIf, 'BusIfQueueItem']):
+            assert self.read_not_write is None or actual.read_not_write == self.read_not_write
+            assert self.byte_en is None or actual.byte_en == self.byte_en
+            assert self.addr is None or actual.addr == self.addr
+            assert self.dram_not_ext is None or actual.dram_not_ext == self.dram_not_ext
+            assert self.data is None or actual.data == self.data
 
     class BusIfQueue(object):
         def __init__(self, depth):
@@ -280,8 +323,9 @@ def sim():
 
         input_port = Input(BusIfRequestIf)
 
-        def construct(self, queue: BusIfQueue):
+        def construct(self, queue: BusIfQueue, expect_queue: List[BusIfQueueItem]):
             self.queue = queue
+            self.expect_queue = expect_queue
 
         def simulate(self, simulator: 'Simulator') -> TSimEvent:
             def wait_clk():
@@ -309,6 +353,8 @@ def sim():
                         # Start of burst, record signals so we can check further beats
                         first_beat = BusIfQueueItem(self.input_port)
                         first_beat.report(f"{simulator.now:4d} REQUEST first")
+                        expected: BusIfQueueItem = self.expect_queue.pop(0)
+                        expected.compare(first_beat)
                         self.queue.push(first_beat)
                         yield from wait_clk_copy_valid()
                         beat_cnt = 1
@@ -320,6 +366,8 @@ def sim():
                             assert first_beat.addr & ~255 == next_beat.addr & ~255
                             assert first_beat.byte_en == 3
                             assert next_beat.byte_en == 3
+                            expected: BusIfQueueItem = self.expect_queue.pop(0)
+                            expected.compare(next_beat)
                             self.queue.push(next_beat)
                             yield from wait_clk_copy_valid()
                             beat_cnt+=1
@@ -372,11 +420,30 @@ def sim():
                         self.output_port.valid <<= 0
 
 
-    class ResponseChecker(Module):
+    class ResponseQueueItem(object):
+        def __init__(self, rsp:MemOutputIf = None, *, data_l = None, data_h = None):
+            if rsp is not None:
+                self.data_l    = rsp.data_l.sim_value.value if rsp.data_l.sim_value is not None else None
+                self.data_h    = rsp.data_h.sim_value.value if rsp.data_h.sim_value is not None else None
+            else:
+                self.data_l    = data_l
+                self.data_h    = data_h
+        def report(self,prefix):
+            data_l_str = f"{self.data_l:04x}" if self.data_l is not None else "----"
+            data_h_str = f"{self.data_h:04x}" if self.data_h is not None else "----"
+            print(f"{prefix} response {data_h_str}{data_l_str}")
+        def compare(self, actual: Union[MemOutputIf, 'ResponseQueueItem']):
+            assert self.data_l is None or actual.data_l == self.data_l
+            assert self.data_h is None or actual.data_h == self.data_h
+
+    class ResponseChecker(GenericModule):
         clk = ClkPort()
         rst = RstPort()
 
         input_port = Input(MemOutputIf)
+
+        def construct(self, queue: List[ResponseQueueItem]) -> None:
+            self.queue = queue
 
         def simulate(self, simulator) -> TSimEvent:
             def wait_clk():
@@ -387,16 +454,32 @@ def sim():
             while True:
                 yield from wait_clk()
                 if self.input_port.valid == 1:
-                    print(f"{simulator.now:4d} Received response {self.input_port.data_h:04x}{self.input_port.data_l:04x}")
+                    expected = self.queue.pop(0)
+                    actual = ResponseQueueItem(self.input_port)
+                    actual.report(f"{simulator.now:4d} Received")
+                    expected.compare(actual)
 
 
 
 
-    class Stimulator(Module):
+    class Stimulator(GenericModule):
         clk = ClkPort()
         rst = RstPort()
 
         output_port = Output(MemInputIf)
+
+        def construct(self, csr_base: int, nram_base: int, req_queue: List[BusIfQueueItem], rsp_queue: List[ResponseQueueItem], csr_queue: List[CsrQueueItem]) -> None:
+            self.req_queue = req_queue
+            self.rsp_queue = rsp_queue
+            self.csr_queue = csr_queue
+            self.csr_base = csr_base
+            self.nram_base = nram_base
+
+        def is_csr(self, addr):
+            return (addr >> (32-4)) == self.csr_base
+
+        def is_nram(self, addr):
+            return (addr >> (32-4)) == self.nram_base
 
         def simulate(self) -> TSimEvent:
             def wait_clk():
@@ -416,18 +499,62 @@ def sim():
                     yield from wait_clk()
                 self.output_port.valid <<= 0
 
+            def munge_addr(addr, offs=0):
+                addr = addr // 2 + offs
+                return addr & ((1 << 26)-1)
+
             def do_load(addr: int, access_len: int):
-                self.output_port.read_not_write <<= 0
+                self.output_port.read_not_write <<= 1
                 self.output_port.data <<= None
                 self.output_port.addr <<= addr
                 self.output_port.access_len <<= access_len
+                if not self.is_csr(addr):
+                    if access_len == access_len_32:
+                        self.req_queue.append(BusIfQueueItem(read_not_write=1, byte_en=3, addr=munge_addr(addr,0), dram_not_ext=not self.is_nram(addr), data=None))
+                        self.req_queue.append(BusIfQueueItem(read_not_write=1, byte_en=3, addr=munge_addr(addr,1), dram_not_ext=not self.is_nram(addr), data=None))
+                    elif access_len == access_len_16:
+                        self.req_queue.append(BusIfQueueItem(read_not_write=1, byte_en=3, addr=munge_addr(addr), dram_not_ext=not self.is_nram(addr), data=None))
+                    elif access_len == access_len_8:
+                        self.req_queue.append(BusIfQueueItem(read_not_write=1, byte_en=1 << (addr & 1), addr=munge_addr(addr), dram_not_ext=not self.is_nram(addr), data=None))
+                    else:
+                        assert False
+                    self.rsp_queue.append(ResponseQueueItem(
+                        data_l=(addr//2+0) & 0xffff,
+                        data_h=(addr//2+1) & 0xffff if access_len == access_len_32 else None
+                    ))
+                else:
+                    self.csr_queue.append(CsrQueueItem(
+                        pwrite=0,
+                        paddr=addr//4 & 1023,
+                    ))
+                    self.rsp_queue.append(ResponseQueueItem(
+                        data_l=(addr//4+0) & 1023,
+                        data_h=(addr//4+1) & 1023
+                    ))
+
                 yield from wait_transfer()
 
             def do_store(addr: int, data: int, access_len: int):
-                self.output_port.read_not_write <<= 1
+                self.output_port.read_not_write <<= 0
                 self.output_port.data <<= data
                 self.output_port.addr <<= addr
                 self.output_port.access_len <<= access_len
+                if not self.is_csr(addr):
+                    if access_len == access_len_32:
+                        self.req_queue.append(BusIfQueueItem(read_not_write=0, byte_en=3, addr=munge_addr(addr,0), dram_not_ext=not self.is_nram(addr), data=(data >>  0) & 0xffff))
+                        self.req_queue.append(BusIfQueueItem(read_not_write=0, byte_en=3, addr=munge_addr(addr,1), dram_not_ext=not self.is_nram(addr), data=(data >> 16) & 0xffff))
+                    elif access_len == access_len_16:
+                        self.req_queue.append(BusIfQueueItem(read_not_write=0, byte_en=3, addr=munge_addr(addr), dram_not_ext=not self.is_nram(addr), data=data & 0xffff))
+                    elif access_len == access_len_8:
+                        self.req_queue.append(BusIfQueueItem(read_not_write=0, byte_en=1 << (addr & 1), addr=munge_addr(addr), dram_not_ext=not self.is_nram(addr), data=data & 0xffff))
+                    else:
+                        assert False
+                else:
+                    self.csr_queue.append(CsrQueueItem(
+                        pwrite=1,
+                        paddr=addr//4 & 1023,
+                        pwdata=data
+                    ))
                 yield from wait_transfer()
 
             self.output_port.valid <<= 0
@@ -445,6 +572,12 @@ def sim():
             yield from do_store(addr=0x0002000, data=0x23456789, access_len=access_len_16)
             yield from do_store(addr=0x0004000, data=0x3456789a, access_len=access_len_8)
             yield from do_store(addr=0x0005001, data=0x456789ab, access_len=access_len_8)
+            for i in range(4):
+                yield from wait_clk()
+            yield from do_load(addr=0x140+(self.csr_base<<28), access_len=access_len_32)
+            for i in range(4):
+                yield from wait_clk()
+            yield from do_store(addr=0x240+(self.csr_base<<28), data=0xdeadbeef, access_len=access_len_32)
 
 
 
@@ -454,15 +587,20 @@ def sim():
 
         def body(self):
             bus_queue = BusIfQueue(3)
+            req_queue = []
+            rsp_queue = []
+            csr_queue = []
+            csr_base=0xc
+            nram_base=0xf
 
             seed(0)
-            stimulator = Stimulator()
-            csr_emulator = CsrEmulator()
-            bus_req_emulator = BusIfReqEmulator(bus_queue)
+            stimulator = Stimulator(csr_base=csr_base, nram_base=nram_base, req_queue=req_queue, rsp_queue=rsp_queue, csr_queue=csr_queue)
+            csr_emulator = CsrEmulator(csr_queue)
+            bus_req_emulator = BusIfReqEmulator(bus_queue, expect_queue=req_queue)
             bus_rsp_emulator = BusIfRspEmulator(bus_queue)
-            response_checker = ResponseChecker()
+            response_checker = ResponseChecker(queue=rsp_queue)
 
-            dut = MemoryStage()
+            dut = MemoryStage(csr_base=csr_base, nram_base=nram_base)
 
             dut.input_port <<= stimulator.output_port
             response_checker.input_port <<= dut.output_port
@@ -488,7 +626,7 @@ def sim():
                 yield from clk()
             self.rst <<= 0
 
-            for i in range(50):
+            for i in range(100):
                 yield from clk()
             now = yield 10
             print(f"Done at {now}")
@@ -506,5 +644,5 @@ def gen():
     flow.run()
 
 if __name__ == "__main__":
-    gen()
-    #sim()
+    #gen()
+    sim()

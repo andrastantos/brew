@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sun Feb 19 23:13:15 2023
+[*] Mon Feb 20 01:37:39 2023
 [*]
 [dumpfile] "/home/tantos/brew/rtl/v1/memory.vcd"
-[dumpfile_mtime] "Sun Feb 19 23:07:54 2023"
-[dumpfile_size] 61705
+[dumpfile_mtime] "Mon Feb 20 01:36:51 2023"
+[dumpfile_size] 75298
 [savefile] "/home/tantos/brew/rtl/v1/memory.gtkw"
-[timestart] 54
+[timestart] 0
 [size] 1920 990
 [pos] -1 -1
-*-6.324788 514 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-6.445984 544 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [sst_width] 233
 [signals_width] 360
@@ -67,23 +67,24 @@ top.dut.bus_rsp_if_valid
 -BUS_RSP
 @800200
 -CSR_IF
-@22
-top.dut.csr_if_paddr[9:0]
 @28
+top.dut.is_csr
+top.dut.csr_if_psel
 top.dut.csr_if_penable
 @22
+top.dut.csr_if_paddr[9:0]
 top.dut.csr_if_prdata[31:0]
 @28
 top.dut.csr_if_pready
-top.dut.csr_if_psel
 @22
 top.dut.csr_if_pwdata[31:0]
 @28
 top.dut.csr_if_pwrite
 @1000200
 -CSR_IF
-@28
+@29
 top.dut.byte_en[1:0]
+@28
 top.dut.active
 top.dut.pending
 [pattern_trace] 1
