@@ -83,7 +83,7 @@ class AluUnit(Module):
             c_in = Wire(logic)
             c_in <<= (self.input_port.opcode == alu_ops.a_minus_b)
             xor_b = Wire(BrewData)
-            xor_b <<= Select((self.input_port.opcode == alu_ops.a_minus_b) | (self.input_port.opcode == alu_ops.not_b_and_a), 0, 0xffffffff)
+            xor_b <<= Select((self.input_port.opcode == alu_ops.a_minus_b) | (self.input_port.opcode == alu_ops.n_b_and_a), 0, 0xffffffff)
             b = xor_b ^ self.input_port.op_b
             a = Select((self.input_port.opcode == alu_ops.pc_plus_b), self.input_port.op_a, concat(self.input_port.pc, "1'b0"))
             sum = a + b + c_in
@@ -91,7 +91,7 @@ class AluUnit(Module):
             xor_result = self.input_port.op_a ^ self.input_port.op_b
 
             use_adder = (self.input_port.opcode == alu_ops.a_plus_b) | (self.input_port.opcode == alu_ops.a_minus_b)
-            use_and = (self.input_port.opcode == alu_ops.a_and_b) | (self.input_port.opcode == alu_ops.not_b_and_a)
+            use_and = (self.input_port.opcode == alu_ops.a_and_b) | (self.input_port.opcode == alu_ops.n_b_and_a)
             adder_result = Wire(Unsigned(33))
             adder_result <<= SelectOne(
                 use_adder,                                      sum,
@@ -117,7 +117,7 @@ class AluUnit(Module):
                 self.input_port.opcode == alu_ops.a_minus_b,    Unsigned(33)(self.input_port.op_a - self.input_port.op_b),
                 self.input_port.opcode == alu_ops.a_or_b,       self.input_port.op_a | self.input_port.op_b,
                 self.input_port.opcode == alu_ops.a_and_b,      self.input_port.op_a & self.input_port.op_b,
-                self.input_port.opcode == alu_ops.not_b_and_a,  ~self.input_port.op_b & self.input_port.op_a,
+                self.input_port.opcode == alu_ops.n_b_and_a,   ~self.input_port.op_b & self.input_port.op_a,
                 self.input_port.opcode == alu_ops.a_xor_b,      self.input_port.op_a ^ self.input_port.op_b,
                 self.input_port.opcode == alu_ops.tpc,          concat(self.input_port.tpc, "1'b0"),
                 self.input_port.opcode == alu_ops.pc_plus_b,    concat(self.input_port.pc, "1'b0") + self.input_port.op_b,
@@ -300,8 +300,6 @@ class BranchUnit(Module):
 
         # Set whenever we branch without a mode change
         in_mode_branch = SelectOne(
-            self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.pc_w),     1,
-            self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.tpc_w),    self.input_port.task_mode,
             self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.pc_w_r),   1,
             self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.tpc_w_r),  self.input_port.task_mode,
             is_exception,                                                                     ~self.input_port.task_mode,
@@ -310,8 +308,6 @@ class BranchUnit(Module):
         )
 
         branch_target = SelectOne(
-            self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.pc_w),                                   self.input_port.op_c[31:1],
-            self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.tpc_w),                                  self.input_port.op_c[31:1],
             self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.pc_w_r),                                 self.input_port.op_a[31:1],
             self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.tpc_w_r),                                self.input_port.op_a[31:1],
             self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.stm),                                    self.input_port.tpc,
@@ -324,7 +320,7 @@ class BranchUnit(Module):
         self.output_port.tpc_changed    <<= Select(
             self.input_port.task_mode,
             # In Scheduler mode: TPC can only change through TCP manipulation instructions. For those, the value comes through op_c
-            self.input_port.is_branch_insn & ((self.input_port.opcode == branch_ops.tpc_w) | (self.input_port.opcode == branch_ops.tpc_w_r)),
+            self.input_port.is_branch_insn & (self.input_port.opcode == branch_ops.tpc_w_r),
             # In task mode, all branches count, but so do exceptions which, while don't change TPC, they don't update TPC either.
             in_mode_branch | is_exception | self.input_port.interrupt
         )
@@ -363,7 +359,6 @@ class BranchUnit(Module):
 
 class LoadStoreInputIf(Interface):
     is_ldst = logic
-    opcode = EnumNet(ldst_ops)
     op_b = BrewData
     op_c = BrewData
     mem_base = BrewMemBase
@@ -475,7 +470,6 @@ class ExecuteStage(GenericModule):
         ldst_output = Wire(LoadStoreOutputIf)
         ldst_unit = LoadStoreUnit()
         ldst_unit.input_port.is_ldst        <<= self.input_port.exec_unit == op_class.ld_st
-        ldst_unit.input_port.opcode         <<= self.input_port.ldst_op
         ldst_unit.input_port.op_b           <<= self.input_port.op_b
         ldst_unit.input_port.op_c           <<= self.input_port.op_c
         ldst_unit.input_port.mem_base       <<= self.mem_base
@@ -558,9 +552,10 @@ class ExecuteStage(GenericModule):
         #       is if there's a pending bus operation.
         stage_2_fsm = ForwardBufLogic()
         stage_2_fsm.input_valid <<= stage_1_valid
-        mem_input.valid <<= stage_1_valid
-        stage_2_ready <<= Select(s1_exec_unit == op_class.ld_st, stage_2_fsm.input_ready, mem_input.ready)
-        stage_2_valid <<= Select(s1_exec_unit == op_class.ld_st, stage_2_fsm.output_valid, s2_mem_output.valid)
+        block_mem = s1_ldst_output.mem_av | s1_ldst_output.mem_unaligned | s1_fetch_av
+        mem_input.valid <<= stage_1_valid & ~block_mem
+        stage_2_ready <<= Select((s1_exec_unit == op_class.ld_st) & ~block_mem, stage_2_fsm.input_ready,  mem_input.ready)
+        stage_2_valid <<= Select((s1_exec_unit == op_class.ld_st) & ~block_mem, stage_2_fsm.output_valid, s2_mem_output.valid)
         stage_2_fsm.output_ready <<= 1
 
         stage_2_reg_en = Wire(logic)
@@ -612,7 +607,7 @@ class ExecuteStage(GenericModule):
         memory_unit = MemoryStage(csr_base=self.csr_base, nram_base=self.nram_base)
 
 
-        mem_input.read_not_write <<= (s1_exec_unit == op_class.ld_st) & (s1_ldst_op == ldst_ops.ldst_load) & ~s1_ldst_output.mem_av & ~s1_ldst_output.mem_unaligned
+        mem_input.read_not_write <<= (s1_exec_unit == op_class.ld_st) & (s1_ldst_op == ldst_ops.load)
         mem_input.data <<= s1_op_a
         mem_input.addr <<= s1_ldst_output.phy_addr
         mem_input.access_len <<= s1_mem_access_len
@@ -631,7 +626,8 @@ class ExecuteStage(GenericModule):
             s1_exec_unit == op_class.shift, s1_shifter_output.result
         )
 
-        self.output_port.valid <<= stage_2_valid & s1_result_reg_addr_valid
+        s2_result_reg_addr_valid = Reg(s1_result_reg_addr_valid, clock_en = stage_2_reg_en)
+        self.output_port.valid <<= stage_2_valid & s2_result_reg_addr_valid
 
         self.output_port.data_l <<= Select(s1_exec_unit == op_class.ld_st, Reg(result[15: 0], clock_en = stage_2_reg_en), s2_mem_output.data_l)
         self.output_port.data_h <<= Select(s1_exec_unit == op_class.ld_st, Reg(result[31:16], clock_en = stage_2_reg_en), s2_mem_output.data_h)
@@ -783,6 +779,7 @@ def sim():
                 self.interrupt <<= self.sideband_state.interrupt
 
             def send_rr_op(unit: op_class, op: alu_ops, op_a: int, op_b: int, op_c: int = None, *, result_reg = 0, result_reg_valid = True, fetch_av = False, inst_len = inst_len_16):
+                print(f"Sending {unit} {op}")
                 self.output_port.exec_unit <<= unit
                 self.output_port.alu_op <<= op if unit == op_class.alu else None
                 self.output_port.shifter_op <<= op if unit == op_class.shift else None
@@ -798,7 +795,7 @@ def sim():
                 self.output_port.do_bze <<= 0
                 self.output_port.do_wze <<= 0
                 self.output_port.result_reg_addr <<= result_reg
-                self.output_port.result_reg_addr_valid <<= 1 if result_reg_valid else 0
+                self.output_port.result_reg_addr_valid <<= 1 if result_reg_valid and not fetch_av else 0
                 self.output_port.fetch_av <<= 1 if fetch_av else 0
 
                 mask = 0xffffffff
@@ -809,7 +806,7 @@ def sim():
                         result = (op_a - op_b) & mask
                     elif op == alu_ops.a_and_b:
                         result = op_a & op_b
-                    elif op == alu_ops.not_b_and_a:
+                    elif op == alu_ops.n_b_and_a:
                         result = op_a & ~op_b
                     elif op == alu_ops.a_or_b:
                         result = op_a | op_b
@@ -857,7 +854,7 @@ def sim():
                     data_h = result >> 16,
                     data_en = 0 if fetch_av else 1,
                     addr = result_reg,
-                    result_valid = True,
+                    result_valid = not fetch_av,
                     do_bse = 0,
                     do_wse = 0,
                     do_bze = 0,
@@ -990,15 +987,6 @@ def sim():
                         branch = True
                     else:
                         branch = False
-                elif op == branch_ops.pc_w:
-                    branch = True
-                    branch_target = op_c >> 1
-                elif op == branch_ops.tpc_w:
-                    if self.sideband_state.task_mode:
-                        branch = True
-                        branch_target = None
-                    else:
-                        branch = False
                 elif op == branch_ops.pc_w_r:
                     branch = True
                     branch_target = op_a >> 1
@@ -1015,7 +1003,6 @@ def sim():
                     next_tpc = self.sideband_state.tpc if not self.sideband_state.task_mode else next_pc
                     next_task_mode = self.sideband_state.task_mode
                     if op == branch_ops.stm: next_task_mode = 1
-                    if op == branch_ops.tpc_w: next_tpc = op_c >> 1
                     if op == branch_ops.tpc_w_r: next_tpc = op_a >> 1
                 else:
                     if self.sideband_state.task_mode:
@@ -1063,10 +1050,10 @@ def sim():
             yield from send_alu_op(alu_ops.a_and_b, 4, 3)
             yield from send_alu_op(alu_ops.a_or_b, 12, 43)
             yield from send_alu_op(alu_ops.a_xor_b, 23, 12)
-            yield from send_alu_op(alu_ops.not_b_and_a, 4, 3)
+            yield from send_alu_op(alu_ops.n_b_and_a, 4, 3)
             set_side_band()
             yield from send_alu_op(alu_ops.a_plus_b, 4, 3, fetch_av=True)
-            yield from send_alu_op(alu_ops.not_b_and_a, 4, 3)
+            yield from send_alu_op(alu_ops.n_b_and_a, 4, 3)
             yield from send_mult_op(41,43)
             yield from send_shifter_op(shifter_ops.shll,0xf0000001,2)
             yield from send_shifter_op(shifter_ops.shll,0xf0000001,31)
@@ -1113,14 +1100,10 @@ def sim():
             set_side_band(tpc=0xddccbba, spc=0x2233445, task_mode=True)
             yield from send_cbranch_op(branch_ops.swi, 2, None, None)
             yield from send_cbranch_op(branch_ops.swi, 3, None, None, fetch_av=True)
-            yield from send_cbranch_op(branch_ops.pc_w, None, None, 0x1111)
             yield from send_cbranch_op(branch_ops.pc_w_r, 0x2222, None, None)
-            yield from send_cbranch_op(branch_ops.tpc_w, None, None, 0x3333)
             yield from send_cbranch_op(branch_ops.tpc_w_r, 0x4444, None, None)
             set_side_band(tpc=0xddccbba, spc=0x2233445, task_mode=False)
-            yield from send_cbranch_op(branch_ops.pc_w, None, None, 0x1111)
             yield from send_cbranch_op(branch_ops.pc_w_r, 0x2222, None, None)
-            yield from send_cbranch_op(branch_ops.tpc_w, None, None, 0x3333)
             yield from send_cbranch_op(branch_ops.tpc_w_r, 0x4444, None, None)
             yield from send_cbranch_op(branch_ops.stm, None, None, None)
             set_side_band(tpc=0xddccbba, spc=0x2233445, task_mode=True)
@@ -1136,7 +1119,7 @@ def sim():
                 yield from send_alu_op(alu_ops.a_and_b,     op_a, op_b)
                 yield from send_alu_op(alu_ops.a_or_b,      op_a, op_b)
                 yield from send_alu_op(alu_ops.a_xor_b,     op_a, op_b)
-                yield from send_alu_op(alu_ops.not_b_and_a, op_a, op_b)
+                yield from send_alu_op(alu_ops.n_b_and_a,   op_a, op_b)
 
     class ResultChecker(GenericModule):
         clk = ClkPort()
@@ -1324,6 +1307,6 @@ def gen():
     flow.run()
 
 if __name__ == "__main__":
-    #gen()
-    sim()
+    gen()
+    #sim()
 

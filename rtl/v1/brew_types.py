@@ -36,7 +36,7 @@ class alu_ops(Enum):
     a_plus_b     = 0
     a_minus_b    = 1
     a_and_b      = 2
-    not_b_and_a  = 3
+    n_b_and_a    = 3
     a_or_b       = 4
     a_xor_b      = 5
     tpc          = 6
@@ -62,14 +62,12 @@ class branch_ops(Enum):
 
     swi      = 9 # SWI index comes in op_a
     stm      = 10
-    pc_w     = 13
-    tpc_w    = 14
-    pc_w_r   = 15
-    tpc_w_r  = 16
+    pc_w_r   = 11
+    tpc_w_r  = 12
 
 class ldst_ops(Enum):
-    ldst_store = 0
-    ldst_load  = 1
+    store = 0
+    load  = 1
 
 class op_class(Enum):
     alu     = 0
