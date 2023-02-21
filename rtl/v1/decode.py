@@ -14,9 +14,13 @@ except ImportError:
 try:
     from .brew_types import *
     from .brew_utils import *
+    from .scan import ScanWrapper
+    from .synth import *
 except ImportError:
     from brew_types import *
     from brew_utils import *
+    from scan import ScanWrapper
+    from synth import *
 
 """
 Decode logic
@@ -37,25 +41,24 @@ In general we're ready to execute an instruction, when read1, read2 got a respon
 when we've seen or see a rsv_response (if we cared) and when exec is ready to accept the next instruction.
 
 In case of a fetch AV, we pretend to get an instruction with no dependencies and no reservation and push it as
-the next instruction. We can't use any of the instruction fields: they're invalid, or may contain some
-sensitive info that could be gleaned from stall-counting or something.
+the next instruction. There's no harm in using the instruction fields: while they're invalid, or may even
+contain some sensitive info, they don't produce side-effects: all they do is to generate some mux changes
+that then will be ignored in execute. However, we *have* to make sure that the output register enable is
+de-asserted, so no matter what, no write-back will occur. Execute assume assumes that.
 
 HW interrupts are dealt with in the execute stage.
 """
-
-# TODO: we can't easily support indirect jumps in the V1 pipeline:
-#       we determine branch and branch target in execute, yet memory is after it.
-#       So, loading $pc or $tpc directly from memory is not supported. It must be
-#       done through a general-purpose register in two instructions. This makes
-#       subroutine epilogs longer and method calls more painful. Also, GCC will
-#       need to be aware of this...
+"""
+TODO: things to test:
+- fetch_av
+"""
 
 class DecodeStage(Module):
     clk = ClkPort()
     rst = RstPort()
 
     fetch = Input(FetchDecodeIf)
-    exec = Output(DecodeExecIf)
+    output_port = Output(DecodeExecIf)
 
     # Interface to the register file
     reg_file_req = Output(RegFileReadRequestIf)
@@ -111,163 +114,187 @@ class DecodeStage(Module):
         #        < <- less then subsequent digit
         #        > <- greater than subsequent digit (but not 0xf)
         #        : <- anything after that is comment
+        # Fields:
+        #    exec_unit = EnumNet(op_class)
+        #    alu_op = EnumNet(alu_ops)
+        #    shifter_op = EnumNet(shifter_ops)
+        #    branch_op = EnumNet(branch_ops)
+        #    ldst_op = EnumNet(ldst_ops)
+        #    op_a = BrewData
+        #    op_b = BrewData
+        #    op_c = BrewData
+        #    mem_access_len = Unsigned(2) # 0 for 8-bit, 1 for 16-bit, 2 for 32-bit
+        #    inst_len = Unsigned(2)
+        #    do_bse = logic
+        #    do_wse = logic
+        #    do_bze = logic
+        #    do_wze = logic
+        #    result_reg_addr = BrewRegAddr
+        #    result_reg_addr_valid = logic
+        #    fetch_av = logic
+        bo = branch_ops
+        ao = alu_ops
+        so = shifter_ops
+        lo = ldst_ops
+        oc = op_class
+        SII =                                       (oc.branch,   None,         None,        bo.swi,      None,      None,       None,           None,      7,               None,         None,       None,   0,  0,  0,  0 )
         inst_table = (
-            #  CODE                                  EXEC_UNIT      OP_CODE         RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_IMM      MEM_LEN IS_LD  IS_ST  BSE WSE BZE WZE
-            ( "<8000: SWI",                          exec.misc,     op.misc_swi,    None,       None,           None,      field_a,         None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " 8000: STM",                          exec.misc,     op.misc_stm,    None,       None,           None,      None,            None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " 9000: WOI",                          exec.cbranch,  op.cb_eq,       field_a,    field_b,        None,      "REG",           "REG",        0,          None,   0,     0,     0,  0,  0,  0 ), # Decoded as 'if $0 == $0 $pc <- $pc'
-            ( ">9000: SII",                          exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .001: FENCE",                        exec.bitwise,  op.b_or,        None,       None,           None,      None,            None,         None,       None,   0,     0,     0,  0,  0,  0 ), # Decoded as a kind of NOP
-            ( " .002: $pc <- $rD",                   exec.misc,     op.misc_pc_w_r, field_d,    None,           None,      "REG",           None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .003: $tpc <- $rD",                  exec.misc,     op.misc_tpc_w_r,field_d,    None,           None,      "REG",           None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .004: $rD <- $pc",                   exec.misc,     op.misc_pc_r,   None,       None,           field_d,   None,            None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .005: $rD <- $tpc",                  exec.misc,     op.misc_tpc_r,  None,       None,           field_d,   None,            None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .00>5: SII",                         exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            # Unary group                            EXEC_UNIT      OP_CODE         RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_IMM      MEM_LEN IS_LD  IS_ST  BSE WSE BZE WZE
-            ( " .01.: $rD <- tiny FIELD_A",          exec.bitwise,  op.b_or,        None,       None,           field_d,   ones_field_a,    0,            None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .02.: $rD <- $pc + FIELD_A*2",       exec.adder,    op.pc_add,      None,       None,           field_d,   ones_field_a,    0,            None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .03.: $rD <- -$rA",                  exec.adder,    op.b_sub_a,     field_a,    None,           field_d,   "REG",           0,            None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .04.: $rD <- ~$rA",                  exec.bitwise,  op.b_xor,       field_a,    None,           field_d,   "REG",           0xffffffff,   None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .05.: $rD <- bse $rA",               exec.bitwise,  op.b_or,        field_a,    None,           field_d,   "REG",           0,            None,       None,   0,     0,     1,  0,  0,  0 ),
-            ( " .06.: $rD <- wse $rA",               exec.bitwise,  op.b_or,        field_a,    None,           field_d,   "REG",           0,            None,       None,   0,     0,     0,  1,  0,  0 ),
-            ( " .0>6.: SII",                         exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            ## Binary ALU group                       EXEC_UNIT      OP_CODE         RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_IMM      MEM_LEN IS_LD  IS_ST  BSE WSE BZE WZE
-            ( " .1..: $rD <- $rA ^ $rB",             exec.bitwise,  op.b_xor,       field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .2..: $rD <- $rA | $rB",             exec.bitwise,  op.b_or,        field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .3..: $rD <- $rA & $rB",             exec.bitwise,  op.b_and,       field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .4..: $rD <- $rA + $rB",             exec.adder,    op.add,         field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .5..: $rD <- $rA - $rB",             exec.adder,    op.a_sub_b,     field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .6..: $rD <- $rA << $rB",            exec.shift,    op.shll,        field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .7..: $rD <- $rA >> $rB",            exec.shift,    op.shlr,        field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .8..: $rD <- $rA >>> $rB",           exec.shift,    op.shar,        field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .9..: $rD <- $rA * $rB",             exec.mult,     None,           field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .a..: $rD <- ~$rA & $rB",            exec.bitwise,  op.b_nand,      field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .b..: $rD <- tiny $rB + FIELD_A",    exec.adder,    op.add,         None,       field_b,        field_d,   ones_field_a,    "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            # Load immediate group                   EXEC_UNIT      OP_CODE         RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_IMM      MEM_LEN IS_LD  IS_ST  BSE WSE BZE WZE
-            ( " .00f: $rD <- VALUE",                 exec.bitwise,  op.b_or,        None,       None,           field_d,    field_e,        0,            None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " 20ef: $pc <- VALUE",                 exec.misc,     op.misc_pc_w,   None,       None,           None,       None,           None,         field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            ( " 30ef: $tpc <- VALUE",                exec.misc,     op.misc_tpc_w,  None,       None,           None,       None,           None,         field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            ( " 80ef.: SII",                         exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " 90ef.: SII",                         exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            # Constant ALU grou  p                   EXEC_UNIT      OP_CODE         RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_IMM      MEM_LEN IS_LD  IS_ST  BSE WSE BZE WZE
-            ( " .1.f: $rD <- FIELD_E ^ $rB",         exec.bitwise,  op.b_xor,       None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .2.f: $rD <- FIELD_E | $rB",         exec.bitwise,  op.b_or,        None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .3.f: $rD <- FIELD_E & $rB",         exec.bitwise,  op.b_and,       None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .4.f: $rD <- FIELD_E + $rB",         exec.adder,    op.add,         None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .5.f: $rD <- FIELD_E - $rB",         exec.adder,    op.a_sub_b,     None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .6.f: $rD <- FIELD_E << $rB",        exec.shift,    op.shll,        None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .7.f: $rD <- FIELD_E >> $rB",        exec.shift,    op.shlr,        None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .8.f: $rD <- FIELD_E >>> $rB",       exec.shift,    op.shar,        None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .9.f: $rD <- FIELD_E * $rB",         exec.mult,     None,           None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .a.f: SII",                          exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .b.f: SII",                          exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            # Short load immediate group             EXEC_UNIT      OP_CODE         RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_IMM      MEM_LEN IS_LD  IS_ST  BSE WSE BZE WZE
-            ( " .0f0: $rD <- short VALUE",           exec.bitwise,  op.b_or,        None,       None,           field_d,    field_e,        0,            None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " 20fe: $pc <- short VALUE",           exec.misc,     op.misc_pc_w,   None,       None,           None,       None,           None,         field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            ( " 30fe: $tpc <- short VALUE",          exec.misc,     op.misc_tpc_w,  None,       None,           None,       None,           None,         field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            # Short constant ALU group               EXEC_UNIT      OP_CODE         RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_IMM      MEM_LEN IS_LD  IS_ST  BSE WSE BZE WZE
-            ( " .1f.: $rD <- FIELD_E ^ $rA",         exec.bitwise,  op.b_xor,       None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .2f.: $rD <- FIELD_E | $rA",         exec.bitwise,  op.b_or,        None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .3f.: $rD <- FIELD_E & $rA",         exec.bitwise,  op.b_and,       None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .4f.: $rD <- FIELD_E + $rA",         exec.adder,    op.add,         None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .5f.: $rD <- FIELD_E - $rA",         exec.adder,    op.a_sub_b,     None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .6f.: $rD <- FIELD_E << $rA",        exec.shift,    op.shll,        None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .7f.: $rD <- FIELD_E >> $rA",        exec.shift,    op.shlr,        None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .8f.: $rD <- FIELD_E >>> $rA",       exec.shift,    op.shar,        None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .9f.: $rD <- FIELD_E * $rA",         exec.mult,     None,           None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .af.: SII",                          exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .bf.: SII",                          exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            # Zero-compare conditional branch group  EXEC_UNIT      OP_CODE         RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_IMM      MEM_LEN IS_LD  IS_ST  BSE WSE BZE WZE
-            ( " f00.: if $rA == 0",                  exec.cbranch,  op.cb_eq,       field_a,    None,           None,      "REG",           0,            field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            ( " f01.: if $rA != 0",                  exec.cbranch,  op.cb_ne,       field_a,    None,           None,      "REG",           0,            field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            ( " f02.: if $rA < 0",                   exec.cbranch,  op.cb_lts,      field_a,    None,           None,      "REG",           0,            field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            ( " f03.: if $rA >= 0",                  exec.cbranch,  op.cb_ges,      field_a,    None,           None,      "REG",           0,            field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            ( " f04.: if $rA > 0",                   exec.cbranch,  op.cb_lts,      None,       field_a,        None,      0,               "REG",        field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            ( " f05.: if $rA <= 0",                  exec.cbranch,  op.cb_ges,      None,       field_a,        None,      0,               "REG",        field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            ( " f06.: SII",                          exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " f07.: SII",                          exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " f08.: if $rA == 0",                  exec.cbranch,  op.cb_eq,       field_a,    None,           None,      "REG",           0,            field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            ( " f09.: if $rA != 0",                  exec.cbranch,  op.cb_ne,       field_a,    None,           None,      "REG",           0,            field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            ( " f0a.: if $rA < 0",                   exec.cbranch,  op.cb_lts,      field_a,    None,           None,      "REG",           0,            field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            ( " f0b.: if $rA >= 0",                  exec.cbranch,  op.cb_ges,      field_a,    None,           None,      "REG",           0,            field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            ( " f0c.: if $rA > 0",                   exec.cbranch,  op.cb_lts,      None,       field_a,        None,      0,               "REG",        field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            ( " f0d.: if $rA <= 0",                  exec.cbranch,  op.cb_ges,      None,       field_a,        None,      0,               "REG",        field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            ( " f0e.: SII",                          exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            # Conditional branch group               EXEC_UNIT      OP_CODE         RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_IMM      MEM_LEN IS_LD  IS_ST  BSE WSE BZE WZE
-            ( " f1..: if $rB == $rA",                exec.cbranch,  op.cb_eq,       field_b,    field_a,        None,      "REG",           "REG",        field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            ( " f2..: if $rB != $rA",                exec.cbranch,  op.cb_ne,       field_b,    field_a,        None,      "REG",           "REG",        field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            ( " f3..: if signed $rB < $rA",          exec.cbranch,  op.cb_lts,      field_b,    field_a,        None,      "REG",           "REG",        field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            ( " f4..: if signed $rB >= $rA",         exec.cbranch,  op.cb_ges,      field_b,    field_a,        None,      "REG",           "REG",        field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            ( " f5..: if $rB < $rA",                 exec.cbranch,  op.cb_lt,       field_b,    field_a,        None,      "REG",           "REG",        field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            ( " f6..: if $rB >= $rA",                exec.cbranch,  op.cb_ge,       field_b,    field_a,        None,      "REG",           "REG",        field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            ( " f7..: SII",                          exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " f8..: SII",                          exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " f9..: if $rB == $rA",                exec.cbranch,  op.cb_eq,       field_b,    field_a,        None,      "REG",           "REG",        field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            ( " fa..: if $rB != $rA",                exec.cbranch,  op.cb_ne,       field_b,    field_a,        None,      "REG",           "REG",        field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            ( " fb..: if signed $rB < $rA",          exec.cbranch,  op.cb_lts,      field_b,    field_a,        None,      "REG",           "REG",        field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            ( " fc..: if signed $rB >= $rA",         exec.cbranch,  op.cb_ges,      field_b,    field_a,        None,      "REG",           "REG",        field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            ( " fd..: if $rB < $rA",                 exec.cbranch,  op.cb_lt,       field_b,    field_a,        None,      "REG",           "REG",        field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            ( " fe..: if $rB >= $rA",                exec.cbranch,  op.cb_ge,       field_b,    field_a,        None,      "REG",           "REG",        field_e,    None,   0,     0,     0,  0,  0,  0),
-            # Bit-set-test branch group              EXEC_UNIT      OP_CODE         RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_IMM      MEM_LEN IS_LD  IS_ST  BSE WSE BZE WZE
-            ( " f.f.: if $rA[.]  == 1",              exec.bbranch,  op.bb_one,      field_a,    None,           None,      "REG",           field_c,      field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            ( " f..f: if $rB[.]  == 0",              exec.bbranch,  op.bb_one,      None,       field_b,        None,      field_c,         "REG",        field_e,    None,   0,     0,     0,  0,  0,  0 ),
-            # Stack group                            EXEC_UNIT      OP_CODE         RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_IMM      MEM_LEN IS_LD  IS_ST  BSE WSE BZE WZE
-            ( " .c**: MEM[$rA+tiny OFS*4] <- $rD",   exec.adder,    op.addr,        None,       tiny_field_a,   None,      None,            "REG",        tiny_ofs,   3,      0,     1,     0,  0,  0,  0 ),
-            ( " .d**: $rD <- MEM[$rA+tiny OFS*4]",   exec.adder,    op.addr,        None,       tiny_field_a,   field_d,   None,            "REG",        tiny_ofs,   3,      1,     0,     0,  0,  0,  0 ),
-            # Type operations                        EXEC_UNIT      OP_CODE         RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_IMM      MEM_LEN IS_LD  IS_ST  BSE WSE BZE WZE
-            ( " .e0.: SII",                          exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .e1.: SII",                          exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .e2.: SII",                          exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " .e3.: SII",                          exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            # Indirect load/store group              EXEC_UNIT      OP_CODE         RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_IMM      MEM_LEN IS_LD  IS_ST  BSE WSE BZE WZE
-            ( " .e4.: $rD <- MEM8[$rA]",             exec.adder,    op.addr,        None,       field_a,        field_d,   None,            "REG",        0,          1,      1,     0,     0,  0,  1,  0 ),
-            ( " .e5.: $rD <- MEM16[$rA]",            exec.adder,    op.addr,        None,       field_a,        field_d,   None,            "REG",        0,          2,      1,     0,     0,  0,  0,  1 ),
-            ( " .e6.: $rD <- MEM32[$rA]",            exec.adder,    op.addr,        None,       field_a,        field_d,   None,            "REG",        0,          3,      1,     0,     0,  0,  0,  0 ),
-            ( " .e7.: $rD <- MEMLL32[$rA]",          exec.adder,    op.addr,        None,       field_a,        field_d,   None,            "REG",        0,          3,      1,     0,     0,  0,  0,  0 ),
-            ( " .e8.: MEM8[$rA] <- $rD",             exec.adder,    op.addr,        None,       field_a,        None,      None,            "REG",        0,          1,      0,     1,     0,  0,  0,  0 ),
-            ( " .e9.: MEM16[$rA] <- $rD",            exec.adder,    op.addr,        None,       field_a,        None,      None,            "REG",        0,          2,      0,     1,     0,  0,  0,  0 ),
-            ( " .ea.: MEM32[$rA] <- $rD",            exec.adder,    op.addr,        None,       field_a,        None,      None,            "REG",        0,          3,      0,     1,     0,  0,  0,  0 ),
-            ( " .eb.: MEMSR32[$rA] <- $rD",          exec.adder,    op.addr,        None,       field_a,        None,      None,            "REG",        0,          3,      0,     1,     0,  0,  0,  0 ),
-            ( " .ec.: $rD <- SMEM8[$rA]",            exec.adder,    op.addr,        None,       field_a,        field_d,   None,            "REG",        0,          1,      1,     0,     1,  0,  0,  0 ),
-            ( " .ed.: $rD <- SMEM16[$rA]",           exec.adder,    op.addr,        None,       field_a,        field_d,   None,            "REG",        0,          2,      1,     0,     0,  1,  0,  0 ),
-            # Indirect jump group                    EXEC_UNIT      OP_CODE         RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_IMM      MEM_LEN IS_LD  IS_ST  BSE WSE BZE WZE
-            ( " 1ee.: SII",                          exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " 2ee.: SII",                          exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " 3ee.: SII",                          exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            # Offset-indirect type operations        EXEC_UNIT      OP_CODE         RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_IMM      MEM_LEN IS_LD  IS_ST  BSE WSE BZE WZE
-            ( " 1ee.: SII",                          exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " 2ee.: SII",                          exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " 3ee.: SII",                          exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            # Offset-indirect load/store group       EXEC_UNIT      OP_CODE         RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_IMM      MEM_LEN IS_LD  IS_ST  BSE WSE BZE WZE
-            ( " .f4.: $rD <- MEM8[$rA+FIELD_E]",     exec.adder,    op.addr,        None,       field_a,        field_d,   None,            "REG",        field_e,    1,      1,     0,     0,  0,  1,  0 ),
-            ( " .f5.: $rD <- MEM16[$rA+FIELD_E]",    exec.adder,    op.addr,        None,       field_a,        field_d,   None,            "REG",        field_e,    2,      1,     0,     0,  0,  0,  1 ),
-            ( " .f6.: $rD <- MEM32[$rA+FIELD_E]",    exec.adder,    op.addr,        None,       field_a,        field_d,   None,            "REG",        field_e,    3,      1,     0,     0,  0,  0,  0 ),
-            ( " .f7.: $rD <- MEMLL32[$rA+FIELD_E]",  exec.adder,    op.addr,        None,       field_a,        field_d,   None,            "REG",        field_e,    3,      1,     0,     0,  0,  0,  0 ),
-            ( " .f8.: MEM8[$rA+FIELD_E] <- $rD",     exec.adder,    op.addr,        None,       field_a,        None,      None,            "REG",        field_e,    1,      0,     1,     0,  0,  0,  0 ),
-            ( " .f9.: MEM16[$rA+FIELD_E] <- $rD",    exec.adder,    op.addr,        None,       field_a,        None,      None,            "REG",        field_e,    2,      0,     1,     0,  0,  0,  0 ),
-            ( " .fa.: MEM32[$rA+FIELD_E] <- $rD",    exec.adder,    op.addr,        None,       field_a,        None,      None,            "REG",        field_e,    3,      0,     1,     0,  0,  0,  0 ),
-            ( " .fb.: MEMSR32[$rA+FIELD_E] <- $rD",  exec.adder,    op.addr,        None,       field_a,        None,      None,            "REG",        field_e,    3,      0,     1,     0,  0,  0,  0 ),
-            ( " .fc.: $rD <- SMEM8[$rA+FIELD_E]",    exec.adder,    op.addr,        None,       field_a,        field_d,   None,            "REG",        field_e,    1,      1,     0,     1,  0,  0,  0 ),
-            ( " .fd.: $rD <- SMEM16[$rA+FIELD_E]",   exec.adder,    op.addr,        None,       field_a,        field_d,   None,            "REG",        field_e,    2,      1,     0,     0,  1,  0,  0 ),
-            # Offset-indirect jump group             EXEC_UNIT      OP_CODE         RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_IMM      MEM_LEN IS_LD  IS_ST  BSE WSE BZE WZE
-            ( " 1fe.: SII",                          exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " 2fe.: SII",                          exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " 3fe.: SII",                          exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            # Absolute load/store group              EXEC_UNIT      OP_CODE         RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_IMM      MEM_LEN IS_LD  IS_ST  BSE WSE BZE WZE
-            ( " .f4f: $rD <- MEM8[FIELD_E]",         exec.adder,    op.addr,        None,       None,           field_d,   None,            0,            field_e,    1,      1,     0,     0,  0,  1,  0 ),
-            ( " .f5f: $rD <- MEM16[FIELD_E]",        exec.adder,    op.addr,        None,       None,           field_d,   None,            0,            field_e,    2,      1,     0,     0,  0,  0,  1 ),
-            ( " .f6f: $rD <- MEM32[FIELD_E]",        exec.adder,    op.addr,        None,       None,           field_d,   None,            0,            field_e,    3,      1,     0,     0,  0,  0,  0 ),
-            ( " .f7f: $rD <- MEMLL32[FIELD_E]",      exec.adder,    op.addr,        None,       None,           field_d,   None,            0,            field_e,    3,      1,     0,     0,  0,  0,  0 ),
-            ( " .f8f: MEM8[FIELD_E] <- $rD",         exec.adder,    op.addr,        None,       None,           None,      None,            0,            field_e,    1,      0,     1,     0,  0,  0,  0 ),
-            ( " .f9f: MEM16[FIELD_E] <- $rD",        exec.adder,    op.addr,        None,       None,           None,      None,            0,            field_e,    2,      0,     1,     0,  0,  0,  0 ),
-            ( " .faf: MEM32[FIELD_E] <- $rD",        exec.adder,    op.addr,        None,       None,           None,      None,            0,            field_e,    3,      0,     1,     0,  0,  0,  0 ),
-            ( " .fbf: MEMSR32[FIELD_E] <- $rD",      exec.adder,    op.addr,        None,       None,           None,      None,            0,            field_e,    3,      0,     1,     0,  0,  0,  0 ),
-            ( " .fcf: $rD <- SMEM8[FIELD_E]",        exec.adder,    op.addr,        None,       None,           field_d,   None,            0,            field_e,    1,      1,     0,     1,  0,  0,  0 ),
-            ( " .fdf: $rD <- SMEM16[FIELD_E]",       exec.adder,    op.addr,        None,       None,           field_d,   None,            0,            field_e,    2,      1,     0,     0,  1,  0,  0 ),
-            # Absolute jump group                    EXEC_UNIT      OP_CODE         RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_IMM      MEM_LEN IS_LD  IS_ST  BSE WSE BZE WZE
-            ( " 1fef: SII",                          exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " 2fef: SII",                          exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
-            ( " 3fef: SII",                          exec.misc,     op.misc_swi,    None,       None,           None,      7,               None,         None,       None,   0,     0,     0,  0,  0,  0 ),
+            #  CODE                                  EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
+            ( "<8000: SWI",                          oc.branch,   None,         None,        bo.swi,      None,      None,       None,           None,      field_a,         None,         None,       None,   0,  0,  0,  0 ),
+            ( " 8000: STM",                          oc.branch,   None,         None,        bo.stm,      None,      None,       None,           None,      None,            None,         None,       None,   0,  0,  0,  0 ),
+            ( " 9000: WOI",                          oc.branch,   ao.a_minus_b, None,        bo.cb_eq,    None,      field_a,    field_b,        None,      "REG",           "REG",        0,          None,   0,  0,  0,  0 ), # Decoded as 'if $0 == $0 $pc <- $pc'
+            ( ">9000: SII",                          *SII),
+            ( " .001: FENCE",                        oc.alu,      None,         None,        None,        None,      None,       None,           None,      None,            None,         None,       None,   0,  0,  0,  0 ), # Decoded as a kind of NOP
+            ( " .002: $pc <- $rD",                   oc.branch,   None,         None,        bo.pc_w,     None,      field_d,    None,           None,      "REG",           None,         None,       None,   0,  0,  0,  0 ),
+            ( " .003: $tpc <- $rD",                  oc.branch,   None,         None,        bo.tpc_w,    None,      field_d,    None,           None,      "REG",           None,         None,       None,   0,  0,  0,  0 ),
+            ( " .004: $rD <- $pc",                   oc.branch,   ao.pc_plus_b, None,        None,        None,      None,       None,           field_d,   None,            0,            None,       None,   0,  0,  0,  0 ),
+            ( " .005: $rD <- $tpc",                  oc.branch,   ao.tpc,       None,        None,        None,      None,       None,           field_d,   None,            None,         None,       None,   0,  0,  0,  0 ),
+            ( " .00>5: SII",                         *SII),
+            # Unary group                            EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
+            ( " .01.: $rD <- tiny FIELD_A",          oc.alu,      ao.a_or_b,    None,        None,        None,      None,       None,           field_d,   0,               ones_field_a, None,       None,   0,  0,  0,  0 ),
+            ( " .02.: $rD <- $pc + FIELD_A*2",       oc.alu,      ao.pc_plus_b, None,        None,        None,      None,       None,           field_d,   None,            ones_field_a, None,       None,   0,  0,  0,  0 ),
+            ( " .03.: $rD <- -$rA",                  oc.alu,      ao.a_minus_b, None,        None,        None,      None,       field_a,        field_d,   0,               "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .04.: $rD <- ~$rA",                  oc.alu,      ao.a_xor_b,   None,        None,        None,      None,       field_a,        field_d,   0xffffffff,      "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .05.: $rD <- bse $rA",               oc.alu,      ao.a_or_b,    None,        None,        None,      None,       field_a,        field_d,   0,               "REG",        None,       None,   1,  0,  0,  0 ),
+            ( " .06.: $rD <- wse $rA",               oc.alu,      ao.a_or_b,    None,        None,        None,      None,       field_a,        field_d,   0,               "REG",        None,       None,   0,  1,  0,  0 ),
+            ( " .0>6.: SII",                         *SII),
+            ## Binary ALU group                      EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
+            ( " .1..: $rD <- $rA ^ $rB",             oc.alu,      ao.a_xor_b,   None,        None,        None,      field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .2..: $rD <- $rA | $rB",             oc.alu,      ao.a_or_b,    None,        None,        None,      field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .3..: $rD <- $rA & $rB",             oc.alu,      ao.a_and_b,   None,        None,        None,      field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .4..: $rD <- $rA + $rB",             oc.alu,      ao.a_plus_b,  None,        None,        None,      field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .5..: $rD <- $rA - $rB",             oc.alu,      ao.a_minus_b, None,        None,        None,      field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .6..: $rD <- $rA << $rB",            oc.shift,    None,         so.shll,     None,        None,      field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .7..: $rD <- $rA >> $rB",            oc.shift,    None,         so.shlr,     None,        None,      field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .8..: $rD <- $rA >>> $rB",           oc.shift,    None,         so.shar,     None,        None,      field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .9..: $rD <- $rA * $rB",             oc.mult,     None,         None,        None,        None,      field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .a..: $rD <- ~$rA & $rB",            oc.alu,      ao.n_b_and_a, None,        None,        None,      field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .b..: $rD <- tiny $rB + FIELD_A",    oc.alu,      ao.a_plus_b,  None,        None,        None,      field_b,    None,           field_d,   "REG",           ones_field_a, None,       None,   0,  0,  0,  0 ),
+            # Load immediate group                   EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
+            ( " .00f: $rD <- VALUE",                 oc.alu,      ao.a_or_b,    None,        None,        None,      None,       None,           field_d,   field_e,         0,            None,       None,   0,  0,  0,  0 ),
+            ( " 20ef: $pc <- VALUE",                 oc.branch,   None,         None,        bo.pc_w,     None,      None,       None,           None,      field_e,         None,         None,       None,   0,  0,  0,  0 ),
+            ( " 30ef: $tpc <- VALUE",                oc.branch,   None,         None,        bo.tpc_w,    None,      None,       None,           None,      field_e,         None,         None,       None,   0,  0,  0,  0 ),
+            ( " 80ef.: SII",                         *SII),
+            ( " 90ef.: SII",                         *SII),
+            # Constant ALU group                     EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
+            ( " .1.f: $rD <- FIELD_E ^ $rB",         oc.alu,      ao.a_xor_b,   None,        None,        None,      None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .2.f: $rD <- FIELD_E | $rB",         oc.alu,      ao.a_or_b,    None,        None,        None,      None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .3.f: $rD <- FIELD_E & $rB",         oc.alu,      ao.a_and_b,   None,        None,        None,      None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .4.f: $rD <- FIELD_E + $rB",         oc.alu,      ao.a_plus_b,  None,        None,        None,      None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .5.f: $rD <- FIELD_E - $rB",         oc.alu,      ao.a_minus_b, None,        None,        None,      None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .6.f: $rD <- FIELD_E << $rB",        oc.shift,    None,         so.shll,     None,        None,      None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .7.f: $rD <- FIELD_E >> $rB",        oc.shift,    None,         so.shlr,     None,        None,      None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .8.f: $rD <- FIELD_E >>> $rB",       oc.shift,    None,         so.shar,     None,        None,      None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .9.f: $rD <- FIELD_E * $rB",         oc.mult,     None,         None,        None,        None,      None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .a.f: SII",                          *SII),
+            ( " .b.f: SII",                          *SII),
+            # Short load immediate group             EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
+            ( " .0f0: $rD <- short VALUE",           oc.alu,      ao.a_or_b,    None,        None,        None,      None,       None,           field_d,   field_e,         0,            None,       None,   0,  0,  0,  0 ),
+            ( " 20fe: $pc <- short VALUE",           oc.branch,   None,         None,        bo.pc_w,     None,      None,       None,           None,      field_e,         None,         None,       None,   0,  0,  0,  0 ),
+            ( " 30fe: $tpc <- short VALUE",          oc.branch,   None,         None,        bo.tpc_w,    None,      None,       None,           None,      field_e,         None,         None,       None,   0,  0,  0,  0 ),
+            # Short constant ALU group               EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
+            ( " .1f.: $rD <- FIELD_E ^ $rA",         oc.alu,      ao.a_xor_b,   None,        None,        None,      None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .2f.: $rD <- FIELD_E | $rA",         oc.alu,      ao.a_or_b,    None,        None,        None,      None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .3f.: $rD <- FIELD_E & $rA",         oc.alu,      ao.a_and_b,   None,        None,        None,      None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .4f.: $rD <- FIELD_E + $rA",         oc.alu,      ao.a_plus_b,  None,        None,        None,      None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .5f.: $rD <- FIELD_E - $rA",         oc.alu,      ao.a_minus_b, None,        None,        None,      None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .6f.: $rD <- FIELD_E << $rA",        oc.shift,    None,         so.shll,     None,        None,      None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .7f.: $rD <- FIELD_E >> $rA",        oc.shift,    None,         so.shlr,     None,        None,      None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .8f.: $rD <- FIELD_E >>> $rA",       oc.shift,    None,         so.shar,     None,        None,      None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .9f.: $rD <- FIELD_E * $rA",         oc.mult,     None,         None,        None,        None,      None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
+            ( " .af.: SII",                          *SII),
+            ( " .bf.: SII",                          *SII),
+            # Zero-compare conditional branch group  EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
+            ( " f00.: if $rA == 0",                  oc.branch,   None,         None,        bo.cb_eq,    None,      field_a,    None,           None,      "REG",           0,            field_e,    None,   0,  0,  0,  0 ),
+            ( " f01.: if $rA != 0",                  oc.branch,   None,         None,        bo.cb_ne,    None,      field_a,    None,           None,      "REG",           0,            field_e,    None,   0,  0,  0,  0 ),
+            ( " f02.: if $rA < 0",                   oc.branch,   None,         None,        bo.cb_lts,   None,      field_a,    None,           None,      "REG",           0,            field_e,    None,   0,  0,  0,  0 ),
+            ( " f03.: if $rA >= 0",                  oc.branch,   None,         None,        bo.cb_ges,   None,      field_a,    None,           None,      "REG",           0,            field_e,    None,   0,  0,  0,  0 ),
+            ( " f04.: if $rA > 0",                   oc.branch,   None,         None,        bo.cb_lts,   None,      None,       field_a,        None,      0,               "REG",        field_e,    None,   0,  0,  0,  0 ),
+            ( " f05.: if $rA <= 0",                  oc.branch,   None,         None,        bo.cb_ges,   None,      None,       field_a,        None,      0,               "REG",        field_e,    None,   0,  0,  0,  0 ),
+            ( " f06.: SII",                          *SII),
+            ( " f07.: SII",                          *SII),
+            ( " f08.: if $rA == 0",                  oc.branch,   None,         None,        bo.cb_eq,    None,      field_a,    None,           None,      "REG",           0,            field_e,    None,   0,  0,  0,  0 ),
+            ( " f09.: if $rA != 0",                  oc.branch,   None,         None,        bo.cb_ne,    None,      field_a,    None,           None,      "REG",           0,            field_e,    None,   0,  0,  0,  0 ),
+            ( " f0a.: if $rA < 0",                   oc.branch,   None,         None,        bo.cb_lts,   None,      field_a,    None,           None,      "REG",           0,            field_e,    None,   0,  0,  0,  0 ),
+            ( " f0b.: if $rA >= 0",                  oc.branch,   None,         None,        bo.cb_ges,   None,      field_a,    None,           None,      "REG",           0,            field_e,    None,   0,  0,  0,  0 ),
+            ( " f0c.: if $rA > 0",                   oc.branch,   None,         None,        bo.cb_lts,   None,      None,       field_a,        None,      0,               "REG",        field_e,    None,   0,  0,  0,  0 ),
+            ( " f0d.: if $rA <= 0",                  oc.branch,   None,         None,        bo.cb_ges,   None,      None,       field_a,        None,      0,               "REG",        field_e,    None,   0,  0,  0,  0 ),
+            ( " f0e.: SII",                          *SII),
+            # Conditional branch group               EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
+            ( " f1..: if $rB == $rA",                oc.branch,   None,         None,        bo.cb_eq,    None,      field_b,    field_a,        None,      "REG",           "REG",        field_e,    None,   0,  0,  0,  0 ),
+            ( " f2..: if $rB != $rA",                oc.branch,   None,         None,        bo.cb_ne,    None,      field_b,    field_a,        None,      "REG",           "REG",        field_e,    None,   0,  0,  0,  0 ),
+            ( " f3..: if signed $rB < $rA",          oc.branch,   None,         None,        bo.cb_lts,   None,      field_b,    field_a,        None,      "REG",           "REG",        field_e,    None,   0,  0,  0,  0 ),
+            ( " f4..: if signed $rB >= $rA",         oc.branch,   None,         None,        bo.cb_ges,   None,      field_b,    field_a,        None,      "REG",           "REG",        field_e,    None,   0,  0,  0,  0 ),
+            ( " f5..: if $rB < $rA",                 oc.branch,   None,         None,        bo.cb_lt,    None,      field_b,    field_a,        None,      "REG",           "REG",        field_e,    None,   0,  0,  0,  0 ),
+            ( " f6..: if $rB >= $rA",                oc.branch,   None,         None,        bo.cb_ge,    None,      field_b,    field_a,        None,      "REG",           "REG",        field_e,    None,   0,  0,  0,  0 ),
+            ( " f7..: SII",                          *SII),
+            ( " f8..: SII",                          *SII),
+            ( " f9..: if $rB == $rA",                oc.branch,   None,         None,        bo.cb_eq,    None,      field_b,    field_a,        None,      "REG",           "REG",        field_e,    None,   0,  0,  0,  0 ),
+            ( " fa..: if $rB != $rA",                oc.branch,   None,         None,        bo.cb_ne,    None,      field_b,    field_a,        None,      "REG",           "REG",        field_e,    None,   0,  0,  0,  0 ),
+            ( " fb..: if signed $rB < $rA",          oc.branch,   None,         None,        bo.cb_lts,   None,      field_b,    field_a,        None,      "REG",           "REG",        field_e,    None,   0,  0,  0,  0 ),
+            ( " fc..: if signed $rB >= $rA",         oc.branch,   None,         None,        bo.cb_ges,   None,      field_b,    field_a,        None,      "REG",           "REG",        field_e,    None,   0,  0,  0,  0 ),
+            ( " fd..: if $rB < $rA",                 oc.branch,   None,         None,        bo.cb_lt,    None,      field_b,    field_a,        None,      "REG",           "REG",        field_e,    None,   0,  0,  0,  0 ),
+            ( " fe..: if $rB >= $rA",                oc.branch,   None,         None,        bo.cb_ge,    None,      field_b,    field_a,        None,      "REG",           "REG",        field_e,    None,   0,  0,  0,  0 ),
+            # Bit-set-test branch group              EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
+            ( " f.f.: if $rA[.]  == 1",              oc.branch,   None,         None,        bo.bb_one,   None,      field_a,    None,           None,      "REG",           field_c,      field_e,    None,   0,  0,  0,  0 ),
+            ( " f..f: if $rB[.]  == 0",              oc.branch,   None,         None,        bo.bb_one,   None,      field_b,    None,           None,      "REG",           field_c,      field_e,    None,   0,  0,  0,  0 ),
+            # Stack group                            EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
+            ( " .c**: MEM[$rA+tiny OFS*4] <- $rD",   oc.ld_st,    None,         None,        None,        lo.store,  field_d,    tiny_field_a,   None,      "REG",           "REG",        tiny_ofs,   3,      0,  0,  0,  0 ),
+            ( " .d**: $rD <- MEM[$rA+tiny OFS*4]",   oc.ld_st,    None,         None,        None,        lo.load,   None,       tiny_field_a,   field_d,   None,            "REG",        tiny_ofs,   3,      0,  0,  0,  0 ),
+            # Type operations                        EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
+            ( " .e0.: SII",                          *SII),
+            ( " .e1.: SII",                          *SII),
+            ( " .e2.: SII",                          *SII),
+            ( " .e3.: SII",                          *SII),
+            # Indirect load/store group              EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
+            ( " .e4.: $rD <- MEM8[$rA]",             oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        0,          1,      0,  0,  1,  0 ),
+            ( " .e5.: $rD <- MEM16[$rA]",            oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        0,          2,      0,  0,  0,  1 ),
+            ( " .e6.: $rD <- MEM32[$rA]",            oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        0,          3,      0,  0,  0,  0 ),
+            ( " .e7.: $rD <- MEMLL32[$rA]",          oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        0,          3,      0,  0,  0,  0 ),
+            ( " .e8.: MEM8[$rA] <- $rD",             oc.ld_st,    None,         None,        None,        lo.store,  field_d,    field_a,        None,      "REG",           "REG",        0,          1,      0,  0,  0,  0 ),
+            ( " .e9.: MEM16[$rA] <- $rD",            oc.ld_st,    None,         None,        None,        lo.store,  field_d,    field_a,        None,      "REG",           "REG",        0,          2,      0,  0,  0,  0 ),
+            ( " .ea.: MEM32[$rA] <- $rD",            oc.ld_st,    None,         None,        None,        lo.store,  field_d,    field_a,        None,      "REG",           "REG",        0,          3,      0,  0,  0,  0 ),
+            ( " .eb.: MEMSR32[$rA] <- $rD",          oc.ld_st,    None,         None,        None,        lo.store,  field_d,    field_a,        None,      "REG",           "REG",        0,          3,      0,  0,  0,  0 ),
+            ( " .ec.: $rD <- SMEM8[$rA]",            oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        0,          1,      1,  0,  0,  0 ),
+            ( " .ed.: $rD <- SMEM16[$rA]",           oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        0,          2,      0,  1,  0,  0 ),
+            # Indirect jump group                    EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
+            ( " 1ee.: SII",                          *SII),
+            ( " 2ee.: SII",                          *SII),
+            ( " 3ee.: SII",                          *SII),
+            # Offset-indirect type operations        EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
+            ( " 1ee.: SII",                          *SII),
+            ( " 2ee.: SII",                          *SII),
+            ( " 3ee.: SII",                          *SII),
+            # Offset-indirect load/store group       EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
+            ( " .f4.: $rD <- MEM8[$rA+FIELD_E]",     oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        field_e,    1,      0,  0,  1,  0 ),
+            ( " .f5.: $rD <- MEM16[$rA+FIELD_E]",    oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        field_e,    2,      0,  0,  0,  1 ),
+            ( " .f6.: $rD <- MEM32[$rA+FIELD_E]",    oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        field_e,    3,      0,  0,  0,  0 ),
+            ( " .f7.: $rD <- MEMLL32[$rA+FIELD_E]",  oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        field_e,    3,      0,  0,  0,  0 ),
+            ( " .f8.: MEM8[$rA+FIELD_E] <- $rD",     oc.ld_st,    None,         None,        None,        lo.store,  field_d,    field_a,        None,      "REG",           "REG",        field_e,    1,      0,  0,  0,  0 ),
+            ( " .f9.: MEM16[$rA+FIELD_E] <- $rD",    oc.ld_st,    None,         None,        None,        lo.store,  field_d,    field_a,        None,      "REG",           "REG",        field_e,    2,      0,  0,  0,  0 ),
+            ( " .fa.: MEM32[$rA+FIELD_E] <- $rD",    oc.ld_st,    None,         None,        None,        lo.store,  field_d,    field_a,        None,      "REG",           "REG",        field_e,    3,      0,  0,  0,  0 ),
+            ( " .fb.: MEMSR32[$rA+FIELD_E] <- $rD",  oc.ld_st,    None,         None,        None,        lo.store,  field_d,    field_a,        None,      "REG",           "REG",        field_e,    3,      0,  0,  0,  0 ),
+            ( " .fc.: $rD <- SMEM8[$rA+FIELD_E]",    oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        field_e,    1,      1,  0,  0,  0 ),
+            ( " .fd.: $rD <- SMEM16[$rA+FIELD_E]",   oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        field_e,    2,      0,  1,  0,  0 ),
+            # Offset-indirect jump group             EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
+            ( " 1fe.: SII",                          *SII),
+            ( " 2fe.: SII",                          *SII),
+            ( " 3fe.: SII",                          *SII),
+            # Absolute load/store group              EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
+            ( " .f4f: $rD <- MEM8[FIELD_E]",         oc.ld_st,    None,         None,        None,        lo.load,   None,       None,           field_d,   None,            0,            field_e,    1,      0,  0,  1,  0 ),
+            ( " .f5f: $rD <- MEM16[FIELD_E]",        oc.ld_st,    None,         None,        None,        lo.load,   None,       None,           field_d,   None,            0,            field_e,    2,      0,  0,  0,  1 ),
+            ( " .f6f: $rD <- MEM32[FIELD_E]",        oc.ld_st,    None,         None,        None,        lo.load,   None,       None,           field_d,   None,            0,            field_e,    3,      0,  0,  0,  0 ),
+            ( " .f7f: $rD <- MEMLL32[FIELD_E]",      oc.ld_st,    None,         None,        None,        lo.load,   None,       None,           field_d,   None,            0,            field_e,    3,      0,  0,  0,  0 ),
+            ( " .f8f: MEM8[FIELD_E] <- $rD",         oc.ld_st,    None,         None,        None,        lo.store,  field_d,    None,           None,      "REG",           0,            field_e,    1,      0,  0,  0,  0 ),
+            ( " .f9f: MEM16[FIELD_E] <- $rD",        oc.ld_st,    None,         None,        None,        lo.store,  field_d,    None,           None,      "REG",           0,            field_e,    2,      0,  0,  0,  0 ),
+            ( " .faf: MEM32[FIELD_E] <- $rD",        oc.ld_st,    None,         None,        None,        lo.store,  field_d,    None,           None,      "REG",           0,            field_e,    3,      0,  0,  0,  0 ),
+            ( " .fbf: MEMSR32[FIELD_E] <- $rD",      oc.ld_st,    None,         None,        None,        lo.store,  field_d,    None,           None,      "REG",           0,            field_e,    3,      0,  0,  0,  0 ),
+            ( " .fcf: $rD <- SMEM8[FIELD_E]",        oc.ld_st,    None,         None,        None,        lo.load,   None,       None,           field_d,   None,            0,            field_e,    1,      1,  0,  0,  0 ),
+            ( " .fdf: $rD <- SMEM16[FIELD_E]",       oc.ld_st,    None,         None,        None,        lo.load,   None,       None,           field_d,   None,            0,            field_e,    2,      0,  1,  0,  0 ),
+            # Absolute jump group                    EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
+            ( " 1fef: SII",                          *SII),
+            ( " 2fef: SII",                          *SII),
+            ( " 3fef: SII",                          *SII),
         )
 
         def parse_bit_mask(full_mask: str) -> Tuple[Wire, str]:
@@ -330,22 +357,24 @@ class DecodeStage(Module):
                 idx += 1
             return ret_val, ins_name
 
-        CODE       = 0
-        EXEC_UNIT  = 1
-        OP_CODE    = 2
-        RD1_ADDR   = 3
-        RD2_ADDR   = 4
-        RES_ADDR   = 5
-        OP_A       = 6
-        OP_B       = 7
-        OP_IMM     = 8
-        MEM_LEN    = 9
-        IS_LD      = 10
-        IS_ST      = 11
-        BSE        = 12
-        WSE        = 13
-        BZE        = 14
-        WZE        = 15
+        # Field and their mapping to output signals:
+        CODE       =  0    #
+        EXEC_UNIT  =  1    #    exec_unit = EnumNet(op_class)
+        ALU_OP     =  2    #    alu_op = EnumNet(alu_ops)
+        SHIFTER_OP =  3    #    shifter_op = EnumNet(shifter_ops)
+        BRANCH_OP  =  4    #    branch_op = EnumNet(branch_ops)
+        LDST_OP    =  5    #    ldst_op = EnumNet(ldst_ops)
+        RD1_ADDR   =  6    #
+        RD2_ADDR   =  7    #
+        RES_ADDR   =  8    #    result_reg_addr = BrewRegAddr
+        OP_A       =  9    #    op_a = BrewData
+        OP_B       = 10    #    op_b = BrewData
+        OP_C       = 11    #    op_c = BrewData
+        MEM_LEN    = 12    #    mem_access_len = Unsigned(2) # 0 for 8-bit, 1 for 16-bit, 2 for 32-bit
+        BSE        = 13    #    do_bse = logic
+        WSE        = 14    #    do_wse = logic
+        BZE        = 15    #    do_bze = logic
+        WZE        = 16    #    do_wze = logic
 
         mask_expressions = []
         for expr, name in (parse_bit_mask(line[CODE]) for line in inst_table):
@@ -355,36 +384,38 @@ class DecodeStage(Module):
         # At this point we have all the required selections for the various control lines in 'inst_table' and their selection expressions in 'mask_expressions'.
         # All we need to do is to create the appropriate 'SelectOne' expressions.
 
-        select_list_exec_unit = []
-        select_list_op_code   = []
-        select_list_rd1_addr  = []
-        select_list_rd2_addr  = []
-        select_list_res_addr  = []
-        select_list_op_a      = []
-        select_list_op_b      = []
-        select_list_use_reg_a = []
-        select_list_use_reg_b = []
-        select_list_op_imm    = []
-        select_list_mem_len   = []
-        select_list_is_ld     = []
-        select_list_is_st     = []
-        select_list_bse       = []
-        select_list_wse       = []
-        select_list_bze       = []
-        select_list_wze       = []
+        select_list_exec_unit  = []
+        select_list_alu_op     = []
+        select_list_shifter_op = []
+        select_list_branch_op  = []
+        select_list_ldst_op    = []
+        select_list_rd1_addr   = []
+        select_list_rd2_addr   = []
+        select_list_res_addr   = []
+        select_list_op_a       = []
+        select_list_op_b       = []
+        select_list_use_reg_a  = []
+        select_list_use_reg_b  = []
+        select_list_op_c       = []
+        select_list_mem_len    = []
+        select_list_bse        = []
+        select_list_wse        = []
+        select_list_bze        = []
+        select_list_wze        = []
 
         select_lists = (
             select_list_exec_unit,
-            select_list_op_code,
+            select_list_alu_op,
+            select_list_shifter_op,
+            select_list_branch_op,
+            select_list_ldst_op,
             select_list_rd1_addr,
             select_list_rd2_addr,
             select_list_res_addr,
             select_list_op_a,
             select_list_op_b,
-            select_list_op_imm,
+            select_list_op_c,
             select_list_mem_len,
-            select_list_is_ld,
-            select_list_is_st,
             select_list_bse,
             select_list_wse,
             select_list_bze,
@@ -393,7 +424,7 @@ class DecodeStage(Module):
 
         for line, mask_expr in zip(inst_table, mask_expressions):
             for idx, (select_list, value) in enumerate(zip(select_lists, line[EXEC_UNIT:])):
-                idx += 1 # We are skipping the first column, so we have to accomodate it here
+                idx += 1 # We are skipping the first column, so we have to accommodate it here
                 # OP_A and OP_B are somewhat special to hide the read-latency of the register file:
                 # We do two-stage muxing: We mux all non-reg-file outputs, then register them, then
                 # do a post-mux to swap in the register file outputs
@@ -409,7 +440,7 @@ class DecodeStage(Module):
                         if value is not None: select_list += (mask_expr, value)
                 else:
                     # Remove all the 0-s from the selectors for these fields and rely on default_ports to restore them
-                    if idx in (IS_LD, IS_ST, BSE, WSE, BZE, WZE,) and value == 0:
+                    if idx in (BSE, WSE, BZE, WZE,) and value == 0:
                         value = None
                     assert not isinstance(value, str)
                     if value is not None: select_list += (mask_expr, value)
@@ -424,34 +455,35 @@ class DecodeStage(Module):
                 if value is not None: select_list += (mask_expr, 1)
 
         # Now that we have the selection lists, we can compose the muxes
-        exec_unit = SelectOne(*select_list_exec_unit)                   if len(select_list_exec_unit) > 0 else None
-        op_code   = SelectOne(*select_list_op_code)                     if len(select_list_op_code) > 0 else None
-        rd1_addr  = SelectOne(*select_list_rd1_addr)                    if len(select_list_rd1_addr) > 0 else None
-        rd2_addr  = SelectOne(*select_list_rd2_addr)                    if len(select_list_rd2_addr) > 0 else None
-        res_addr  = SelectOne(*select_list_res_addr)                    if len(select_list_res_addr) > 0 else None
-        use_reg_a = SelectOne(*select_list_use_reg_a, default_port = 0) if len(select_list_use_reg_a) > 0 else None
-        use_reg_b = SelectOne(*select_list_use_reg_b, default_port = 0) if len(select_list_use_reg_b) > 0 else None
-        op_a      = SelectOne(*select_list_op_a)                        if len(select_list_op_a) > 0 else None
-        op_b      = SelectOne(*select_list_op_b)                        if len(select_list_op_b) > 0 else None
-        op_imm    = SelectOne(*select_list_op_imm)                      if len(select_list_op_imm) > 0 else None
-        mem_len   = SelectOne(*select_list_mem_len)                     if len(select_list_mem_len) > 0 else None
-        is_ld     = SelectOne(*select_list_is_ld, default_port = 0)     if len(select_list_is_ld) > 0 else 0
-        is_st     = SelectOne(*select_list_is_st, default_port = 0)     if len(select_list_is_st) > 0 else 0
-        bse       = SelectOne(*select_list_bse, default_port = 0)       if len(select_list_bse) > 0 else 0
-        wse       = SelectOne(*select_list_wse, default_port = 0)       if len(select_list_wse) > 0 else 0
-        bze       = SelectOne(*select_list_bze, default_port = 0)       if len(select_list_bze) > 0 else 0
-        wze       = SelectOne(*select_list_wze, default_port = 0)       if len(select_list_wze) > 0 else 0
+        exec_unit  = SelectOne(*select_list_exec_unit)                   if len(select_list_exec_unit) > 0 else None
+        alu_op     = SelectOne(*select_list_alu_op)                      if len(select_list_alu_op) > 0 else None
+        shifter_op = SelectOne(*select_list_shifter_op)                  if len(select_list_shifter_op) > 0 else None
+        branch_op  = SelectOne(*select_list_branch_op)                   if len(select_list_branch_op) > 0 else None
+        ldst_op    = SelectOne(*select_list_ldst_op)                     if len(select_list_ldst_op) > 0 else None
+        rd1_addr   = SelectOne(*select_list_rd1_addr)                    if len(select_list_rd1_addr) > 0 else None
+        rd2_addr   = SelectOne(*select_list_rd2_addr)                    if len(select_list_rd2_addr) > 0 else None
+        res_addr   = SelectOne(*select_list_res_addr)                    if len(select_list_res_addr) > 0 else None
+        use_reg_a  = SelectOne(*select_list_use_reg_a, default_port = 0) if len(select_list_use_reg_a) > 0 else None
+        use_reg_b  = SelectOne(*select_list_use_reg_b, default_port = 0) if len(select_list_use_reg_b) > 0 else None
+        op_a       = SelectOne(*select_list_op_a)                        if len(select_list_op_a) > 0 else None
+        op_b       = SelectOne(*select_list_op_b)                        if len(select_list_op_b) > 0 else None
+        op_c       = SelectOne(*select_list_op_c)                        if len(select_list_op_c) > 0 else None
+        mem_len    = SelectOne(*select_list_mem_len)                     if len(select_list_mem_len) > 0 else None
+        bse        = SelectOne(*select_list_bse, default_port = 0)       if len(select_list_bse) > 0 else 0
+        wse        = SelectOne(*select_list_wse, default_port = 0)       if len(select_list_wse) > 0 else 0
+        bze        = SelectOne(*select_list_bze, default_port = 0)       if len(select_list_bze) > 0 else 0
+        wze        = SelectOne(*select_list_wze, default_port = 0)       if len(select_list_wze) > 0 else 0
 
-        read1_needed = SelectOne(*select_list_read1_needed, default_port=0)
-        read2_needed = SelectOne(*select_list_read2_needed, default_port=0)
-        rsv_needed   = SelectOne(*select_list_rsv_needed, default_port=0)
+        read1_needed = Select(self.fetch.av, SelectOne(*select_list_read1_needed, default_port=0), 0)
+        read2_needed = Select(self.fetch.av, SelectOne(*select_list_read2_needed, default_port=0), 0)
+        rsv_needed   = Select(self.fetch.av, SelectOne(*select_list_rsv_needed, default_port=0), 0)
 
         # We let the register file handle the hand-shaking for us. We just need to implement the output buffers
         self.fetch.ready <<= self.reg_file_req.ready
         self.reg_file_req.valid <<= self.fetch.valid & ~self.do_branch
 
-        self.exec.valid <<= self.reg_file_rsp.valid
-        self.reg_file_rsp.ready <<= self.exec.ready
+        self.output_port.valid <<= self.reg_file_rsp.valid
+        self.reg_file_rsp.ready <<= self.output_port.ready
 
         self.reg_file_req.read1_addr  <<= BrewRegAddr(rd1_addr)
         self.reg_file_req.read1_valid <<= read1_needed
@@ -462,22 +494,23 @@ class DecodeStage(Module):
 
         register_outputs = self.reg_file_req.ready & self.reg_file_req.valid
 
-        self.exec.opcode                <<= Reg(op_code, clock_en=register_outputs)
-        self.exec.exec_unit             <<= Reg(exec_unit, clock_en=register_outputs)
-        self.exec.op_a                  <<= Select(Reg(use_reg_a, clock_en=register_outputs), Reg(op_a, clock_en=register_outputs), self.reg_file_rsp.read1_data)
-        self.exec.op_b                  <<= Select(Reg(use_reg_b, clock_en=register_outputs), Reg(op_b, clock_en=register_outputs), self.reg_file_rsp.read2_data)
-        self.exec.op_imm                <<= Reg(op_imm, clock_en=register_outputs)
-        self.exec.mem_access_len        <<= Reg(mem_len, clock_en=register_outputs)
-        self.exec.inst_len              <<= Reg(self.fetch.inst_len, clock_en=register_outputs)
-        self.exec.is_load               <<= Reg(is_ld, clock_en=register_outputs)
-        self.exec.is_store              <<= Reg(is_st, clock_en=register_outputs)
-        self.exec.do_bse                <<= Reg(bse, clock_en=register_outputs)
-        self.exec.do_wse                <<= Reg(wse, clock_en=register_outputs)
-        self.exec.do_bze                <<= Reg(bze, clock_en=register_outputs)
-        self.exec.do_wze                <<= Reg(wze, clock_en=register_outputs)
-        self.exec.result_reg_addr       <<= Reg(BrewRegAddr(res_addr), clock_en=register_outputs)
-        self.exec.result_reg_addr_valid <<= Reg(rsv_needed, clock_en=register_outputs)
-        self.exec.fetch_av              <<= Reg(self.fetch.av, clock_en=register_outputs)
+        self.output_port.exec_unit             <<= Reg(exec_unit, clock_en=register_outputs)
+        self.output_port.alu_op                <<= Reg(alu_op, clock_en=register_outputs)
+        self.output_port.shifter_op            <<= Reg(shifter_op, clock_en=register_outputs)
+        self.output_port.branch_op             <<= Reg(branch_op, clock_en=register_outputs)
+        self.output_port.ldst_op               <<= Reg(ldst_op, clock_en=register_outputs)
+        self.output_port.op_a                  <<= Select(Reg(use_reg_a, clock_en=register_outputs), Reg(op_a, clock_en=register_outputs), self.reg_file_rsp.read1_data)
+        self.output_port.op_b                  <<= Select(Reg(use_reg_b, clock_en=register_outputs), Reg(op_b, clock_en=register_outputs), self.reg_file_rsp.read2_data)
+        self.output_port.op_c                  <<= Reg(op_c, clock_en=register_outputs)
+        self.output_port.mem_access_len        <<= Reg(mem_len, clock_en=register_outputs)
+        self.output_port.inst_len              <<= Reg(self.fetch.inst_len, clock_en=register_outputs)
+        self.output_port.do_bse                <<= Reg(bse, clock_en=register_outputs)
+        self.output_port.do_wse                <<= Reg(wse, clock_en=register_outputs)
+        self.output_port.do_bze                <<= Reg(bze, clock_en=register_outputs)
+        self.output_port.do_wze                <<= Reg(wze, clock_en=register_outputs)
+        self.output_port.result_reg_addr       <<= Reg(BrewRegAddr(res_addr), clock_en=register_outputs)
+        self.output_port.result_reg_addr_valid <<= Reg(rsv_needed, clock_en=register_outputs)
+        self.output_port.fetch_av              <<= Reg(self.fetch.av, clock_en=register_outputs)
 
 
 
@@ -598,7 +631,7 @@ def sim():
         clk = ClkPort()
         rst = RstPort()
 
-        exec = Input(DecodeExecIf)
+        output_port = Input(DecodeExecIf)
 
         def simulate(self) -> TSimEvent:
             def wait_clk():
@@ -612,13 +645,13 @@ def sim():
                     yield from wait_clk()
 
             def wait_transfer():
-                self.exec.ready <<= 1
+                self.output_port.ready <<= 1
                 yield from wait_clk()
-                while (self.exec.valid & self.exec.ready) != 1:
+                while (self.output_port.valid & self.output_port.ready) != 1:
                     yield from wait_clk()
-                self.exec.ready <<= 0
+                self.output_port.ready <<= 0
 
-            self.exec.ready <<= 1
+            self.output_port.ready <<= 1
 
 
 
@@ -670,8 +703,15 @@ def sim():
     Build.simulation(top, "decode.vcd", add_unnamed_scopes=True)
 
 def gen():
-    Build.generate_rtl(DecodeStage)
+    def top():
+        return ScanWrapper(DecodeStage, {"clk", "rst"})
+
+    netlist = Build.generate_rtl(top, "decode.sv")
+    top_level_name = netlist.get_module_class_name(netlist.top_level)
+    flow = QuartusFlow(target_dir="q_decode", top_level=top_level_name, source_files=("decode.sv",), clocks=(("clk", 10), ("top_clk", 100)), project_name="decode")
+    flow.generate()
+    flow.run()
 
 if __name__ == "__main__":
-    #gen()
-    sim()
+    gen()
+    #sim()
