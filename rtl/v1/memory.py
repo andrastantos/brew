@@ -179,7 +179,8 @@ class MemoryStage(GenericModule):
         self.output_port.valid <<= (self.bus_rsp_if.valid & ~pending) | (csr_pen & self.csr_if.pready & ~self.csr_if.pwrite)
 
         first_addr = self.input_port.addr[BrewBusAddr.length:1]
-        next_addr = Reg((first_addr + 1)[BrewBusAddr.length-1:0], clock_en=input_advance)
+        # We already have aligned addresses. As a result, LSB should be 0 for 32-bit accesses, so incrementing it is the same as setting LSB to 1.
+        next_addr = Reg((first_addr | 1)[BrewBusAddr.length-1:0], clock_en=input_advance)
 
         byte_en = Wire(Unsigned(2))
         byte_en[0] <<= (self.input_port.access_len != 0) | ~self.input_port.addr[0]
@@ -635,7 +636,7 @@ def sim():
 
 def gen():
     def top():
-        return ScanWrapper(MemoryStage, {"clk", "rst"})
+        return ScanWrapper(MemoryStage, {"clk", "rst"}, csr_base=0xc, nram_base=0xf)
 
     netlist = Build.generate_rtl(top, "memory.sv")
     top_level_name = netlist.get_module_class_name(netlist.top_level)
@@ -644,5 +645,5 @@ def gen():
     flow.run()
 
 if __name__ == "__main__":
-    #gen()
-    sim()
+    gen()
+    #sim()
