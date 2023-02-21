@@ -72,7 +72,7 @@ class ScanChain(Module):
         input_reg = Wire(Unsigned(input_len))
         output_reg = Wire(Unsigned(output_len))
         load_wire = Wire(Unsigned(input_len))
-        load_wire <<= concat(*inputs)
+        load_wire <<= Unsigned(input_len)(concat(*inputs)) # concat's signed-ness depends on the type of the first element in inputs.
         input_reg <<= Reg(Select(self.load, concat(input_reg[input_len-2:0], self.idin), load_wire))
         self.idout <<= input_reg[input_len-1]
         output_reg <<= Reg(concat(output_reg[output_len-2:0], self.odin))
@@ -141,9 +141,10 @@ class ScanWrapper(GenericModule):
     odin = Input(logic)
     odout = Output(logic)
 
-    def construct(self, Top:Callable, black_list:Sequence[str] = None, *args, **kwargs):
+    def construct(self, Top:Callable, black_list:Sequence[str] = None, clk_port_name: str="clk", *args, **kwargs):
         self.Top = Top
         self.black_list = black_list
+        self.clk_port_name = clk_port_name
 
         self.top = self.Top(*args, **kwargs)
         for name, port in self.top.get_inputs().items():
@@ -166,18 +167,68 @@ class ScanWrapper(GenericModule):
         self.odout <<= ser.odout
         ser.load <<= self.load
 
+        def get_name(prefix, name, names):
+            n = f"{name}_{first(names)}" if len(names) > 0 else name
+            return f"{prefix}_{n}"
+
+        top_clk = None
+        for name, port in self.top.get_inputs().items():
+            if name == self.clk_port_name:
+                top_clk = port
         for name, port in self.top.get_inputs().items():
             if self.black_list is not None and name in self.black_list:
                 my_port = getattr(self, f"top_{name}")
                 port <<= my_port
             else:
-                ser.add_output(port)
+                for names, (member, reversed) in port.get_all_member_junctions_with_names(add_self = True).items():
+                    if member.is_composite():
+                        continue
+                    if reversed:
+                        if top_clk is not None:
+                            reg_member = Reg(member, clock_port=top_clk)
+                            setattr(self, get_name("oreg", name, names), reg_member)
+                            ser.add_input(reg_member)
+                            del reg_member
+                        else:
+                            ser.add_input(member)
+                    else:
+                        if top_clk is not None:
+                            wire = Wire(member.get_net_type())
+                            reg_member = Reg(wire, clock_port=top_clk)
+                            member <<= reg_member
+                            setattr(self, get_name("ireg", name, names), reg_member)
+                            setattr(self, get_name("ser", name, names), wire)
+                            ser.add_output(wire)
+                            del wire
+                            del reg_member
+                        else:
+                            ser.add_output(member)
+
         for name, port in self.top.get_outputs().items():
             if self.black_list is not None and name in self.black_list:
                 my_port = getattr(self, f"top_{name}")
                 my_port <<= port
             else:
-                ser.add_input(port)
+                for names, (member, reversed) in port.get_all_member_junctions_with_names(add_self = True).items():
+                    if member.is_composite():
+                        continue
+                    if not reversed:
+                        if top_clk is not None:
+                            member = Reg(member, clock_port=top_clk)
+                            setattr(self, get_name("oreg", name, names), member)
+                        ser.add_input(member)
+                    else:
+                        if top_clk is not None:
+                            wire = Wire(member.get_net_type())
+                            reg_member = Reg(wire, clock_port=top_clk)
+                            member <<= reg_member
+                            setattr(self, get_name("ireg", name, names), reg_member)
+                            setattr(self, get_name("ser", name, names), wire)
+                            ser.add_output(wire)
+                            del wire
+                            del reg_member
+                        else:
+                            ser.add_output(member)
 
 
 def gen():
@@ -206,7 +257,7 @@ def gen():
             self.o1 <<= self.i2.r[1]
             self.o2 <<= self.i2
             self.o3.fwd <<= self.i1
-            self.i3.rev <<= self.o3.rev
+            self.i3.rev <<= Reg(self.o3.rev)
 
     def top():
         return ScanWrapper(inner_top, {"clk", "rst", "exclude"})
