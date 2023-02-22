@@ -54,8 +54,6 @@ class ExecUnitResultIf(Interface):
     result = BrewData
 
 
-TIMING_CLOSURE_TESTS = False
-
 class AluInputIf(Interface):
     opcode = EnumNet(alu_ops)
     op_a = BrewData
@@ -176,9 +174,7 @@ class MultUnit(Module):
 
     OPTIMIZED = True
     def body(self):
-        if TIMING_CLOSURE_TESTS:
-            mult_result = 0
-        elif self.OPTIMIZED:
+        if self.OPTIMIZED:
             partial_11 = (self.input_port.op_a[15: 0] * self.input_port.op_b[15: 0])
             partial_12 = (self.input_port.op_a[31:16] * self.input_port.op_b[15: 0])[15:0]
             partial_21 = (self.input_port.op_a[15: 0] * self.input_port.op_b[31:16])[15:0]
@@ -423,9 +419,11 @@ class ExecuteStage(GenericModule):
 
     complete = Output(logic) # goes high for 1 cycle when an instruction completes. Used for verification
 
-    def construct(self, csr_base: int, nram_base: int):
+    def construct(self, csr_base: int, nram_base: int, has_multiply: bool = True, has_shift: bool = True):
         self.csr_base = csr_base
         self.nram_base = nram_base
+        self.has_multiply = has_multiply
+        self.has_shift = has_shift
 
     def body(self):
         # We have two stages in one, really here
@@ -460,11 +458,7 @@ class ExecuteStage(GenericModule):
         alu_output <<= alu_unit.output_port
         s1_alu_output = Wire(AluOutputIf)
         s1_alu_output <<= Reg(alu_output, clock_en = stage_1_reg_en)
-        #result
-        #f_zero
-        #f_sign
-        #f_carry
-        #f_overflow
+
 
         # Load-store
         ldst_output = Wire(LoadStoreOutputIf)
@@ -479,9 +473,7 @@ class ExecuteStage(GenericModule):
         ldst_output <<= ldst_unit.output_port
         s1_ldst_output = Wire(LoadStoreOutputIf)
         s1_ldst_output <<= Reg(ldst_output, clock_en = stage_1_reg_en)
-        #phy_addr
-        #mem_av
-        #mem_unaligned
+
 
         # Branch-target
         branch_target_output = Wire(BranchTargetUnitOutputIf)
@@ -492,29 +484,26 @@ class ExecuteStage(GenericModule):
         branch_target_output <<= branch_target_unit.output_port
         s1_branch_target_output = Wire(BranchTargetUnitOutputIf)
         s1_branch_target_output <<= Reg(branch_target_output, clock_en = stage_1_reg_en)
-        #branch_addr
-        #straight_addr
 
-
-        # These are two-cycle (multi-cycle) units
         # Shifter
-        shifter_output = Wire(ShifterOutputIf)
-        shifter_unit = ShifterUnit()
-        shifter_unit.input_port.opcode <<= self.input_port.shifter_op
-        shifter_unit.input_port.op_a   <<= self.input_port.op_a
-        shifter_unit.input_port.op_b   <<= self.input_port.op_b
-        shifter_output <<= shifter_unit.output_port
-        s1_shifter_output = Wire(ShifterOutputIf)
-        s1_shifter_output <<= Reg(shifter_output, clock_en = stage_1_reg_en)
-        #result
+        if self.has_shift:
+            shifter_output = Wire(ShifterOutputIf)
+            shifter_unit = ShifterUnit()
+            shifter_unit.input_port.opcode <<= self.input_port.shifter_op
+            shifter_unit.input_port.op_a   <<= self.input_port.op_a
+            shifter_unit.input_port.op_b   <<= self.input_port.op_b
+            shifter_output <<= shifter_unit.output_port
+            s1_shifter_output = Wire(ShifterOutputIf)
+            s1_shifter_output <<= Reg(shifter_output, clock_en = stage_1_reg_en)
 
-        # Multiplier
-        mult_output = Wire(MultOutputIf)
-        mult_unit = MultUnit()
-        mult_unit.input_port.valid  <<= stage_1_reg_en
-        mult_unit.input_port.op_a   <<= self.input_port.op_a
-        mult_unit.input_port.op_b   <<= self.input_port.op_b
-        mult_output <<= mult_unit.output_port
+        # Multiplier (this unit has internal pipelining)
+        if self.has_multiply:
+            mult_output = Wire(MultOutputIf)
+            mult_unit = MultUnit()
+            mult_unit.input_port.valid  <<= stage_1_reg_en
+            mult_unit.input_port.op_a   <<= self.input_port.op_a
+            mult_unit.input_port.op_b   <<= self.input_port.op_b
+            mult_output <<= mult_unit.output_port
 
         # Delay inputs that we will need later
         s1_exec_unit = Reg(self.input_port.exec_unit, clock_en = stage_1_reg_en)
@@ -620,11 +609,15 @@ class ExecuteStage(GenericModule):
         #data_h
 
         # Combine all outputs into a single output register, mux-in memory results
-        result = SelectOne(
-            s1_exec_unit == op_class.alu, s1_alu_output.result,
-            s1_exec_unit == op_class.mult, mult_output.result,
-            s1_exec_unit == op_class.shift, s1_shifter_output.result
-        )
+        if self.has_multiply | self.has_shift:
+            selector_choices = [s1_exec_unit == op_class.alu, s1_alu_output.result]
+            if self.has_multiply:
+                selector_choices += [s1_exec_unit == op_class.mult, mult_output.result]
+            if self.has_shift:
+                selector_choices += [s1_exec_unit == op_class.shift, s1_shifter_output.result]
+            result = SelectOne(*selector_choices)
+        else:
+            result = s1_alu_output.result
 
         s2_result_reg_addr_valid = Reg(s1_result_reg_addr_valid, clock_en = stage_2_reg_en)
         self.output_port.valid <<= stage_2_valid & s2_result_reg_addr_valid
@@ -1298,7 +1291,7 @@ def sim():
 
 def gen():
     def top():
-        return ScanWrapper(ExecuteStage, {"clk", "rst"}, csr_base=0xc, nram_base=0xf)
+        return ScanWrapper(ExecuteStage, {"clk", "rst"}, csr_base=0xc, nram_base=0xf, has_multiply=True, has_shift=True)
 
     netlist = Build.generate_rtl(top, "execute.sv")
     top_level_name = netlist.get_module_class_name(netlist.top_level)
