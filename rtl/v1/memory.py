@@ -162,20 +162,21 @@ class MemoryStage(GenericModule):
                 1
             )
         )
+        csr_select = self.input_port.addr[31:28] == self.csr_base
         is_csr <<= Select(
             input_advance,
             Reg(
                 Select(
                     input_advance,
                     Select(output_advance, is_csr, 0),
-                    self.input_port.addr[31:28] == self.csr_base
+                    csr_select
                 )
             ),
-            self.input_port.addr[31:28] == self.csr_base
+            csr_select
         )
 
         self.input_port.ready <<= self.bus_req_if.ready & ~active # this is not ideal: we won't accept a CSR access if the bus is occupied. Yet, I don't think we should depend on is_dram here.
-        self.bus_req_if.valid <<= ((self.input_port.valid & ~is_csr) | active) & ~gap
+        self.bus_req_if.valid <<= ((self.input_port.valid & ~csr_select) | active) & ~gap
         self.output_port.valid <<= (self.bus_rsp_if.valid & ~pending) | (csr_pen & self.csr_if.pready & ~self.csr_if.pwrite)
 
         first_addr = self.input_port.addr[BrewBusAddr.length:1]
@@ -645,5 +646,5 @@ def gen():
     flow.run()
 
 if __name__ == "__main__":
-    gen()
-    #sim()
+    #gen()
+    sim()

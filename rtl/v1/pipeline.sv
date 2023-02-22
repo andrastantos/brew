@@ -1,23 +1,44 @@
 ////////////////////////////////////////////////////////////////////////////////
 // Type definitions
 ////////////////////////////////////////////////////////////////////////////////
-`define exec__adder 3'h0
-`define exec__mult 3'h1
-`define exec__shift 3'h2
-`define exec__bitwise 3'h3
-`define exec__misc 3'h4
-`define exec__cbranch 3'h5
-`define exec__bbranch 3'h6
+`define alu_ops__a_plus_b 3'h0
+`define alu_ops__a_minus_b 3'h1
+`define alu_ops__a_and_b 3'h2
+`define alu_ops__n_b_and_a 3'h3
+`define alu_ops__a_or_b 3'h4
+`define alu_ops__a_xor_b 3'h5
+`define alu_ops__tpc 3'h6
+`define alu_ops__pc_plus_b 3'h7
 
 
-`define op__add 3'h0
-`define op__a_sub_b 3'h1
-`define op__b_sub_a 3'h2
-`define op__addr 3'h3
-`define op__pc_add 3'h4
-`define op__cb_lt 3'h5
-`define op__cb_ge 3'h6
-`define op__misc_tpc_w_r 3'h7
+`define branch_ops__cb_eq 4'h1
+`define branch_ops__cb_ne 4'h2
+`define branch_ops__cb_lts 4'h3
+`define branch_ops__cb_ges 4'h4
+`define branch_ops__cb_lt 4'h5
+`define branch_ops__cb_ge 4'h6
+`define branch_ops__bb_one 4'h7
+`define branch_ops__bb_zero 4'h8
+`define branch_ops__swi 4'h9
+`define branch_ops__stm 4'ha
+`define branch_ops__pc_w 4'hb
+`define branch_ops__tpc_w 4'hc
+
+
+`define op_class__alu 3'h0
+`define op_class__mult 3'h1
+`define op_class__shift 3'h2
+`define op_class__branch 3'h3
+`define op_class__ld_st 3'h4
+
+
+`define ldst_ops__store 1'h0
+`define ldst_ops__load 1'h1
+
+
+`define shifter_ops__shll 2'h0
+`define shifter_ops__shlr 2'h1
+`define shifter_ops__shar 2'h2
 
 
 `define BusIfStates__idle 3'h0
@@ -28,15 +49,6 @@
 `define BusIfStates__pre_external 3'h5
 `define BusIfStates__non_dram_first 3'h6
 `define BusIfStates__non_dram_wait 3'h7
-
-
-`define MemoryStates__idle 3'h0
-`define MemoryStates__mem_read_1 3'h1
-`define MemoryStates__mem_read_2 3'h2
-`define MemoryStates__mem_write_1 3'h3
-`define MemoryStates__mem_write_2 3'h4
-`define MemoryStates__csr_read 3'h5
-`define MemoryStates__csr_write 3'h7
 
 
 `define InstBufferStates__idle 2'h0
@@ -59,41 +71,32 @@
 module Pipeline (
 	input logic clk,
 	input logic rst,
-	output logic DRAM_nRAS,
-	output logic DRAM_nCAS_a,
-	output logic DRAM_nCAS_b,
-	output logic [11:0] DRAM_ADDR,
-	output logic DRAM_nWE,
-	input logic [7:0] DRAM_DATA_rd,
-	output logic [7:0] DRAM_DATA_wr,
-	output logic DRAM_nNREN,
-	input logic DRAM_nWAIT,
+	output logic [10:0] dram_addr,
+	input logic [7:0] dram_data_in,
+	output logic [7:0] dram_data_out,
+	output logic dram_nCAS_a,
+	output logic dram_nCAS_b,
+	output logic dram_nNREN,
+	output logic dram_nRAS,
+	input logic dram_nWAIT,
+	output logic dram_nWE,
+
 	input logic ext_req,
 	output logic ext_grnt,
 	input logic interrupt
 );
 
-	logic [7:0] ext_bus_if_data_in;
-	logic ext_bus_if_nWAIT;
-	logic exec_to_mem_result_reg_addr_valid;
-	logic bus_to_mem_ready;
 	logic [30:0] spc;
 	logic [30:0] tpc;
 	logic task_mode;
 	logic [11:0] ecause;
-	logic [11:0] rcause;
-	logic [31:0] csr_if_rd_data;
+	logic csr_write_strobe;
+	logic [31:0] csr_if_prdata;
 	logic [21:0] mem_base;
 	logic [21:0] mem_limit;
+	logic csr_if_pready;
 	logic mem_to_bus_ready;
 	logic fetch_to_bus_ready;
-	logic ext_bus_if_nWE;
-	logic ext_bus_if_nRAS;
-	logic ext_bus_if_nNREN;
-	logic ext_bus_if_nCAS_a;
-	logic ext_bus_if_nCAS_b;
-	logic [10:0] ext_bus_if_addr;
-	logic [7:0] ext_bus_if_data_out;
 	logic [15:0] bus_to_mem_data;
 	logic bus_to_mem_valid;
 	logic bus_to_fetch_valid;
@@ -102,7 +105,6 @@ module Pipeline (
 	logic [1:0] fetch_to_bus_byte_en;
 	logic [15:0] fetch_to_bus_data;
 	logic fetch_to_bus_read_not_write;
-	logic bus_to_fetch_ready;
 	logic fetch_to_bus_dram_not_ext;
 	logic [25:0] fetch_to_bus_addr;
 	logic fetch_to_decode_valid;
@@ -115,14 +117,15 @@ module Pipeline (
 	logic rf_req_read2_valid;
 	logic rf_req_rsv_valid;
 	logic rf_req_valid;
-	logic [2:0] decode_to_exec_opcode;
 	logic [2:0] decode_to_exec_exec_unit;
+	logic [2:0] decode_to_exec_alu_op;
+	logic [1:0] decode_to_exec_shifter_op;
+	logic [3:0] decode_to_exec_branch_op;
+	logic decode_to_exec_ldst_op;
 	logic [31:0] decode_to_exec_op_a;
 	logic [31:0] decode_to_exec_op_b;
-	logic [31:0] decode_to_exec_op_imm;
+	logic [31:0] decode_to_exec_op_c;
 	logic [1:0] decode_to_exec_inst_len;
-	logic decode_to_exec_is_load;
-	logic decode_to_exec_is_store;
 	logic decode_to_exec_do_bse;
 	logic decode_to_exec_do_wse;
 	logic decode_to_exec_do_bze;
@@ -137,40 +140,37 @@ module Pipeline (
 	logic [3:0] rf_req_read2_addr;
 	logic [3:0] rf_req_rsv_addr;
 	logic [1:0] decode_to_exec_mem_access_len;
+	logic decode_to_exec_ready;
+	logic execute_stage_complete;
+	logic exec_to_extend_valid;
+	logic [15:0] exec_to_extend_data_l;
+	logic [15:0] exec_to_extend_data_h;
+	logic exec_to_extend_data_en;
+	logic [3:0] exec_to_extend_addr;
+	logic exec_to_extend_do_bse;
+	logic exec_to_extend_do_wse;
+	logic exec_to_extend_do_bze;
+	logic exec_to_extend_do_wze;
 	logic do_branch;
-	logic [1:0] exec_to_mem_mem_access_len;
-	logic [31:0] exec_to_mem_result;
-	logic exec_to_mem_result_data_valid;
-	logic [3:0] exec_to_mem_result_reg_addr;
-	logic [31:0] exec_to_mem_mem_addr;
-	logic exec_to_mem_is_load;
-	logic exec_to_mem_is_store;
-	logic exec_to_mem_do_bse;
-	logic exec_to_mem_do_wse;
-	logic exec_to_mem_do_bze;
-	logic exec_to_mem_do_wze;
-	logic [30:0] execute_stage_spc_out;
 	logic [30:0] execute_stage_tpc_out;
+	logic [30:0] execute_stage_spc_out;
 	logic execute_stage_task_mode_out;
 	logic [11:0] execute_stage_ecause_out;
-	logic [11:0] execute_stage_rcause_out;
-	logic exec_to_mem_valid;
-	logic decode_to_exec_ready;
-	logic exec_to_mem_ready;
-	logic [31:0] rf_write_data;
-	logic rf_write_valid;
 	logic mem_to_bus_valid;
-	logic [1:0] mem_to_bus_byte_en;
-	logic [15:0] mem_to_bus_data;
-	logic csr_if_request;
-	logic mem_to_bus_dram_not_ext;
 	logic mem_to_bus_read_not_write;
-	logic csr_if_read_not_write;
-	logic [31:0] csr_if_wr_data;
-	logic rf_write_data_en;
-	logic [9:0] csr_if_addr;
-	logic [3:0] rf_write_addr;
+	logic [1:0] mem_to_bus_byte_en;
 	logic [25:0] mem_to_bus_addr;
+	logic mem_to_bus_dram_not_ext;
+	logic [15:0] mem_to_bus_data;
+	logic csr_if_penable;
+	logic csr_if_psel;
+	logic csr_if_pwrite;
+	logic [9:0] csr_if_paddr;
+	logic [31:0] csr_if_pwdata;
+	logic [31:0] rf_write_data;
+	logic [3:0] rf_write_addr;
+	logic rf_write_data_en;
+	logic rf_write_valid;
 	logic reg_file_read1_rsv_bit;
 	logic reg_file_read2_rsv_bit;
 	logic reg_file_rsv_rsv_bit;
@@ -184,12 +184,12 @@ module Pipeline (
 	always_ff @(posedge clk) tpc <= rst ? 31'h0 : execute_stage_tpc_out;
 	always_ff @(posedge clk) task_mode <= rst ? 1'h0 : execute_stage_task_mode_out;
 	always_ff @(posedge clk) ecause <= rst ? 12'h0 : execute_stage_ecause_out;
-	always_ff @(posedge clk) rcause <= rst ? 12'h0 : execute_stage_rcause_out;
-	assign csr_addr = csr_if_addr[3:0];
-	always_ff @(posedge clk) csr_if_rd_data <= rst ? 32'h0 : csr_addr == 0 ? 1'h0 : 32'b0 | csr_addr == 1 ? ({mem_base, 10'h0}) : 32'b0 | csr_addr == 2 ? ({mem_limit, 10'h0}) : 32'b0 | csr_addr == 3 ? ecause : 32'b0 | csr_addr == 4 ? rcause : 32'b0;
-	always_ff @(posedge clk) mem_base <= rst ? 22'h0 : csr_addr == 1'h1 &  ~ csr_if_read_not_write & csr_if_request ? csr_if_rd_data[31:10] : mem_base;
-	always_ff @(posedge clk) mem_limit <= rst ? 22'h0 : csr_addr == 2'h2 &  ~ csr_if_read_not_write & csr_if_request ? csr_if_rd_data[31:10] : mem_limit;
-	assign DRAM_ADDR = ext_bus_if_addr;
+	assign csr_addr = csr_if_paddr[3:0];
+	always_ff @(posedge clk) csr_if_prdata <= rst ? 32'h0 : csr_addr == 0 ? 1'h0 : 32'b0 | csr_addr == 1 ? ({mem_base, 10'h0}) : 32'b0 | csr_addr == 2 ? ({mem_limit, 10'h0}) : 32'b0 | csr_addr == 3 ? ecause : 32'b0;
+	assign csr_write_strobe = csr_if_psel & csr_if_pwrite & csr_if_penable;
+	always_ff @(posedge clk) mem_base <= rst ? 22'h0 : csr_addr == 1'h1 & csr_write_strobe ? csr_if_pwdata[31:10] : mem_base;
+	always_ff @(posedge clk) mem_limit <= rst ? 22'h0 : csr_addr == 2'h2 & csr_write_strobe ? csr_if_pwdata[31:10] : mem_limit;
+	assign csr_if_pready = 1'h1;
 
 	BusIf bus_if (
 		.clk(clk),
@@ -203,7 +203,6 @@ module Pipeline (
 		.fetch_request_valid(fetch_to_bus_valid),
 
 		.fetch_response_data(bus_to_fetch_data),
-		.fetch_response_ready(bus_to_fetch_ready),
 		.fetch_response_valid(bus_to_fetch_valid),
 
 		.mem_request_addr(mem_to_bus_addr),
@@ -215,18 +214,17 @@ module Pipeline (
 		.mem_request_valid(mem_to_bus_valid),
 
 		.mem_response_data(bus_to_mem_data),
-		.mem_response_ready(bus_to_mem_ready),
 		.mem_response_valid(bus_to_mem_valid),
 
-		.dram_addr(ext_bus_if_addr),
-		.dram_data_in(DRAM_DATA_rd),
-		.dram_data_out(ext_bus_if_data_out),
-		.dram_nCAS_a(ext_bus_if_nCAS_a),
-		.dram_nCAS_b(ext_bus_if_nCAS_b),
-		.dram_nNREN(ext_bus_if_nNREN),
-		.dram_nRAS(ext_bus_if_nRAS),
-		.dram_nWAIT(DRAM_nWAIT),
-		.dram_nWE(ext_bus_if_nWE),
+		.dram_addr(dram_addr),
+		.dram_data_in(dram_data_in),
+		.dram_data_out(dram_data_out),
+		.dram_nCAS_a(dram_nCAS_a),
+		.dram_nCAS_b(dram_nCAS_b),
+		.dram_nNREN(dram_nNREN),
+		.dram_nRAS(dram_nRAS),
+		.dram_nWAIT(dram_nWAIT),
+		.dram_nWE(dram_nWE),
 
 		.ext_req(ext_req),
 		.ext_grnt(ext_grnt)
@@ -244,7 +242,6 @@ module Pipeline (
 		.bus_if_request_valid(fetch_to_bus_valid),
 
 		.bus_if_response_data(bus_to_fetch_data),
-		.bus_if_response_ready(bus_to_fetch_ready),
 		.bus_if_response_valid(bus_to_fetch_valid),
 
 		.decode_av(fetch_to_decode_av),
@@ -274,24 +271,25 @@ module Pipeline (
 		.fetch_ready(fetch_to_decode_ready),
 		.fetch_valid(fetch_to_decode_valid),
 
-		.exec_do_bse(decode_to_exec_do_bse),
-		.exec_do_bze(decode_to_exec_do_bze),
-		.exec_do_wse(decode_to_exec_do_wse),
-		.exec_do_wze(decode_to_exec_do_wze),
-		.exec_exec_unit(decode_to_exec_exec_unit),
-		.exec_fetch_av(decode_to_exec_fetch_av),
-		.exec_inst_len(decode_to_exec_inst_len),
-		.exec_is_load(decode_to_exec_is_load),
-		.exec_is_store(decode_to_exec_is_store),
-		.exec_mem_access_len(decode_to_exec_mem_access_len),
-		.exec_op_a(decode_to_exec_op_a),
-		.exec_op_b(decode_to_exec_op_b),
-		.exec_op_imm(decode_to_exec_op_imm),
-		.exec_opcode(decode_to_exec_opcode),
-		.exec_ready(decode_to_exec_ready),
-		.exec_result_reg_addr(decode_to_exec_result_reg_addr),
-		.exec_result_reg_addr_valid(decode_to_exec_result_reg_addr_valid),
-		.exec_valid(decode_to_exec_valid),
+		.output_port_alu_op(decode_to_exec_alu_op),
+		.output_port_branch_op(decode_to_exec_branch_op),
+		.output_port_do_bse(decode_to_exec_do_bse),
+		.output_port_do_bze(decode_to_exec_do_bze),
+		.output_port_do_wse(decode_to_exec_do_wse),
+		.output_port_do_wze(decode_to_exec_do_wze),
+		.output_port_exec_unit(decode_to_exec_exec_unit),
+		.output_port_fetch_av(decode_to_exec_fetch_av),
+		.output_port_inst_len(decode_to_exec_inst_len),
+		.output_port_ldst_op(decode_to_exec_ldst_op),
+		.output_port_mem_access_len(decode_to_exec_mem_access_len),
+		.output_port_op_a(decode_to_exec_op_a),
+		.output_port_op_b(decode_to_exec_op_b),
+		.output_port_op_c(decode_to_exec_op_c),
+		.output_port_ready(decode_to_exec_ready),
+		.output_port_result_reg_addr(decode_to_exec_result_reg_addr),
+		.output_port_result_reg_addr_valid(decode_to_exec_result_reg_addr_valid),
+		.output_port_shifter_op(decode_to_exec_shifter_op),
+		.output_port_valid(decode_to_exec_valid),
 
 		.reg_file_req_read1_addr(rf_req_read1_addr),
 		.reg_file_req_read1_valid(rf_req_read1_valid),
@@ -313,39 +311,54 @@ module Pipeline (
 	ExecuteStage execute_stage (
 		.clk(clk),
 		.rst(rst),
-		.decode_do_bse(decode_to_exec_do_bse),
-		.decode_do_bze(decode_to_exec_do_bze),
-		.decode_do_wse(decode_to_exec_do_wse),
-		.decode_do_wze(decode_to_exec_do_wze),
-		.decode_exec_unit(decode_to_exec_exec_unit),
-		.decode_fetch_av(decode_to_exec_fetch_av),
-		.decode_inst_len(decode_to_exec_inst_len),
-		.decode_is_load(decode_to_exec_is_load),
-		.decode_is_store(decode_to_exec_is_store),
-		.decode_mem_access_len(decode_to_exec_mem_access_len),
-		.decode_op_a(decode_to_exec_op_a),
-		.decode_op_b(decode_to_exec_op_b),
-		.decode_op_imm(decode_to_exec_op_imm),
-		.decode_opcode(decode_to_exec_opcode),
-		.decode_ready(decode_to_exec_ready),
-		.decode_result_reg_addr(decode_to_exec_result_reg_addr),
-		.decode_result_reg_addr_valid(decode_to_exec_result_reg_addr_valid),
-		.decode_valid(decode_to_exec_valid),
+		.input_port_alu_op(decode_to_exec_alu_op),
+		.input_port_branch_op(decode_to_exec_branch_op),
+		.input_port_do_bse(decode_to_exec_do_bse),
+		.input_port_do_bze(decode_to_exec_do_bze),
+		.input_port_do_wse(decode_to_exec_do_wse),
+		.input_port_do_wze(decode_to_exec_do_wze),
+		.input_port_exec_unit(decode_to_exec_exec_unit),
+		.input_port_fetch_av(decode_to_exec_fetch_av),
+		.input_port_inst_len(decode_to_exec_inst_len),
+		.input_port_ldst_op(decode_to_exec_ldst_op),
+		.input_port_mem_access_len(decode_to_exec_mem_access_len),
+		.input_port_op_a(decode_to_exec_op_a),
+		.input_port_op_b(decode_to_exec_op_b),
+		.input_port_op_c(decode_to_exec_op_c),
+		.input_port_ready(decode_to_exec_ready),
+		.input_port_result_reg_addr(decode_to_exec_result_reg_addr),
+		.input_port_result_reg_addr_valid(decode_to_exec_result_reg_addr_valid),
+		.input_port_shifter_op(decode_to_exec_shifter_op),
+		.input_port_valid(decode_to_exec_valid),
 
-		.mem_do_bse(exec_to_mem_do_bse),
-		.mem_do_bze(exec_to_mem_do_bze),
-		.mem_do_wse(exec_to_mem_do_wse),
-		.mem_do_wze(exec_to_mem_do_wze),
-		.mem_is_load(exec_to_mem_is_load),
-		.mem_is_store(exec_to_mem_is_store),
-		.mem_mem_access_len(exec_to_mem_mem_access_len),
-		.mem_mem_addr(exec_to_mem_mem_addr),
-		.mem_ready(exec_to_mem_ready),
-		.mem_result(exec_to_mem_result),
-		.mem_result_data_valid(exec_to_mem_result_data_valid),
-		.mem_result_reg_addr(exec_to_mem_result_reg_addr),
-		.mem_result_reg_addr_valid(exec_to_mem_result_reg_addr_valid),
-		.mem_valid(exec_to_mem_valid),
+		.output_port_addr(exec_to_extend_addr),
+		.output_port_data_en(exec_to_extend_data_en),
+		.output_port_data_h(exec_to_extend_data_h),
+		.output_port_data_l(exec_to_extend_data_l),
+		.output_port_do_bse(exec_to_extend_do_bse),
+		.output_port_do_bze(exec_to_extend_do_bze),
+		.output_port_do_wse(exec_to_extend_do_wse),
+		.output_port_do_wze(exec_to_extend_do_wze),
+		.output_port_valid(exec_to_extend_valid),
+
+		.bus_req_if_addr(mem_to_bus_addr),
+		.bus_req_if_byte_en(mem_to_bus_byte_en),
+		.bus_req_if_data(mem_to_bus_data),
+		.bus_req_if_dram_not_ext(mem_to_bus_dram_not_ext),
+		.bus_req_if_read_not_write(mem_to_bus_read_not_write),
+		.bus_req_if_ready(mem_to_bus_ready),
+		.bus_req_if_valid(mem_to_bus_valid),
+
+		.bus_rsp_if_data(bus_to_mem_data),
+		.bus_rsp_if_valid(bus_to_mem_valid),
+
+		.csr_if_paddr(csr_if_paddr),
+		.csr_if_penable(csr_if_penable),
+		.csr_if_prdata(csr_if_prdata),
+		.csr_if_pready(csr_if_pready),
+		.csr_if_psel(csr_if_psel),
+		.csr_if_pwdata(csr_if_pwdata),
+		.csr_if_pwrite(csr_if_pwrite),
 
 		.mem_base(mem_base),
 		.mem_limit(mem_limit),
@@ -357,52 +370,26 @@ module Pipeline (
 		.task_mode_out(execute_stage_task_mode_out),
 		.ecause_in(ecause),
 		.ecause_out(execute_stage_ecause_out),
-		.rcause_in(rcause),
-		.rcause_out(execute_stage_rcause_out),
 		.do_branch(do_branch),
-		.interrupt(interrupt)
+		.interrupt(interrupt),
+		.complete(execute_stage_complete)
 	);
 
-	MemoryStage memory_stage (
-		.clk(clk),
-		.rst(rst),
-		.exec_do_bse(exec_to_mem_do_bse),
-		.exec_do_bze(exec_to_mem_do_bze),
-		.exec_do_wse(exec_to_mem_do_wse),
-		.exec_do_wze(exec_to_mem_do_wze),
-		.exec_is_load(exec_to_mem_is_load),
-		.exec_is_store(exec_to_mem_is_store),
-		.exec_mem_access_len(exec_to_mem_mem_access_len),
-		.exec_mem_addr(exec_to_mem_mem_addr),
-		.exec_ready(exec_to_mem_ready),
-		.exec_result(exec_to_mem_result),
-		.exec_result_data_valid(exec_to_mem_result_data_valid),
-		.exec_result_reg_addr(exec_to_mem_result_reg_addr),
-		.exec_result_reg_addr_valid(exec_to_mem_result_reg_addr_valid),
-		.exec_valid(exec_to_mem_valid),
+	ResultExtendStage result_extend_stage (
+		.input_port_addr(exec_to_extend_addr),
+		.input_port_data_en(exec_to_extend_data_en),
+		.input_port_data_h(exec_to_extend_data_h),
+		.input_port_data_l(exec_to_extend_data_l),
+		.input_port_do_bse(exec_to_extend_do_bse),
+		.input_port_do_bze(exec_to_extend_do_bze),
+		.input_port_do_wse(exec_to_extend_do_wse),
+		.input_port_do_wze(exec_to_extend_do_wze),
+		.input_port_valid(exec_to_extend_valid),
 
-		.reg_file_addr(rf_write_addr),
-		.reg_file_data(rf_write_data),
-		.reg_file_data_en(rf_write_data_en),
-		.reg_file_valid(rf_write_valid),
-
-		.bus_req_if_addr(mem_to_bus_addr),
-		.bus_req_if_byte_en(mem_to_bus_byte_en),
-		.bus_req_if_data(mem_to_bus_data),
-		.bus_req_if_dram_not_ext(mem_to_bus_dram_not_ext),
-		.bus_req_if_read_not_write(mem_to_bus_read_not_write),
-		.bus_req_if_ready(mem_to_bus_ready),
-		.bus_req_if_valid(mem_to_bus_valid),
-
-		.bus_rsp_if_data(bus_to_mem_data),
-		.bus_rsp_if_ready(bus_to_mem_ready),
-		.bus_rsp_if_valid(bus_to_mem_valid),
-
-		.csr_if_addr(csr_if_addr),
-		.csr_if_rd_data(csr_if_rd_data),
-		.csr_if_read_not_write(csr_if_read_not_write),
-		.csr_if_request(csr_if_request),
-		.csr_if_wr_data(csr_if_wr_data)
+		.output_port_addr(rf_write_addr),
+		.output_port_data(rf_write_data),
+		.output_port_data_en(rf_write_data_en),
+		.output_port_valid(rf_write_valid)
 	);
 
 	RegFile reg_file (
@@ -432,14 +419,6 @@ module Pipeline (
 		.rsv_rsv_bit(reg_file_rsv_rsv_bit)
 	);
 
-	assign ext_bus_if_data_in = DRAM_DATA_rd;
-	assign ext_bus_if_nWAIT = DRAM_nWAIT;
-	assign DRAM_nWE = ext_bus_if_nWE;
-	assign DRAM_nRAS = ext_bus_if_nRAS;
-	assign DRAM_nNREN = ext_bus_if_nNREN;
-	assign DRAM_nCAS_a = ext_bus_if_nCAS_a;
-	assign DRAM_nCAS_b = ext_bus_if_nCAS_b;
-	assign DRAM_DATA_wr = ext_bus_if_data_out;
 endmodule
 
 
@@ -617,30 +596,68 @@ endmodule
 
 
 ////////////////////////////////////////////////////////////////////////////////
-// MemoryStage
+// ResultExtendStage
 ////////////////////////////////////////////////////////////////////////////////
-module MemoryStage (
+module ResultExtendStage (
+	input logic [3:0] input_port_addr,
+	input logic input_port_data_en,
+	input logic [15:0] input_port_data_h,
+	input logic [15:0] input_port_data_l,
+	input logic input_port_do_bse,
+	input logic input_port_do_bze,
+	input logic input_port_do_wse,
+	input logic input_port_do_wze,
+	input logic input_port_valid,
+
+	output logic [3:0] output_port_addr,
+	output logic [31:0] output_port_data,
+	output logic output_port_data_en,
+	output logic output_port_valid
+);
+
+	assign output_port_data = input_port_do_bse ? ({input_port_data_l[7], input_port_data_l[7], input_port_data_l[7], input_port_data_l[7], input_port_data_l[7], input_port_data_l[7], input_port_data_l[7], input_port_data_l[7], input_port_data_l[7], input_port_data_l[7], input_port_data_l[7], input_port_data_l[7], input_port_data_l[7], input_port_data_l[7], input_port_data_l[7], input_port_data_l[7], input_port_data_l[7], input_port_data_l[7], input_port_data_l[7], input_port_data_l[7], input_port_data_l[7], input_port_data_l[7], input_port_data_l[7], input_port_data_l[7], input_port_data_l[7:0]}) : 32'b0 | input_port_do_wse ? ({input_port_data_l[15], input_port_data_l[15], input_port_data_l[15], input_port_data_l[15], input_port_data_l[15], input_port_data_l[15], input_port_data_l[15], input_port_data_l[15], input_port_data_l[15], input_port_data_l[15], input_port_data_l[15], input_port_data_l[15], input_port_data_l[15], input_port_data_l[15], input_port_data_l[15], input_port_data_l[15], input_port_data_l[15:0]}) : 32'b0 | input_port_do_bze ? input_port_data_l[7:0] : 32'b0 | input_port_do_wze ? input_port_data_l[15:0] : 32'b0 | ({input_port_data_h, input_port_data_l});
+	assign output_port_addr = input_port_addr;
+	assign output_port_data_en = input_port_data_en;
+	assign output_port_valid = input_port_valid;
+
+endmodule
+
+
+////////////////////////////////////////////////////////////////////////////////
+// ExecuteStage
+////////////////////////////////////////////////////////////////////////////////
+module ExecuteStage (
 	input logic clk,
 	input logic rst,
-	input logic exec_do_bse,
-	input logic exec_do_bze,
-	input logic exec_do_wse,
-	input logic exec_do_wze,
-	input logic exec_is_load,
-	input logic exec_is_store,
-	input logic [1:0] exec_mem_access_len,
-	input logic [31:0] exec_mem_addr,
-	output logic exec_ready,
-	input logic [31:0] exec_result,
-	input logic exec_result_data_valid,
-	input logic [3:0] exec_result_reg_addr,
-	input logic exec_result_reg_addr_valid,
-	input logic exec_valid,
+	input logic [2:0] input_port_alu_op,
+	input logic [3:0] input_port_branch_op,
+	input logic input_port_do_bse,
+	input logic input_port_do_bze,
+	input logic input_port_do_wse,
+	input logic input_port_do_wze,
+	input logic [2:0] input_port_exec_unit,
+	input logic input_port_fetch_av,
+	input logic [1:0] input_port_inst_len,
+	input logic input_port_ldst_op,
+	input logic [1:0] input_port_mem_access_len,
+	input logic [31:0] input_port_op_a,
+	input logic [31:0] input_port_op_b,
+	input logic [31:0] input_port_op_c,
+	output logic input_port_ready,
+	input logic [3:0] input_port_result_reg_addr,
+	input logic input_port_result_reg_addr_valid,
+	input logic [1:0] input_port_shifter_op,
+	input logic input_port_valid,
 
-	output logic [3:0] reg_file_addr,
-	output logic [31:0] reg_file_data,
-	output logic reg_file_data_en,
-	output logic reg_file_valid,
+	output logic [3:0] output_port_addr,
+	output logic output_port_data_en,
+	output logic [15:0] output_port_data_h,
+	output logic [15:0] output_port_data_l,
+	output logic output_port_do_bse,
+	output logic output_port_do_bze,
+	output logic output_port_do_wse,
+	output logic output_port_do_wze,
+	output logic output_port_valid,
 
 	output logic [25:0] bus_req_if_addr,
 	output logic [1:0] bus_req_if_byte_en,
@@ -651,231 +668,15 @@ module MemoryStage (
 	output logic bus_req_if_valid,
 
 	input logic [15:0] bus_rsp_if_data,
-	output logic bus_rsp_if_ready,
 	input logic bus_rsp_if_valid,
 
-	output logic [9:0] csr_if_addr,
-	input logic [31:0] csr_if_rd_data,
-	output logic csr_if_read_not_write,
-	output logic csr_if_request,
-	output logic [31:0] csr_if_wr_data
-);
-
-	logic is_csr;
-	logic u10_output_port;
-	logic u16_output_port;
-	logic u22_output_port;
-	logic u28_output_port;
-	logic u30_output_port;
-	logic u32_output_port;
-	logic u34_output_port;
-	logic u41_output_port;
-	logic u48_output_port;
-	logic u55_output_port;
-	logic u62_output_port;
-	logic u65_output_port;
-	logic u68_output_port;
-	logic u69_output_port;
-	logic u71_output_port;
-	logic u78_output_port;
-	logic u85_output_port;
-	logic u92_output_port;
-	logic u99_output_port;
-	logic u102_output_port;
-	logic u105_output_port;
-	logic u106_output_port;
-	logic u112_output_port;
-	logic u118_output_port;
-	logic u124_output_port;
-	logic u130_output_port;
-	logic u132_output_port;
-	logic u134_output_port;
-	logic u135_output_port;
-	logic u141_output_port;
-	logic u147_output_port;
-	logic u153_output_port;
-	logic u159_output_port;
-	logic u161_output_port;
-	logic u163_output_port;
-	logic exec_ready_1;
-	logic accept_next;
-	logic lsb;
-	logic [15:0] u185_output_port;
-	logic [15:0] data_h;
-	logic [15:0] u196_output_port;
-	logic [15:0] u204_output_port;
-	logic [15:0] data_l;
-	logic do_bse;
-	logic do_wse;
-	logic do_bze;
-	logic do_wze;
-	logic [3:0] u263_output_port;
-	logic write_back_tick;
-	logic [31:0] u301_output_port;
-	logic [30:0] u304_output_port;
-	logic [30:0] bus_addr;
-	logic csr_request;
-	logic [2:0] state;
-	logic [2:0] next_state;
-
-	assign is_csr = exec_mem_addr[31:28] == 4'hc;
-	assign exec_ready_1 = (state == `MemoryStates__mem_write_2 | state == `MemoryStates__mem_read_2) & bus_req_if_ready | state == `MemoryStates__csr_write | state == `MemoryStates__csr_read | state == `MemoryStates__idle;
-	assign accept_next = exec_valid & exec_ready_1;
-	always_ff @(posedge clk) u185_output_port <= rst ? 16'h0 : state == accept_next ? exec_result[31:16] : u185_output_port;
-	assign data_h = state == `MemoryStates__idle ? u185_output_port : 16'b0 | state == `MemoryStates__mem_read_2 ? bus_rsp_if_data : 16'b0 | state == `MemoryStates__csr_read ? csr_if_rd_data[31:16] : 16'b0 ;
-	always_ff @(posedge clk) lsb <= rst ? 1'h0 : accept_next ? exec_mem_addr[0] : lsb;
-	always_ff @(posedge clk) u196_output_port <= rst ? 16'h0 : state == accept_next ? exec_result[15:0] : u196_output_port;
-	always_ff @(posedge clk) u204_output_port <= rst ? 16'h0 : bus_rsp_if_valid ? lsb ? ({bus_rsp_if_data[15:8], bus_rsp_if_data[15:8]}) : bus_rsp_if_data : u204_output_port;
-	assign data_l = state == `MemoryStates__idle ? u196_output_port : 16'b0 | state == `MemoryStates__mem_read_1 ? u204_output_port : 16'b0 | state == `MemoryStates__csr_read ? csr_if_rd_data[15:0] : 16'b0 ;
-	always_ff @(posedge clk) do_bse <= rst ? 1'h0 : accept_next ? exec_do_bse : do_bse;
-	always_ff @(posedge clk) do_wse <= rst ? 1'h0 : accept_next ? exec_do_wse : do_wse;
-	always_ff @(posedge clk) do_bze <= rst ? 1'h0 : accept_next ? exec_do_bze : do_bze;
-	always_ff @(posedge clk) do_wze <= rst ? 1'h0 : accept_next ? exec_do_wze : do_wze;
-	assign reg_file_data = do_bse ? ({data_l[7], data_l[7], data_l[7], data_l[7], data_l[7], data_l[7], data_l[7], data_l[7], data_l[7], data_l[7], data_l[7], data_l[7], data_l[7], data_l[7], data_l[7], data_l[7], data_l[7], data_l[7], data_l[7], data_l[7], data_l[7], data_l[7], data_l[7], data_l[7], data_l[7:0]}) : 32'b0 | do_wse ? ({data_l[15], data_l[15], data_l[15], data_l[15], data_l[15], data_l[15], data_l[15], data_l[15], data_l[15], data_l[15], data_l[15], data_l[15], data_l[15], data_l[15], data_l[15], data_l[15], data_l[15:0]}) : 32'b0 | do_bze ? data_l[7:0] : 32'b0 | do_wze ? data_l[15:0] : 32'b0 | ({data_h, data_l});
-	always_ff @(posedge clk) u263_output_port <= rst ? 4'h0 : state == `MemoryStates__idle ? exec_result_reg_addr : u263_output_port;
-	assign reg_file_addr = accept_next ? exec_result_reg_addr : u263_output_port;
-	always_ff @(posedge clk) write_back_tick <= rst ? 1'h0 : accept_next;
-	assign reg_file_valid = state == `MemoryStates__idle & next_state == `MemoryStates__idle ? write_back_tick : 1'b0 | state == `MemoryStates__mem_read_1 ? 1'h0 : 1'b0 | state == `MemoryStates__mem_read_2 ? bus_rsp_if_valid : 1'b0 | state == `MemoryStates__csr_read ? write_back_tick : 1'b0 | state == `MemoryStates__csr_write ? write_back_tick : 1'b0 ;
-	assign bus_req_if_valid = state == `MemoryStates__mem_read_1 | state == `MemoryStates__mem_write_1 | state == `MemoryStates__mem_read_2 | state == `MemoryStates__mem_write_2;
-	assign bus_req_if_byte_en = exec_mem_access_len == 1'h0 ? ({exec_mem_addr[0],  ~ exec_mem_addr[0]}) : 2'h3;
-	always_ff @(posedge clk) u304_output_port <= rst ? 31'h0 : accept_next ? u301_output_port[30:0] : u304_output_port;
-	assign bus_addr = accept_next ? exec_mem_addr[31:1] : u304_output_port;
-	assign bus_req_if_data = state == `MemoryStates__idle ? ({(exec_mem_addr[0] & exec_mem_access_len == 1'h0) ? exec_result[7:0] : exec_result[15:8], exec_result[7:0]}) : data_h;
-	assign csr_request = exec_valid & (exec_is_store | exec_is_load) & is_csr;
-	assign csr_if_addr = exec_mem_addr[11:2];
-	assign bus_req_if_dram_not_ext = 1'h0;
-	assign bus_req_if_read_not_write = exec_is_load;
-	assign csr_if_read_not_write = exec_is_load;
-	assign csr_if_wr_data = exec_result;
-	assign reg_file_data_en = exec_result_data_valid;
-	assign bus_req_if_addr = bus_addr[21:0];
-
-	FSM_4 fsm (
-		.clock_port(clk),
-		.reset_port(rst),
-		.reset_value(`MemoryStates__idle),
-		.state(state),
-		.next_state(next_state),
-		.default_state(`MemoryStates__idle),
-		.input_idle_to_mem_read_1(u10_output_port),
-		.input_idle_to_mem_read_2(u16_output_port),
-		.input_idle_to_mem_write_1(u22_output_port),
-		.input_idle_to_mem_write_2(u28_output_port),
-		.input_idle_to_csr_read(u30_output_port),
-		.input_idle_to_csr_write(u32_output_port),
-		.input_mem_read_1_to_mem_read_2(bus_rsp_if_valid),
-		.input_mem_read_2_to_idle(u34_output_port),
-		.input_mem_read_2_to_mem_read_1(u41_output_port),
-		.input_mem_read_2_to_mem_read_2(u48_output_port),
-		.input_mem_read_2_to_mem_write_1(u55_output_port),
-		.input_mem_read_2_to_mem_write_2(u62_output_port),
-		.input_mem_read_2_to_csr_read(u65_output_port),
-		.input_mem_read_2_to_csr_write(u68_output_port),
-		.input_mem_write_1_to_mem_write_2(u69_output_port),
-		.input_mem_write_2_to_idle(u71_output_port),
-		.input_mem_write_2_to_mem_read_1(u78_output_port),
-		.input_mem_write_2_to_mem_read_2(u85_output_port),
-		.input_mem_write_2_to_mem_write_1(u92_output_port),
-		.input_mem_write_2_to_mem_write_2(u99_output_port),
-		.input_mem_write_2_to_csr_read(u102_output_port),
-		.input_mem_write_2_to_csr_write(u105_output_port),
-		.input_csr_read_to_idle(u106_output_port),
-		.input_csr_read_to_mem_read_1(u112_output_port),
-		.input_csr_read_to_mem_read_2(u118_output_port),
-		.input_csr_read_to_mem_write_1(u124_output_port),
-		.input_csr_read_to_mem_write_2(u130_output_port),
-		.input_csr_read_to_csr_read(u132_output_port),
-		.input_csr_read_to_csr_write(u134_output_port),
-		.input_csr_write_to_idle(u135_output_port),
-		.input_csr_write_to_mem_read_1(u141_output_port),
-		.input_csr_write_to_mem_read_2(u147_output_port),
-		.input_csr_write_to_mem_write_1(u153_output_port),
-		.input_csr_write_to_mem_write_2(u159_output_port),
-		.input_csr_write_to_csr_read(u161_output_port),
-		.input_csr_write_to_csr_write(u163_output_port)
-	);
-
-	assign bus_rsp_if_ready = 1'hx;
-	assign u10_output_port = exec_valid &  ~ is_csr & exec_is_load & exec_mem_access_len == 2'h2;
-	assign u16_output_port = exec_valid &  ~ is_csr & exec_is_load & exec_mem_access_len != 2'h2;
-	assign u22_output_port = exec_valid &  ~ is_csr & exec_is_store & exec_mem_access_len == 2'h2;
-	assign u28_output_port = exec_valid &  ~ is_csr & exec_is_store & exec_mem_access_len != 2'h2;
-	assign u30_output_port = exec_valid & is_csr & exec_is_load;
-	assign u32_output_port = exec_valid & is_csr & exec_is_store;
-	assign u34_output_port = bus_rsp_if_valid &  ~ exec_valid;
-	assign u41_output_port = bus_rsp_if_valid & exec_valid &  ~ is_csr & exec_is_load & exec_mem_access_len == 2'h2;
-	assign u48_output_port = bus_rsp_if_valid & exec_valid &  ~ is_csr & exec_is_load & exec_mem_access_len != 2'h2;
-	assign u55_output_port = bus_rsp_if_valid & exec_valid &  ~ is_csr & exec_is_store & exec_mem_access_len == 2'h2;
-	assign u62_output_port = bus_rsp_if_valid & exec_valid &  ~ is_csr & exec_is_store & exec_mem_access_len != 2'h2;
-	assign u65_output_port = bus_rsp_if_valid & exec_valid & is_csr & exec_is_load;
-	assign u68_output_port = bus_rsp_if_valid & exec_valid & is_csr & exec_is_store;
-	assign u69_output_port = 1'h1;
-	assign u71_output_port = bus_req_if_ready &  ~ exec_valid;
-	assign u78_output_port = bus_req_if_ready & exec_valid &  ~ is_csr & exec_is_load & exec_mem_access_len == 2'h2;
-	assign u85_output_port = bus_req_if_ready & exec_valid &  ~ is_csr & exec_is_load & exec_mem_access_len != 2'h2;
-	assign u92_output_port = bus_req_if_ready & exec_valid &  ~ is_csr & exec_is_store & exec_mem_access_len == 2'h2;
-	assign u99_output_port = bus_req_if_ready & exec_valid &  ~ is_csr & exec_is_store & exec_mem_access_len != 2'h2;
-	assign u102_output_port = bus_req_if_ready & exec_valid & is_csr & exec_is_load;
-	assign u105_output_port = bus_req_if_ready & exec_valid & is_csr & exec_is_store;
-	assign u106_output_port =  ~ exec_valid;
-	assign u112_output_port = exec_valid &  ~ is_csr & exec_is_load & exec_mem_access_len == 2'h2;
-	assign u118_output_port = exec_valid &  ~ is_csr & exec_is_load & exec_mem_access_len != 2'h2;
-	assign u124_output_port = exec_valid &  ~ is_csr & exec_is_store & exec_mem_access_len == 2'h2;
-	assign u130_output_port = exec_valid &  ~ is_csr & exec_is_store & exec_mem_access_len != 2'h2;
-	assign u132_output_port = exec_valid & is_csr & exec_is_load;
-	assign u134_output_port = exec_valid & is_csr & exec_is_store;
-	assign u135_output_port =  ~ exec_valid;
-	assign u141_output_port = exec_valid &  ~ is_csr & exec_is_load & exec_mem_access_len == 2'h2;
-	assign u147_output_port = exec_valid &  ~ is_csr & exec_is_load & exec_mem_access_len != 2'h2;
-	assign u153_output_port = exec_valid &  ~ is_csr & exec_is_store & exec_mem_access_len == 2'h2;
-	assign u159_output_port = exec_valid &  ~ is_csr & exec_is_store & exec_mem_access_len != 2'h2;
-	assign u161_output_port = exec_valid & is_csr & exec_is_load;
-	assign u163_output_port = exec_valid & is_csr & exec_is_store;
-	assign exec_ready = exec_ready_1;
-	assign u301_output_port = exec_mem_addr[31:1] + exec_mem_access_len[1];
-	assign csr_if_request = csr_request;
-endmodule
-
-
-////////////////////////////////////////////////////////////////////////////////
-// ExecuteStage
-////////////////////////////////////////////////////////////////////////////////
-module ExecuteStage (
-	input logic clk,
-	input logic rst,
-	input logic decode_do_bse,
-	input logic decode_do_bze,
-	input logic decode_do_wse,
-	input logic decode_do_wze,
-	input logic [2:0] decode_exec_unit,
-	input logic decode_fetch_av,
-	input logic [1:0] decode_inst_len,
-	input logic decode_is_load,
-	input logic decode_is_store,
-	input logic [1:0] decode_mem_access_len,
-	input logic [31:0] decode_op_a,
-	input logic [31:0] decode_op_b,
-	input logic [31:0] decode_op_imm,
-	input logic [2:0] decode_opcode,
-	output logic decode_ready,
-	input logic [3:0] decode_result_reg_addr,
-	input logic decode_result_reg_addr_valid,
-	input logic decode_valid,
-
-	output logic mem_do_bse,
-	output logic mem_do_bze,
-	output logic mem_do_wse,
-	output logic mem_do_wze,
-	output logic mem_is_load,
-	output logic mem_is_store,
-	output logic [1:0] mem_mem_access_len,
-	output logic [31:0] mem_mem_addr,
-	input logic mem_ready,
-	output logic [31:0] mem_result,
-	output logic mem_result_data_valid,
-	output logic [3:0] mem_result_reg_addr,
-	output logic mem_result_reg_addr_valid,
-	output logic mem_valid,
+	output logic [9:0] csr_if_paddr,
+	output logic csr_if_penable,
+	input logic [31:0] csr_if_prdata,
+	input logic csr_if_pready,
+	output logic csr_if_psel,
+	output logic [31:0] csr_if_pwdata,
+	output logic csr_if_pwrite,
 
 	input logic [21:0] mem_base,
 	input logic [21:0] mem_limit,
@@ -887,115 +688,689 @@ module ExecuteStage (
 	output logic task_mode_out,
 	input logic [11:0] ecause_in,
 	output logic [11:0] ecause_out,
-	input logic [11:0] rcause_in,
-	output logic [11:0] rcause_out,
 	output logic do_branch,
-	input logic interrupt
+	input logic interrupt,
+	output logic complete
 );
 
+	logic branch_input_interrupt;
 	logic [30:0] pc;
-	logic [32:0] u3_output_port;
-	logic [32:0] u6_output_port;
-	logic signed [32:0] u9_output_port;
-	logic [32:0] u13_output_port;
-	logic [33:0] u19_output_port;
-	logic [31:0] u20_output_port;
-	logic signed [95:0] u39_output_port;
-	logic [31:0] logic_result;
-	logic cbranch_result;
-	logic bbranch_result;
-	logic mem_unaligned;
-	logic [32:0] u122_output_port;
-	logic [31:0] u146_output_port;
-	logic [31:0] u149_output_port;
-	logic [30:0] next_inst_addr;
-	logic [31:0] u162_output_port;
-	logic [31:0] u165_output_port;
-	logic u169_output_port;
-	logic [31:0] u173_output_port;
-	logic [30:0] u182_output_port;
-	logic [30:0] u185_output_port;
-	logic [31:0] exec_result;
-	logic is_branch;
-	logic is_exception;
-	logic [31:0] u297_output_port;
-	logic cancel_write_back;
-	logic [11:0] hwi_mask;
-	logic u79_output_port;
-	logic u82_output_port;
-	logic reg_en;
-	logic [31:0] u91_output_port;
+	logic multi_cycle_exec_lockout;
+	logic stage_1_reg_en;
+	logic s1_alu_output_f_carry;
+	logic branch_input_f_carry;
+	logic s1_alu_output_f_overflow;
+	logic branch_input_f_overflow;
+	logic s1_alu_output_f_sign;
+	logic branch_input_f_sign;
+	logic s1_alu_output_f_zero;
+	logic branch_input_f_zero;
+	logic [31:0] s1_alu_output_result;
+	logic s1_ldst_output_mem_av;
+	logic branch_input_mem_av;
+	logic s1_ldst_output_mem_unaligned;
+	logic branch_input_mem_unaligned;
+	logic [31:0] s1_ldst_output_phy_addr;
+	logic [31:0] mem_input_addr;
+	logic [30:0] s1_branch_target_output_branch_addr;
+	logic [30:0] branch_input_branch_addr;
+	logic [30:0] s1_branch_target_output_straight_addr;
+	logic [31:0] s1_shifter_output_result;
+	logic [2:0] s1_exec_unit;
+	logic [3:0] branch_input_opcode;
+	logic [3:0] s1_branch_op;
+	logic s1_ldst_op;
+	logic [31:0] mem_input_data;
+	logic [31:0] branch_input_op_a;
+	logic [31:0] s1_op_a;
+	logic [31:0] branch_input_op_b;
+	logic [31:0] s1_op_b;
+	logic [31:0] branch_input_op_c;
+	logic [31:0] s1_op_c;
+	logic s1_do_bse;
+	logic s1_do_wse;
+	logic s1_do_bze;
+	logic s1_do_wze;
+	logic [3:0] s1_result_reg_addr;
+	logic s1_result_reg_addr_valid;
+	logic branch_input_fetch_av;
+	logic s1_fetch_av;
+	logic [30:0] branch_input_tpc;
+	logic [30:0] s1_tpc;
+	logic [30:0] branch_input_spc;
+	logic [30:0] s1_spc;
+	logic branch_input_task_mode;
+	logic s1_task_mode;
+	logic [1:0] mem_input_access_len;
+	logic [1:0] s1_mem_access_len;
+	logic [30:0] branch_input_pc;
+	logic [30:0] s2_pc;
+	logic block_mem;
+	logic mem_input_valid;
+	logic stage_2_ready;
+	logic stage_2_valid;
+	logic branch_input_is_branch_insn;
+	logic mem_input_read_not_write;
+	logic [31:0] result;
+	logic s2_result_reg_addr_valid;
+	logic [15:0] u69_output_port;
+	logic [15:0] u74_output_port;
+	logic [30:0] s1_tpc_out;
+	logic [30:0] s1_spc_out;
+	logic u101_output_port;
+	logic stage_1_fsm_out_reg_en;
+	logic stage_1_valid;
+	logic stage_1_fsm_input_ready;
+	logic alu_output_f_zero;
+	logic alu_output_f_carry;
+	logic alu_output_f_overflow;
+	logic [31:0] alu_output_result;
+	logic alu_output_f_sign;
+	logic ldst_output_mem_av;
+	logic ldst_output_mem_unaligned;
+	logic [31:0] ldst_output_phy_addr;
+	logic [30:0] branch_target_output_straight_addr;
+	logic [30:0] branch_target_output_branch_addr;
+	logic [31:0] shifter_output_result;
+	logic [31:0] mult_output_result;
+	logic stage_2_reg_en;
+	logic stage_2_fsm_output_valid;
+	logic stage_2_fsm_input_ready;
+	logic [30:0] branch_output_tpc;
+	logic [30:0] branch_output_spc;
+	logic branch_output_spc_changed;
+	logic branch_output_tpc_changed;
+	logic branch_output_task_mode_changed;
+	logic branch_output_task_mode;
+	logic branch_output_do_branch;
+	logic [11:0] branch_output_ecause;
+	logic mem_input_ready;
+	logic s2_mem_output_valid;
+	logic [15:0] s2_mem_output_data_l;
+	logic [15:0] s2_mem_output_data_h;
 
+	always_ff @(posedge clk) multi_cycle_exec_lockout <= rst ? 1'h0 : input_port_ready & input_port_valid & input_port_exec_unit == `op_class__mult;
+	assign input_port_ready =  ~ multi_cycle_exec_lockout & stage_1_fsm_input_ready;
+	assign stage_1_reg_en =  ~ multi_cycle_exec_lockout & stage_1_fsm_out_reg_en;
 	assign pc = task_mode_in ? tpc_in : spc_in;
-	assign logic_result = decode_opcode == `op__b_sub_a ? decode_op_a | decode_op_b : 32'b0 | decode_opcode == `op__add ? decode_op_a & decode_op_b : 32'b0 | decode_opcode == `op__a_sub_b ?  ~ decode_op_a & decode_op_b : 32'b0 | decode_opcode == `op__addr ? decode_op_a ^ decode_op_b : 32'b0 ;
-	always_ff @(posedge clk) u182_output_port <= rst ? 31'h0 : pc;
-	always_ff @(posedge clk) u185_output_port <= rst ? 31'h0 : tpc_in;
-	always_ff @(posedge clk) u162_output_port <= rst ? 32'h0 : u20_output_port[31:0];
-	always_ff @(posedge clk) u165_output_port <= rst ? 32'h0 : u39_output_port[31:0];
-	always_ff @(posedge clk) u169_output_port <= rst ? 1'h0 : 1'h0;
-	always_ff @(posedge clk) u173_output_port <= rst ? 32'h0 : logic_result;
-	assign cbranch_result = decode_opcode == `op__a_sub_b ? decode_op_a == decode_op_b : 1'b0 | decode_opcode == `op__b_sub_a ? decode_op_a != decode_op_b : 1'b0 | decode_opcode == `op__addr ? decode_op_a < decode_op_b : 1'b0 | decode_opcode == `op__pc_add ? decode_op_a >= decode_op_b : 1'b0 | decode_opcode == `op__cb_lt ? decode_op_a < decode_op_b : 1'b0 | decode_opcode == `op__cb_ge ? decode_op_a >= decode_op_b : 1'b0 ;
-	assign bbranch_result = decode_opcode == `op__add ? u79_output_port : 1'b0 | decode_opcode == `op__a_sub_b ? u82_output_port : 1'b0 ;
-	assign mem_unaligned = decode_exec_unit == `exec__adder & decode_opcode == `op__addr & (decode_mem_access_len == 0 ? 1'h0 : 1'b0 | decode_mem_access_len == 1 ? u91_output_port[0] : 1'b0 | decode_mem_access_len == 2 ? u91_output_port[0] | u91_output_port[1] : 1'b0 | decode_mem_access_len == 3 ? 1'h1 : 1'b0);
-	assign is_branch = decode_exec_unit == `exec__adder ? 1'h0 : 1'b0 | decode_exec_unit == `exec__shift ? 1'h0 : 1'b0 | decode_exec_unit == `exec__mult ? 1'h0 : 1'b0 | decode_exec_unit == `exec__bitwise ? 1'h0 : 1'b0 | decode_exec_unit == `exec__cbranch ? cbranch_result : 1'b0 | decode_exec_unit == `exec__bbranch ? bbranch_result : 1'b0 | decode_exec_unit == `exec__misc ? decode_opcode == `op__add ? 1'h1 : 1'b0 | decode_opcode == `op__a_sub_b ? 1'h1 : 1'b0 | decode_opcode == `op__b_sub_a ? 1'h0 : 1'b0 | decode_opcode == `op__addr ? 1'h0 : 1'b0 | decode_opcode == `op__pc_add ? 1'h1 : 1'b0 | decode_opcode == `op__cb_lt ? task_mode_in : 1'b0 | decode_opcode == `op__cb_ge ? 1'h1 : 1'b0 | decode_opcode == `op__misc_tpc_w_r ? task_mode_in : 1'b0  : 1'b0 ;
-	always_ff @(posedge clk) do_branch <= rst ? 1'h0 : reg_en ? is_branch : do_branch;
-	always_ff @(posedge clk) mem_mem_access_len <= rst ? 2'h0 : reg_en ? decode_mem_access_len : mem_mem_access_len;
-	assign exec_result = decode_exec_unit == `exec__adder ? u162_output_port : 32'b0 | decode_exec_unit == `exec__shift ? u165_output_port : 32'b0 | decode_exec_unit == `exec__mult ? u169_output_port : 32'b0 | decode_exec_unit == `exec__bitwise ? u173_output_port : 32'b0 | decode_exec_unit == `exec__misc ? decode_opcode == `op__add ? $signed(1'bX) : 31'b0 | decode_opcode == `op__a_sub_b ? $signed(1'bX) : 31'b0 | decode_opcode == `op__b_sub_a ? u182_output_port : 31'b0 | decode_opcode == `op__addr ? u185_output_port : 31'b0 | decode_opcode == `op__pc_add ? $signed(1'bX) : 31'b0 | decode_opcode == `op__cb_lt ? $signed(1'bX) : 31'b0 | decode_opcode == `op__cb_ge ? $signed(1'bX) : 31'b0 | decode_opcode == `op__misc_tpc_w_r ? $signed(1'bX) : 31'b0  : 32'b0 ;
-	always_ff @(posedge clk) mem_result <= rst ? 32'h0 : reg_en ? exec_result : mem_result;
-	assign cancel_write_back = is_branch | do_branch & decode_valid & decode_ready;
-	always_ff @(posedge clk) mem_result_data_valid <= rst ? 1'h0 : reg_en ? cancel_write_back : mem_result_data_valid;
-	always_ff @(posedge clk) mem_result_reg_addr <= rst ? 4'h0 : reg_en ? decode_result_reg_addr : mem_result_reg_addr;
-	always_ff @(posedge clk) mem_mem_addr <= rst ? 32'h0 : reg_en ? u20_output_port[31:0] : mem_mem_addr;
-	always_ff @(posedge clk) mem_is_load <= rst ? 1'h0 : reg_en ? decode_is_load &  ~ cancel_write_back : mem_is_load;
-	always_ff @(posedge clk) mem_is_store <= rst ? 1'h0 : reg_en ? decode_is_store &  ~ cancel_write_back : mem_is_store;
-	always_ff @(posedge clk) mem_do_bse <= rst ? 1'h0 : reg_en ? decode_do_bse : mem_do_bse;
-	always_ff @(posedge clk) mem_do_wse <= rst ? 1'h0 : reg_en ? decode_do_wse : mem_do_wse;
-	always_ff @(posedge clk) mem_do_bze <= rst ? 1'h0 : reg_en ? decode_do_bze : mem_do_bze;
-	always_ff @(posedge clk) mem_do_wze <= rst ? 1'h0 : reg_en ? decode_do_wze : mem_do_wze;
-	assign is_exception = decode_fetch_av | decode_exec_unit == `exec__adder ? 1'h0 | mem_unaligned : 1'b0 | decode_exec_unit == `exec__shift ? 1'h0 : 1'b0 | decode_exec_unit == `exec__mult ? 1'h0 : 1'b0 | decode_exec_unit == `exec__bitwise ? 1'h0 : 1'b0 | decode_exec_unit == `exec__cbranch ? 1'h0 : 1'b0 | decode_exec_unit == `exec__bbranch ? 1'h0 : 1'b0 | decode_exec_unit == `exec__misc ? decode_opcode == `op__add ? 1'h1 : 1'b0 | decode_opcode == `op__a_sub_b ? 1'h0 : 1'b0 | decode_opcode == `op__b_sub_a ? 1'h0 : 1'b0 | decode_opcode == `op__addr ? 1'h0 : 1'b0 | decode_opcode == `op__pc_add ? 1'h0 : 1'b0 | decode_opcode == `op__cb_lt ? 1'h0 : 1'b0 | decode_opcode == `op__cb_ge ? 1'h0 : 1'b0 | decode_opcode == `op__misc_tpc_w_r ? 1'h0 : 1'b0  : 1'b0 ;
-	assign next_inst_addr = decode_exec_unit == `exec__cbranch | decode_exec_unit == `exec__bbranch ? u122_output_port[30:0] : 31'b0 | decode_exec_unit == `exec__misc & decode_opcode == `op__pc_add ? decode_op_imm[31:1] : 31'b0 | decode_exec_unit == `exec__misc & decode_opcode == `op__cb_lt & task_mode_in ? decode_op_imm[31:1] : 31'b0 | decode_exec_unit == `exec__misc & decode_opcode == `op__cb_ge ? decode_op_imm[31:1] : 31'b0 | decode_exec_unit == `exec__misc & decode_opcode == `op__misc_tpc_w_r & task_mode_in ? decode_op_imm[31:1] : 31'b0 | task_mode_in ? u149_output_port[30:0] : u146_output_port[30:0];
-	assign spc_out = reg_en ? task_mode_in ? spc_in : is_exception ? 1'h0 : next_inst_addr : spc_in;
-	assign tpc_out = reg_en ? task_mode_in ? is_exception ? tpc_in : next_inst_addr : (decode_exec_unit == `exec__misc & decode_opcode == `op__cb_lt) ? decode_op_imm[31:1] : tpc_in : tpc_in;
-	assign task_mode_out = reg_en ? task_mode_in ?  ~ is_exception :  ~ (decode_exec_unit == `exec__misc & decode_opcode == `op__a_sub_b) : task_mode_in;
-	assign hwi_mask = interrupt ? 12'h800 : 1'h0;
-	assign ecause_out = reg_en ? is_exception ? ecause_in | 1'h0 | hwi_mask : ecause_in | hwi_mask : ecause_in;
-	assign rcause_out = reg_en ? (is_exception &  ~ task_mode_in) ? rcause_in | 1'h0 : rcause_in : rcause_in;
+	always_ff @(posedge clk) branch_input_f_carry <= rst ? 1'h0 : stage_1_reg_en ? alu_output_f_carry : branch_input_f_carry;
+	always_ff @(posedge clk) branch_input_f_overflow <= rst ? 1'h0 : stage_1_reg_en ? alu_output_f_overflow : branch_input_f_overflow;
+	always_ff @(posedge clk) branch_input_f_sign <= rst ? 1'h0 : stage_1_reg_en ? alu_output_f_sign : branch_input_f_sign;
+	always_ff @(posedge clk) branch_input_f_zero <= rst ? 1'h0 : stage_1_reg_en ? alu_output_f_zero : branch_input_f_zero;
+	always_ff @(posedge clk) s1_alu_output_result <= rst ? 32'h0 : stage_1_reg_en ? alu_output_result : s1_alu_output_result;
+	always_ff @(posedge clk) branch_input_mem_av <= rst ? 1'h0 : stage_1_reg_en ? ldst_output_mem_av : branch_input_mem_av;
+	always_ff @(posedge clk) branch_input_mem_unaligned <= rst ? 1'h0 : stage_1_reg_en ? ldst_output_mem_unaligned : branch_input_mem_unaligned;
+	always_ff @(posedge clk) mem_input_addr <= rst ? 32'h0 : stage_1_reg_en ? ldst_output_phy_addr : mem_input_addr;
+	always_ff @(posedge clk) branch_input_branch_addr <= rst ? 31'h0 : stage_1_reg_en ? branch_target_output_branch_addr : branch_input_branch_addr;
+	always_ff @(posedge clk) s1_branch_target_output_straight_addr <= rst ? 31'h0 : stage_1_reg_en ? branch_target_output_straight_addr : s1_branch_target_output_straight_addr;
+	always_ff @(posedge clk) s1_shifter_output_result <= rst ? 32'h0 : stage_1_reg_en ? shifter_output_result : s1_shifter_output_result;
+	always_ff @(posedge clk) s1_task_mode <= rst ? 1'h0 : stage_1_reg_en ? task_mode_in : s1_task_mode;
+	always_ff @(posedge clk) s1_spc <= rst ? 31'h0 : stage_1_reg_en ? spc_in : s1_spc;
+	always_ff @(posedge clk) s1_tpc <= rst ? 31'h0 : stage_1_reg_en ? tpc_in : s1_tpc;
+	always_ff @(posedge clk) s1_fetch_av <= rst ? 1'h0 : stage_1_reg_en ? input_port_fetch_av : s1_fetch_av;
+	assign block_mem = branch_input_mem_av | branch_input_mem_unaligned | s1_fetch_av;
+	assign mem_input_valid = stage_1_valid &  ~ block_mem;
+	always_ff @(posedge clk) s1_exec_unit <= rst ? 3'h0 : stage_1_reg_en ? input_port_exec_unit : s1_exec_unit;
+	assign stage_2_ready = (s1_exec_unit == `op_class__ld_st &  ~ block_mem) ? mem_input_ready : stage_2_fsm_input_ready;
+	assign stage_2_valid = (s1_exec_unit == `op_class__ld_st &  ~ block_mem) ? s2_mem_output_valid : stage_2_fsm_output_valid;
+	always_ff @(posedge clk) s1_branch_op <= rst ? 4'h0 : stage_1_reg_en ? input_port_branch_op : s1_branch_op;
+	assign s2_pc = s1_task_mode ? s1_tpc : s1_spc;
+	always_ff @(posedge clk) s1_op_a <= rst ? 32'h0 : stage_1_reg_en ? input_port_op_a : s1_op_a;
+	always_ff @(posedge clk) s1_op_b <= rst ? 32'h0 : stage_1_reg_en ? input_port_op_b : s1_op_b;
+	always_ff @(posedge clk) s1_op_c <= rst ? 32'h0 : stage_1_reg_en ? input_port_op_c : s1_op_c;
+	assign branch_input_is_branch_insn = s1_exec_unit == `op_class__branch;
+	always_ff @(posedge clk) s1_ldst_op <= rst ? 1'h0 : stage_1_reg_en ? input_port_ldst_op : s1_ldst_op;
+	assign mem_input_read_not_write = s1_exec_unit == `op_class__ld_st & s1_ldst_op == `ldst_ops__load;
+	always_ff @(posedge clk) s1_mem_access_len <= rst ? 2'h0 : stage_1_reg_en ? input_port_mem_access_len : s1_mem_access_len;
+	always_ff @(posedge clk) s1_result_reg_addr_valid <= rst ? 1'h0 : stage_1_reg_en ? input_port_result_reg_addr_valid : s1_result_reg_addr_valid;
+	always_ff @(posedge clk) s2_result_reg_addr_valid <= rst ? 1'h0 : stage_2_reg_en ? s1_result_reg_addr_valid : s2_result_reg_addr_valid;
+	assign output_port_valid = stage_2_valid & s2_result_reg_addr_valid;
+	assign result = s1_exec_unit == `op_class__alu ? s1_alu_output_result : 32'b0 | s1_exec_unit == `op_class__mult ? mult_output_result : 32'b0 | s1_exec_unit == `op_class__shift ? s1_shifter_output_result : 32'b0 ;
+	always_ff @(posedge clk) u69_output_port <= rst ? 16'h0 : stage_2_reg_en ? result[15:0] : u69_output_port;
+	assign output_port_data_l = s1_exec_unit == `op_class__ld_st ? s2_mem_output_data_l : u69_output_port;
+	always_ff @(posedge clk) u74_output_port <= rst ? 16'h0 : stage_2_reg_en ? result[31:16] : u74_output_port;
+	assign output_port_data_h = s1_exec_unit == `op_class__ld_st ? s2_mem_output_data_h : u74_output_port;
+	always_ff @(posedge clk) output_port_data_en <= rst ? 1'h0 : stage_2_reg_en ?  ~ branch_output_do_branch : output_port_data_en;
+	always_ff @(posedge clk) s1_result_reg_addr <= rst ? 4'h0 : stage_1_reg_en ? input_port_result_reg_addr : s1_result_reg_addr;
+	always_ff @(posedge clk) output_port_addr <= rst ? 4'h0 : stage_2_reg_en ? s1_result_reg_addr : output_port_addr;
+	always_ff @(posedge clk) s1_do_bse <= rst ? 1'h0 : stage_1_reg_en ? input_port_do_bse : s1_do_bse;
+	always_ff @(posedge clk) output_port_do_bse <= rst ? 1'h0 : stage_2_reg_en ? s1_do_bse : output_port_do_bse;
+	always_ff @(posedge clk) s1_do_wse <= rst ? 1'h0 : stage_1_reg_en ? input_port_do_wse : s1_do_wse;
+	always_ff @(posedge clk) output_port_do_wse <= rst ? 1'h0 : stage_2_reg_en ? s1_do_wse : output_port_do_wse;
+	always_ff @(posedge clk) s1_do_bze <= rst ? 1'h0 : stage_1_reg_en ? input_port_do_bze : s1_do_bze;
+	always_ff @(posedge clk) output_port_do_bze <= rst ? 1'h0 : stage_2_reg_en ? s1_do_bze : output_port_do_bze;
+	always_ff @(posedge clk) s1_do_wze <= rst ? 1'h0 : stage_1_reg_en ? input_port_do_wze : s1_do_wze;
+	always_ff @(posedge clk) output_port_do_wze <= rst ? 1'h0 : stage_2_reg_en ? s1_do_wze : output_port_do_wze;
+	always_ff @(posedge clk) do_branch <= rst ? 1'h0 : branch_output_do_branch & stage_2_reg_en;
+	always_ff @(posedge clk) s1_tpc_out <= rst ? 31'h0 : stage_1_reg_en ? task_mode_in ? branch_target_output_straight_addr : tpc_in : tpc_in;
+	assign tpc_out = stage_2_reg_en ? branch_output_tpc_changed ? branch_output_tpc : s1_tpc_out : s1_tpc_out;
+	always_ff @(posedge clk) s1_spc_out <= rst ? 31'h0 : stage_1_reg_en ?  ~ task_mode_in ? branch_target_output_straight_addr : spc_in : spc_in;
+	assign spc_out = stage_2_reg_en ? branch_output_spc_changed ? branch_output_spc : s1_spc_out : s1_spc_out;
+	assign task_mode_out = stage_2_reg_en ? branch_output_task_mode_changed ? branch_output_task_mode : s1_task_mode : s1_task_mode;
+	assign ecause_out = stage_2_reg_en ? ecause_in | branch_output_ecause : ecause_in;
 
-	DecoratorModule_6 u79 (
-		.output_port(u79_output_port),
-		.word(decode_op_a),
-		.bit_code(decode_op_b)
-	);
-
-	DecoratorModule_7 u82 (
-		.output_port(u82_output_port),
-		.word(decode_op_b),
-		.bit_code(decode_op_a)
-	);
-
-	ForwardBufLogic handshake_fsm (
+	ForwardBufLogic stage_1_fsm (
 		.clock_port(clk),
 		.reset_port(rst),
-		.input_valid(decode_valid),
-		.input_ready(decode_ready),
-		.output_valid(mem_valid),
-		.output_ready(mem_ready),
-		.out_reg_en(reg_en)
+		.input_valid( ~ multi_cycle_exec_lockout & input_port_valid),
+		.input_ready(stage_1_fsm_input_ready),
+		.output_valid(stage_1_valid),
+		.output_ready(stage_2_ready),
+		.out_reg_en(stage_1_fsm_out_reg_en)
 	);
 
-	assign mem_result_reg_addr_valid = 1'hx;
-	assign u3_output_port = decode_op_a + decode_op_b;
-	assign u6_output_port = decode_op_a + decode_op_b;
-	assign u9_output_port = decode_op_b - decode_op_a;
-	assign u13_output_port = decode_op_b + decode_op_imm + 1'h0;
-	assign u19_output_port = pc + ({decode_op_a, 1'h0});
-	assign u20_output_port = decode_opcode == `op__add ? u3_output_port[31:0] : 32'b0 | decode_opcode == `op__a_sub_b ? u6_output_port[31:0] : 32'b0 | decode_opcode == `op__b_sub_a ? u9_output_port[31:0] : 32'b0 | decode_opcode == `op__addr ? u13_output_port[31:0] : 32'b0 | decode_opcode == `op__pc_add ? u19_output_port[31:0] : 32'b0 ;
-	assign u39_output_port = decode_opcode == `op__add ? decode_op_a << decode_op_b[5:0] : 96'b0 | decode_opcode == `op__a_sub_b ? decode_op_a >> decode_op_b[5:0] : 96'b0 | decode_opcode == `op__b_sub_a ? decode_op_a >>> decode_op_b[5:0] : 96'b0 ;
-	assign u122_output_port = pc + ({decode_op_imm[0], decode_op_imm[0], decode_op_imm[0], decode_op_imm[0], decode_op_imm[0], decode_op_imm[0], decode_op_imm[0], decode_op_imm[0], decode_op_imm[0], decode_op_imm[0], decode_op_imm[0], decode_op_imm[0], decode_op_imm[0], decode_op_imm[0], decode_op_imm[0], decode_op_imm[0], decode_op_imm[15:1], 1'h0});
-	assign u146_output_port = spc_in + decode_inst_len + 1'h1;
-	assign u149_output_port = tpc_in + decode_inst_len + 1'h1;
-	assign u297_output_port = decode_op_a & 3'h7;
-	assign u91_output_port = u20_output_port[31:0];
+	AluUnit alu_unit (
+		.clk(clk),
+		.rst(rst),
+		.input_port_op_a(input_port_op_a),
+		.input_port_op_b(input_port_op_b),
+		.input_port_opcode(input_port_alu_op),
+		.input_port_pc(pc),
+		.input_port_tpc(tpc_in),
+
+		.output_port_f_carry(alu_output_f_carry),
+		.output_port_f_overflow(alu_output_f_overflow),
+		.output_port_f_sign(alu_output_f_sign),
+		.output_port_f_zero(alu_output_f_zero),
+		.output_port_result(alu_output_result)
+	);
+
+	LoadStoreUnit ldst_unit (
+		.input_port_is_ldst(input_port_exec_unit == `op_class__ld_st),
+		.input_port_mem_access_len(input_port_mem_access_len),
+		.input_port_mem_base(mem_base),
+		.input_port_mem_limit(mem_limit),
+		.input_port_op_b(input_port_op_b),
+		.input_port_op_c(input_port_op_c),
+		.input_port_task_mode(task_mode_in),
+
+		.output_port_mem_av(ldst_output_mem_av),
+		.output_port_mem_unaligned(ldst_output_mem_unaligned),
+		.output_port_phy_addr(ldst_output_phy_addr)
+	);
+
+	BranchTargetUnit branch_target_unit (
+		.input_port_inst_len(input_port_inst_len),
+		.input_port_op_c(input_port_op_c),
+		.input_port_pc(pc),
+
+		.output_port_branch_addr(branch_target_output_branch_addr),
+		.output_port_straight_addr(branch_target_output_straight_addr)
+	);
+
+	ShifterUnit shifter_unit (
+		.clk(clk),
+		.rst(rst),
+		.input_port_op_a(input_port_op_a),
+		.input_port_op_b(input_port_op_b),
+		.input_port_opcode(input_port_shifter_op),
+
+		.output_port_result(shifter_output_result)
+	);
+
+	MultUnit mult_unit (
+		.clk(clk),
+		.rst(rst),
+		.input_port_op_a(input_port_op_a),
+		.input_port_op_b(input_port_op_b),
+		.input_port_valid(stage_1_reg_en),
+
+		.output_port_result(mult_output_result)
+	);
+
+	ForwardBufLogic_2 stage_2_fsm (
+		.clock_port(clk),
+		.reset_port(rst),
+		.input_valid(stage_1_valid),
+		.input_ready(stage_2_fsm_input_ready),
+		.output_valid(stage_2_fsm_output_valid),
+		.output_ready(u101_output_port),
+		.out_reg_en(stage_2_reg_en)
+	);
+
+	BranchUnit branch_unit (
+		.input_port_branch_addr(branch_input_branch_addr),
+		.input_port_f_carry(branch_input_f_carry),
+		.input_port_f_overflow(branch_input_f_overflow),
+		.input_port_f_sign(branch_input_f_sign),
+		.input_port_f_zero(branch_input_f_zero),
+		.input_port_fetch_av(s1_fetch_av),
+		.input_port_interrupt(interrupt),
+		.input_port_is_branch_insn(branch_input_is_branch_insn),
+		.input_port_mem_av(branch_input_mem_av),
+		.input_port_mem_unaligned(branch_input_mem_unaligned),
+		.input_port_op_a(s1_op_a),
+		.input_port_op_b(s1_op_b),
+		.input_port_op_c(s1_op_c),
+		.input_port_opcode(s1_branch_op),
+		.input_port_pc(s2_pc),
+		.input_port_spc(s1_spc),
+		.input_port_task_mode(s1_task_mode),
+		.input_port_tpc(s1_tpc),
+
+		.output_port_do_branch(branch_output_do_branch),
+		.output_port_ecause(branch_output_ecause),
+		.output_port_spc(branch_output_spc),
+		.output_port_spc_changed(branch_output_spc_changed),
+		.output_port_task_mode(branch_output_task_mode),
+		.output_port_task_mode_changed(branch_output_task_mode_changed),
+		.output_port_tpc(branch_output_tpc),
+		.output_port_tpc_changed(branch_output_tpc_changed)
+	);
+
+	MemoryStage memory_unit (
+		.clk(clk),
+		.rst(rst),
+		.input_port_access_len(s1_mem_access_len),
+		.input_port_addr(mem_input_addr),
+		.input_port_data(s1_op_a),
+		.input_port_read_not_write(mem_input_read_not_write),
+		.input_port_ready(mem_input_ready),
+		.input_port_valid(mem_input_valid),
+
+		.output_port_data_h(s2_mem_output_data_h),
+		.output_port_data_l(s2_mem_output_data_l),
+		.output_port_valid(s2_mem_output_valid),
+
+		.bus_req_if_addr(bus_req_if_addr),
+		.bus_req_if_byte_en(bus_req_if_byte_en),
+		.bus_req_if_data(bus_req_if_data),
+		.bus_req_if_dram_not_ext(bus_req_if_dram_not_ext),
+		.bus_req_if_read_not_write(bus_req_if_read_not_write),
+		.bus_req_if_ready(bus_req_if_ready),
+		.bus_req_if_valid(bus_req_if_valid),
+
+		.bus_rsp_if_data(bus_rsp_if_data),
+		.bus_rsp_if_valid(bus_rsp_if_valid),
+
+		.csr_if_paddr(csr_if_paddr),
+		.csr_if_penable(csr_if_penable),
+		.csr_if_prdata(csr_if_prdata),
+		.csr_if_pready(csr_if_pready),
+		.csr_if_psel(csr_if_psel),
+		.csr_if_pwdata(csr_if_pwdata),
+		.csr_if_pwrite(csr_if_pwrite)
+	);
+
+	assign branch_input_interrupt = interrupt;
+	assign s1_alu_output_f_carry = branch_input_f_carry;
+	assign s1_alu_output_f_overflow = branch_input_f_overflow;
+	assign s1_alu_output_f_sign = branch_input_f_sign;
+	assign s1_alu_output_f_zero = branch_input_f_zero;
+	assign s1_ldst_output_mem_av = branch_input_mem_av;
+	assign s1_ldst_output_mem_unaligned = branch_input_mem_unaligned;
+	assign s1_ldst_output_phy_addr = mem_input_addr;
+	assign s1_branch_target_output_branch_addr = branch_input_branch_addr;
+	assign branch_input_opcode = s1_branch_op;
+	assign mem_input_data = s1_op_a;
+	assign branch_input_op_a = s1_op_a;
+	assign branch_input_op_b = s1_op_b;
+	assign branch_input_op_c = s1_op_c;
+	assign branch_input_fetch_av = s1_fetch_av;
+	assign branch_input_tpc = s1_tpc;
+	assign branch_input_spc = s1_spc;
+	assign branch_input_task_mode = s1_task_mode;
+	assign mem_input_access_len = s1_mem_access_len;
+	assign branch_input_pc = s2_pc;
+	assign complete = stage_2_valid;
+	assign u101_output_port = 1'h1;
+endmodule
+
+
+////////////////////////////////////////////////////////////////////////////////
+// MemoryStage
+////////////////////////////////////////////////////////////////////////////////
+module MemoryStage (
+	input logic clk,
+	input logic rst,
+	input logic [1:0] input_port_access_len,
+	input logic [31:0] input_port_addr,
+	input logic [31:0] input_port_data,
+	input logic input_port_read_not_write,
+	output logic input_port_ready,
+	input logic input_port_valid,
+
+	output logic [15:0] output_port_data_h,
+	output logic [15:0] output_port_data_l,
+	output logic output_port_valid,
+
+	output logic [25:0] bus_req_if_addr,
+	output logic [1:0] bus_req_if_byte_en,
+	output logic [15:0] bus_req_if_data,
+	output logic bus_req_if_dram_not_ext,
+	output logic bus_req_if_read_not_write,
+	input logic bus_req_if_ready,
+	output logic bus_req_if_valid,
+
+	input logic [15:0] bus_rsp_if_data,
+	input logic bus_rsp_if_valid,
+
+	output logic [9:0] csr_if_paddr,
+	output logic csr_if_penable,
+	input logic [31:0] csr_if_prdata,
+	input logic csr_if_pready,
+	output logic csr_if_psel,
+	output logic [31:0] csr_if_pwdata,
+	output logic csr_if_pwrite
+);
+
+	logic is_nram;
+	logic input_advance;
+	logic bus_request_advance;
+	logic multi_cycle;
+	logic active;
+	logic pending;
+	logic gap;
+	logic csr_select;
+	logic u47_output_port;
+	logic is_csr;
+	logic [25:0] u62_output_port;
+	logic [25:0] next_addr;
+	logic [15:0] data_store;
+	logic u83_output_port;
+	logic [1:0] u87_output_port;
+	logic u93_output_port;
+	logic csr_pen;
+	logic u112_output_port;
+	logic [9:0] u116_output_port;
+	logic [31:0] u121_output_port;
+	logic [1:0] byte_en;
+
+	assign input_advance = input_port_ready & input_port_valid;
+	always_ff @(posedge clk) multi_cycle <= rst ? 1'h0 : input_advance ? input_port_access_len == 2'h2 &  ~ is_csr : multi_cycle;
+	assign bus_request_advance = bus_req_if_ready & bus_req_if_valid;
+	always_ff @(posedge clk) active <= rst ? 1'h0 : (input_port_access_len == 2'h2 &  ~ is_csr & input_advance) ? 1'h1 : bus_request_advance ? 1'h0 : active;
+	always_ff @(posedge clk) pending <= rst ? 1'h0 : (input_port_access_len == 2'h2 &  ~ is_csr & input_advance & input_port_read_not_write) ? 1'h1 : bus_rsp_if_valid ? 1'h0 : pending;
+	always_ff @(posedge clk) gap <= rst ? 1'h0 : (input_port_access_len != 2'h2 &  ~ is_csr & input_advance | active) ? 1'h1 : 1'h0;
+	assign csr_select = input_port_addr[31:28] == 4'hc;
+	always_ff @(posedge clk) u47_output_port <= rst ? 1'h0 : input_advance ? csr_select : output_port_valid ? 1'h0 : is_csr;
+	assign is_csr = input_advance ? csr_select : u47_output_port;
+	assign input_port_ready = bus_req_if_ready &  ~ active;
+	assign bus_req_if_valid = (input_port_valid &  ~ csr_select | active) &  ~ gap;
+	assign output_port_valid = bus_rsp_if_valid &  ~ pending | csr_pen & csr_if_pready &  ~ csr_if_pwrite;
+	always_ff @(posedge clk) u83_output_port <= rst ? 1'h0 : input_port_ready & input_port_valid ? input_port_read_not_write : u83_output_port;
+	assign bus_req_if_read_not_write = (input_port_ready & input_port_valid) ? input_port_read_not_write : u83_output_port;
+	always_ff @(posedge clk) u87_output_port <= rst ? 2'h0 : input_port_ready & input_port_valid ? byte_en : u87_output_port;
+	assign bus_req_if_byte_en = (input_port_ready & input_port_valid) ? byte_en : u87_output_port;
+	always_ff @(posedge clk) next_addr <= rst ? 26'h0 : input_advance ? u62_output_port[25:0] : next_addr;
+	assign bus_req_if_addr = input_advance ? input_port_addr[26:1] : next_addr;
+	assign is_nram = input_port_addr[31:28] == 4'hf;
+	always_ff @(posedge clk) u93_output_port <= rst ? 1'h0 : input_port_ready & input_port_valid ?  ~ is_nram : u93_output_port;
+	assign bus_req_if_dram_not_ext = (input_port_ready & input_port_valid) ?  ~ is_nram : u93_output_port;
+	always_ff @(posedge clk) data_store <= rst ? 16'h0 : input_advance ? input_port_data[31:16] : (bus_rsp_if_valid & pending) ? bus_rsp_if_data : 16'hx;
+	assign bus_req_if_data = input_advance ? input_port_data[15:0] : data_store;
+	assign output_port_data_l = csr_pen ? csr_if_prdata[15:0] : multi_cycle ? data_store : bus_rsp_if_data;
+	assign output_port_data_h = csr_pen ? csr_if_prdata[31:16] : bus_rsp_if_data;
+	always_ff @(posedge clk) csr_pen <= rst ? 1'h0 : input_advance ? is_csr : (csr_if_pready & is_csr) ? 1'h0 : csr_pen;
+	assign csr_if_psel = input_advance & is_csr | csr_pen;
+	always_ff @(posedge clk) u112_output_port <= rst ? 1'h0 : input_port_ready & input_port_valid ?  ~ input_port_read_not_write : u112_output_port;
+	assign csr_if_pwrite = (input_port_ready & input_port_valid) ?  ~ input_port_read_not_write : u112_output_port;
+	always_ff @(posedge clk) u116_output_port <= rst ? 10'h0 : input_port_ready & input_port_valid ? input_port_addr[11:2] : u116_output_port;
+	assign csr_if_paddr = (input_port_ready & input_port_valid) ? input_port_addr[11:2] : u116_output_port;
+	always_ff @(posedge clk) u121_output_port <= rst ? 32'h0 : input_port_ready & input_port_valid ? input_port_data : u121_output_port;
+	assign csr_if_pwdata = (input_port_ready & input_port_valid) ? input_port_data : u121_output_port;
+	assign byte_en = {input_port_access_len != 1'h0 | input_port_addr[0], input_port_access_len != 1'h0 |  ~ input_port_addr[0]};
+
+	assign u62_output_port = input_port_addr[26:1] | 1'h1;
+	assign csr_if_penable = csr_pen;
+endmodule
+
+
+////////////////////////////////////////////////////////////////////////////////
+// BranchUnit
+////////////////////////////////////////////////////////////////////////////////
+module BranchUnit (
+	input logic [30:0] input_port_branch_addr,
+	input logic input_port_f_carry,
+	input logic input_port_f_overflow,
+	input logic input_port_f_sign,
+	input logic input_port_f_zero,
+	input logic input_port_fetch_av,
+	input logic input_port_interrupt,
+	input logic input_port_is_branch_insn,
+	input logic input_port_mem_av,
+	input logic input_port_mem_unaligned,
+	input logic [31:0] input_port_op_a,
+	input logic [31:0] input_port_op_b,
+	input logic [31:0] input_port_op_c,
+	input logic [3:0] input_port_opcode,
+	input logic [30:0] input_port_pc,
+	input logic [30:0] input_port_spc,
+	input logic input_port_task_mode,
+	input logic [30:0] input_port_tpc,
+
+	output logic output_port_do_branch,
+	output logic [11:0] output_port_ecause,
+	output logic [30:0] output_port_spc,
+	output logic output_port_spc_changed,
+	output logic output_port_task_mode,
+	output logic output_port_task_mode_changed,
+	output logic [30:0] output_port_tpc,
+	output logic output_port_tpc_changed
+);
+
+	logic condition_result;
+	logic is_exception;
+	logic in_mode_branch;
+	logic [30:0] branch_target;
+	logic [10:0] exception_mask;
+	logic [11:0] interrupt_mask;
+	logic u21_output_port;
+	logic u18_output_port;
+
+	assign is_exception = input_port_is_branch_insn & input_port_opcode == `branch_ops__swi | input_port_mem_av | input_port_mem_unaligned | input_port_fetch_av;
+	assign condition_result = input_port_is_branch_insn & (input_port_opcode == `branch_ops__cb_eq ? input_port_f_zero : 1'b0 | input_port_opcode == `branch_ops__cb_ne ?  ~ input_port_f_zero : 1'b0 | input_port_opcode == `branch_ops__cb_lts ? input_port_f_sign != input_port_f_overflow : 1'b0 | input_port_opcode == `branch_ops__cb_ges ? input_port_f_sign == input_port_f_overflow : 1'b0 | input_port_opcode == `branch_ops__cb_lt ? input_port_f_carry : 1'b0 | input_port_opcode == `branch_ops__cb_ge ?  ~ input_port_f_carry : 1'b0 | input_port_opcode == `branch_ops__bb_one ? u18_output_port : 1'b0 | input_port_opcode == `branch_ops__bb_zero ?  ~ u21_output_port : 1'b0 );
+	assign branch_target = input_port_is_branch_insn & input_port_opcode == `branch_ops__pc_w ? input_port_op_a[31:1] : 31'b0 | input_port_is_branch_insn & input_port_opcode == `branch_ops__tpc_w ? input_port_op_a[31:1] : 31'b0 | input_port_is_branch_insn & input_port_opcode == `branch_ops__stm ? input_port_tpc : 31'b0 | (is_exception | input_port_interrupt) ? input_port_tpc : input_port_branch_addr;
+	assign output_port_spc = is_exception ? 1'h0 : branch_target;
+	assign in_mode_branch = input_port_is_branch_insn & input_port_opcode == `branch_ops__pc_w ? 1'h1 : 1'b0 | input_port_is_branch_insn & input_port_opcode == `branch_ops__tpc_w ? input_port_task_mode : 1'b0 | is_exception ?  ~ input_port_task_mode : 1'b0 | input_port_is_branch_insn & input_port_opcode == `branch_ops__stm ? 1'h0 : 1'b0 | condition_result;
+	assign output_port_spc_changed =  ~ input_port_task_mode & (is_exception | in_mode_branch);
+	assign output_port_tpc_changed = input_port_task_mode ? in_mode_branch | is_exception | input_port_interrupt : input_port_is_branch_insn & input_port_opcode == `branch_ops__tpc_w;
+	assign output_port_task_mode_changed = input_port_task_mode ? is_exception | input_port_interrupt : input_port_is_branch_insn & input_port_opcode == `branch_ops__stm;
+	assign output_port_task_mode = input_port_task_mode ^ output_port_task_mode_changed;
+	assign output_port_do_branch = in_mode_branch | output_port_task_mode_changed;
+	assign exception_mask = input_port_fetch_av ? 11'h400 : ((input_port_is_branch_insn & input_port_opcode == `branch_ops__swi) ? 1'h1 << input_port_op_a[2:0] : 1'h0) | (input_port_mem_av ? 10'h200 : 1'h0) | (input_port_mem_unaligned ? 9'h100 : 1'h0);
+	assign interrupt_mask = (input_port_interrupt & input_port_task_mode) ? 12'h800 : 1'h0;
+	assign output_port_ecause = exception_mask | interrupt_mask;
+
+	DecoratorModule_6 u21 (
+		.output_port(u21_output_port),
+		.word(input_port_op_a),
+		.bit_code(input_port_op_b)
+	);
+
+	DecoratorModule_7 u18 (
+		.output_port(u18_output_port),
+		.word(input_port_op_a),
+		.bit_code(input_port_op_b)
+	);
+
+	assign output_port_tpc = branch_target;
+endmodule
+
+
+////////////////////////////////////////////////////////////////////////////////
+// MultUnit
+////////////////////////////////////////////////////////////////////////////////
+module MultUnit (
+	input logic clk,
+	input logic rst,
+	input logic [31:0] input_port_op_a,
+	input logic [31:0] input_port_op_b,
+	input logic input_port_valid,
+
+	output logic [31:0] output_port_result
+);
+
+	logic [31:0] partial_11;
+	logic [31:0] u3_output_port;
+	logic [31:0] u6_output_port;
+	logic [31:0] s1_partial_11;
+	logic [15:0] s1_partial_12;
+	logic [15:0] s1_partial_21;
+	logic [33:0] u17_output_port;
+
+	assign partial_11 = input_port_op_a[15:0] * input_port_op_b[15:0];
+	always_ff @(posedge clk) s1_partial_12 <= rst ? 16'h0 : input_port_valid ? u3_output_port[15:0] : s1_partial_12;
+	always_ff @(posedge clk) s1_partial_21 <= rst ? 16'h0 : input_port_valid ? u6_output_port[15:0] : s1_partial_21;
+	always_ff @(posedge clk) s1_partial_11 <= rst ? 32'h0 : input_port_valid ? partial_11 : s1_partial_11;
+	assign output_port_result = u17_output_port[31:0];
+
+	assign u3_output_port = input_port_op_a[31:16] * input_port_op_b[15:0];
+	assign u6_output_port = input_port_op_a[15:0] * input_port_op_b[31:16];
+	assign u17_output_port = s1_partial_11 + ({s1_partial_12 + s1_partial_21, 16'h0});
+endmodule
+
+
+////////////////////////////////////////////////////////////////////////////////
+// ShifterUnit
+////////////////////////////////////////////////////////////////////////////////
+module ShifterUnit (
+	input logic clk,
+	input logic rst,
+	input logic [31:0] input_port_op_a,
+	input logic [31:0] input_port_op_b,
+	input logic [1:0] input_port_opcode,
+
+	output logic [31:0] output_port_result
+);
+
+	logic signed [31:0] signed_a;
+	logic signed [63:0] u13_output_port;
+
+	assign signed_a = input_port_op_a;
+	assign output_port_result = u13_output_port[31:0];
+
+	assign u13_output_port = input_port_opcode == `shifter_ops__shll ? input_port_op_a << input_port_op_b[4:0] : 64'b0 | input_port_opcode == `shifter_ops__shlr ? input_port_op_a >> input_port_op_b[4:0] : 64'b0 | input_port_opcode == `shifter_ops__shar ? $signed(signed_a >>> input_port_op_b[4:0]) : 64'b0 ;
+endmodule
+
+
+////////////////////////////////////////////////////////////////////////////////
+// BranchTargetUnit
+////////////////////////////////////////////////////////////////////////////////
+module BranchTargetUnit (
+	input logic [1:0] input_port_inst_len,
+	input logic [31:0] input_port_op_c,
+	input logic [30:0] input_port_pc,
+
+	output logic [30:0] output_port_branch_addr,
+	output logic [30:0] output_port_straight_addr
+);
+
+	logic [31:0] u18_output_port;
+	logic [31:0] u21_output_port;
+
+	assign output_port_branch_addr = u18_output_port[30:0];
+	assign output_port_straight_addr = u21_output_port[30:0];
+
+	assign u18_output_port = input_port_pc + ({input_port_op_c[0], input_port_op_c[0], input_port_op_c[0], input_port_op_c[0], input_port_op_c[0], input_port_op_c[0], input_port_op_c[0], input_port_op_c[0], input_port_op_c[0], input_port_op_c[0], input_port_op_c[0], input_port_op_c[0], input_port_op_c[0], input_port_op_c[0], input_port_op_c[0], input_port_op_c[0], input_port_op_c[15:1]});
+	assign u21_output_port = input_port_pc + input_port_inst_len + 1'h1;
+endmodule
+
+
+////////////////////////////////////////////////////////////////////////////////
+// LoadStoreUnit
+////////////////////////////////////////////////////////////////////////////////
+module LoadStoreUnit (
+	input logic input_port_is_ldst,
+	input logic [1:0] input_port_mem_access_len,
+	input logic [21:0] input_port_mem_base,
+	input logic [21:0] input_port_mem_limit,
+	input logic [31:0] input_port_op_b,
+	input logic [31:0] input_port_op_c,
+	input logic input_port_task_mode,
+
+	output logic output_port_mem_av,
+	output logic output_port_mem_unaligned,
+	output logic [31:0] output_port_phy_addr
+);
+
+	logic [32:0] u_output_port;
+	logic [32:0] u5_output_port;
+	logic mem_av;
+	logic mem_unaligned;
+	logic [31:0] u6_output_port;
+
+	assign output_port_phy_addr = u5_output_port[31:0];
+	assign mem_av = input_port_is_ldst & u6_output_port[31:10] > input_port_mem_limit;
+	assign mem_unaligned = input_port_is_ldst & (input_port_mem_access_len == 0 ? 1'h0 : 1'b0 | input_port_mem_access_len == 1 ? u6_output_port[0] : 1'b0 | input_port_mem_access_len == 2 ? u6_output_port[0] | u6_output_port[1] : 1'b0 | input_port_mem_access_len == 3 ? 1'h1 : 1'b0);
+
+	assign u_output_port = input_port_op_b + input_port_op_c;
+	assign u5_output_port = u_output_port[31:0] + (input_port_task_mode ? input_port_mem_base << 4'ha : 1'h0);
+	assign output_port_mem_av = mem_av;
+	assign output_port_mem_unaligned = mem_unaligned;
+	assign u6_output_port = u_output_port[31:0];
+endmodule
+
+
+////////////////////////////////////////////////////////////////////////////////
+// AluUnit
+////////////////////////////////////////////////////////////////////////////////
+module AluUnit (
+	input logic clk,
+	input logic rst,
+	input logic [31:0] input_port_op_a,
+	input logic [31:0] input_port_op_b,
+	input logic [2:0] input_port_opcode,
+	input logic [30:0] input_port_pc,
+	input logic [30:0] input_port_tpc,
+
+	output logic output_port_f_carry,
+	output logic output_port_f_overflow,
+	output logic output_port_f_sign,
+	output logic output_port_f_zero,
+	output logic [31:0] output_port_result
+);
+
+	logic c_in;
+	logic [31:0] xor_b;
+	logic [31:0] b;
+	logic [31:0] a;
+	logic [32:0] sum;
+	logic [31:0] and_result;
+	logic [31:0] xor_result;
+	logic use_adder;
+	logic use_and;
+	logic [32:0] adder_result;
+
+	assign c_in = input_port_opcode == `alu_ops__a_minus_b;
+	assign xor_b = (input_port_opcode == `alu_ops__a_minus_b | input_port_opcode == `alu_ops__n_b_and_a) ? 32'hffffffff : 1'h0;
+	assign a = input_port_opcode == `alu_ops__pc_plus_b ? ({input_port_pc, 1'h0}) : input_port_op_a;
+	assign b = xor_b ^ input_port_op_b;
+	assign use_adder = input_port_opcode == `alu_ops__a_plus_b | input_port_opcode == `alu_ops__a_minus_b;
+	assign sum = a + b + c_in;
+	assign use_and = input_port_opcode == `alu_ops__a_and_b | input_port_opcode == `alu_ops__n_b_and_a;
+	assign and_result = a & b;
+	assign xor_result = input_port_op_a ^ input_port_op_b;
+	assign adder_result = use_adder ? sum : 33'b0 | input_port_opcode == `alu_ops__a_or_b ? input_port_op_a | input_port_op_b : 33'b0 | use_and ? and_result : 33'b0 | input_port_opcode == `alu_ops__a_xor_b ? xor_result : 33'b0 | input_port_opcode == `alu_ops__tpc ? ({input_port_tpc, 1'h0}) : 33'b0 | input_port_opcode == `alu_ops__pc_plus_b ? sum : 33'b0 ;
+	assign output_port_result = adder_result[31:0];
+	assign output_port_f_zero = xor_result == 1'h0;
+	assign output_port_f_sign = adder_result[31];
+	assign output_port_f_carry = adder_result[32] ^ input_port_opcode == `alu_ops__a_minus_b;
+	assign output_port_f_overflow = input_port_op_a[31] != input_port_op_b[31] & input_port_op_a[31] != adder_result[31];
+
+endmodule
+
+
+////////////////////////////////////////////////////////////////////////////////
+// ForwardBufLogic_2
+////////////////////////////////////////////////////////////////////////////////
+module ForwardBufLogic_2 (
+	input logic clock_port,
+	input logic reset_port,
+	input logic input_valid,
+	output logic input_ready,
+	output logic output_valid,
+	input logic output_ready,
+	output logic out_reg_en
+);
+
+	logic buf_valid;
+
+	assign out_reg_en = input_valid & input_ready;
+	always_ff @(posedge clock_port) buf_valid <= reset_port ? 1'h0 : (input_valid & input_ready) ? 1'h1 : (output_ready & buf_valid) ? 1'h0 : buf_valid;
+	assign input_ready =  ~ buf_valid | output_ready;
+
+	assign output_valid = buf_valid;
 endmodule
 
 
@@ -1036,24 +1411,25 @@ module DecodeStage (
 	output logic fetch_ready,
 	input logic fetch_valid,
 
-	output logic exec_do_bse,
-	output logic exec_do_bze,
-	output logic exec_do_wse,
-	output logic exec_do_wze,
-	output logic [2:0] exec_exec_unit,
-	output logic exec_fetch_av,
-	output logic [1:0] exec_inst_len,
-	output logic exec_is_load,
-	output logic exec_is_store,
-	output logic [1:0] exec_mem_access_len,
-	output logic [31:0] exec_op_a,
-	output logic [31:0] exec_op_b,
-	output logic [31:0] exec_op_imm,
-	output logic [2:0] exec_opcode,
-	input logic exec_ready,
-	output logic [3:0] exec_result_reg_addr,
-	output logic exec_result_reg_addr_valid,
-	output logic exec_valid,
+	output logic [2:0] output_port_alu_op,
+	output logic [3:0] output_port_branch_op,
+	output logic output_port_do_bse,
+	output logic output_port_do_bze,
+	output logic output_port_do_wse,
+	output logic output_port_do_wze,
+	output logic [2:0] output_port_exec_unit,
+	output logic output_port_fetch_av,
+	output logic [1:0] output_port_inst_len,
+	output logic output_port_ldst_op,
+	output logic [1:0] output_port_mem_access_len,
+	output logic [31:0] output_port_op_a,
+	output logic [31:0] output_port_op_b,
+	output logic [31:0] output_port_op_c,
+	input logic output_port_ready,
+	output logic [3:0] output_port_result_reg_addr,
+	output logic output_port_result_reg_addr_valid,
+	output logic [1:0] output_port_shifter_op,
+	output logic output_port_valid,
 
 	output logic [3:0] reg_file_req_read1_addr,
 	output logic reg_file_req_read1_valid,
@@ -1179,7 +1555,10 @@ module DecodeStage (
 	logic expr;
 	logic mask_expr;
 	logic [2:0] exec_unit;
-	logic [2:0] op_code;
+	logic [2:0] alu_op;
+	logic [1:0] shifter_op;
+	logic [3:0] branch_op;
+	logic ldst_op;
 	logic [3:0] rd1_addr;
 	logic [3:0] rd2_addr;
 	logic [3:0] res_addr;
@@ -1187,10 +1566,8 @@ module DecodeStage (
 	logic use_reg_b;
 	logic [31:0] op_a;
 	logic [31:0] op_b;
-	logic [31:0] op_imm;
+	logic [31:0] op_c;
 	logic [1:0] mem_len;
-	logic is_ld;
-	logic is_st;
 	logic bse;
 	logic wse;
 	logic bze;
@@ -1199,11 +1576,11 @@ module DecodeStage (
 	logic read2_needed;
 	logic rsv_needed;
 	logic register_outputs;
-	logic u2356_output_port;
-	logic [31:0] u2357_output_port;
-	logic u2359_output_port;
-	logic [31:0] u2360_output_port;
-	logic [1:0] u2363_output_port;
+	logic u2358_output_port;
+	logic [31:0] u2359_output_port;
+	logic u2361_output_port;
+	logic [31:0] u2362_output_port;
+	logic [1:0] u2365_output_port;
 	logic [3:0] u22_output_port;
 	logic [3:0] field_a_plus_one;
 
@@ -1308,58 +1685,60 @@ module DecodeStage (
 	assign mask_for_rd_eq_smem8_field_e = 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'hc & fetch_inst_0[3:0] == 4'hf;
 	assign mask_for_rd_eq_smem16_field_e = 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'hd & fetch_inst_0[3:0] == 4'hf;
 	assign mask_expr = 1'h1 & fetch_inst_0[15:12] == 2'h3 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he & fetch_inst_0[3:0] == 4'hf;
-	assign ones_field_a = u22_output_port[3] ? ({field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one}) : fetch_inst_0[3:0];
 	assign field_e = fetch_inst_len == 2'h2 ? ({fetch_inst_2, fetch_inst_1}) : ({fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1});
+	assign ones_field_a = u22_output_port[3] ? ({field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one}) : fetch_inst_0[3:0];
 	assign tiny_ofs = {fetch_inst_0[7:1], 2'h0};
 	assign reg_file_req_valid = fetch_valid &  ~ do_branch;
-	assign rd1_addr = mask_for_woi ? fetch_inst_0[3:0] : 4'b0 | mask_for_pc_eq_rd ? fetch_inst_0[15:12] : 4'b0 | mask_for_tpc_eq_rd ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_minus_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_notra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_bse_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_wse_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_ra_xor_rb ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_ra_or_rb ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_ra_and_rb ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_ra_plus_rb ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_ra_minus_rb ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_ra_lsl_rb ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_ra_lsr_rb ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_ra_asr_rb ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_ra_times_rb ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_notra_and_rb ? fetch_inst_0[3:0] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h0 &  ~ field_a_is_f ? fetch_inst_0[3:0] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h1 &  ~ field_a_is_f ? fetch_inst_0[3:0] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h2 &  ~ field_a_is_f ? fetch_inst_0[3:0] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h3 &  ~ field_a_is_f ? fetch_inst_0[3:0] : 4'b0 | mask_for_if_ra_eq_0 ? fetch_inst_0[3:0] : 4'b0 | mask_for_if_ra_ne_0 ? fetch_inst_0[3:0] : 4'b0 | mask_for_if_ra_lt_0 ? fetch_inst_0[3:0] : 4'b0 | mask_for_if_ra_ge_0 ? fetch_inst_0[3:0] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h1 &  ~ field_b_is_f &  ~ field_a_is_f ? fetch_inst_0[7:4] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h2 &  ~ field_b_is_f &  ~ field_a_is_f ? fetch_inst_0[7:4] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h3 &  ~ field_b_is_f &  ~ field_a_is_f ? fetch_inst_0[7:4] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h4 &  ~ field_b_is_f &  ~ field_a_is_f ? fetch_inst_0[7:4] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h5 &  ~ field_b_is_f &  ~ field_a_is_f ? fetch_inst_0[7:4] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h6 &  ~ field_b_is_f &  ~ field_a_is_f ? fetch_inst_0[7:4] : 4'b0 | mask_for_if_rb_eq_ra ? fetch_inst_0[7:4] : 4'b0 | mask_for_if_rb_ne_ra ? fetch_inst_0[7:4] : 4'b0 | mask_for_if_signed_rb_lt_ra ? fetch_inst_0[7:4] : 4'b0 | mask_for_if_signed_rb_ge_ra ? fetch_inst_0[7:4] : 4'b0 | mask_for_if_rb_lt_ra ? fetch_inst_0[7:4] : 4'b0 | mask_for_if_rb_ge_ra ? fetch_inst_0[7:4] : 4'b0 | mask_for_if_ra_bit__eq_1 ? fetch_inst_0[3:0] : 4'b0 ;
+	assign rd1_addr = mask_for_woi ? fetch_inst_0[3:0] : 4'b0 | mask_for_pc_eq_rd ? fetch_inst_0[15:12] : 4'b0 | mask_for_tpc_eq_rd ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_ra_xor_rb ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_ra_or_rb ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_ra_and_rb ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_ra_plus_rb ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_ra_minus_rb ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_ra_lsl_rb ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_ra_lsr_rb ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_ra_asr_rb ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_ra_times_rb ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_notra_and_rb ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_tiny_rb_plus_field_a ? fetch_inst_0[7:4] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h0 &  ~ field_a_is_f ? fetch_inst_0[3:0] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h1 &  ~ field_a_is_f ? fetch_inst_0[3:0] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h2 &  ~ field_a_is_f ? fetch_inst_0[3:0] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h3 &  ~ field_a_is_f ? fetch_inst_0[3:0] : 4'b0 | mask_for_if_ra_eq_0 ? fetch_inst_0[3:0] : 4'b0 | mask_for_if_ra_ne_0 ? fetch_inst_0[3:0] : 4'b0 | mask_for_if_ra_lt_0 ? fetch_inst_0[3:0] : 4'b0 | mask_for_if_ra_ge_0 ? fetch_inst_0[3:0] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h1 &  ~ field_b_is_f &  ~ field_a_is_f ? fetch_inst_0[7:4] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h2 &  ~ field_b_is_f &  ~ field_a_is_f ? fetch_inst_0[7:4] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h3 &  ~ field_b_is_f &  ~ field_a_is_f ? fetch_inst_0[7:4] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h4 &  ~ field_b_is_f &  ~ field_a_is_f ? fetch_inst_0[7:4] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h5 &  ~ field_b_is_f &  ~ field_a_is_f ? fetch_inst_0[7:4] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h6 &  ~ field_b_is_f &  ~ field_a_is_f ? fetch_inst_0[7:4] : 4'b0 | mask_for_if_rb_eq_ra ? fetch_inst_0[7:4] : 4'b0 | mask_for_if_rb_ne_ra ? fetch_inst_0[7:4] : 4'b0 | mask_for_if_signed_rb_lt_ra ? fetch_inst_0[7:4] : 4'b0 | mask_for_if_signed_rb_ge_ra ? fetch_inst_0[7:4] : 4'b0 | mask_for_if_rb_lt_ra ? fetch_inst_0[7:4] : 4'b0 | mask_for_if_rb_ge_ra ? fetch_inst_0[7:4] : 4'b0 | mask_for_if_ra_bit__eq_1 ? fetch_inst_0[3:0] : 4'b0 | mask_for_if_rb_bit__eq_0 ? fetch_inst_0[7:4] : 4'b0 | mask_for_mem_raplustiny_ofstimes4_eq_rd ? fetch_inst_0[15:12] : 4'b0 | mask_for_mem8_ra_eq_rd ? fetch_inst_0[15:12] : 4'b0 | mask_for_mem16_ra_eq_rd ? fetch_inst_0[15:12] : 4'b0 | mask_for_mem32_ra_eq_rd ? fetch_inst_0[15:12] : 4'b0 | mask_for_memsr32_ra_eq_rd ? fetch_inst_0[15:12] : 4'b0 | mask_for_mem8_raplusfield_e_eq_rd ? fetch_inst_0[15:12] : 4'b0 | mask_for_mem16_raplusfield_e_eq_rd ? fetch_inst_0[15:12] : 4'b0 | mask_for_mem32_raplusfield_e_eq_rd ? fetch_inst_0[15:12] : 4'b0 | mask_for_memsr32_raplusfield_e_eq_rd ? fetch_inst_0[15:12] : 4'b0 | mask_for_mem8_field_e_eq_rd ? fetch_inst_0[15:12] : 4'b0 | mask_for_mem16_field_e_eq_rd ? fetch_inst_0[15:12] : 4'b0 | mask_for_mem32_field_e_eq_rd ? fetch_inst_0[15:12] : 4'b0 | mask_for_memsr32_field_e_eq_rd ? fetch_inst_0[15:12] : 4'b0 ;
 	assign reg_file_req_read1_addr = rd1_addr;
-	assign read1_needed = mask_for_woi ? 1'h1 : 1'b0 | mask_for_pc_eq_rd ? 1'h1 : 1'b0 | mask_for_tpc_eq_rd ? 1'h1 : 1'b0 | mask_for_rd_eq_minus_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_notra ? 1'h1 : 1'b0 | mask_for_rd_eq_bse_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_wse_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_xor_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_or_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_and_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_plus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_minus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_lsl_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_lsr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_asr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_times_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_notra_and_rb ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h0 &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h1 &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h2 &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h3 &  ~ field_a_is_f ? 1'h1 : 1'b0 | mask_for_if_ra_eq_0 ? 1'h1 : 1'b0 | mask_for_if_ra_ne_0 ? 1'h1 : 1'b0 | mask_for_if_ra_lt_0 ? 1'h1 : 1'b0 | mask_for_if_ra_ge_0 ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h1 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h2 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h3 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h4 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h5 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h6 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | mask_for_if_rb_eq_ra ? 1'h1 : 1'b0 | mask_for_if_rb_ne_ra ? 1'h1 : 1'b0 | mask_for_if_signed_rb_lt_ra ? 1'h1 : 1'b0 | mask_for_if_signed_rb_ge_ra ? 1'h1 : 1'b0 | mask_for_if_rb_lt_ra ? 1'h1 : 1'b0 | mask_for_if_rb_ge_ra ? 1'h1 : 1'b0 | mask_for_if_ra_bit__eq_1 ? 1'h1 : 1'b0 | 1'h0;
-	assign rd2_addr = mask_for_woi ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_ra_xor_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_ra_or_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_ra_and_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_ra_plus_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_ra_minus_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_ra_lsl_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_ra_lsr_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_ra_asr_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_ra_times_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_notra_and_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_tiny_rb_plus_field_a ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_field_e_xor_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_field_e_or_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_field_e_and_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_field_e_plus_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_field_e_minus_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_field_e_lsl_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_field_e_lsr_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_field_e_asr_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_field_e_times_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_field_e_xor_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_field_e_or_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_field_e_and_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_field_e_plus_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_field_e_minus_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_field_e_lsl_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_field_e_lsr_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_field_e_asr_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_field_e_times_ra ? fetch_inst_0[3:0] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h4 &  ~ field_a_is_f ? fetch_inst_0[3:0] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h5 &  ~ field_a_is_f ? fetch_inst_0[3:0] : 4'b0 | mask_for_if_ra_gt_0 ? fetch_inst_0[3:0] : 4'b0 | mask_for_if_ra_le_0 ? fetch_inst_0[3:0] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h1 &  ~ field_b_is_f &  ~ field_a_is_f ? fetch_inst_0[3:0] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h2 &  ~ field_b_is_f &  ~ field_a_is_f ? fetch_inst_0[3:0] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h3 &  ~ field_b_is_f &  ~ field_a_is_f ? fetch_inst_0[3:0] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h4 &  ~ field_b_is_f &  ~ field_a_is_f ? fetch_inst_0[3:0] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h5 &  ~ field_b_is_f &  ~ field_a_is_f ? fetch_inst_0[3:0] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h6 &  ~ field_b_is_f &  ~ field_a_is_f ? fetch_inst_0[3:0] : 4'b0 | mask_for_if_rb_eq_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_if_rb_ne_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_if_signed_rb_lt_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_if_signed_rb_ge_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_if_rb_lt_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_if_rb_ge_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_if_rb_bit__eq_0 ? fetch_inst_0[7:4] : 4'b0 | mask_for_mem_raplustiny_ofstimes4_eq_rd ? fetch_inst_0[0] : 4'b0 | mask_for_rd_eq_mem_raplustiny_ofstimes4 ? fetch_inst_0[0] : 4'b0 | mask_for_rd_eq_mem8_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_mem16_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_mem32_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_memll32_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_mem8_ra_eq_rd ? fetch_inst_0[3:0] : 4'b0 | mask_for_mem16_ra_eq_rd ? fetch_inst_0[3:0] : 4'b0 | mask_for_mem32_ra_eq_rd ? fetch_inst_0[3:0] : 4'b0 | mask_for_memsr32_ra_eq_rd ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_smem8_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_smem16_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_mem8_raplusfield_e ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_mem16_raplusfield_e ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_mem32_raplusfield_e ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_memll32_raplusfield_e ? fetch_inst_0[3:0] : 4'b0 | mask_for_mem8_raplusfield_e_eq_rd ? fetch_inst_0[3:0] : 4'b0 | mask_for_mem16_raplusfield_e_eq_rd ? fetch_inst_0[3:0] : 4'b0 | mask_for_mem32_raplusfield_e_eq_rd ? fetch_inst_0[3:0] : 4'b0 | mask_for_memsr32_raplusfield_e_eq_rd ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_smem8_raplusfield_e ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_smem16_raplusfield_e ? fetch_inst_0[3:0] : 4'b0 ;
+	assign read1_needed = fetch_av ? 1'h0 : mask_for_woi ? 1'h1 : 1'b0 | mask_for_pc_eq_rd ? 1'h1 : 1'b0 | mask_for_tpc_eq_rd ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_xor_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_or_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_and_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_plus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_minus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_lsl_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_lsr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_asr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_times_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_notra_and_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_tiny_rb_plus_field_a ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h0 &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h1 &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h2 &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h3 &  ~ field_a_is_f ? 1'h1 : 1'b0 | mask_for_if_ra_eq_0 ? 1'h1 : 1'b0 | mask_for_if_ra_ne_0 ? 1'h1 : 1'b0 | mask_for_if_ra_lt_0 ? 1'h1 : 1'b0 | mask_for_if_ra_ge_0 ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h1 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h2 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h3 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h4 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h5 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h6 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | mask_for_if_rb_eq_ra ? 1'h1 : 1'b0 | mask_for_if_rb_ne_ra ? 1'h1 : 1'b0 | mask_for_if_signed_rb_lt_ra ? 1'h1 : 1'b0 | mask_for_if_signed_rb_ge_ra ? 1'h1 : 1'b0 | mask_for_if_rb_lt_ra ? 1'h1 : 1'b0 | mask_for_if_rb_ge_ra ? 1'h1 : 1'b0 | mask_for_if_ra_bit__eq_1 ? 1'h1 : 1'b0 | mask_for_if_rb_bit__eq_0 ? 1'h1 : 1'b0 | mask_for_mem_raplustiny_ofstimes4_eq_rd ? 1'h1 : 1'b0 | mask_for_mem8_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_mem16_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_mem32_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_memsr32_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_mem8_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_mem16_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_mem32_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_memsr32_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_mem8_field_e_eq_rd ? 1'h1 : 1'b0 | mask_for_mem16_field_e_eq_rd ? 1'h1 : 1'b0 | mask_for_mem32_field_e_eq_rd ? 1'h1 : 1'b0 | mask_for_memsr32_field_e_eq_rd ? 1'h1 : 1'b0 | 1'h0;
+	assign rd2_addr = mask_for_woi ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_minus_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_notra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_bse_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_wse_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_ra_xor_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_ra_or_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_ra_and_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_ra_plus_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_ra_minus_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_ra_lsl_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_ra_lsr_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_ra_asr_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_ra_times_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_notra_and_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_field_e_xor_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_field_e_or_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_field_e_and_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_field_e_plus_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_field_e_minus_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_field_e_lsl_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_field_e_lsr_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_field_e_asr_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_field_e_times_rb ? fetch_inst_0[7:4] : 4'b0 | mask_for_rd_eq_field_e_xor_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_field_e_or_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_field_e_and_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_field_e_plus_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_field_e_minus_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_field_e_lsl_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_field_e_lsr_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_field_e_asr_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_field_e_times_ra ? fetch_inst_0[3:0] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h4 &  ~ field_a_is_f ? fetch_inst_0[3:0] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h5 &  ~ field_a_is_f ? fetch_inst_0[3:0] : 4'b0 | mask_for_if_ra_gt_0 ? fetch_inst_0[3:0] : 4'b0 | mask_for_if_ra_le_0 ? fetch_inst_0[3:0] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h1 &  ~ field_b_is_f &  ~ field_a_is_f ? fetch_inst_0[3:0] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h2 &  ~ field_b_is_f &  ~ field_a_is_f ? fetch_inst_0[3:0] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h3 &  ~ field_b_is_f &  ~ field_a_is_f ? fetch_inst_0[3:0] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h4 &  ~ field_b_is_f &  ~ field_a_is_f ? fetch_inst_0[3:0] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h5 &  ~ field_b_is_f &  ~ field_a_is_f ? fetch_inst_0[3:0] : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h6 &  ~ field_b_is_f &  ~ field_a_is_f ? fetch_inst_0[3:0] : 4'b0 | mask_for_if_rb_eq_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_if_rb_ne_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_if_signed_rb_lt_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_if_signed_rb_ge_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_if_rb_lt_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_if_rb_ge_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_mem_raplustiny_ofstimes4_eq_rd ? fetch_inst_0[0] : 4'b0 | mask_for_rd_eq_mem_raplustiny_ofstimes4 ? fetch_inst_0[0] : 4'b0 | mask_for_rd_eq_mem8_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_mem16_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_mem32_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_memll32_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_mem8_ra_eq_rd ? fetch_inst_0[3:0] : 4'b0 | mask_for_mem16_ra_eq_rd ? fetch_inst_0[3:0] : 4'b0 | mask_for_mem32_ra_eq_rd ? fetch_inst_0[3:0] : 4'b0 | mask_for_memsr32_ra_eq_rd ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_smem8_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_smem16_ra ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_mem8_raplusfield_e ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_mem16_raplusfield_e ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_mem32_raplusfield_e ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_memll32_raplusfield_e ? fetch_inst_0[3:0] : 4'b0 | mask_for_mem8_raplusfield_e_eq_rd ? fetch_inst_0[3:0] : 4'b0 | mask_for_mem16_raplusfield_e_eq_rd ? fetch_inst_0[3:0] : 4'b0 | mask_for_mem32_raplusfield_e_eq_rd ? fetch_inst_0[3:0] : 4'b0 | mask_for_memsr32_raplusfield_e_eq_rd ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_smem8_raplusfield_e ? fetch_inst_0[3:0] : 4'b0 | mask_for_rd_eq_smem16_raplusfield_e ? fetch_inst_0[3:0] : 4'b0 ;
 	assign reg_file_req_read2_addr = rd2_addr;
-	assign read2_needed = mask_for_woi ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_xor_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_or_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_and_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_plus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_minus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_lsl_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_lsr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_asr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_times_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_notra_and_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_tiny_rb_plus_field_a ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_xor_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_or_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_and_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_plus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_minus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_lsl_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_lsr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_asr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_times_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_xor_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_or_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_and_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_plus_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_minus_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_lsl_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_lsr_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_asr_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_times_ra ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h4 &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h5 &  ~ field_a_is_f ? 1'h1 : 1'b0 | mask_for_if_ra_gt_0 ? 1'h1 : 1'b0 | mask_for_if_ra_le_0 ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h1 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h2 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h3 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h4 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h5 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h6 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | mask_for_if_rb_eq_ra ? 1'h1 : 1'b0 | mask_for_if_rb_ne_ra ? 1'h1 : 1'b0 | mask_for_if_signed_rb_lt_ra ? 1'h1 : 1'b0 | mask_for_if_signed_rb_ge_ra ? 1'h1 : 1'b0 | mask_for_if_rb_lt_ra ? 1'h1 : 1'b0 | mask_for_if_rb_ge_ra ? 1'h1 : 1'b0 | mask_for_if_rb_bit__eq_0 ? 1'h1 : 1'b0 | mask_for_mem_raplustiny_ofstimes4_eq_rd ? 1'h1 : 1'b0 | mask_for_rd_eq_mem_raplustiny_ofstimes4 ? 1'h1 : 1'b0 | mask_for_rd_eq_mem8_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_mem16_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_mem32_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_memll32_ra ? 1'h1 : 1'b0 | mask_for_mem8_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_mem16_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_mem32_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_memsr32_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_rd_eq_smem8_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_smem16_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_mem8_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_mem16_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_mem32_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_memll32_raplusfield_e ? 1'h1 : 1'b0 | mask_for_mem8_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_mem16_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_mem32_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_memsr32_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_rd_eq_smem8_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_smem16_raplusfield_e ? 1'h1 : 1'b0 | 1'h0;
+	assign read2_needed = fetch_av ? 1'h0 : mask_for_woi ? 1'h1 : 1'b0 | mask_for_rd_eq_minus_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_notra ? 1'h1 : 1'b0 | mask_for_rd_eq_bse_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_wse_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_xor_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_or_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_and_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_plus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_minus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_lsl_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_lsr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_asr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_times_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_notra_and_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_xor_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_or_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_and_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_plus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_minus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_lsl_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_lsr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_asr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_times_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_xor_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_or_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_and_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_plus_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_minus_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_lsl_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_lsr_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_asr_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_times_ra ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h4 &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h5 &  ~ field_a_is_f ? 1'h1 : 1'b0 | mask_for_if_ra_gt_0 ? 1'h1 : 1'b0 | mask_for_if_ra_le_0 ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h1 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h2 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h3 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h4 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h5 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h6 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | mask_for_if_rb_eq_ra ? 1'h1 : 1'b0 | mask_for_if_rb_ne_ra ? 1'h1 : 1'b0 | mask_for_if_signed_rb_lt_ra ? 1'h1 : 1'b0 | mask_for_if_signed_rb_ge_ra ? 1'h1 : 1'b0 | mask_for_if_rb_lt_ra ? 1'h1 : 1'b0 | mask_for_if_rb_ge_ra ? 1'h1 : 1'b0 | mask_for_mem_raplustiny_ofstimes4_eq_rd ? 1'h1 : 1'b0 | mask_for_rd_eq_mem_raplustiny_ofstimes4 ? 1'h1 : 1'b0 | mask_for_rd_eq_mem8_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_mem16_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_mem32_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_memll32_ra ? 1'h1 : 1'b0 | mask_for_mem8_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_mem16_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_mem32_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_memsr32_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_rd_eq_smem8_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_smem16_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_mem8_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_mem16_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_mem32_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_memll32_raplusfield_e ? 1'h1 : 1'b0 | mask_for_mem8_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_mem16_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_mem32_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_memsr32_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_rd_eq_smem8_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_smem16_raplusfield_e ? 1'h1 : 1'b0 | 1'h0;
 	assign res_addr = mask_for_rd_eq_pc ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_tpc ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_tiny_field_a ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_pc_plus_field_atimes2 ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_minus_ra ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_notra ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_bse_ra ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_wse_ra ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_ra_xor_rb ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_ra_or_rb ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_ra_and_rb ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_ra_plus_rb ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_ra_minus_rb ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_ra_lsl_rb ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_ra_lsr_rb ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_ra_asr_rb ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_ra_times_rb ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_notra_and_rb ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_tiny_rb_plus_field_a ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_value ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_field_e_xor_rb ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_field_e_or_rb ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_field_e_and_rb ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_field_e_plus_rb ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_field_e_minus_rb ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_field_e_lsl_rb ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_field_e_lsr_rb ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_field_e_asr_rb ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_field_e_times_rb ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_short_value ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_field_e_xor_ra ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_field_e_or_ra ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_field_e_and_ra ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_field_e_plus_ra ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_field_e_minus_ra ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_field_e_lsl_ra ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_field_e_lsr_ra ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_field_e_asr_ra ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_field_e_times_ra ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_mem_raplustiny_ofstimes4 ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_mem8_ra ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_mem16_ra ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_mem32_ra ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_memll32_ra ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_smem8_ra ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_smem16_ra ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_mem8_raplusfield_e ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_mem16_raplusfield_e ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_mem32_raplusfield_e ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_memll32_raplusfield_e ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_smem8_raplusfield_e ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_smem16_raplusfield_e ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_mem8_field_e ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_mem16_field_e ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_mem32_field_e ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_memll32_field_e ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_smem8_field_e ? fetch_inst_0[15:12] : 4'b0 | mask_for_rd_eq_smem16_field_e ? fetch_inst_0[15:12] : 4'b0 ;
 	assign reg_file_req_rsv_addr = res_addr;
-	assign rsv_needed = mask_for_rd_eq_pc ? 1'h1 : 1'b0 | mask_for_rd_eq_tpc ? 1'h1 : 1'b0 | mask_for_rd_eq_tiny_field_a ? 1'h1 : 1'b0 | mask_for_rd_eq_pc_plus_field_atimes2 ? 1'h1 : 1'b0 | mask_for_rd_eq_minus_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_notra ? 1'h1 : 1'b0 | mask_for_rd_eq_bse_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_wse_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_xor_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_or_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_and_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_plus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_minus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_lsl_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_lsr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_asr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_times_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_notra_and_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_tiny_rb_plus_field_a ? 1'h1 : 1'b0 | mask_for_rd_eq_value ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_xor_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_or_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_and_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_plus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_minus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_lsl_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_lsr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_asr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_times_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_short_value ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_xor_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_or_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_and_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_plus_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_minus_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_lsl_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_lsr_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_asr_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_times_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_mem_raplustiny_ofstimes4 ? 1'h1 : 1'b0 | mask_for_rd_eq_mem8_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_mem16_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_mem32_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_memll32_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_smem8_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_smem16_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_mem8_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_mem16_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_mem32_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_memll32_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_smem8_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_smem16_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_mem8_field_e ? 1'h1 : 1'b0 | mask_for_rd_eq_mem16_field_e ? 1'h1 : 1'b0 | mask_for_rd_eq_mem32_field_e ? 1'h1 : 1'b0 | mask_for_rd_eq_memll32_field_e ? 1'h1 : 1'b0 | mask_for_rd_eq_smem8_field_e ? 1'h1 : 1'b0 | mask_for_rd_eq_smem16_field_e ? 1'h1 : 1'b0 | 1'h0;
-	assign op_code = mask_for_swi ? `op__add : 3'b0 | mask_for_stm ? `op__a_sub_b : 3'b0 | mask_for_woi ? `op__a_sub_b : 3'b0 | 1'h1 & fetch_inst_0[15:12] > 4'h9 & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h0 & fetch_inst_0[3:0] == 1'h0 ? `op__add : 3'b0 | mask_for_fence ? `op__b_sub_a : 3'b0 | mask_for_pc_eq_rd ? `op__cb_ge : 3'b0 | mask_for_tpc_eq_rd ? `op__misc_tpc_w_r : 3'b0 | mask_for_rd_eq_pc ? `op__b_sub_a : 3'b0 | mask_for_rd_eq_tpc ? `op__addr : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h0 & fetch_inst_0[3:0] > 3'h5 ? `op__add : 3'b0 | mask_for_rd_eq_tiny_field_a ? `op__b_sub_a : 3'b0 | mask_for_rd_eq_pc_plus_field_atimes2 ? `op__pc_add : 3'b0 | mask_for_rd_eq_minus_ra ? `op__b_sub_a : 3'b0 | mask_for_rd_eq_notra ? `op__addr : 3'b0 | mask_for_rd_eq_bse_ra ? `op__b_sub_a : 3'b0 | mask_for_rd_eq_wse_ra ? `op__b_sub_a : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] > 3'h6 &  ~ field_a_is_f ? `op__add : 3'b0 | mask_for_rd_eq_ra_xor_rb ? `op__addr : 3'b0 | mask_for_rd_eq_ra_or_rb ? `op__b_sub_a : 3'b0 | mask_for_rd_eq_ra_and_rb ? `op__add : 3'b0 | mask_for_rd_eq_ra_plus_rb ? `op__add : 3'b0 | mask_for_rd_eq_ra_minus_rb ? `op__a_sub_b : 3'b0 | mask_for_rd_eq_ra_lsl_rb ? `op__add : 3'b0 | mask_for_rd_eq_ra_lsr_rb ? `op__a_sub_b : 3'b0 | mask_for_rd_eq_ra_asr_rb ? `op__b_sub_a : 3'b0 | mask_for_rd_eq_notra_and_rb ? `op__a_sub_b : 3'b0 | mask_for_rd_eq_tiny_rb_plus_field_a ? `op__add : 3'b0 | mask_for_rd_eq_value ? `op__b_sub_a : 3'b0 | mask_for_pc_eq_value ? `op__pc_add : 3'b0 | mask_for_tpc_eq_value ? `op__cb_lt : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'h8 & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 4'he & fetch_inst_0[3:0] == 4'hf ? `op__add : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'h9 & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 4'he & fetch_inst_0[3:0] == 4'hf ? `op__add : 3'b0 | mask_for_rd_eq_field_e_xor_rb ? `op__addr : 3'b0 | mask_for_rd_eq_field_e_or_rb ? `op__b_sub_a : 3'b0 | mask_for_rd_eq_field_e_and_rb ? `op__add : 3'b0 | mask_for_rd_eq_field_e_plus_rb ? `op__add : 3'b0 | mask_for_rd_eq_field_e_minus_rb ? `op__a_sub_b : 3'b0 | mask_for_rd_eq_field_e_lsl_rb ? `op__add : 3'b0 | mask_for_rd_eq_field_e_lsr_rb ? `op__a_sub_b : 3'b0 | mask_for_rd_eq_field_e_asr_rb ? `op__b_sub_a : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'ha &  ~ field_b_is_f & fetch_inst_0[3:0] == 4'hf ? `op__add : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'hb &  ~ field_b_is_f & fetch_inst_0[3:0] == 4'hf ? `op__add : 3'b0 | mask_for_rd_eq_short_value ? `op__b_sub_a : 3'b0 | mask_for_pc_eq_short_value ? `op__pc_add : 3'b0 | mask_for_tpc_eq_short_value ? `op__cb_lt : 3'b0 | mask_for_rd_eq_field_e_xor_ra ? `op__addr : 3'b0 | mask_for_rd_eq_field_e_or_ra ? `op__b_sub_a : 3'b0 | mask_for_rd_eq_field_e_and_ra ? `op__add : 3'b0 | mask_for_rd_eq_field_e_plus_ra ? `op__add : 3'b0 | mask_for_rd_eq_field_e_minus_ra ? `op__a_sub_b : 3'b0 | mask_for_rd_eq_field_e_lsl_ra ? `op__add : 3'b0 | mask_for_rd_eq_field_e_lsr_ra ? `op__a_sub_b : 3'b0 | mask_for_rd_eq_field_e_asr_ra ? `op__b_sub_a : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'ha & fetch_inst_0[7:4] == 4'hf &  ~ field_a_is_f ? `op__add : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'hb & fetch_inst_0[7:4] == 4'hf &  ~ field_a_is_f ? `op__add : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h0 &  ~ field_a_is_f ? `op__a_sub_b : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h1 &  ~ field_a_is_f ? `op__b_sub_a : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h2 &  ~ field_a_is_f ? `op__addr : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h3 &  ~ field_a_is_f ? `op__pc_add : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h4 &  ~ field_a_is_f ? `op__addr : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h5 &  ~ field_a_is_f ? `op__pc_add : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h6 &  ~ field_a_is_f ? `op__add : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h7 &  ~ field_a_is_f ? `op__add : 3'b0 | mask_for_if_ra_eq_0 ? `op__a_sub_b : 3'b0 | mask_for_if_ra_ne_0 ? `op__b_sub_a : 3'b0 | mask_for_if_ra_lt_0 ? `op__addr : 3'b0 | mask_for_if_ra_ge_0 ? `op__pc_add : 3'b0 | mask_for_if_ra_gt_0 ? `op__addr : 3'b0 | mask_for_if_ra_le_0 ? `op__pc_add : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `op__add : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h1 &  ~ field_b_is_f &  ~ field_a_is_f ? `op__a_sub_b : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h2 &  ~ field_b_is_f &  ~ field_a_is_f ? `op__b_sub_a : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h3 &  ~ field_b_is_f &  ~ field_a_is_f ? `op__addr : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h4 &  ~ field_b_is_f &  ~ field_a_is_f ? `op__pc_add : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h5 &  ~ field_b_is_f &  ~ field_a_is_f ? `op__cb_lt : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h6 &  ~ field_b_is_f &  ~ field_a_is_f ? `op__cb_ge : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h7 &  ~ field_b_is_f &  ~ field_a_is_f ? `op__add : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 4'h8 &  ~ field_b_is_f &  ~ field_a_is_f ? `op__add : 3'b0 | mask_for_if_rb_eq_ra ? `op__a_sub_b : 3'b0 | mask_for_if_rb_ne_ra ? `op__b_sub_a : 3'b0 | mask_for_if_signed_rb_lt_ra ? `op__addr : 3'b0 | mask_for_if_signed_rb_ge_ra ? `op__pc_add : 3'b0 | mask_for_if_rb_lt_ra ? `op__cb_lt : 3'b0 | mask_for_if_rb_ge_ra ? `op__cb_ge : 3'b0 | mask_for_if_ra_bit__eq_1 ? `op__add : 3'b0 | mask_for_if_rb_bit__eq_0 ? `op__add : 3'b0 | mask_for_mem_raplustiny_ofstimes4_eq_rd ? `op__addr : 3'b0 | mask_for_rd_eq_mem_raplustiny_ofstimes4 ? `op__addr : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 1'h0 &  ~ field_a_is_f ? `op__add : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 1'h1 &  ~ field_a_is_f ? `op__add : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 2'h2 &  ~ field_a_is_f ? `op__add : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 2'h3 &  ~ field_a_is_f ? `op__add : 3'b0 | mask_for_rd_eq_mem8_ra ? `op__addr : 3'b0 | mask_for_rd_eq_mem16_ra ? `op__addr : 3'b0 | mask_for_rd_eq_mem32_ra ? `op__addr : 3'b0 | mask_for_rd_eq_memll32_ra ? `op__addr : 3'b0 | mask_for_mem8_ra_eq_rd ? `op__addr : 3'b0 | mask_for_mem16_ra_eq_rd ? `op__addr : 3'b0 | mask_for_mem32_ra_eq_rd ? `op__addr : 3'b0 | mask_for_memsr32_ra_eq_rd ? `op__addr : 3'b0 | mask_for_rd_eq_smem8_ra ? `op__addr : 3'b0 | mask_for_rd_eq_smem16_ra ? `op__addr : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 1'h1 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `op__add : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h2 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `op__add : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h3 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `op__add : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 1'h1 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `op__add : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h2 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `op__add : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h3 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `op__add : 3'b0 | mask_for_rd_eq_mem8_raplusfield_e ? `op__addr : 3'b0 | mask_for_rd_eq_mem16_raplusfield_e ? `op__addr : 3'b0 | mask_for_rd_eq_mem32_raplusfield_e ? `op__addr : 3'b0 | mask_for_rd_eq_memll32_raplusfield_e ? `op__addr : 3'b0 | mask_for_mem8_raplusfield_e_eq_rd ? `op__addr : 3'b0 | mask_for_mem16_raplusfield_e_eq_rd ? `op__addr : 3'b0 | mask_for_mem32_raplusfield_e_eq_rd ? `op__addr : 3'b0 | mask_for_memsr32_raplusfield_e_eq_rd ? `op__addr : 3'b0 | mask_for_rd_eq_smem8_raplusfield_e ? `op__addr : 3'b0 | mask_for_rd_eq_smem16_raplusfield_e ? `op__addr : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 1'h1 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `op__add : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h2 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `op__add : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h3 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `op__add : 3'b0 | mask_for_rd_eq_mem8_field_e ? `op__addr : 3'b0 | mask_for_rd_eq_mem16_field_e ? `op__addr : 3'b0 | mask_for_rd_eq_mem32_field_e ? `op__addr : 3'b0 | mask_for_rd_eq_memll32_field_e ? `op__addr : 3'b0 | mask_for_mem8_field_e_eq_rd ? `op__addr : 3'b0 | mask_for_mem16_field_e_eq_rd ? `op__addr : 3'b0 | mask_for_mem32_field_e_eq_rd ? `op__addr : 3'b0 | mask_for_memsr32_field_e_eq_rd ? `op__addr : 3'b0 | mask_for_rd_eq_smem8_field_e ? `op__addr : 3'b0 | mask_for_rd_eq_smem16_field_e ? `op__addr : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 1'h1 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he & fetch_inst_0[3:0] == 4'hf ? `op__add : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h2 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he & fetch_inst_0[3:0] == 4'hf ? `op__add : 3'b0 | mask_expr ? `op__add : 3'b0 ;
+	assign rsv_needed = fetch_av ? 1'h0 : mask_for_rd_eq_pc ? 1'h1 : 1'b0 | mask_for_rd_eq_tpc ? 1'h1 : 1'b0 | mask_for_rd_eq_tiny_field_a ? 1'h1 : 1'b0 | mask_for_rd_eq_pc_plus_field_atimes2 ? 1'h1 : 1'b0 | mask_for_rd_eq_minus_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_notra ? 1'h1 : 1'b0 | mask_for_rd_eq_bse_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_wse_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_xor_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_or_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_and_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_plus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_minus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_lsl_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_lsr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_asr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_times_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_notra_and_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_tiny_rb_plus_field_a ? 1'h1 : 1'b0 | mask_for_rd_eq_value ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_xor_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_or_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_and_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_plus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_minus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_lsl_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_lsr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_asr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_times_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_short_value ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_xor_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_or_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_and_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_plus_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_minus_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_lsl_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_lsr_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_asr_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_times_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_mem_raplustiny_ofstimes4 ? 1'h1 : 1'b0 | mask_for_rd_eq_mem8_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_mem16_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_mem32_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_memll32_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_smem8_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_smem16_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_mem8_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_mem16_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_mem32_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_memll32_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_smem8_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_smem16_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_mem8_field_e ? 1'h1 : 1'b0 | mask_for_rd_eq_mem16_field_e ? 1'h1 : 1'b0 | mask_for_rd_eq_mem32_field_e ? 1'h1 : 1'b0 | mask_for_rd_eq_memll32_field_e ? 1'h1 : 1'b0 | mask_for_rd_eq_smem8_field_e ? 1'h1 : 1'b0 | mask_for_rd_eq_smem16_field_e ? 1'h1 : 1'b0 | 1'h0;
+	assign exec_unit = mask_for_swi ? `op_class__branch : 3'b0 | mask_for_stm ? `op_class__branch : 3'b0 | mask_for_woi ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] > 4'h9 & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h0 & fetch_inst_0[3:0] == 1'h0 ? `op_class__branch : 3'b0 | mask_for_fence ? `op_class__alu : 3'b0 | mask_for_pc_eq_rd ? `op_class__branch : 3'b0 | mask_for_tpc_eq_rd ? `op_class__branch : 3'b0 | mask_for_rd_eq_pc ? `op_class__branch : 3'b0 | mask_for_rd_eq_tpc ? `op_class__branch : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h0 & fetch_inst_0[3:0] > 3'h5 ? `op_class__branch : 3'b0 | mask_for_rd_eq_tiny_field_a ? `op_class__alu : 3'b0 | mask_for_rd_eq_pc_plus_field_atimes2 ? `op_class__alu : 3'b0 | mask_for_rd_eq_minus_ra ? `op_class__alu : 3'b0 | mask_for_rd_eq_notra ? `op_class__alu : 3'b0 | mask_for_rd_eq_bse_ra ? `op_class__alu : 3'b0 | mask_for_rd_eq_wse_ra ? `op_class__alu : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] > 3'h6 &  ~ field_a_is_f ? `op_class__branch : 3'b0 | mask_for_rd_eq_ra_xor_rb ? `op_class__alu : 3'b0 | mask_for_rd_eq_ra_or_rb ? `op_class__alu : 3'b0 | mask_for_rd_eq_ra_and_rb ? `op_class__alu : 3'b0 | mask_for_rd_eq_ra_plus_rb ? `op_class__alu : 3'b0 | mask_for_rd_eq_ra_minus_rb ? `op_class__alu : 3'b0 | mask_for_rd_eq_ra_lsl_rb ? `op_class__shift : 3'b0 | mask_for_rd_eq_ra_lsr_rb ? `op_class__shift : 3'b0 | mask_for_rd_eq_ra_asr_rb ? `op_class__shift : 3'b0 | mask_for_rd_eq_ra_times_rb ? `op_class__mult : 3'b0 | mask_for_rd_eq_notra_and_rb ? `op_class__alu : 3'b0 | mask_for_rd_eq_tiny_rb_plus_field_a ? `op_class__alu : 3'b0 | mask_for_rd_eq_value ? `op_class__alu : 3'b0 | mask_for_pc_eq_value ? `op_class__branch : 3'b0 | mask_for_tpc_eq_value ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'h8 & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 4'he & fetch_inst_0[3:0] == 4'hf ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'h9 & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 4'he & fetch_inst_0[3:0] == 4'hf ? `op_class__branch : 3'b0 | mask_for_rd_eq_field_e_xor_rb ? `op_class__alu : 3'b0 | mask_for_rd_eq_field_e_or_rb ? `op_class__alu : 3'b0 | mask_for_rd_eq_field_e_and_rb ? `op_class__alu : 3'b0 | mask_for_rd_eq_field_e_plus_rb ? `op_class__alu : 3'b0 | mask_for_rd_eq_field_e_minus_rb ? `op_class__alu : 3'b0 | mask_for_rd_eq_field_e_lsl_rb ? `op_class__shift : 3'b0 | mask_for_rd_eq_field_e_lsr_rb ? `op_class__shift : 3'b0 | mask_for_rd_eq_field_e_asr_rb ? `op_class__shift : 3'b0 | mask_for_rd_eq_field_e_times_rb ? `op_class__mult : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'ha &  ~ field_b_is_f & fetch_inst_0[3:0] == 4'hf ? `op_class__branch : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'hb &  ~ field_b_is_f & fetch_inst_0[3:0] == 4'hf ? `op_class__branch : 3'b0 | mask_for_rd_eq_short_value ? `op_class__alu : 3'b0 | mask_for_pc_eq_short_value ? `op_class__branch : 3'b0 | mask_for_tpc_eq_short_value ? `op_class__branch : 3'b0 | mask_for_rd_eq_field_e_xor_ra ? `op_class__alu : 3'b0 | mask_for_rd_eq_field_e_or_ra ? `op_class__alu : 3'b0 | mask_for_rd_eq_field_e_and_ra ? `op_class__alu : 3'b0 | mask_for_rd_eq_field_e_plus_ra ? `op_class__alu : 3'b0 | mask_for_rd_eq_field_e_minus_ra ? `op_class__alu : 3'b0 | mask_for_rd_eq_field_e_lsl_ra ? `op_class__shift : 3'b0 | mask_for_rd_eq_field_e_lsr_ra ? `op_class__shift : 3'b0 | mask_for_rd_eq_field_e_asr_ra ? `op_class__shift : 3'b0 | mask_for_rd_eq_field_e_times_ra ? `op_class__mult : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'ha & fetch_inst_0[7:4] == 4'hf &  ~ field_a_is_f ? `op_class__branch : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'hb & fetch_inst_0[7:4] == 4'hf &  ~ field_a_is_f ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h0 &  ~ field_a_is_f ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h1 &  ~ field_a_is_f ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h2 &  ~ field_a_is_f ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h3 &  ~ field_a_is_f ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h4 &  ~ field_a_is_f ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h5 &  ~ field_a_is_f ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h6 &  ~ field_a_is_f ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h7 &  ~ field_a_is_f ? `op_class__branch : 3'b0 | mask_for_if_ra_eq_0 ? `op_class__branch : 3'b0 | mask_for_if_ra_ne_0 ? `op_class__branch : 3'b0 | mask_for_if_ra_lt_0 ? `op_class__branch : 3'b0 | mask_for_if_ra_ge_0 ? `op_class__branch : 3'b0 | mask_for_if_ra_gt_0 ? `op_class__branch : 3'b0 | mask_for_if_ra_le_0 ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h1 &  ~ field_b_is_f &  ~ field_a_is_f ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h2 &  ~ field_b_is_f &  ~ field_a_is_f ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h3 &  ~ field_b_is_f &  ~ field_a_is_f ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h4 &  ~ field_b_is_f &  ~ field_a_is_f ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h5 &  ~ field_b_is_f &  ~ field_a_is_f ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h6 &  ~ field_b_is_f &  ~ field_a_is_f ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h7 &  ~ field_b_is_f &  ~ field_a_is_f ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 4'h8 &  ~ field_b_is_f &  ~ field_a_is_f ? `op_class__branch : 3'b0 | mask_for_if_rb_eq_ra ? `op_class__branch : 3'b0 | mask_for_if_rb_ne_ra ? `op_class__branch : 3'b0 | mask_for_if_signed_rb_lt_ra ? `op_class__branch : 3'b0 | mask_for_if_signed_rb_ge_ra ? `op_class__branch : 3'b0 | mask_for_if_rb_lt_ra ? `op_class__branch : 3'b0 | mask_for_if_rb_ge_ra ? `op_class__branch : 3'b0 | mask_for_if_ra_bit__eq_1 ? `op_class__branch : 3'b0 | mask_for_if_rb_bit__eq_0 ? `op_class__branch : 3'b0 | mask_for_mem_raplustiny_ofstimes4_eq_rd ? `op_class__ld_st : 3'b0 | mask_for_rd_eq_mem_raplustiny_ofstimes4 ? `op_class__ld_st : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 1'h0 &  ~ field_a_is_f ? `op_class__branch : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 1'h1 &  ~ field_a_is_f ? `op_class__branch : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 2'h2 &  ~ field_a_is_f ? `op_class__branch : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 2'h3 &  ~ field_a_is_f ? `op_class__branch : 3'b0 | mask_for_rd_eq_mem8_ra ? `op_class__ld_st : 3'b0 | mask_for_rd_eq_mem16_ra ? `op_class__ld_st : 3'b0 | mask_for_rd_eq_mem32_ra ? `op_class__ld_st : 3'b0 | mask_for_rd_eq_memll32_ra ? `op_class__ld_st : 3'b0 | mask_for_mem8_ra_eq_rd ? `op_class__ld_st : 3'b0 | mask_for_mem16_ra_eq_rd ? `op_class__ld_st : 3'b0 | mask_for_mem32_ra_eq_rd ? `op_class__ld_st : 3'b0 | mask_for_memsr32_ra_eq_rd ? `op_class__ld_st : 3'b0 | mask_for_rd_eq_smem8_ra ? `op_class__ld_st : 3'b0 | mask_for_rd_eq_smem16_ra ? `op_class__ld_st : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 1'h1 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h2 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h3 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 1'h1 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h2 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h3 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `op_class__branch : 3'b0 | mask_for_rd_eq_mem8_raplusfield_e ? `op_class__ld_st : 3'b0 | mask_for_rd_eq_mem16_raplusfield_e ? `op_class__ld_st : 3'b0 | mask_for_rd_eq_mem32_raplusfield_e ? `op_class__ld_st : 3'b0 | mask_for_rd_eq_memll32_raplusfield_e ? `op_class__ld_st : 3'b0 | mask_for_mem8_raplusfield_e_eq_rd ? `op_class__ld_st : 3'b0 | mask_for_mem16_raplusfield_e_eq_rd ? `op_class__ld_st : 3'b0 | mask_for_mem32_raplusfield_e_eq_rd ? `op_class__ld_st : 3'b0 | mask_for_memsr32_raplusfield_e_eq_rd ? `op_class__ld_st : 3'b0 | mask_for_rd_eq_smem8_raplusfield_e ? `op_class__ld_st : 3'b0 | mask_for_rd_eq_smem16_raplusfield_e ? `op_class__ld_st : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 1'h1 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h2 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h3 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `op_class__branch : 3'b0 | mask_for_rd_eq_mem8_field_e ? `op_class__ld_st : 3'b0 | mask_for_rd_eq_mem16_field_e ? `op_class__ld_st : 3'b0 | mask_for_rd_eq_mem32_field_e ? `op_class__ld_st : 3'b0 | mask_for_rd_eq_memll32_field_e ? `op_class__ld_st : 3'b0 | mask_for_mem8_field_e_eq_rd ? `op_class__ld_st : 3'b0 | mask_for_mem16_field_e_eq_rd ? `op_class__ld_st : 3'b0 | mask_for_mem32_field_e_eq_rd ? `op_class__ld_st : 3'b0 | mask_for_memsr32_field_e_eq_rd ? `op_class__ld_st : 3'b0 | mask_for_rd_eq_smem8_field_e ? `op_class__ld_st : 3'b0 | mask_for_rd_eq_smem16_field_e ? `op_class__ld_st : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 1'h1 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he & fetch_inst_0[3:0] == 4'hf ? `op_class__branch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h2 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he & fetch_inst_0[3:0] == 4'hf ? `op_class__branch : 3'b0 | mask_expr ? `op_class__branch : 3'b0 ;
 	assign register_outputs = reg_file_req_ready & reg_file_req_valid;
-	always_ff @(posedge clk) exec_opcode <= rst ? 3'h0 : register_outputs ? op_code : exec_opcode;
-	assign exec_unit = mask_for_swi ? `exec__misc : 3'b0 | mask_for_stm ? `exec__misc : 3'b0 | mask_for_woi ? `exec__cbranch : 3'b0 | 1'h1 & fetch_inst_0[15:12] > 4'h9 & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h0 & fetch_inst_0[3:0] == 1'h0 ? `exec__misc : 3'b0 | mask_for_fence ? `exec__bitwise : 3'b0 | mask_for_pc_eq_rd ? `exec__misc : 3'b0 | mask_for_tpc_eq_rd ? `exec__misc : 3'b0 | mask_for_rd_eq_pc ? `exec__misc : 3'b0 | mask_for_rd_eq_tpc ? `exec__misc : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h0 & fetch_inst_0[3:0] > 3'h5 ? `exec__misc : 3'b0 | mask_for_rd_eq_tiny_field_a ? `exec__bitwise : 3'b0 | mask_for_rd_eq_pc_plus_field_atimes2 ? `exec__adder : 3'b0 | mask_for_rd_eq_minus_ra ? `exec__adder : 3'b0 | mask_for_rd_eq_notra ? `exec__bitwise : 3'b0 | mask_for_rd_eq_bse_ra ? `exec__bitwise : 3'b0 | mask_for_rd_eq_wse_ra ? `exec__bitwise : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] > 3'h6 &  ~ field_a_is_f ? `exec__misc : 3'b0 | mask_for_rd_eq_ra_xor_rb ? `exec__bitwise : 3'b0 | mask_for_rd_eq_ra_or_rb ? `exec__bitwise : 3'b0 | mask_for_rd_eq_ra_and_rb ? `exec__bitwise : 3'b0 | mask_for_rd_eq_ra_plus_rb ? `exec__adder : 3'b0 | mask_for_rd_eq_ra_minus_rb ? `exec__adder : 3'b0 | mask_for_rd_eq_ra_lsl_rb ? `exec__shift : 3'b0 | mask_for_rd_eq_ra_lsr_rb ? `exec__shift : 3'b0 | mask_for_rd_eq_ra_asr_rb ? `exec__shift : 3'b0 | mask_for_rd_eq_ra_times_rb ? `exec__mult : 3'b0 | mask_for_rd_eq_notra_and_rb ? `exec__bitwise : 3'b0 | mask_for_rd_eq_tiny_rb_plus_field_a ? `exec__adder : 3'b0 | mask_for_rd_eq_value ? `exec__bitwise : 3'b0 | mask_for_pc_eq_value ? `exec__misc : 3'b0 | mask_for_tpc_eq_value ? `exec__misc : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'h8 & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 4'he & fetch_inst_0[3:0] == 4'hf ? `exec__misc : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'h9 & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 4'he & fetch_inst_0[3:0] == 4'hf ? `exec__misc : 3'b0 | mask_for_rd_eq_field_e_xor_rb ? `exec__bitwise : 3'b0 | mask_for_rd_eq_field_e_or_rb ? `exec__bitwise : 3'b0 | mask_for_rd_eq_field_e_and_rb ? `exec__bitwise : 3'b0 | mask_for_rd_eq_field_e_plus_rb ? `exec__adder : 3'b0 | mask_for_rd_eq_field_e_minus_rb ? `exec__adder : 3'b0 | mask_for_rd_eq_field_e_lsl_rb ? `exec__shift : 3'b0 | mask_for_rd_eq_field_e_lsr_rb ? `exec__shift : 3'b0 | mask_for_rd_eq_field_e_asr_rb ? `exec__shift : 3'b0 | mask_for_rd_eq_field_e_times_rb ? `exec__mult : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'ha &  ~ field_b_is_f & fetch_inst_0[3:0] == 4'hf ? `exec__misc : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'hb &  ~ field_b_is_f & fetch_inst_0[3:0] == 4'hf ? `exec__misc : 3'b0 | mask_for_rd_eq_short_value ? `exec__bitwise : 3'b0 | mask_for_pc_eq_short_value ? `exec__misc : 3'b0 | mask_for_tpc_eq_short_value ? `exec__misc : 3'b0 | mask_for_rd_eq_field_e_xor_ra ? `exec__bitwise : 3'b0 | mask_for_rd_eq_field_e_or_ra ? `exec__bitwise : 3'b0 | mask_for_rd_eq_field_e_and_ra ? `exec__bitwise : 3'b0 | mask_for_rd_eq_field_e_plus_ra ? `exec__adder : 3'b0 | mask_for_rd_eq_field_e_minus_ra ? `exec__adder : 3'b0 | mask_for_rd_eq_field_e_lsl_ra ? `exec__shift : 3'b0 | mask_for_rd_eq_field_e_lsr_ra ? `exec__shift : 3'b0 | mask_for_rd_eq_field_e_asr_ra ? `exec__shift : 3'b0 | mask_for_rd_eq_field_e_times_ra ? `exec__mult : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'ha & fetch_inst_0[7:4] == 4'hf &  ~ field_a_is_f ? `exec__misc : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'hb & fetch_inst_0[7:4] == 4'hf &  ~ field_a_is_f ? `exec__misc : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h0 &  ~ field_a_is_f ? `exec__cbranch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h1 &  ~ field_a_is_f ? `exec__cbranch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h2 &  ~ field_a_is_f ? `exec__cbranch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h3 &  ~ field_a_is_f ? `exec__cbranch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h4 &  ~ field_a_is_f ? `exec__cbranch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h5 &  ~ field_a_is_f ? `exec__cbranch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h6 &  ~ field_a_is_f ? `exec__misc : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h7 &  ~ field_a_is_f ? `exec__misc : 3'b0 | mask_for_if_ra_eq_0 ? `exec__cbranch : 3'b0 | mask_for_if_ra_ne_0 ? `exec__cbranch : 3'b0 | mask_for_if_ra_lt_0 ? `exec__cbranch : 3'b0 | mask_for_if_ra_ge_0 ? `exec__cbranch : 3'b0 | mask_for_if_ra_gt_0 ? `exec__cbranch : 3'b0 | mask_for_if_ra_le_0 ? `exec__cbranch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `exec__misc : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h1 &  ~ field_b_is_f &  ~ field_a_is_f ? `exec__cbranch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h2 &  ~ field_b_is_f &  ~ field_a_is_f ? `exec__cbranch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h3 &  ~ field_b_is_f &  ~ field_a_is_f ? `exec__cbranch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h4 &  ~ field_b_is_f &  ~ field_a_is_f ? `exec__cbranch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h5 &  ~ field_b_is_f &  ~ field_a_is_f ? `exec__cbranch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h6 &  ~ field_b_is_f &  ~ field_a_is_f ? `exec__cbranch : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h7 &  ~ field_b_is_f &  ~ field_a_is_f ? `exec__misc : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 4'h8 &  ~ field_b_is_f &  ~ field_a_is_f ? `exec__misc : 3'b0 | mask_for_if_rb_eq_ra ? `exec__cbranch : 3'b0 | mask_for_if_rb_ne_ra ? `exec__cbranch : 3'b0 | mask_for_if_signed_rb_lt_ra ? `exec__cbranch : 3'b0 | mask_for_if_signed_rb_ge_ra ? `exec__cbranch : 3'b0 | mask_for_if_rb_lt_ra ? `exec__cbranch : 3'b0 | mask_for_if_rb_ge_ra ? `exec__cbranch : 3'b0 | mask_for_if_ra_bit__eq_1 ? `exec__bbranch : 3'b0 | mask_for_if_rb_bit__eq_0 ? `exec__bbranch : 3'b0 | mask_for_mem_raplustiny_ofstimes4_eq_rd ? `exec__adder : 3'b0 | mask_for_rd_eq_mem_raplustiny_ofstimes4 ? `exec__adder : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 1'h0 &  ~ field_a_is_f ? `exec__misc : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 1'h1 &  ~ field_a_is_f ? `exec__misc : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 2'h2 &  ~ field_a_is_f ? `exec__misc : 3'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 2'h3 &  ~ field_a_is_f ? `exec__misc : 3'b0 | mask_for_rd_eq_mem8_ra ? `exec__adder : 3'b0 | mask_for_rd_eq_mem16_ra ? `exec__adder : 3'b0 | mask_for_rd_eq_mem32_ra ? `exec__adder : 3'b0 | mask_for_rd_eq_memll32_ra ? `exec__adder : 3'b0 | mask_for_mem8_ra_eq_rd ? `exec__adder : 3'b0 | mask_for_mem16_ra_eq_rd ? `exec__adder : 3'b0 | mask_for_mem32_ra_eq_rd ? `exec__adder : 3'b0 | mask_for_memsr32_ra_eq_rd ? `exec__adder : 3'b0 | mask_for_rd_eq_smem8_ra ? `exec__adder : 3'b0 | mask_for_rd_eq_smem16_ra ? `exec__adder : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 1'h1 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `exec__misc : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h2 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `exec__misc : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h3 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `exec__misc : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 1'h1 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `exec__misc : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h2 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `exec__misc : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h3 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `exec__misc : 3'b0 | mask_for_rd_eq_mem8_raplusfield_e ? `exec__adder : 3'b0 | mask_for_rd_eq_mem16_raplusfield_e ? `exec__adder : 3'b0 | mask_for_rd_eq_mem32_raplusfield_e ? `exec__adder : 3'b0 | mask_for_rd_eq_memll32_raplusfield_e ? `exec__adder : 3'b0 | mask_for_mem8_raplusfield_e_eq_rd ? `exec__adder : 3'b0 | mask_for_mem16_raplusfield_e_eq_rd ? `exec__adder : 3'b0 | mask_for_mem32_raplusfield_e_eq_rd ? `exec__adder : 3'b0 | mask_for_memsr32_raplusfield_e_eq_rd ? `exec__adder : 3'b0 | mask_for_rd_eq_smem8_raplusfield_e ? `exec__adder : 3'b0 | mask_for_rd_eq_smem16_raplusfield_e ? `exec__adder : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 1'h1 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `exec__misc : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h2 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `exec__misc : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h3 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `exec__misc : 3'b0 | mask_for_rd_eq_mem8_field_e ? `exec__adder : 3'b0 | mask_for_rd_eq_mem16_field_e ? `exec__adder : 3'b0 | mask_for_rd_eq_mem32_field_e ? `exec__adder : 3'b0 | mask_for_rd_eq_memll32_field_e ? `exec__adder : 3'b0 | mask_for_mem8_field_e_eq_rd ? `exec__adder : 3'b0 | mask_for_mem16_field_e_eq_rd ? `exec__adder : 3'b0 | mask_for_mem32_field_e_eq_rd ? `exec__adder : 3'b0 | mask_for_memsr32_field_e_eq_rd ? `exec__adder : 3'b0 | mask_for_rd_eq_smem8_field_e ? `exec__adder : 3'b0 | mask_for_rd_eq_smem16_field_e ? `exec__adder : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 1'h1 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he & fetch_inst_0[3:0] == 4'hf ? `exec__misc : 3'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h2 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he & fetch_inst_0[3:0] == 4'hf ? `exec__misc : 3'b0 | mask_expr ? `exec__misc : 3'b0 ;
-	always_ff @(posedge clk) exec_exec_unit <= rst ? 3'h0 : register_outputs ? exec_unit : exec_exec_unit;
-	assign use_reg_a = mask_for_woi ? 1'h1 : 1'b0 | mask_for_pc_eq_rd ? 1'h1 : 1'b0 | mask_for_tpc_eq_rd ? 1'h1 : 1'b0 | mask_for_rd_eq_minus_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_notra ? 1'h1 : 1'b0 | mask_for_rd_eq_bse_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_wse_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_xor_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_or_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_and_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_plus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_minus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_lsl_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_lsr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_asr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_times_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_notra_and_rb ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h0 &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h1 &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h2 &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h3 &  ~ field_a_is_f ? 1'h1 : 1'b0 | mask_for_if_ra_eq_0 ? 1'h1 : 1'b0 | mask_for_if_ra_ne_0 ? 1'h1 : 1'b0 | mask_for_if_ra_lt_0 ? 1'h1 : 1'b0 | mask_for_if_ra_ge_0 ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h1 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h2 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h3 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h4 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h5 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h6 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | mask_for_if_rb_eq_ra ? 1'h1 : 1'b0 | mask_for_if_rb_ne_ra ? 1'h1 : 1'b0 | mask_for_if_signed_rb_lt_ra ? 1'h1 : 1'b0 | mask_for_if_signed_rb_ge_ra ? 1'h1 : 1'b0 | mask_for_if_rb_lt_ra ? 1'h1 : 1'b0 | mask_for_if_rb_ge_ra ? 1'h1 : 1'b0 | mask_for_if_ra_bit__eq_1 ? 1'h1 : 1'b0 | 1'h0;
-	assign op_a = mask_for_swi ? fetch_inst_0[3:0] : 32'b0 | 1'h1 & fetch_inst_0[15:12] > 4'h9 & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h0 & fetch_inst_0[3:0] == 1'h0 ? 3'h7 : 32'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h0 & fetch_inst_0[3:0] > 3'h5 ? 3'h7 : 32'b0 | mask_for_rd_eq_tiny_field_a ? ones_field_a : 32'b0 | mask_for_rd_eq_pc_plus_field_atimes2 ? ones_field_a : 32'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] > 3'h6 &  ~ field_a_is_f ? 3'h7 : 32'b0 | mask_for_rd_eq_tiny_rb_plus_field_a ? ones_field_a : 32'b0 | mask_for_rd_eq_value ? field_e : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'h8 & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 4'he & fetch_inst_0[3:0] == 4'hf ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'h9 & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 4'he & fetch_inst_0[3:0] == 4'hf ? 3'h7 : 32'b0 | mask_for_rd_eq_field_e_xor_rb ? field_e : 32'b0 | mask_for_rd_eq_field_e_or_rb ? field_e : 32'b0 | mask_for_rd_eq_field_e_and_rb ? field_e : 32'b0 | mask_for_rd_eq_field_e_plus_rb ? field_e : 32'b0 | mask_for_rd_eq_field_e_minus_rb ? field_e : 32'b0 | mask_for_rd_eq_field_e_lsl_rb ? field_e : 32'b0 | mask_for_rd_eq_field_e_lsr_rb ? field_e : 32'b0 | mask_for_rd_eq_field_e_asr_rb ? field_e : 32'b0 | mask_for_rd_eq_field_e_times_rb ? field_e : 32'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'ha &  ~ field_b_is_f & fetch_inst_0[3:0] == 4'hf ? 3'h7 : 32'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'hb &  ~ field_b_is_f & fetch_inst_0[3:0] == 4'hf ? 3'h7 : 32'b0 | mask_for_rd_eq_short_value ? field_e : 32'b0 | mask_for_rd_eq_field_e_xor_ra ? field_e : 32'b0 | mask_for_rd_eq_field_e_or_ra ? field_e : 32'b0 | mask_for_rd_eq_field_e_and_ra ? field_e : 32'b0 | mask_for_rd_eq_field_e_plus_ra ? field_e : 32'b0 | mask_for_rd_eq_field_e_minus_ra ? field_e : 32'b0 | mask_for_rd_eq_field_e_lsl_ra ? field_e : 32'b0 | mask_for_rd_eq_field_e_lsr_ra ? field_e : 32'b0 | mask_for_rd_eq_field_e_asr_ra ? field_e : 32'b0 | mask_for_rd_eq_field_e_times_ra ? field_e : 32'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'ha & fetch_inst_0[7:4] == 4'hf &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'hb & fetch_inst_0[7:4] == 4'hf &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h4 &  ~ field_a_is_f ? 1'h0 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h5 &  ~ field_a_is_f ? 1'h0 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h6 &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h7 &  ~ field_a_is_f ? 3'h7 : 32'b0 | mask_for_if_ra_gt_0 ? 1'h0 : 32'b0 | mask_for_if_ra_le_0 ? 1'h0 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h7 &  ~ field_b_is_f &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 4'h8 &  ~ field_b_is_f &  ~ field_a_is_f ? 3'h7 : 32'b0 | mask_for_if_rb_bit__eq_0 ? fetch_inst_0[11:8] : 32'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 1'h0 &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 1'h1 &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 2'h2 &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 2'h3 &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 1'h1 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h2 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h3 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 1'h1 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h2 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h3 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 1'h1 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h2 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h3 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 1'h1 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he & fetch_inst_0[3:0] == 4'hf ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h2 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he & fetch_inst_0[3:0] == 4'hf ? 3'h7 : 32'b0 | mask_expr ? 3'h7 : 32'b0 ;
-	always_ff @(posedge clk) u2356_output_port <= rst ? 1'h0 : register_outputs ? use_reg_a : u2356_output_port;
-	always_ff @(posedge clk) u2357_output_port <= rst ? 32'h0 : register_outputs ? op_a : u2357_output_port;
-	assign exec_op_a = u2356_output_port ? reg_file_rsp_read1_data : u2357_output_port;
-	assign use_reg_b = mask_for_woi ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_xor_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_or_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_and_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_plus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_minus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_lsl_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_lsr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_asr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_times_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_notra_and_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_tiny_rb_plus_field_a ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_xor_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_or_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_and_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_plus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_minus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_lsl_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_lsr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_asr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_times_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_xor_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_or_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_and_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_plus_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_minus_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_lsl_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_lsr_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_asr_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_times_ra ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h4 &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h5 &  ~ field_a_is_f ? 1'h1 : 1'b0 | mask_for_if_ra_gt_0 ? 1'h1 : 1'b0 | mask_for_if_ra_le_0 ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h1 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h2 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h3 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h4 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h5 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h6 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | mask_for_if_rb_eq_ra ? 1'h1 : 1'b0 | mask_for_if_rb_ne_ra ? 1'h1 : 1'b0 | mask_for_if_signed_rb_lt_ra ? 1'h1 : 1'b0 | mask_for_if_signed_rb_ge_ra ? 1'h1 : 1'b0 | mask_for_if_rb_lt_ra ? 1'h1 : 1'b0 | mask_for_if_rb_ge_ra ? 1'h1 : 1'b0 | mask_for_if_rb_bit__eq_0 ? 1'h1 : 1'b0 | mask_for_mem_raplustiny_ofstimes4_eq_rd ? 1'h1 : 1'b0 | mask_for_rd_eq_mem_raplustiny_ofstimes4 ? 1'h1 : 1'b0 | mask_for_rd_eq_mem8_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_mem16_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_mem32_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_memll32_ra ? 1'h1 : 1'b0 | mask_for_mem8_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_mem16_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_mem32_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_memsr32_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_rd_eq_smem8_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_smem16_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_mem8_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_mem16_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_mem32_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_memll32_raplusfield_e ? 1'h1 : 1'b0 | mask_for_mem8_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_mem16_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_mem32_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_memsr32_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_rd_eq_smem8_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_smem16_raplusfield_e ? 1'h1 : 1'b0 | 1'h0;
-	assign op_b = mask_for_rd_eq_tiny_field_a ? 1'h0 : 32'b0 | mask_for_rd_eq_pc_plus_field_atimes2 ? 1'h0 : 32'b0 | mask_for_rd_eq_minus_ra ? 1'h0 : 32'b0 | mask_for_rd_eq_notra ? 32'hffffffff : 32'b0 | mask_for_rd_eq_bse_ra ? 1'h0 : 32'b0 | mask_for_rd_eq_wse_ra ? 1'h0 : 32'b0 | mask_for_rd_eq_value ? 1'h0 : 32'b0 | mask_for_rd_eq_short_value ? 1'h0 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h0 &  ~ field_a_is_f ? 1'h0 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h1 &  ~ field_a_is_f ? 1'h0 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h2 &  ~ field_a_is_f ? 1'h0 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h3 &  ~ field_a_is_f ? 1'h0 : 32'b0 | mask_for_if_ra_eq_0 ? 1'h0 : 32'b0 | mask_for_if_ra_ne_0 ? 1'h0 : 32'b0 | mask_for_if_ra_lt_0 ? 1'h0 : 32'b0 | mask_for_if_ra_ge_0 ? 1'h0 : 32'b0 | mask_for_if_ra_bit__eq_1 ? fetch_inst_0[11:8] : 32'b0 | mask_for_rd_eq_mem8_field_e ? 1'h0 : 32'b0 | mask_for_rd_eq_mem16_field_e ? 1'h0 : 32'b0 | mask_for_rd_eq_mem32_field_e ? 1'h0 : 32'b0 | mask_for_rd_eq_memll32_field_e ? 1'h0 : 32'b0 | mask_for_mem8_field_e_eq_rd ? 1'h0 : 32'b0 | mask_for_mem16_field_e_eq_rd ? 1'h0 : 32'b0 | mask_for_mem32_field_e_eq_rd ? 1'h0 : 32'b0 | mask_for_memsr32_field_e_eq_rd ? 1'h0 : 32'b0 | mask_for_rd_eq_smem8_field_e ? 1'h0 : 32'b0 | mask_for_rd_eq_smem16_field_e ? 1'h0 : 32'b0 ;
-	always_ff @(posedge clk) u2359_output_port <= rst ? 1'h0 : register_outputs ? use_reg_b : u2359_output_port;
-	always_ff @(posedge clk) u2360_output_port <= rst ? 32'h0 : register_outputs ? op_b : u2360_output_port;
-	assign exec_op_b = u2359_output_port ? reg_file_rsp_read2_data : u2360_output_port;
-	assign op_imm = mask_for_woi ? 1'h0 : 32'b0 | mask_for_pc_eq_value ? field_e : 32'b0 | mask_for_tpc_eq_value ? field_e : 32'b0 | mask_for_pc_eq_short_value ? field_e : 32'b0 | mask_for_tpc_eq_short_value ? field_e : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h0 &  ~ field_a_is_f ? field_e : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h1 &  ~ field_a_is_f ? field_e : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h2 &  ~ field_a_is_f ? field_e : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h3 &  ~ field_a_is_f ? field_e : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h4 &  ~ field_a_is_f ? field_e : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h5 &  ~ field_a_is_f ? field_e : 32'b0 | mask_for_if_ra_eq_0 ? field_e : 32'b0 | mask_for_if_ra_ne_0 ? field_e : 32'b0 | mask_for_if_ra_lt_0 ? field_e : 32'b0 | mask_for_if_ra_ge_0 ? field_e : 32'b0 | mask_for_if_ra_gt_0 ? field_e : 32'b0 | mask_for_if_ra_le_0 ? field_e : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h1 &  ~ field_b_is_f &  ~ field_a_is_f ? field_e : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h2 &  ~ field_b_is_f &  ~ field_a_is_f ? field_e : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h3 &  ~ field_b_is_f &  ~ field_a_is_f ? field_e : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h4 &  ~ field_b_is_f &  ~ field_a_is_f ? field_e : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h5 &  ~ field_b_is_f &  ~ field_a_is_f ? field_e : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h6 &  ~ field_b_is_f &  ~ field_a_is_f ? field_e : 32'b0 | mask_for_if_rb_eq_ra ? field_e : 32'b0 | mask_for_if_rb_ne_ra ? field_e : 32'b0 | mask_for_if_signed_rb_lt_ra ? field_e : 32'b0 | mask_for_if_signed_rb_ge_ra ? field_e : 32'b0 | mask_for_if_rb_lt_ra ? field_e : 32'b0 | mask_for_if_rb_ge_ra ? field_e : 32'b0 | mask_for_if_ra_bit__eq_1 ? field_e : 32'b0 | mask_for_if_rb_bit__eq_0 ? field_e : 32'b0 | mask_for_mem_raplustiny_ofstimes4_eq_rd ? tiny_ofs : 32'b0 | mask_for_rd_eq_mem_raplustiny_ofstimes4 ? tiny_ofs : 32'b0 | mask_for_rd_eq_mem8_ra ? 1'h0 : 32'b0 | mask_for_rd_eq_mem16_ra ? 1'h0 : 32'b0 | mask_for_rd_eq_mem32_ra ? 1'h0 : 32'b0 | mask_for_rd_eq_memll32_ra ? 1'h0 : 32'b0 | mask_for_mem8_ra_eq_rd ? 1'h0 : 32'b0 | mask_for_mem16_ra_eq_rd ? 1'h0 : 32'b0 | mask_for_mem32_ra_eq_rd ? 1'h0 : 32'b0 | mask_for_memsr32_ra_eq_rd ? 1'h0 : 32'b0 | mask_for_rd_eq_smem8_ra ? 1'h0 : 32'b0 | mask_for_rd_eq_smem16_ra ? 1'h0 : 32'b0 | mask_for_rd_eq_mem8_raplusfield_e ? field_e : 32'b0 | mask_for_rd_eq_mem16_raplusfield_e ? field_e : 32'b0 | mask_for_rd_eq_mem32_raplusfield_e ? field_e : 32'b0 | mask_for_rd_eq_memll32_raplusfield_e ? field_e : 32'b0 | mask_for_mem8_raplusfield_e_eq_rd ? field_e : 32'b0 | mask_for_mem16_raplusfield_e_eq_rd ? field_e : 32'b0 | mask_for_mem32_raplusfield_e_eq_rd ? field_e : 32'b0 | mask_for_memsr32_raplusfield_e_eq_rd ? field_e : 32'b0 | mask_for_rd_eq_smem8_raplusfield_e ? field_e : 32'b0 | mask_for_rd_eq_smem16_raplusfield_e ? field_e : 32'b0 | mask_for_rd_eq_mem8_field_e ? field_e : 32'b0 | mask_for_rd_eq_mem16_field_e ? field_e : 32'b0 | mask_for_rd_eq_mem32_field_e ? field_e : 32'b0 | mask_for_rd_eq_memll32_field_e ? field_e : 32'b0 | mask_for_mem8_field_e_eq_rd ? field_e : 32'b0 | mask_for_mem16_field_e_eq_rd ? field_e : 32'b0 | mask_for_mem32_field_e_eq_rd ? field_e : 32'b0 | mask_for_memsr32_field_e_eq_rd ? field_e : 32'b0 | mask_for_rd_eq_smem8_field_e ? field_e : 32'b0 | mask_for_rd_eq_smem16_field_e ? field_e : 32'b0 ;
-	always_ff @(posedge clk) exec_op_imm <= rst ? 32'h0 : register_outputs ? op_imm : exec_op_imm;
+	always_ff @(posedge clk) output_port_exec_unit <= rst ? 3'h0 : register_outputs ? exec_unit : output_port_exec_unit;
+	assign alu_op = mask_for_woi ? `alu_ops__a_minus_b : 3'b0 | mask_for_rd_eq_pc ? `alu_ops__pc_plus_b : 3'b0 | mask_for_rd_eq_tpc ? `alu_ops__tpc : 3'b0 | mask_for_rd_eq_tiny_field_a ? `alu_ops__a_or_b : 3'b0 | mask_for_rd_eq_pc_plus_field_atimes2 ? `alu_ops__pc_plus_b : 3'b0 | mask_for_rd_eq_minus_ra ? `alu_ops__a_minus_b : 3'b0 | mask_for_rd_eq_notra ? `alu_ops__a_xor_b : 3'b0 | mask_for_rd_eq_bse_ra ? `alu_ops__a_or_b : 3'b0 | mask_for_rd_eq_wse_ra ? `alu_ops__a_or_b : 3'b0 | mask_for_rd_eq_ra_xor_rb ? `alu_ops__a_xor_b : 3'b0 | mask_for_rd_eq_ra_or_rb ? `alu_ops__a_or_b : 3'b0 | mask_for_rd_eq_ra_and_rb ? `alu_ops__a_and_b : 3'b0 | mask_for_rd_eq_ra_plus_rb ? `alu_ops__a_plus_b : 3'b0 | mask_for_rd_eq_ra_minus_rb ? `alu_ops__a_minus_b : 3'b0 | mask_for_rd_eq_notra_and_rb ? `alu_ops__n_b_and_a : 3'b0 | mask_for_rd_eq_tiny_rb_plus_field_a ? `alu_ops__a_plus_b : 3'b0 | mask_for_rd_eq_value ? `alu_ops__a_or_b : 3'b0 | mask_for_rd_eq_field_e_xor_rb ? `alu_ops__a_xor_b : 3'b0 | mask_for_rd_eq_field_e_or_rb ? `alu_ops__a_or_b : 3'b0 | mask_for_rd_eq_field_e_and_rb ? `alu_ops__a_and_b : 3'b0 | mask_for_rd_eq_field_e_plus_rb ? `alu_ops__a_plus_b : 3'b0 | mask_for_rd_eq_field_e_minus_rb ? `alu_ops__a_minus_b : 3'b0 | mask_for_rd_eq_short_value ? `alu_ops__a_or_b : 3'b0 | mask_for_rd_eq_field_e_xor_ra ? `alu_ops__a_xor_b : 3'b0 | mask_for_rd_eq_field_e_or_ra ? `alu_ops__a_or_b : 3'b0 | mask_for_rd_eq_field_e_and_ra ? `alu_ops__a_and_b : 3'b0 | mask_for_rd_eq_field_e_plus_ra ? `alu_ops__a_plus_b : 3'b0 | mask_for_rd_eq_field_e_minus_ra ? `alu_ops__a_minus_b : 3'b0 ;
+	always_ff @(posedge clk) output_port_alu_op <= rst ? 3'h0 : register_outputs ? alu_op : output_port_alu_op;
+	assign shifter_op = mask_for_rd_eq_ra_lsl_rb ? `shifter_ops__shll : 2'b0 | mask_for_rd_eq_ra_lsr_rb ? `shifter_ops__shlr : 2'b0 | mask_for_rd_eq_ra_asr_rb ? `shifter_ops__shar : 2'b0 | mask_for_rd_eq_field_e_lsl_rb ? `shifter_ops__shll : 2'b0 | mask_for_rd_eq_field_e_lsr_rb ? `shifter_ops__shlr : 2'b0 | mask_for_rd_eq_field_e_asr_rb ? `shifter_ops__shar : 2'b0 | mask_for_rd_eq_field_e_lsl_ra ? `shifter_ops__shll : 2'b0 | mask_for_rd_eq_field_e_lsr_ra ? `shifter_ops__shlr : 2'b0 | mask_for_rd_eq_field_e_asr_ra ? `shifter_ops__shar : 2'b0 ;
+	always_ff @(posedge clk) output_port_shifter_op <= rst ? 2'h0 : register_outputs ? shifter_op : output_port_shifter_op;
+	assign branch_op = mask_for_swi ? `branch_ops__swi : 4'b0 | mask_for_stm ? `branch_ops__stm : 4'b0 | mask_for_woi ? `branch_ops__cb_eq : 4'b0 | 1'h1 & fetch_inst_0[15:12] > 4'h9 & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h0 & fetch_inst_0[3:0] == 1'h0 ? `branch_ops__swi : 4'b0 | mask_for_pc_eq_rd ? `branch_ops__pc_w : 4'b0 | mask_for_tpc_eq_rd ? `branch_ops__tpc_w : 4'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h0 & fetch_inst_0[3:0] > 3'h5 ? `branch_ops__swi : 4'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] > 3'h6 &  ~ field_a_is_f ? `branch_ops__swi : 4'b0 | mask_for_pc_eq_value ? `branch_ops__pc_w : 4'b0 | mask_for_tpc_eq_value ? `branch_ops__tpc_w : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'h8 & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 4'he & fetch_inst_0[3:0] == 4'hf ? `branch_ops__swi : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'h9 & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 4'he & fetch_inst_0[3:0] == 4'hf ? `branch_ops__swi : 4'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'ha &  ~ field_b_is_f & fetch_inst_0[3:0] == 4'hf ? `branch_ops__swi : 4'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'hb &  ~ field_b_is_f & fetch_inst_0[3:0] == 4'hf ? `branch_ops__swi : 4'b0 | mask_for_pc_eq_short_value ? `branch_ops__pc_w : 4'b0 | mask_for_tpc_eq_short_value ? `branch_ops__tpc_w : 4'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'ha & fetch_inst_0[7:4] == 4'hf &  ~ field_a_is_f ? `branch_ops__swi : 4'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'hb & fetch_inst_0[7:4] == 4'hf &  ~ field_a_is_f ? `branch_ops__swi : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h0 &  ~ field_a_is_f ? `branch_ops__cb_eq : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h1 &  ~ field_a_is_f ? `branch_ops__cb_ne : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h2 &  ~ field_a_is_f ? `branch_ops__cb_lts : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h3 &  ~ field_a_is_f ? `branch_ops__cb_ges : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h4 &  ~ field_a_is_f ? `branch_ops__cb_lts : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h5 &  ~ field_a_is_f ? `branch_ops__cb_ges : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h6 &  ~ field_a_is_f ? `branch_ops__swi : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h7 &  ~ field_a_is_f ? `branch_ops__swi : 4'b0 | mask_for_if_ra_eq_0 ? `branch_ops__cb_eq : 4'b0 | mask_for_if_ra_ne_0 ? `branch_ops__cb_ne : 4'b0 | mask_for_if_ra_lt_0 ? `branch_ops__cb_lts : 4'b0 | mask_for_if_ra_ge_0 ? `branch_ops__cb_ges : 4'b0 | mask_for_if_ra_gt_0 ? `branch_ops__cb_lts : 4'b0 | mask_for_if_ra_le_0 ? `branch_ops__cb_ges : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `branch_ops__swi : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h1 &  ~ field_b_is_f &  ~ field_a_is_f ? `branch_ops__cb_eq : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h2 &  ~ field_b_is_f &  ~ field_a_is_f ? `branch_ops__cb_ne : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h3 &  ~ field_b_is_f &  ~ field_a_is_f ? `branch_ops__cb_lts : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h4 &  ~ field_b_is_f &  ~ field_a_is_f ? `branch_ops__cb_ges : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h5 &  ~ field_b_is_f &  ~ field_a_is_f ? `branch_ops__cb_lt : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h6 &  ~ field_b_is_f &  ~ field_a_is_f ? `branch_ops__cb_ge : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h7 &  ~ field_b_is_f &  ~ field_a_is_f ? `branch_ops__swi : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 4'h8 &  ~ field_b_is_f &  ~ field_a_is_f ? `branch_ops__swi : 4'b0 | mask_for_if_rb_eq_ra ? `branch_ops__cb_eq : 4'b0 | mask_for_if_rb_ne_ra ? `branch_ops__cb_ne : 4'b0 | mask_for_if_signed_rb_lt_ra ? `branch_ops__cb_lts : 4'b0 | mask_for_if_signed_rb_ge_ra ? `branch_ops__cb_ges : 4'b0 | mask_for_if_rb_lt_ra ? `branch_ops__cb_lt : 4'b0 | mask_for_if_rb_ge_ra ? `branch_ops__cb_ge : 4'b0 | mask_for_if_ra_bit__eq_1 ? `branch_ops__bb_one : 4'b0 | mask_for_if_rb_bit__eq_0 ? `branch_ops__bb_one : 4'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 1'h0 &  ~ field_a_is_f ? `branch_ops__swi : 4'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 1'h1 &  ~ field_a_is_f ? `branch_ops__swi : 4'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 2'h2 &  ~ field_a_is_f ? `branch_ops__swi : 4'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 2'h3 &  ~ field_a_is_f ? `branch_ops__swi : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 1'h1 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `branch_ops__swi : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h2 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `branch_ops__swi : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h3 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `branch_ops__swi : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 1'h1 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `branch_ops__swi : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h2 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `branch_ops__swi : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h3 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `branch_ops__swi : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 1'h1 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `branch_ops__swi : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h2 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `branch_ops__swi : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h3 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? `branch_ops__swi : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 1'h1 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he & fetch_inst_0[3:0] == 4'hf ? `branch_ops__swi : 4'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h2 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he & fetch_inst_0[3:0] == 4'hf ? `branch_ops__swi : 4'b0 | mask_expr ? `branch_ops__swi : 4'b0 ;
+	always_ff @(posedge clk) output_port_branch_op <= rst ? 4'h0 : register_outputs ? branch_op : output_port_branch_op;
+	assign ldst_op = mask_for_mem_raplustiny_ofstimes4_eq_rd ? `ldst_ops__store : 1'b0 | mask_for_rd_eq_mem_raplustiny_ofstimes4 ? `ldst_ops__load : 1'b0 | mask_for_rd_eq_mem8_ra ? `ldst_ops__load : 1'b0 | mask_for_rd_eq_mem16_ra ? `ldst_ops__load : 1'b0 | mask_for_rd_eq_mem32_ra ? `ldst_ops__load : 1'b0 | mask_for_rd_eq_memll32_ra ? `ldst_ops__load : 1'b0 | mask_for_mem8_ra_eq_rd ? `ldst_ops__store : 1'b0 | mask_for_mem16_ra_eq_rd ? `ldst_ops__store : 1'b0 | mask_for_mem32_ra_eq_rd ? `ldst_ops__store : 1'b0 | mask_for_memsr32_ra_eq_rd ? `ldst_ops__store : 1'b0 | mask_for_rd_eq_smem8_ra ? `ldst_ops__load : 1'b0 | mask_for_rd_eq_smem16_ra ? `ldst_ops__load : 1'b0 | mask_for_rd_eq_mem8_raplusfield_e ? `ldst_ops__load : 1'b0 | mask_for_rd_eq_mem16_raplusfield_e ? `ldst_ops__load : 1'b0 | mask_for_rd_eq_mem32_raplusfield_e ? `ldst_ops__load : 1'b0 | mask_for_rd_eq_memll32_raplusfield_e ? `ldst_ops__load : 1'b0 | mask_for_mem8_raplusfield_e_eq_rd ? `ldst_ops__store : 1'b0 | mask_for_mem16_raplusfield_e_eq_rd ? `ldst_ops__store : 1'b0 | mask_for_mem32_raplusfield_e_eq_rd ? `ldst_ops__store : 1'b0 | mask_for_memsr32_raplusfield_e_eq_rd ? `ldst_ops__store : 1'b0 | mask_for_rd_eq_smem8_raplusfield_e ? `ldst_ops__load : 1'b0 | mask_for_rd_eq_smem16_raplusfield_e ? `ldst_ops__load : 1'b0 | mask_for_rd_eq_mem8_field_e ? `ldst_ops__load : 1'b0 | mask_for_rd_eq_mem16_field_e ? `ldst_ops__load : 1'b0 | mask_for_rd_eq_mem32_field_e ? `ldst_ops__load : 1'b0 | mask_for_rd_eq_memll32_field_e ? `ldst_ops__load : 1'b0 | mask_for_mem8_field_e_eq_rd ? `ldst_ops__store : 1'b0 | mask_for_mem16_field_e_eq_rd ? `ldst_ops__store : 1'b0 | mask_for_mem32_field_e_eq_rd ? `ldst_ops__store : 1'b0 | mask_for_memsr32_field_e_eq_rd ? `ldst_ops__store : 1'b0 | mask_for_rd_eq_smem8_field_e ? `ldst_ops__load : 1'b0 | mask_for_rd_eq_smem16_field_e ? `ldst_ops__load : 1'b0 ;
+	always_ff @(posedge clk) output_port_ldst_op <= rst ? 1'h0 : register_outputs ? ldst_op : output_port_ldst_op;
+	assign use_reg_a = mask_for_woi ? 1'h1 : 1'b0 | mask_for_pc_eq_rd ? 1'h1 : 1'b0 | mask_for_tpc_eq_rd ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_xor_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_or_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_and_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_plus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_minus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_lsl_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_lsr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_asr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_times_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_notra_and_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_tiny_rb_plus_field_a ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h0 &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h1 &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h2 &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h3 &  ~ field_a_is_f ? 1'h1 : 1'b0 | mask_for_if_ra_eq_0 ? 1'h1 : 1'b0 | mask_for_if_ra_ne_0 ? 1'h1 : 1'b0 | mask_for_if_ra_lt_0 ? 1'h1 : 1'b0 | mask_for_if_ra_ge_0 ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h1 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h2 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h3 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h4 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h5 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h6 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | mask_for_if_rb_eq_ra ? 1'h1 : 1'b0 | mask_for_if_rb_ne_ra ? 1'h1 : 1'b0 | mask_for_if_signed_rb_lt_ra ? 1'h1 : 1'b0 | mask_for_if_signed_rb_ge_ra ? 1'h1 : 1'b0 | mask_for_if_rb_lt_ra ? 1'h1 : 1'b0 | mask_for_if_rb_ge_ra ? 1'h1 : 1'b0 | mask_for_if_ra_bit__eq_1 ? 1'h1 : 1'b0 | mask_for_if_rb_bit__eq_0 ? 1'h1 : 1'b0 | mask_for_mem_raplustiny_ofstimes4_eq_rd ? 1'h1 : 1'b0 | mask_for_mem8_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_mem16_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_mem32_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_memsr32_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_mem8_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_mem16_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_mem32_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_memsr32_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_mem8_field_e_eq_rd ? 1'h1 : 1'b0 | mask_for_mem16_field_e_eq_rd ? 1'h1 : 1'b0 | mask_for_mem32_field_e_eq_rd ? 1'h1 : 1'b0 | mask_for_memsr32_field_e_eq_rd ? 1'h1 : 1'b0 | 1'h0;
+	assign op_a = mask_for_swi ? fetch_inst_0[3:0] : 32'b0 | 1'h1 & fetch_inst_0[15:12] > 4'h9 & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h0 & fetch_inst_0[3:0] == 1'h0 ? 3'h7 : 32'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h0 & fetch_inst_0[3:0] > 3'h5 ? 3'h7 : 32'b0 | mask_for_rd_eq_tiny_field_a ? 1'h0 : 32'b0 | mask_for_rd_eq_minus_ra ? 1'h0 : 32'b0 | mask_for_rd_eq_notra ? 32'hffffffff : 32'b0 | mask_for_rd_eq_bse_ra ? 1'h0 : 32'b0 | mask_for_rd_eq_wse_ra ? 1'h0 : 32'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] > 3'h6 &  ~ field_a_is_f ? 3'h7 : 32'b0 | mask_for_rd_eq_value ? field_e : 32'b0 | mask_for_pc_eq_value ? field_e : 32'b0 | mask_for_tpc_eq_value ? field_e : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'h8 & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 4'he & fetch_inst_0[3:0] == 4'hf ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'h9 & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 4'he & fetch_inst_0[3:0] == 4'hf ? 3'h7 : 32'b0 | mask_for_rd_eq_field_e_xor_rb ? field_e : 32'b0 | mask_for_rd_eq_field_e_or_rb ? field_e : 32'b0 | mask_for_rd_eq_field_e_and_rb ? field_e : 32'b0 | mask_for_rd_eq_field_e_plus_rb ? field_e : 32'b0 | mask_for_rd_eq_field_e_minus_rb ? field_e : 32'b0 | mask_for_rd_eq_field_e_lsl_rb ? field_e : 32'b0 | mask_for_rd_eq_field_e_lsr_rb ? field_e : 32'b0 | mask_for_rd_eq_field_e_asr_rb ? field_e : 32'b0 | mask_for_rd_eq_field_e_times_rb ? field_e : 32'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'ha &  ~ field_b_is_f & fetch_inst_0[3:0] == 4'hf ? 3'h7 : 32'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'hb &  ~ field_b_is_f & fetch_inst_0[3:0] == 4'hf ? 3'h7 : 32'b0 | mask_for_rd_eq_short_value ? field_e : 32'b0 | mask_for_pc_eq_short_value ? field_e : 32'b0 | mask_for_tpc_eq_short_value ? field_e : 32'b0 | mask_for_rd_eq_field_e_xor_ra ? field_e : 32'b0 | mask_for_rd_eq_field_e_or_ra ? field_e : 32'b0 | mask_for_rd_eq_field_e_and_ra ? field_e : 32'b0 | mask_for_rd_eq_field_e_plus_ra ? field_e : 32'b0 | mask_for_rd_eq_field_e_minus_ra ? field_e : 32'b0 | mask_for_rd_eq_field_e_lsl_ra ? field_e : 32'b0 | mask_for_rd_eq_field_e_lsr_ra ? field_e : 32'b0 | mask_for_rd_eq_field_e_asr_ra ? field_e : 32'b0 | mask_for_rd_eq_field_e_times_ra ? field_e : 32'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'ha & fetch_inst_0[7:4] == 4'hf &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'hb & fetch_inst_0[7:4] == 4'hf &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h4 &  ~ field_a_is_f ? 1'h0 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h5 &  ~ field_a_is_f ? 1'h0 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h6 &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h7 &  ~ field_a_is_f ? 3'h7 : 32'b0 | mask_for_if_ra_gt_0 ? 1'h0 : 32'b0 | mask_for_if_ra_le_0 ? 1'h0 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h7 &  ~ field_b_is_f &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 4'h8 &  ~ field_b_is_f &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 1'h0 &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 1'h1 &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 2'h2 &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 &  ~ field_d_is_f & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 2'h3 &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 1'h1 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h2 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h3 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 1'h1 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h2 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h3 & fetch_inst_0[11:8] == 4'he & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 1'h1 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h2 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h3 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he &  ~ field_a_is_f ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 1'h1 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he & fetch_inst_0[3:0] == 4'hf ? 3'h7 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 2'h2 & fetch_inst_0[11:8] == 4'hf & fetch_inst_0[7:4] == 4'he & fetch_inst_0[3:0] == 4'hf ? 3'h7 : 32'b0 | mask_expr ? 3'h7 : 32'b0 ;
+	always_ff @(posedge clk) u2358_output_port <= rst ? 1'h0 : register_outputs ? use_reg_a : u2358_output_port;
+	always_ff @(posedge clk) u2359_output_port <= rst ? 32'h0 : register_outputs ? op_a : u2359_output_port;
+	assign output_port_op_a = u2358_output_port ? reg_file_rsp_read1_data : u2359_output_port;
+	assign use_reg_b = mask_for_woi ? 1'h1 : 1'b0 | mask_for_rd_eq_minus_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_notra ? 1'h1 : 1'b0 | mask_for_rd_eq_bse_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_wse_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_xor_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_or_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_and_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_plus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_minus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_lsl_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_lsr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_asr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_ra_times_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_notra_and_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_xor_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_or_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_and_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_plus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_minus_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_lsl_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_lsr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_asr_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_times_rb ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_xor_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_or_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_and_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_plus_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_minus_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_lsl_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_lsr_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_asr_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_field_e_times_ra ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h4 &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h5 &  ~ field_a_is_f ? 1'h1 : 1'b0 | mask_for_if_ra_gt_0 ? 1'h1 : 1'b0 | mask_for_if_ra_le_0 ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h1 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h2 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h3 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h4 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h5 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h6 &  ~ field_b_is_f &  ~ field_a_is_f ? 1'h1 : 1'b0 | mask_for_if_rb_eq_ra ? 1'h1 : 1'b0 | mask_for_if_rb_ne_ra ? 1'h1 : 1'b0 | mask_for_if_signed_rb_lt_ra ? 1'h1 : 1'b0 | mask_for_if_signed_rb_ge_ra ? 1'h1 : 1'b0 | mask_for_if_rb_lt_ra ? 1'h1 : 1'b0 | mask_for_if_rb_ge_ra ? 1'h1 : 1'b0 | mask_for_mem_raplustiny_ofstimes4_eq_rd ? 1'h1 : 1'b0 | mask_for_rd_eq_mem_raplustiny_ofstimes4 ? 1'h1 : 1'b0 | mask_for_rd_eq_mem8_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_mem16_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_mem32_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_memll32_ra ? 1'h1 : 1'b0 | mask_for_mem8_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_mem16_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_mem32_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_memsr32_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_rd_eq_smem8_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_smem16_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_mem8_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_mem16_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_mem32_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_memll32_raplusfield_e ? 1'h1 : 1'b0 | mask_for_mem8_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_mem16_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_mem32_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_memsr32_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_rd_eq_smem8_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_smem16_raplusfield_e ? 1'h1 : 1'b0 | 1'h0;
+	assign op_b = mask_for_rd_eq_pc ? 1'h0 : 32'b0 | mask_for_rd_eq_tiny_field_a ? ones_field_a : 32'b0 | mask_for_rd_eq_pc_plus_field_atimes2 ? ones_field_a : 32'b0 | mask_for_rd_eq_tiny_rb_plus_field_a ? ones_field_a : 32'b0 | mask_for_rd_eq_value ? 1'h0 : 32'b0 | mask_for_rd_eq_short_value ? 1'h0 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h0 &  ~ field_a_is_f ? 1'h0 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h1 &  ~ field_a_is_f ? 1'h0 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h2 &  ~ field_a_is_f ? 1'h0 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h3 &  ~ field_a_is_f ? 1'h0 : 32'b0 | mask_for_if_ra_eq_0 ? 1'h0 : 32'b0 | mask_for_if_ra_ne_0 ? 1'h0 : 32'b0 | mask_for_if_ra_lt_0 ? 1'h0 : 32'b0 | mask_for_if_ra_ge_0 ? 1'h0 : 32'b0 | mask_for_if_ra_bit__eq_1 ? fetch_inst_0[11:8] : 32'b0 | mask_for_if_rb_bit__eq_0 ? fetch_inst_0[11:8] : 32'b0 | mask_for_rd_eq_mem8_field_e ? 1'h0 : 32'b0 | mask_for_rd_eq_mem16_field_e ? 1'h0 : 32'b0 | mask_for_rd_eq_mem32_field_e ? 1'h0 : 32'b0 | mask_for_rd_eq_memll32_field_e ? 1'h0 : 32'b0 | mask_for_mem8_field_e_eq_rd ? 1'h0 : 32'b0 | mask_for_mem16_field_e_eq_rd ? 1'h0 : 32'b0 | mask_for_mem32_field_e_eq_rd ? 1'h0 : 32'b0 | mask_for_memsr32_field_e_eq_rd ? 1'h0 : 32'b0 | mask_for_rd_eq_smem8_field_e ? 1'h0 : 32'b0 | mask_for_rd_eq_smem16_field_e ? 1'h0 : 32'b0 ;
+	always_ff @(posedge clk) u2361_output_port <= rst ? 1'h0 : register_outputs ? use_reg_b : u2361_output_port;
+	always_ff @(posedge clk) u2362_output_port <= rst ? 32'h0 : register_outputs ? op_b : u2362_output_port;
+	assign output_port_op_b = u2361_output_port ? reg_file_rsp_read2_data : u2362_output_port;
+	assign op_c = mask_for_woi ? 1'h0 : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h0 &  ~ field_a_is_f ? field_e : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 1'h1 &  ~ field_a_is_f ? field_e : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h2 &  ~ field_a_is_f ? field_e : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 2'h3 &  ~ field_a_is_f ? field_e : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h4 &  ~ field_a_is_f ? field_e : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h0 & fetch_inst_0[7:4] == 3'h5 &  ~ field_a_is_f ? field_e : 32'b0 | mask_for_if_ra_eq_0 ? field_e : 32'b0 | mask_for_if_ra_ne_0 ? field_e : 32'b0 | mask_for_if_ra_lt_0 ? field_e : 32'b0 | mask_for_if_ra_ge_0 ? field_e : 32'b0 | mask_for_if_ra_gt_0 ? field_e : 32'b0 | mask_for_if_ra_le_0 ? field_e : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 1'h1 &  ~ field_b_is_f &  ~ field_a_is_f ? field_e : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h2 &  ~ field_b_is_f &  ~ field_a_is_f ? field_e : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 2'h3 &  ~ field_b_is_f &  ~ field_a_is_f ? field_e : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h4 &  ~ field_b_is_f &  ~ field_a_is_f ? field_e : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h5 &  ~ field_b_is_f &  ~ field_a_is_f ? field_e : 32'b0 | 1'h1 & fetch_inst_0[15:12] == 4'hf & fetch_inst_0[11:8] == 3'h6 &  ~ field_b_is_f &  ~ field_a_is_f ? field_e : 32'b0 | mask_for_if_rb_eq_ra ? field_e : 32'b0 | mask_for_if_rb_ne_ra ? field_e : 32'b0 | mask_for_if_signed_rb_lt_ra ? field_e : 32'b0 | mask_for_if_signed_rb_ge_ra ? field_e : 32'b0 | mask_for_if_rb_lt_ra ? field_e : 32'b0 | mask_for_if_rb_ge_ra ? field_e : 32'b0 | mask_for_if_ra_bit__eq_1 ? field_e : 32'b0 | mask_for_if_rb_bit__eq_0 ? field_e : 32'b0 | mask_for_mem_raplustiny_ofstimes4_eq_rd ? tiny_ofs : 32'b0 | mask_for_rd_eq_mem_raplustiny_ofstimes4 ? tiny_ofs : 32'b0 | mask_for_rd_eq_mem8_ra ? 1'h0 : 32'b0 | mask_for_rd_eq_mem16_ra ? 1'h0 : 32'b0 | mask_for_rd_eq_mem32_ra ? 1'h0 : 32'b0 | mask_for_rd_eq_memll32_ra ? 1'h0 : 32'b0 | mask_for_mem8_ra_eq_rd ? 1'h0 : 32'b0 | mask_for_mem16_ra_eq_rd ? 1'h0 : 32'b0 | mask_for_mem32_ra_eq_rd ? 1'h0 : 32'b0 | mask_for_memsr32_ra_eq_rd ? 1'h0 : 32'b0 | mask_for_rd_eq_smem8_ra ? 1'h0 : 32'b0 | mask_for_rd_eq_smem16_ra ? 1'h0 : 32'b0 | mask_for_rd_eq_mem8_raplusfield_e ? field_e : 32'b0 | mask_for_rd_eq_mem16_raplusfield_e ? field_e : 32'b0 | mask_for_rd_eq_mem32_raplusfield_e ? field_e : 32'b0 | mask_for_rd_eq_memll32_raplusfield_e ? field_e : 32'b0 | mask_for_mem8_raplusfield_e_eq_rd ? field_e : 32'b0 | mask_for_mem16_raplusfield_e_eq_rd ? field_e : 32'b0 | mask_for_mem32_raplusfield_e_eq_rd ? field_e : 32'b0 | mask_for_memsr32_raplusfield_e_eq_rd ? field_e : 32'b0 | mask_for_rd_eq_smem8_raplusfield_e ? field_e : 32'b0 | mask_for_rd_eq_smem16_raplusfield_e ? field_e : 32'b0 | mask_for_rd_eq_mem8_field_e ? field_e : 32'b0 | mask_for_rd_eq_mem16_field_e ? field_e : 32'b0 | mask_for_rd_eq_mem32_field_e ? field_e : 32'b0 | mask_for_rd_eq_memll32_field_e ? field_e : 32'b0 | mask_for_mem8_field_e_eq_rd ? field_e : 32'b0 | mask_for_mem16_field_e_eq_rd ? field_e : 32'b0 | mask_for_mem32_field_e_eq_rd ? field_e : 32'b0 | mask_for_memsr32_field_e_eq_rd ? field_e : 32'b0 | mask_for_rd_eq_smem8_field_e ? field_e : 32'b0 | mask_for_rd_eq_smem16_field_e ? field_e : 32'b0 ;
+	always_ff @(posedge clk) output_port_op_c <= rst ? 32'h0 : register_outputs ? op_c : output_port_op_c;
 	assign mem_len = mask_for_mem_raplustiny_ofstimes4_eq_rd ? 2'h3 : 2'b0 | mask_for_rd_eq_mem_raplustiny_ofstimes4 ? 2'h3 : 2'b0 | mask_for_rd_eq_mem8_ra ? 1'h1 : 2'b0 | mask_for_rd_eq_mem16_ra ? 2'h2 : 2'b0 | mask_for_rd_eq_mem32_ra ? 2'h3 : 2'b0 | mask_for_rd_eq_memll32_ra ? 2'h3 : 2'b0 | mask_for_mem8_ra_eq_rd ? 1'h1 : 2'b0 | mask_for_mem16_ra_eq_rd ? 2'h2 : 2'b0 | mask_for_mem32_ra_eq_rd ? 2'h3 : 2'b0 | mask_for_memsr32_ra_eq_rd ? 2'h3 : 2'b0 | mask_for_rd_eq_smem8_ra ? 1'h1 : 2'b0 | mask_for_rd_eq_smem16_ra ? 2'h2 : 2'b0 | mask_for_rd_eq_mem8_raplusfield_e ? 1'h1 : 2'b0 | mask_for_rd_eq_mem16_raplusfield_e ? 2'h2 : 2'b0 | mask_for_rd_eq_mem32_raplusfield_e ? 2'h3 : 2'b0 | mask_for_rd_eq_memll32_raplusfield_e ? 2'h3 : 2'b0 | mask_for_mem8_raplusfield_e_eq_rd ? 1'h1 : 2'b0 | mask_for_mem16_raplusfield_e_eq_rd ? 2'h2 : 2'b0 | mask_for_mem32_raplusfield_e_eq_rd ? 2'h3 : 2'b0 | mask_for_memsr32_raplusfield_e_eq_rd ? 2'h3 : 2'b0 | mask_for_rd_eq_smem8_raplusfield_e ? 1'h1 : 2'b0 | mask_for_rd_eq_smem16_raplusfield_e ? 2'h2 : 2'b0 | mask_for_rd_eq_mem8_field_e ? 1'h1 : 2'b0 | mask_for_rd_eq_mem16_field_e ? 2'h2 : 2'b0 | mask_for_rd_eq_mem32_field_e ? 2'h3 : 2'b0 | mask_for_rd_eq_memll32_field_e ? 2'h3 : 2'b0 | mask_for_mem8_field_e_eq_rd ? 1'h1 : 2'b0 | mask_for_mem16_field_e_eq_rd ? 2'h2 : 2'b0 | mask_for_mem32_field_e_eq_rd ? 2'h3 : 2'b0 | mask_for_memsr32_field_e_eq_rd ? 2'h3 : 2'b0 | mask_for_rd_eq_smem8_field_e ? 1'h1 : 2'b0 | mask_for_rd_eq_smem16_field_e ? 2'h2 : 2'b0 ;
-	always_ff @(posedge clk) u2363_output_port <= rst ? 2'h0 : register_outputs ? mem_len : u2363_output_port;
-	always_ff @(posedge clk) exec_inst_len <= rst ? 2'h0 : register_outputs ? fetch_inst_len : exec_inst_len;
-	assign is_ld = mask_for_rd_eq_mem_raplustiny_ofstimes4 ? 1'h1 : 1'b0 | mask_for_rd_eq_mem8_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_mem16_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_mem32_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_memll32_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_smem8_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_smem16_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_mem8_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_mem16_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_mem32_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_memll32_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_smem8_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_smem16_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_mem8_field_e ? 1'h1 : 1'b0 | mask_for_rd_eq_mem16_field_e ? 1'h1 : 1'b0 | mask_for_rd_eq_mem32_field_e ? 1'h1 : 1'b0 | mask_for_rd_eq_memll32_field_e ? 1'h1 : 1'b0 | mask_for_rd_eq_smem8_field_e ? 1'h1 : 1'b0 | mask_for_rd_eq_smem16_field_e ? 1'h1 : 1'b0 | 1'h0;
-	always_ff @(posedge clk) exec_is_load <= rst ? 1'h0 : register_outputs ? is_ld : exec_is_load;
-	assign is_st = mask_for_mem_raplustiny_ofstimes4_eq_rd ? 1'h1 : 1'b0 | mask_for_mem8_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_mem16_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_mem32_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_memsr32_ra_eq_rd ? 1'h1 : 1'b0 | mask_for_mem8_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_mem16_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_mem32_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_memsr32_raplusfield_e_eq_rd ? 1'h1 : 1'b0 | mask_for_mem8_field_e_eq_rd ? 1'h1 : 1'b0 | mask_for_mem16_field_e_eq_rd ? 1'h1 : 1'b0 | mask_for_mem32_field_e_eq_rd ? 1'h1 : 1'b0 | mask_for_memsr32_field_e_eq_rd ? 1'h1 : 1'b0 | 1'h0;
-	always_ff @(posedge clk) exec_is_store <= rst ? 1'h0 : register_outputs ? is_st : exec_is_store;
+	always_ff @(posedge clk) u2365_output_port <= rst ? 2'h0 : register_outputs ? mem_len : u2365_output_port;
+	always_ff @(posedge clk) output_port_inst_len <= rst ? 2'h0 : register_outputs ? fetch_inst_len : output_port_inst_len;
 	assign bse = mask_for_rd_eq_bse_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_smem8_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_smem8_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_smem8_field_e ? 1'h1 : 1'b0 | 1'h0;
-	always_ff @(posedge clk) exec_do_bse <= rst ? 1'h0 : register_outputs ? bse : exec_do_bse;
+	always_ff @(posedge clk) output_port_do_bse <= rst ? 1'h0 : register_outputs ? bse : output_port_do_bse;
 	assign wse = mask_for_rd_eq_wse_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_smem16_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_smem16_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_smem16_field_e ? 1'h1 : 1'b0 | 1'h0;
-	always_ff @(posedge clk) exec_do_wse <= rst ? 1'h0 : register_outputs ? wse : exec_do_wse;
+	always_ff @(posedge clk) output_port_do_wse <= rst ? 1'h0 : register_outputs ? wse : output_port_do_wse;
 	assign bze = mask_for_rd_eq_mem8_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_mem8_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_mem8_field_e ? 1'h1 : 1'b0 | 1'h0;
-	always_ff @(posedge clk) exec_do_bze <= rst ? 1'h0 : register_outputs ? bze : exec_do_bze;
+	always_ff @(posedge clk) output_port_do_bze <= rst ? 1'h0 : register_outputs ? bze : output_port_do_bze;
 	assign wze = mask_for_rd_eq_mem16_ra ? 1'h1 : 1'b0 | mask_for_rd_eq_mem16_raplusfield_e ? 1'h1 : 1'b0 | mask_for_rd_eq_mem16_field_e ? 1'h1 : 1'b0 | 1'h0;
-	always_ff @(posedge clk) exec_do_wze <= rst ? 1'h0 : register_outputs ? wze : exec_do_wze;
-	always_ff @(posedge clk) exec_result_reg_addr <= rst ? 4'h0 : register_outputs ? res_addr : exec_result_reg_addr;
-	always_ff @(posedge clk) exec_result_reg_addr_valid <= rst ? 1'h0 : register_outputs ? rsv_needed : exec_result_reg_addr_valid;
-	always_ff @(posedge clk) exec_fetch_av <= rst ? 1'h0 : register_outputs ? fetch_av : exec_fetch_av;
-	assign exec_valid = reg_file_rsp_valid;
-	assign reg_file_rsp_ready = exec_ready;
+	always_ff @(posedge clk) output_port_do_wze <= rst ? 1'h0 : register_outputs ? wze : output_port_do_wze;
+	always_ff @(posedge clk) output_port_result_reg_addr <= rst ? 4'h0 : register_outputs ? res_addr : output_port_result_reg_addr;
+	always_ff @(posedge clk) output_port_result_reg_addr_valid <= rst ? 1'h0 : register_outputs ? rsv_needed : output_port_result_reg_addr_valid;
+	always_ff @(posedge clk) output_port_fetch_av <= rst ? 1'h0 : register_outputs ? fetch_av : output_port_fetch_av;
+	assign output_port_valid = reg_file_rsp_valid;
+	assign reg_file_rsp_ready = output_port_ready;
 	assign fetch_ready = reg_file_req_ready;
-	assign exec_mem_access_len = u2363_output_port;
+	assign output_port_mem_access_len = u2365_output_port;
 
 	assign u36_output_port = fetch_inst_0[3:0] + 1'h1;
 	assign mask_for_sii = mask_expr;
@@ -1386,7 +1765,6 @@ module FetchStage (
 	output logic bus_if_request_valid,
 
 	input logic [15:0] bus_if_response_data,
-	output logic bus_if_response_ready,
 	input logic bus_if_response_valid,
 
 	output logic decode_av,
@@ -1408,7 +1786,7 @@ module FetchStage (
 	logic inst_buf_queue_av;
 	logic inst_buf_queue_valid;
 	logic [15:0] inst_buf_queue_data;
-	logic [4:0] inst_queue_queue_free_cnt;
+	logic [4:0] inst_buf_queue_free_cnt;
 	logic inst_buf_queue_ready;
 	logic inst_queue_assemble_valid;
 	logic inst_queue_assemble_av;
@@ -1427,7 +1805,6 @@ module FetchStage (
 		.bus_if_request_valid(bus_if_request_valid),
 
 		.bus_if_response_data(bus_if_response_data),
-		.bus_if_response_ready(bus_if_response_ready),
 		.bus_if_response_valid(bus_if_response_valid),
 
 		.queue_av(inst_buf_queue_av),
@@ -1435,7 +1812,7 @@ module FetchStage (
 		.queue_ready(inst_buf_queue_ready),
 		.queue_valid(inst_buf_queue_valid),
 
-		.queue_free_cnt(inst_queue_queue_free_cnt),
+		.queue_free_cnt(inst_buf_queue_free_cnt),
 		.mem_base(mem_base),
 		.mem_limit(mem_limit),
 		.spc(spc),
@@ -1452,7 +1829,7 @@ module FetchStage (
 		.inst_ready(inst_buf_queue_ready),
 		.inst_valid(inst_buf_queue_valid),
 
-		.queue_free_cnt(inst_queue_queue_free_cnt),
+		.queue_free_cnt(inst_buf_queue_free_cnt),
 		.assemble_av(inst_queue_assemble_av),
 		.assemble_data(inst_queue_assemble_data),
 		.assemble_ready(inst_queue_assemble_ready),
@@ -1937,7 +2314,6 @@ module InstBuffer (
 	output logic bus_if_request_valid,
 
 	input logic [15:0] bus_if_response_data,
-	output logic bus_if_response_ready,
 	input logic bus_if_response_valid,
 
 	output logic queue_av,
@@ -1955,44 +2331,41 @@ module InstBuffer (
 );
 
 	logic advance_request;
-	logic advance_response;
-	logic [32:0] u4_output_port;
+	logic [32:0] u3_output_port;
 	logic [30:0] branch_target;
 	logic task_mode_fetch;
-	logic [31:0] u9_output_port;
+	logic [31:0] u8_output_port;
 	logic [30:0] fetch_addr;
 	logic fetch_page_limit;
 	logic fetch_av;
 	logic start_new_request;
-	logic signed [5:0] u31_output_port;
+	logic signed [5:0] u30_output_port;
 	logic [4:0] req_len;
 	logic req_av;
 	logic flushing;
-	logic u66_output_port;
-	logic u69_output_port;
-	logic u71_output_port;
+	logic u65_output_port;
+	logic u68_output_port;
+	logic u70_output_port;
 	logic [1:0] state;
 	logic [1:0] fsm_next_state;
 	logic branch_req;
 
-	assign branch_target = task_mode ? u4_output_port[30:0] : spc;
+	assign branch_target = task_mode ? u3_output_port[30:0] : spc;
 	always_ff @(posedge clk) task_mode_fetch <= rst ? 1'h0 : do_branch ? task_mode : task_mode_fetch;
 	assign advance_request = bus_if_request_valid & bus_if_request_ready;
-	always_ff @(posedge clk) fetch_addr <= rst ? 31'h0 : do_branch ? branch_target : u9_output_port[30:0];
+	always_ff @(posedge clk) fetch_addr <= rst ? 31'h0 : do_branch ? branch_target : u8_output_port[30:0];
 	always_ff @(posedge clk) fetch_page_limit <= rst ? 1'h0 :  ~ fetch_addr[7:0] == 1'h0;
 	assign start_new_request = (queue_free_cnt >= 4'h8 | do_branch) & state == `InstBufferStates__idle;
-	always_ff @(posedge clk) req_len <= rst ? 4'h8 : start_new_request ? do_branch ? 4'h8 : queue_free_cnt : advance_request ? req_len > 1'h0 ? u31_output_port[4:0] : 1'h0 : req_len;
+	always_ff @(posedge clk) req_len <= rst ? 4'h8 : start_new_request ? do_branch ? 4'h8 : queue_free_cnt : advance_request ? req_len > 1'h0 ? u30_output_port[4:0] : 1'h0 : req_len;
 	assign fetch_av = task_mode_fetch & fetch_addr[30:10] > mem_limit;
 	always_ff @(posedge clk) req_av <= rst ? 1'h0 : start_new_request ? fetch_av : req_av;
-	assign advance_response = bus_if_response_valid & bus_if_response_ready;
-	always_ff @(posedge clk) flushing <= rst ? 1'h0 : (do_branch | state == `InstBufferStates__flush_start) ? 1'h1 : advance_response ? flushing : 1'h0;
+	always_ff @(posedge clk) flushing <= rst ? 1'h0 : (do_branch | state == `InstBufferStates__flush_start) ? 1'h1 : bus_if_response_valid ? flushing : 1'h0;
 	assign bus_if_request_valid = state == `InstBufferStates__request &  ~ fetch_page_limit;
 	assign bus_if_request_dram_not_ext = fetch_addr[22];
 	assign queue_valid = bus_if_response_valid &  ~ flushing;
 	assign bus_if_request_byte_en = 2'h3;
 	assign bus_if_request_data = 16'hx;
 	assign bus_if_request_read_not_write = 1'h1;
-	assign bus_if_response_ready = 1'h1;
 	assign queue_data = bus_if_response_data;
 	assign bus_if_request_addr = fetch_addr[21:0];
 
@@ -2004,19 +2377,19 @@ module InstBuffer (
 		.next_state(fsm_next_state),
 		.default_state(`InstBufferStates__idle),
 		.input_idle_to_request(start_new_request),
-		.input_request_to_idle(u66_output_port),
-		.input_request_to_flush_start(u69_output_port),
-		.input_request_to_idle_1(u71_output_port),
-		.input_flush_start_to_idle(advance_response)
+		.input_request_to_idle(u65_output_port),
+		.input_request_to_flush_start(u68_output_port),
+		.input_request_to_idle_1(u70_output_port),
+		.input_flush_start_to_idle(bus_if_response_valid)
 	);
 
-	assign u4_output_port = tpc + (mem_base << 4'ha);
-	assign u9_output_port = fetch_addr + advance_request;
-	assign u31_output_port = req_len - 1'h1;
+	assign u3_output_port = tpc + (mem_base << 4'ha);
+	assign u8_output_port = fetch_addr + advance_request;
+	assign u30_output_port = req_len - 1'h1;
 	assign queue_av = req_av;
-	assign u66_output_port =  ~ do_branch & ( ~ advance_request | req_len == 1'h0);
-	assign u69_output_port = do_branch & advance_request &  ~ advance_response;
-	assign u71_output_port = do_branch & advance_request & advance_response;
+	assign u65_output_port =  ~ do_branch & ( ~ advance_request | req_len == 1'h0);
+	assign u68_output_port = do_branch & advance_request &  ~ bus_if_response_valid;
+	assign u70_output_port = do_branch & advance_request & bus_if_response_valid;
 	assign branch_req = do_branch;
 endmodule
 
@@ -2036,7 +2409,6 @@ module BusIf (
 	input logic fetch_request_valid,
 
 	output logic [15:0] fetch_response_data,
-	input logic fetch_response_ready,
 	output logic fetch_response_valid,
 
 	input logic [25:0] mem_request_addr,
@@ -2048,7 +2420,6 @@ module BusIf (
 	input logic mem_request_valid,
 
 	output logic [15:0] mem_response_data,
-	input logic mem_response_ready,
 	output logic mem_response_valid,
 
 	output logic [10:0] dram_addr,
@@ -2073,10 +2444,10 @@ module BusIf (
 	logic req_read_not_write;
 	logic [1:0] req_byte_en;
 	logic req_dram_not_ext;
-	logic u27_output_port;
+	logic req_advance;
+	logic u28_output_port;
 	logic arb_mem_not_fetch;
-	logic u30_output_port;
-	logic u32_output_port;
+	logic u31_output_port;
 	logic u33_output_port;
 	logic u34_output_port;
 	logic u35_output_port;
@@ -2085,12 +2456,14 @@ module BusIf (
 	logic u38_output_port;
 	logic u39_output_port;
 	logic u40_output_port;
-	logic signed [4:0] u43_output_port;
+	logic u41_output_port;
+	logic signed [4:0] u44_output_port;
 	logic [3:0] wait_states;
 	logic [10:0] input_row_addr;
 	logic [10:0] row_addr;
 	logic [10:0] col_addr;
 	logic read_not_write;
+	logic [1:0] u65_output_port;
 	logic [1:0] byte_en;
 	logic [15:0] data_out;
 	logic dram_not_ext;
@@ -2106,15 +2479,15 @@ module BusIf (
 	logic CAS_nWINDOW_B_b;
 	logic DRAM_nCAS_a;
 	logic DRAM_nCAS_b;
-	logic [10:0] u169_output_port;
+	logic [10:0] u170_output_port;
 	logic [7:0] data_out_low;
 	logic [7:0] data_out_high;
 	logic read_active;
 	logic [7:0] data_in_low;
 	logic [7:0] data_in_high;
 	logic [15:0] resp_data;
-	logic u193_output_port;
-	logic u197_output_port;
+	logic u194_output_port;
+	logic u198_output_port;
 	logic [2:0] state;
 	logic [2:0] next_state;
 
@@ -2128,20 +2501,22 @@ module BusIf (
 	assign req_read_not_write = arb_mem_not_fetch ? mem_request_read_not_write : fetch_request_read_not_write;
 	assign req_byte_en = arb_mem_not_fetch ? mem_request_byte_en : fetch_request_byte_en;
 	assign req_dram_not_ext = arb_mem_not_fetch ? mem_request_dram_not_ext : fetch_request_dram_not_ext;
-	always_ff @(posedge clk) u27_output_port <= rst ? 1'h0 : state == `BusIfStates__idle ? mem_request_valid : u27_output_port;
-	assign arb_mem_not_fetch = state == `BusIfStates__idle ? mem_request_valid : u27_output_port;
-	always_ff @(posedge clk) wait_states <= rst ? 4'h0 : start ? req_addr[25:22] : wait_states == 1'h0 ? 1'h0 : u43_output_port[3:0];
+	always_ff @(posedge clk) u28_output_port <= rst ? 1'h0 : state == `BusIfStates__idle ? mem_request_valid : u28_output_port;
+	assign arb_mem_not_fetch = state == `BusIfStates__idle ? mem_request_valid : u28_output_port;
+	always_ff @(posedge clk) wait_states <= rst ? 4'h0 : start ? req_addr[25:22] : wait_states == 1'h0 ? 1'h0 : u44_output_port[3:0];
 	assign input_row_addr = {req_addr[21], req_addr[19], req_addr[17], req_addr[15:8]};
 	always_ff @(posedge clk) row_addr <= rst ? 11'h0 : start ? input_row_addr : row_addr;
-	always_ff @(posedge clk) col_addr <= rst ? 11'h0 : req_valid & req_ready ? ({req_addr[20], req_addr[18], req_addr[16], req_addr[7:0]}) : col_addr;
-	always_ff @(posedge clk) read_not_write <= rst ? 1'h0 : req_valid ? req_read_not_write : read_not_write;
-	always_ff @(posedge clk) byte_en <= rst ? 2'h0 : req_valid ? req_byte_en : byte_en;
-	always_ff @(posedge clk) data_out <= rst ? 16'h0 : req_valid ? req_data : data_out;
-	always_ff @(posedge clk) dram_not_ext <= rst ? 1'h0 : req_valid ? req_dram_not_ext : dram_not_ext;
+	assign req_advance = req_valid & req_ready;
+	always_ff @(posedge clk) col_addr <= rst ? 11'h0 : req_advance ? ({req_addr[20], req_addr[18], req_addr[16], req_addr[7:0]}) : col_addr;
+	always_ff @(posedge clk) read_not_write <= rst ? 1'h0 : req_advance ? req_read_not_write : read_not_write;
+	always_ff @(posedge clk) u65_output_port <= rst ? 2'h0 : req_advance ? req_byte_en : u65_output_port;
+	assign byte_en = req_advance ? req_byte_en : u65_output_port;
+	always_ff @(posedge clk) data_out <= rst ? 16'h0 : req_advance ? req_data : data_out;
+	always_ff @(posedge clk) dram_not_ext <= rst ? 1'h0 : req_advance ? req_dram_not_ext : dram_not_ext;
 	always_ff @(posedge clk) DRAM_nRAS <= rst ? 1'h1 : next_state == `BusIfStates__idle | next_state == `BusIfStates__external | next_state == `BusIfStates__non_dram_first | next_state == `BusIfStates__non_dram_wait | next_state == `BusIfStates__pre_external;
 	always_ff @(posedge clk) nNREN <= rst ? 1'h1 : next_state != `BusIfStates__non_dram_first & next_state != `BusIfStates__non_dram_wait;
-	always_ff @(posedge clk) NR_nCAS_a <= rst ? 1'h1 : state != (`BusIfStates__non_dram_first |  ~ byte_en[0]);
-	always_ff @(posedge clk) NR_nCAS_b <= rst ? 1'h1 : state != (`BusIfStates__non_dram_first |  ~ byte_en[1]);
+	always_ff @(posedge clk) NR_nCAS_a <= rst ? 1'h1 : state != `BusIfStates__non_dram_first |  ~ byte_en[0];
+	always_ff @(posedge clk) NR_nCAS_b <= rst ? 1'h1 : state != `BusIfStates__non_dram_first |  ~ byte_en[1];
 	always_ff @(posedge clk) CAS_nWINDOW_A_a <= rst ? 1'h1 :  ~ byte_en[0] | next_state == `BusIfStates__idle | next_state == `BusIfStates__precharge | next_state == `BusIfStates__pre_external | next_state == `BusIfStates__non_dram_first | next_state == `BusIfStates__non_dram_wait;
 	always_ff @(posedge clk) CAS_nWINDOW_A_b <= rst ? 1'h1 :  ~ byte_en[1] | next_state == `BusIfStates__idle | next_state == `BusIfStates__precharge | next_state == `BusIfStates__pre_external | next_state == `BusIfStates__non_dram_first | next_state == `BusIfStates__non_dram_wait;
 	always_ff @(posedge clk) CAS_nWINDOW_C_a <= rst ? 1'h1 : CAS_nWINDOW_A_a;
@@ -2152,8 +2527,8 @@ module BusIf (
 	assign dram_nCAS_a = DRAM_nCAS_a & NR_nCAS_a;
 	assign DRAM_nCAS_b = CAS_nWINDOW_B_b | CAS_nWINDOW_C_b |  ~ clk;
 	assign dram_nCAS_b = DRAM_nCAS_b & NR_nCAS_b;
-	always_ff @(negedge clk) u169_output_port <= rst ? 11'h0 : col_addr;
-	assign dram_addr = ((state == `BusIfStates__first | state == `BusIfStates__non_dram_first) & clk) ? row_addr : u169_output_port;
+	always_ff @(negedge clk) u170_output_port <= rst ? 11'h0 : col_addr;
+	assign dram_addr = ((state == `BusIfStates__first | state == `BusIfStates__non_dram_first) & clk) ? row_addr : u170_output_port;
 	always_ff @(negedge clk) data_out_low <= rst ? 8'h0 : data_out[7:0];
 	always_ff @(posedge clk) data_out_high <= rst ? 8'h0 : data_out[15:8];
 	assign dram_data_out = clk ? data_out_high : data_out_low;
@@ -2161,10 +2536,10 @@ module BusIf (
 	always_ff @(posedge clk) data_in_low <= rst ? 8'h0 : dram_data_in;
 	always_ff @(negedge clk) data_in_high <= rst ? 8'h0 : dram_data_in;
 	always_ff @(posedge clk) resp_data <= rst ? 16'h0 : ({data_in_high, data_in_low});
-	always_ff @(posedge clk) u193_output_port <= rst ? 1'h0 : read_active & arb_mem_not_fetch;
-	always_ff @(posedge clk) mem_response_valid <= rst ? 1'h0 : u193_output_port;
-	always_ff @(posedge clk) u197_output_port <= rst ? 1'h0 : read_active &  ~ arb_mem_not_fetch;
-	always_ff @(posedge clk) fetch_response_valid <= rst ? 1'h0 : u197_output_port;
+	always_ff @(posedge clk) u194_output_port <= rst ? 1'h0 : read_active & arb_mem_not_fetch;
+	always_ff @(posedge clk) mem_response_valid <= rst ? 1'h0 : u194_output_port;
+	always_ff @(posedge clk) u198_output_port <= rst ? 1'h0 : read_active &  ~ arb_mem_not_fetch;
+	always_ff @(posedge clk) fetch_response_valid <= rst ? 1'h0 : u198_output_port;
 	assign fetch_response_data = resp_data;
 
 	FSM fsm (
@@ -2174,40 +2549,40 @@ module BusIf (
 		.state(state),
 		.next_state(next_state),
 		.default_state(`BusIfStates__idle),
-		.input_idle_to_external(u30_output_port),
-		.input_idle_to_non_dram_first(u32_output_port),
-		.input_idle_to_first(u33_output_port),
-		.input_external_to_idle(u34_output_port),
-		.input_first_to_precharge(u35_output_port),
+		.input_idle_to_external(u31_output_port),
+		.input_idle_to_non_dram_first(u33_output_port),
+		.input_idle_to_first(u34_output_port),
+		.input_external_to_idle(u35_output_port),
+		.input_first_to_precharge(u36_output_port),
 		.input_first_to_middle(req_valid),
-		.input_middle_to_precharge(u36_output_port),
-		.input_precharge_to_idle(u37_output_port),
+		.input_middle_to_precharge(u37_output_port),
+		.input_precharge_to_idle(u38_output_port),
 		.input_precharge_to_pre_external(ext_req),
 		.input_pre_external_to_external(ext_req),
-		.input_pre_external_to_idle(u38_output_port),
-		.input_non_dram_first_to_non_dram_wait(u39_output_port),
-		.input_non_dram_wait_to_non_dram_wait(u40_output_port),
+		.input_pre_external_to_idle(u39_output_port),
+		.input_non_dram_first_to_non_dram_wait(u40_output_port),
+		.input_non_dram_wait_to_non_dram_wait(u41_output_port),
 		.input_non_dram_wait_to_idle(dram_nWAIT)
 	);
 
-	GenericAssertOnClk u72 (
+	GenericAssertOnClk u73 (
 		.clk(clk),
 		.rst(rst),
 		.input_port(input_row_addr == row_addr | state == `BusIfStates__idle)
 	);
 
 	assign ext_grnt = 1'hx;
-	assign u30_output_port = ext_req &  ~ req_valid;
-	assign u32_output_port = req_valid &  ~ req_dram_not_ext;
-	assign u33_output_port = req_valid & req_dram_not_ext;
-	assign u34_output_port =  ~ ext_req;
-	assign u35_output_port =  ~ req_valid;
+	assign u31_output_port = ext_req &  ~ req_valid;
+	assign u33_output_port = req_valid &  ~ req_dram_not_ext;
+	assign u34_output_port = req_valid & req_dram_not_ext;
+	assign u35_output_port =  ~ ext_req;
 	assign u36_output_port =  ~ req_valid;
-	assign u37_output_port =  ~ ext_req;
+	assign u37_output_port =  ~ req_valid;
 	assign u38_output_port =  ~ ext_req;
-	assign u39_output_port = 1'h1;
-	assign u40_output_port =  ~ dram_nWAIT;
-	assign u43_output_port = wait_states - 1'h1;
+	assign u39_output_port =  ~ ext_req;
+	assign u40_output_port = 1'h1;
+	assign u41_output_port =  ~ dram_nWAIT;
+	assign u44_output_port = wait_states - 1'h1;
 	assign dram_nWE = read_not_write;
 	assign dram_nRAS = DRAM_nRAS;
 	assign dram_nNREN = nNREN;
@@ -2224,106 +2599,6 @@ module GenericAssertOnClk (
 	input logic input_port
 );
 
-endmodule
-
-
-////////////////////////////////////////////////////////////////////////////////
-// FSM_4
-////////////////////////////////////////////////////////////////////////////////
-module FSM_4 (
-	input logic clock_port,
-	input logic reset_port,
-	input logic [2:0] reset_value,
-	output logic [2:0] state,
-	output logic [2:0] next_state,
-	input logic [2:0] default_state,
-	input logic input_idle_to_mem_read_1,
-	input logic input_idle_to_mem_read_2,
-	input logic input_idle_to_mem_write_1,
-	input logic input_idle_to_mem_write_2,
-	input logic input_idle_to_csr_read,
-	input logic input_idle_to_csr_write,
-	input logic input_mem_read_1_to_mem_read_2,
-	input logic input_mem_read_2_to_idle,
-	input logic input_mem_read_2_to_mem_read_1,
-	input logic input_mem_read_2_to_mem_read_2,
-	input logic input_mem_read_2_to_mem_write_1,
-	input logic input_mem_read_2_to_mem_write_2,
-	input logic input_mem_read_2_to_csr_read,
-	input logic input_mem_read_2_to_csr_write,
-	input logic input_mem_write_1_to_mem_write_2,
-	input logic input_mem_write_2_to_idle,
-	input logic input_mem_write_2_to_mem_read_1,
-	input logic input_mem_write_2_to_mem_read_2,
-	input logic input_mem_write_2_to_mem_write_1,
-	input logic input_mem_write_2_to_mem_write_2,
-	input logic input_mem_write_2_to_csr_read,
-	input logic input_mem_write_2_to_csr_write,
-	input logic input_csr_read_to_idle,
-	input logic input_csr_read_to_mem_read_1,
-	input logic input_csr_read_to_mem_read_2,
-	input logic input_csr_read_to_mem_write_1,
-	input logic input_csr_read_to_mem_write_2,
-	input logic input_csr_read_to_csr_read,
-	input logic input_csr_read_to_csr_write,
-	input logic input_csr_write_to_idle,
-	input logic input_csr_write_to_mem_read_1,
-	input logic input_csr_write_to_mem_read_2,
-	input logic input_csr_write_to_mem_write_1,
-	input logic input_csr_write_to_mem_write_2,
-	input logic input_csr_write_to_csr_read,
-	input logic input_csr_write_to_csr_write
-);
-
-	logic [2:0] local_state;
-	logic [2:0] local_next_state;
-
-	always_ff @(posedge clock_port) local_state <= reset_port ? reset_value : local_next_state;
-
-	FSMLogic_4 fsm_logic (
-		.state(local_state),
-		.next_state(local_next_state),
-		.default_state(default_state),
-		.input_idle_to_mem_read_1(input_idle_to_mem_read_1),
-		.input_idle_to_mem_read_2(input_idle_to_mem_read_2),
-		.input_idle_to_mem_write_1(input_idle_to_mem_write_1),
-		.input_idle_to_mem_write_2(input_idle_to_mem_write_2),
-		.input_idle_to_csr_read(input_idle_to_csr_read),
-		.input_idle_to_csr_write(input_idle_to_csr_write),
-		.input_mem_read_1_to_mem_read_2(input_mem_read_1_to_mem_read_2),
-		.input_mem_read_2_to_idle(input_mem_read_2_to_idle),
-		.input_mem_read_2_to_mem_read_1(input_mem_read_2_to_mem_read_1),
-		.input_mem_read_2_to_mem_read_2(input_mem_read_2_to_mem_read_2),
-		.input_mem_read_2_to_mem_write_1(input_mem_read_2_to_mem_write_1),
-		.input_mem_read_2_to_mem_write_2(input_mem_read_2_to_mem_write_2),
-		.input_mem_read_2_to_csr_read(input_mem_read_2_to_csr_read),
-		.input_mem_read_2_to_csr_write(input_mem_read_2_to_csr_write),
-		.input_mem_write_1_to_mem_write_2(input_mem_write_1_to_mem_write_2),
-		.input_mem_write_2_to_idle(input_mem_write_2_to_idle),
-		.input_mem_write_2_to_mem_read_1(input_mem_write_2_to_mem_read_1),
-		.input_mem_write_2_to_mem_read_2(input_mem_write_2_to_mem_read_2),
-		.input_mem_write_2_to_mem_write_1(input_mem_write_2_to_mem_write_1),
-		.input_mem_write_2_to_mem_write_2(input_mem_write_2_to_mem_write_2),
-		.input_mem_write_2_to_csr_read(input_mem_write_2_to_csr_read),
-		.input_mem_write_2_to_csr_write(input_mem_write_2_to_csr_write),
-		.input_csr_read_to_idle(input_csr_read_to_idle),
-		.input_csr_read_to_mem_read_1(input_csr_read_to_mem_read_1),
-		.input_csr_read_to_mem_read_2(input_csr_read_to_mem_read_2),
-		.input_csr_read_to_mem_write_1(input_csr_read_to_mem_write_1),
-		.input_csr_read_to_mem_write_2(input_csr_read_to_mem_write_2),
-		.input_csr_read_to_csr_read(input_csr_read_to_csr_read),
-		.input_csr_read_to_csr_write(input_csr_read_to_csr_write),
-		.input_csr_write_to_idle(input_csr_write_to_idle),
-		.input_csr_write_to_mem_read_1(input_csr_write_to_mem_read_1),
-		.input_csr_write_to_mem_read_2(input_csr_write_to_mem_read_2),
-		.input_csr_write_to_mem_write_1(input_csr_write_to_mem_write_1),
-		.input_csr_write_to_mem_write_2(input_csr_write_to_mem_write_2),
-		.input_csr_write_to_csr_read(input_csr_write_to_csr_read),
-		.input_csr_write_to_csr_write(input_csr_write_to_csr_write)
-	);
-
-	assign state = local_state;
-	assign next_state = local_next_state;
 endmodule
 
 
@@ -2480,71 +2755,6 @@ module FSM (
 
 	assign state = local_state;
 	assign next_state = local_next_state;
-endmodule
-
-
-////////////////////////////////////////////////////////////////////////////////
-// FSMLogic_4
-////////////////////////////////////////////////////////////////////////////////
-module FSMLogic_4 (
-	input logic [2:0] state,
-	output logic [2:0] next_state,
-	input logic [2:0] default_state,
-	input logic input_idle_to_mem_read_1,
-	input logic input_idle_to_mem_read_2,
-	input logic input_idle_to_mem_write_1,
-	input logic input_idle_to_mem_write_2,
-	input logic input_idle_to_csr_read,
-	input logic input_idle_to_csr_write,
-	input logic input_mem_read_1_to_mem_read_2,
-	input logic input_mem_read_2_to_idle,
-	input logic input_mem_read_2_to_mem_read_1,
-	input logic input_mem_read_2_to_mem_read_2,
-	input logic input_mem_read_2_to_mem_write_1,
-	input logic input_mem_read_2_to_mem_write_2,
-	input logic input_mem_read_2_to_csr_read,
-	input logic input_mem_read_2_to_csr_write,
-	input logic input_mem_write_1_to_mem_write_2,
-	input logic input_mem_write_2_to_idle,
-	input logic input_mem_write_2_to_mem_read_1,
-	input logic input_mem_write_2_to_mem_read_2,
-	input logic input_mem_write_2_to_mem_write_1,
-	input logic input_mem_write_2_to_mem_write_2,
-	input logic input_mem_write_2_to_csr_read,
-	input logic input_mem_write_2_to_csr_write,
-	input logic input_csr_read_to_idle,
-	input logic input_csr_read_to_mem_read_1,
-	input logic input_csr_read_to_mem_read_2,
-	input logic input_csr_read_to_mem_write_1,
-	input logic input_csr_read_to_mem_write_2,
-	input logic input_csr_read_to_csr_read,
-	input logic input_csr_read_to_csr_write,
-	input logic input_csr_write_to_idle,
-	input logic input_csr_write_to_mem_read_1,
-	input logic input_csr_write_to_mem_read_2,
-	input logic input_csr_write_to_mem_write_1,
-	input logic input_csr_write_to_mem_write_2,
-	input logic input_csr_write_to_csr_read,
-	input logic input_csr_write_to_csr_write
-);
-
-	logic [2:0] state_idle_selector;
-	logic [2:0] state_mem_read_1_selector;
-	logic [2:0] state_mem_read_2_selector;
-	logic [2:0] state_mem_write_1_selector;
-	logic [2:0] state_mem_write_2_selector;
-	logic [2:0] state_csr_read_selector;
-	logic [2:0] state_csr_write_selector;
-
-	assign state_idle_selector = input_idle_to_mem_read_1 ? `MemoryStates__mem_read_1 : 3'b0 | input_idle_to_mem_read_2 ? `MemoryStates__mem_read_2 : 3'b0 | input_idle_to_mem_write_1 ? `MemoryStates__mem_write_1 : 3'b0 | input_idle_to_mem_write_2 ? `MemoryStates__mem_write_2 : 3'b0 | input_idle_to_csr_read ? `MemoryStates__csr_read : 3'b0 | input_idle_to_csr_write ? `MemoryStates__csr_write : 3'b0 | `MemoryStates__idle;
-	assign state_mem_read_1_selector = input_mem_read_1_to_mem_read_2 ? `MemoryStates__mem_read_2 : 3'b0 | `MemoryStates__mem_read_1;
-	assign state_mem_read_2_selector = input_mem_read_2_to_idle ? `MemoryStates__idle : 3'b0 | input_mem_read_2_to_mem_read_1 ? `MemoryStates__mem_read_1 : 3'b0 | input_mem_read_2_to_mem_read_2 ? `MemoryStates__mem_read_2 : 3'b0 | input_mem_read_2_to_mem_write_1 ? `MemoryStates__mem_write_1 : 3'b0 | input_mem_read_2_to_mem_write_2 ? `MemoryStates__mem_write_2 : 3'b0 | input_mem_read_2_to_csr_read ? `MemoryStates__csr_read : 3'b0 | input_mem_read_2_to_csr_write ? `MemoryStates__csr_write : 3'b0 | `MemoryStates__mem_read_2;
-	assign state_mem_write_1_selector = input_mem_write_1_to_mem_write_2 ? `MemoryStates__mem_write_2 : 3'b0 | `MemoryStates__mem_write_1;
-	assign state_mem_write_2_selector = input_mem_write_2_to_idle ? `MemoryStates__idle : 3'b0 | input_mem_write_2_to_mem_read_1 ? `MemoryStates__mem_read_1 : 3'b0 | input_mem_write_2_to_mem_read_2 ? `MemoryStates__mem_read_2 : 3'b0 | input_mem_write_2_to_mem_write_1 ? `MemoryStates__mem_write_1 : 3'b0 | input_mem_write_2_to_mem_write_2 ? `MemoryStates__mem_write_2 : 3'b0 | input_mem_write_2_to_csr_read ? `MemoryStates__csr_read : 3'b0 | input_mem_write_2_to_csr_write ? `MemoryStates__csr_write : 3'b0 | `MemoryStates__mem_write_2;
-	assign state_csr_read_selector = input_csr_read_to_idle ? `MemoryStates__idle : 3'b0 | input_csr_read_to_mem_read_1 ? `MemoryStates__mem_read_1 : 3'b0 | input_csr_read_to_mem_read_2 ? `MemoryStates__mem_read_2 : 3'b0 | input_csr_read_to_mem_write_1 ? `MemoryStates__mem_write_1 : 3'b0 | input_csr_read_to_mem_write_2 ? `MemoryStates__mem_write_2 : 3'b0 | input_csr_read_to_csr_read ? `MemoryStates__csr_read : 3'b0 | input_csr_read_to_csr_write ? `MemoryStates__csr_write : 3'b0 | `MemoryStates__csr_read;
-	assign state_csr_write_selector = input_csr_write_to_idle ? `MemoryStates__idle : 3'b0 | input_csr_write_to_mem_read_1 ? `MemoryStates__mem_read_1 : 3'b0 | input_csr_write_to_mem_read_2 ? `MemoryStates__mem_read_2 : 3'b0 | input_csr_write_to_mem_write_1 ? `MemoryStates__mem_write_1 : 3'b0 | input_csr_write_to_mem_write_2 ? `MemoryStates__mem_write_2 : 3'b0 | input_csr_write_to_csr_read ? `MemoryStates__csr_read : 3'b0 | input_csr_write_to_csr_write ? `MemoryStates__csr_write : 3'b0 | `MemoryStates__csr_write;
-	assign next_state = state == `MemoryStates__idle ? state_idle_selector : 3'b0 | state == `MemoryStates__mem_read_1 ? state_mem_read_1_selector : 3'b0 | state == `MemoryStates__mem_read_2 ? state_mem_read_2_selector : 3'b0 | state == `MemoryStates__mem_write_1 ? state_mem_write_1_selector : 3'b0 | state == `MemoryStates__mem_write_2 ? state_mem_write_2_selector : 3'b0 | state == `MemoryStates__csr_read ? state_csr_read_selector : 3'b0 | state == `MemoryStates__csr_write ? state_csr_write_selector : 3'b0 | default_state;
-
 endmodule
 
 
