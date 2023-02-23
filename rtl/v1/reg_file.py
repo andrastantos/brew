@@ -62,9 +62,9 @@ class RegFile(Module):
     '''
 
 
-    read1_rsv_bit = Output(logic)
-    read2_rsv_bit = Output(logic)
-    rsv_rsv_bit = Output(logic)
+    #read1_rsv_bit = Output(logic)
+    #read2_rsv_bit = Output(logic)
+    #rsv_rsv_bit = Output(logic)
 
     def body(self):
         req_advance = self.read_req.ready & self.read_req.valid
@@ -128,10 +128,10 @@ class RegFile(Module):
         def wait(read_valid, read_addr):
             return read_valid & get_rsv_bit(read_addr) & ~((self.write.addr == read_addr) & self.write.valid)
 
-        rsv_board_as_bits = tuple(rsv_board)
-        self.read1_rsv_bit <<= Select(read1_addr, *rsv_board_as_bits)
-        self.read2_rsv_bit <<= Select(read2_addr, *rsv_board_as_bits)
-        self.rsv_rsv_bit   <<= Select(rsv_addr,   *rsv_board_as_bits)
+        #rsv_board_as_bits = tuple(rsv_board)
+        #self.read1_rsv_bit <<= Select(read1_addr, *rsv_board_as_bits)
+        #self.read2_rsv_bit <<= Select(read2_addr, *rsv_board_as_bits)
+        #self.rsv_rsv_bit   <<= Select(rsv_addr,   *rsv_board_as_bits)
 
         wait_for_read1 = wait(read1_valid, read1_addr)
         wait_for_read2 = wait(read2_valid, read2_addr)

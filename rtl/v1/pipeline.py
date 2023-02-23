@@ -50,9 +50,11 @@ class Pipeline(GenericModule):
 
     interrupt         = Input(logic)
 
-    def construct(self, csr_base: int, nram_base: int):
+    def construct(self, csr_base: int, nram_base: int, has_multiply: bool = True, has_shift: bool = True):
         self.csr_base = csr_base
         self.nram_base = nram_base
+        self.has_multiply = has_multiply
+        self.has_shift = has_shift
 
     def body(self):
         # base and limit
@@ -88,8 +90,8 @@ class Pipeline(GenericModule):
 
         bus_if = BusIf()
         fetch_stage = FetchStage()
-        decode_stage = DecodeStage()
-        execute_stage = ExecuteStage(csr_base=self.csr_base, nram_base=self.nram_base)
+        decode_stage = DecodeStage(has_multiply=self.has_multiply, has_shift=self.has_multiply)
+        execute_stage = ExecuteStage(csr_base=self.csr_base, nram_base=self.nram_base, has_multiply=self.has_multiply, has_shift=self.has_multiply)
         result_extend_stage = ResultExtendStage()
         reg_file = RegFile()
 
@@ -211,7 +213,7 @@ class Pipeline(GenericModule):
 
 def gen():
     def top():
-        return Pipeline(csr_base=0xc, nram_base=0xf)
+        return Pipeline(csr_base=0xc, nram_base=0xf, has_multiply=False, has_shift=False)
 
     netlist = Build.generate_rtl(top, "pipeline.sv")
     top_level_name = netlist.get_module_class_name(netlist.top_level)

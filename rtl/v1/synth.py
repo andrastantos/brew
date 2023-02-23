@@ -6,7 +6,7 @@ class QuartusException(Exception):
     pass
 
 class QuartusFlow(object):
-    def __init__(self, top_level: str, source_files: Sequence[str], clocks: Sequence[Tuple[str, int]], *, target_dir="quartus", project_name=None):
+    def __init__(self, top_level: str, source_files: Sequence[str], clocks: Sequence[Tuple[str, int]], *, target_dir="quartus", project_name=None, no_timing_report_clocks: Sequence[str] = None):
         from pathlib import Path
 
         self.source_files = source_files
@@ -15,6 +15,7 @@ class QuartusFlow(object):
         self.project_name = project_name if project_name is not None else top_level.lower()
         self.top_level: str = top_level
         self.project_file_name = Path(self.target_dir) / f"{self.project_name}.qpf"
+        self.no_timing_report_clocks = (no_timing_report_clocks, ) if isinstance(no_timing_report_clocks, str) else no_timing_report_clocks
 
     def generate(self):
         from datetime import datetime
@@ -92,9 +93,11 @@ class QuartusFlow(object):
                 tcl_file.write(f"report_clocks -file $OUT -append\n")
                 tcl_file.write(f"report_clock_fmax_summary -file $OUT -append\n")
                 for clock, speed in self.clocks:
-                    tcl_file.write(f"report_timing -from_clock {{{clock}}} -to_clock {{{clock}}} -setup -npaths 10 -detail summary -multi_corner -file $OUT -append\n")
+                    if self.no_timing_report_clocks is None or clock not in self.no_timing_report_clocks:
+                        tcl_file.write(f"report_timing -from_clock {{{clock}}} -to_clock {{{clock}}} -setup -npaths 10 -detail summary -multi_corner -file $OUT -append\n")
                 for clock, speed in self.clocks:
-                    tcl_file.write(f"report_timing -from_clock {{{clock}}} -to_clock {{{clock}}} -setup -npaths 10 -detail full_path -multi_corner -file $OUT -append\n")
+                    if self.no_timing_report_clocks is None or clock not in self.no_timing_report_clocks:
+                        tcl_file.write(f"report_timing -from_clock {{{clock}}} -to_clock {{{clock}}} -setup -npaths 10 -detail full_path -multi_corner -file $OUT -append\n")
 
     def run(self):
         # Step 1: run tools

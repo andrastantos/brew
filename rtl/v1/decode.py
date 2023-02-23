@@ -53,7 +53,7 @@ TODO: things to test:
 - fetch_av
 """
 
-class DecodeStage(Module):
+class DecodeStage(GenericModule):
     clk = ClkPort()
     rst = RstPort()
 
@@ -65,6 +65,10 @@ class DecodeStage(Module):
     reg_file_rsp = Input(RegFileReadResponseIf)
 
     do_branch = Input(logic)
+
+    def construct(self, has_multiply: bool = True, has_shift: bool = True):
+        self.has_multiply = has_multiply
+        self.has_shift = has_shift
 
     def body(self):
         field_d = self.fetch.inst_0[15:12]
@@ -137,8 +141,49 @@ class DecodeStage(Module):
         so = shifter_ops
         lo = ldst_ops
         oc = op_class
+        #      CODE                                  EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
         SII =                                       (oc.branch,   None,         None,        bo.swi,      None,      None,       None,           None,      7,               None,         None,       None,   0,  0,  0,  0 )
+        if self.has_shift:
+            shift_ops = (
+                #  CODE                                  EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
+                ( " .6..: $rD <- $rA << $rB",            oc.shift,    None,         so.shll,     None,        None,      field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,  0,  0,  0 ),
+                ( " .7..: $rD <- $rA >> $rB",            oc.shift,    None,         so.shlr,     None,        None,      field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,  0,  0,  0 ),
+                ( " .8..: $rD <- $rA >>> $rB",           oc.shift,    None,         so.shar,     None,        None,      field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,  0,  0,  0 ),
+                ( " .6.f: $rD <- FIELD_E << $rB",        oc.shift,    None,         so.shll,     None,        None,      None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
+                ( " .7.f: $rD <- FIELD_E >> $rB",        oc.shift,    None,         so.shlr,     None,        None,      None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
+                ( " .8.f: $rD <- FIELD_E >>> $rB",       oc.shift,    None,         so.shar,     None,        None,      None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
+                ( " .6f.: $rD <- FIELD_E << $rA",        oc.shift,    None,         so.shll,     None,        None,      None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
+                ( " .7f.: $rD <- FIELD_E >> $rA",        oc.shift,    None,         so.shlr,     None,        None,      None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
+                ( " .8f.: $rD <- FIELD_E >>> $rA",       oc.shift,    None,         so.shar,     None,        None,      None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
+            )
+        else:
+            shift_ops = (
+                ( " .6..: $rD <- $rA << $rB",            *SII),
+                ( " .7..: $rD <- $rA >> $rB",            *SII),
+                ( " .8..: $rD <- $rA >>> $rB",           *SII),
+                ( " .6.f: $rD <- FIELD_E << $rB",        *SII),
+                ( " .7.f: $rD <- FIELD_E >> $rB",        *SII),
+                ( " .8.f: $rD <- FIELD_E >>> $rB",       *SII),
+                ( " .6f.: $rD <- FIELD_E << $rA",        *SII),
+                ( " .7f.: $rD <- FIELD_E >> $rA",        *SII),
+                ( " .8f.: $rD <- FIELD_E >>> $rA",       *SII),
+            )
+        if self.has_multiply:
+            mult_ops = (
+                #  CODE                                  EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
+                ( " .9..: $rD <- $rA * $rB",             oc.mult,     None,         None,        None,        None,      field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,  0,  0,  0 ),
+                ( " .9.f: $rD <- FIELD_E * $rB",         oc.mult,     None,         None,        None,        None,      None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
+                ( " .9f.: $rD <- FIELD_E * $rA",         oc.mult,     None,         None,        None,        None,      None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
+            )
+        else:
+            mult_ops = (
+                ( " .9..: $rD <- $rA * $rB",             *SII),
+                ( " .9.f: $rD <- FIELD_E * $rB",         *SII),
+                ( " .9f.: $rD <- FIELD_E * $rA",         *SII),
+            )
         inst_table = (
+            *shift_ops,
+            *mult_ops,
             #  CODE                                  EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
             ( "<8000: SWI",                          oc.branch,   None,         None,        bo.swi,      None,      None,       None,           None,      field_a,         None,         None,       None,   0,  0,  0,  0 ),
             ( " 8000: STM",                          oc.branch,   None,         None,        bo.stm,      None,      None,       None,           None,      None,            None,         None,       None,   0,  0,  0,  0 ),
@@ -164,10 +209,6 @@ class DecodeStage(Module):
             ( " .3..: $rD <- $rA & $rB",             oc.alu,      ao.a_and_b,   None,        None,        None,      field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,  0,  0,  0 ),
             ( " .4..: $rD <- $rA + $rB",             oc.alu,      ao.a_plus_b,  None,        None,        None,      field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,  0,  0,  0 ),
             ( " .5..: $rD <- $rA - $rB",             oc.alu,      ao.a_minus_b, None,        None,        None,      field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,  0,  0,  0 ),
-            ( " .6..: $rD <- $rA << $rB",            oc.shift,    None,         so.shll,     None,        None,      field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,  0,  0,  0 ),
-            ( " .7..: $rD <- $rA >> $rB",            oc.shift,    None,         so.shlr,     None,        None,      field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,  0,  0,  0 ),
-            ( " .8..: $rD <- $rA >>> $rB",           oc.shift,    None,         so.shar,     None,        None,      field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,  0,  0,  0 ),
-            ( " .9..: $rD <- $rA * $rB",             oc.mult,     None,         None,        None,        None,      field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,  0,  0,  0 ),
             ( " .a..: $rD <- ~$rA & $rB",            oc.alu,      ao.n_b_and_a, None,        None,        None,      field_a,    field_b,        field_d,   "REG",           "REG",        None,       None,   0,  0,  0,  0 ),
             ( " .b..: $rD <- tiny $rB + FIELD_A",    oc.alu,      ao.a_plus_b,  None,        None,        None,      field_b,    None,           field_d,   "REG",           ones_field_a, None,       None,   0,  0,  0,  0 ),
             # Load immediate group                   EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
@@ -182,10 +223,6 @@ class DecodeStage(Module):
             ( " .3.f: $rD <- FIELD_E & $rB",         oc.alu,      ao.a_and_b,   None,        None,        None,      None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
             ( " .4.f: $rD <- FIELD_E + $rB",         oc.alu,      ao.a_plus_b,  None,        None,        None,      None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
             ( " .5.f: $rD <- FIELD_E - $rB",         oc.alu,      ao.a_minus_b, None,        None,        None,      None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
-            ( " .6.f: $rD <- FIELD_E << $rB",        oc.shift,    None,         so.shll,     None,        None,      None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
-            ( " .7.f: $rD <- FIELD_E >> $rB",        oc.shift,    None,         so.shlr,     None,        None,      None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
-            ( " .8.f: $rD <- FIELD_E >>> $rB",       oc.shift,    None,         so.shar,     None,        None,      None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
-            ( " .9.f: $rD <- FIELD_E * $rB",         oc.mult,     None,         None,        None,        None,      None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
             ( " .a.f: SII",                          *SII),
             ( " .b.f: SII",                          *SII),
             # Short load immediate group             EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
@@ -198,10 +235,6 @@ class DecodeStage(Module):
             ( " .3f.: $rD <- FIELD_E & $rA",         oc.alu,      ao.a_and_b,   None,        None,        None,      None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
             ( " .4f.: $rD <- FIELD_E + $rA",         oc.alu,      ao.a_plus_b,  None,        None,        None,      None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
             ( " .5f.: $rD <- FIELD_E - $rA",         oc.alu,      ao.a_minus_b, None,        None,        None,      None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
-            ( " .6f.: $rD <- FIELD_E << $rA",        oc.shift,    None,         so.shll,     None,        None,      None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
-            ( " .7f.: $rD <- FIELD_E >> $rA",        oc.shift,    None,         so.shlr,     None,        None,      None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
-            ( " .8f.: $rD <- FIELD_E >>> $rA",       oc.shift,    None,         so.shar,     None,        None,      None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
-            ( " .9f.: $rD <- FIELD_E * $rA",         oc.mult,     None,         None,        None,        None,      None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
             ( " .af.: SII",                          *SII),
             ( " .bf.: SII",                          *SII),
             # Zero-compare conditional branch group  EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
@@ -377,7 +410,14 @@ class DecodeStage(Module):
         WZE        = 16    #    do_wze = logic
 
         mask_expressions = []
+        mask_expression_names = set()
         for expr, name in (parse_bit_mask(line[CODE]) for line in inst_table):
+            idx = 1
+            base_name = name
+            while name in mask_expression_names:
+                name = f"{base_name}_{idx}"
+                idx += 1
+            mask_expression_names.add(name)
             setattr(self, f"mask_for_{name}", expr)
             mask_expressions.append(expr)
 
@@ -454,29 +494,46 @@ class DecodeStage(Module):
             for select_list, value in zip((select_list_read1_needed, select_list_read2_needed, select_list_rsv_needed), line[RD1_ADDR:RES_ADDR+1]):
                 if value is not None: select_list += (mask_expr, 1)
 
-        # Now that we have the selection lists, we can compose the muxes
-        exec_unit  = SelectOne(*select_list_exec_unit)                   if len(select_list_exec_unit) > 0 else None
-        alu_op     = SelectOne(*select_list_alu_op)                      if len(select_list_alu_op) > 0 else None
-        shifter_op = SelectOne(*select_list_shifter_op)                  if len(select_list_shifter_op) > 0 else None
-        branch_op  = SelectOne(*select_list_branch_op)                   if len(select_list_branch_op) > 0 else None
-        ldst_op    = SelectOne(*select_list_ldst_op)                     if len(select_list_ldst_op) > 0 else None
-        rd1_addr   = SelectOne(*select_list_rd1_addr)                    if len(select_list_rd1_addr) > 0 else None
-        rd2_addr   = SelectOne(*select_list_rd2_addr)                    if len(select_list_rd2_addr) > 0 else None
-        res_addr   = SelectOne(*select_list_res_addr)                    if len(select_list_res_addr) > 0 else None
-        use_reg_a  = SelectOne(*select_list_use_reg_a, default_port = 0) if len(select_list_use_reg_a) > 0 else None
-        use_reg_b  = SelectOne(*select_list_use_reg_b, default_port = 0) if len(select_list_use_reg_b) > 0 else None
-        op_a       = SelectOne(*select_list_op_a)                        if len(select_list_op_a) > 0 else None
-        op_b       = SelectOne(*select_list_op_b)                        if len(select_list_op_b) > 0 else None
-        op_c       = SelectOne(*select_list_op_c)                        if len(select_list_op_c) > 0 else None
-        mem_len    = SelectOne(*select_list_mem_len)                     if len(select_list_mem_len) > 0 else None
-        bse        = SelectOne(*select_list_bse, default_port = 0)       if len(select_list_bse) > 0 else 0
-        wse        = SelectOne(*select_list_wse, default_port = 0)       if len(select_list_wse) > 0 else 0
-        bze        = SelectOne(*select_list_bze, default_port = 0)       if len(select_list_bze) > 0 else 0
-        wze        = SelectOne(*select_list_wze, default_port = 0)       if len(select_list_wze) > 0 else 0
+        def optimize_selector(selectors, selector_name):
+            # Here, we look through all the selected items and group the selectors into as few groups as possible.
+            groups = dict()
+            for (selector, selected) in zip(selectors[::2],selectors[1::2]):
+                if selected not in groups:
+                    groups[selected] = []
+                groups[selected].append(selector)
+            # Re-create a new list by combining all the selectors for a given group
+            final_list = []
+            for idx, (selected, selector_list) in enumerate(groups.items()):
+                group_selector = or_gate(*selector_list)
+                setattr(self, f"group_{idx+1}_for_{selector_name}", group_selector)
+                final_list += (group_selector, selected)
+            return final_list
 
-        read1_needed = Select(self.fetch.av, SelectOne(*select_list_read1_needed, default_port=0), 0)
-        read2_needed = Select(self.fetch.av, SelectOne(*select_list_read2_needed, default_port=0), 0)
-        rsv_needed   = Select(self.fetch.av, SelectOne(*select_list_rsv_needed, default_port=0), 0)
+
+
+        # Now that we have the selection lists, we can compose the muxes
+        exec_unit  = SelectOne(*optimize_selector(select_list_exec_unit,  "exec_unit"))                   if len(select_list_exec_unit) > 0 else None
+        alu_op     = SelectOne(*optimize_selector(select_list_alu_op,     "alu_op"))                      if len(select_list_alu_op) > 0 else None
+        shifter_op = SelectOne(*optimize_selector(select_list_shifter_op, "shifter_op"))                  if len(select_list_shifter_op) > 0 else None
+        branch_op  = SelectOne(*optimize_selector(select_list_branch_op,  "branch_op"))                   if len(select_list_branch_op) > 0 else None
+        ldst_op    = SelectOne(*optimize_selector(select_list_ldst_op,    "ldst_op"))                     if len(select_list_ldst_op) > 0 else None
+        rd1_addr   = SelectOne(*optimize_selector(select_list_rd1_addr,   "rd1_addr"))                    if len(select_list_rd1_addr) > 0 else None
+        res_addr   = SelectOne(*optimize_selector(select_list_res_addr,   "res_addr"))                    if len(select_list_res_addr) > 0 else None
+        rd2_addr   = SelectOne(*optimize_selector(select_list_rd2_addr,   "rd2_addr"))                    if len(select_list_rd2_addr) > 0 else None
+        use_reg_a  = SelectOne(*optimize_selector(select_list_use_reg_a,  "use_reg_a"), default_port = 0) if len(select_list_use_reg_a) > 0 else None
+        use_reg_b  = SelectOne(*optimize_selector(select_list_use_reg_b,  "use_reg_b"), default_port = 0) if len(select_list_use_reg_b) > 0 else None
+        op_a       = SelectOne(*optimize_selector(select_list_op_a,       "op_a"))                        if len(select_list_op_a) > 0 else None
+        op_b       = SelectOne(*optimize_selector(select_list_op_b,       "op_b"))                        if len(select_list_op_b) > 0 else None
+        op_c       = SelectOne(*optimize_selector(select_list_op_c,       "op_c"))                        if len(select_list_op_c) > 0 else None
+        mem_len    = SelectOne(*optimize_selector(select_list_mem_len,    "mem_len"))                     if len(select_list_mem_len) > 0 else None
+        bse        = SelectOne(*optimize_selector(select_list_bse,        "bse"), default_port = 0)       if len(select_list_bse) > 0 else 0
+        wse        = SelectOne(*optimize_selector(select_list_wse,        "wse"), default_port = 0)       if len(select_list_wse) > 0 else 0
+        bze        = SelectOne(*optimize_selector(select_list_bze,        "bze"), default_port = 0)       if len(select_list_bze) > 0 else 0
+        wze        = SelectOne(*optimize_selector(select_list_wze,        "wze"), default_port = 0)       if len(select_list_wze) > 0 else 0
+
+        read1_needed = Select(self.fetch.av, SelectOne(*optimize_selector(select_list_read1_needed, "read1_needed"), default_port=0), 0)
+        read2_needed = Select(self.fetch.av, SelectOne(*optimize_selector(select_list_read2_needed, "read2_needed"), default_port=0), 0)
+        rsv_needed   = Select(self.fetch.av, SelectOne(*optimize_selector(select_list_rsv_needed,   "rsv_needed"),   default_port=0), 0)
 
         # We let the register file handle the hand-shaking for us. We just need to implement the output buffers
         self.fetch.ready <<= self.reg_file_req.ready
@@ -496,7 +553,7 @@ class DecodeStage(Module):
 
         self.output_port.exec_unit             <<= Reg(exec_unit, clock_en=register_outputs)
         self.output_port.alu_op                <<= Reg(alu_op, clock_en=register_outputs)
-        self.output_port.shifter_op            <<= Reg(shifter_op, clock_en=register_outputs)
+        self.output_port.shifter_op            <<= Reg(shifter_op, clock_en=register_outputs) if shifter_op is not None else None
         self.output_port.branch_op             <<= Reg(branch_op, clock_en=register_outputs)
         self.output_port.ldst_op               <<= Reg(ldst_op, clock_en=register_outputs)
         self.output_port.op_a                  <<= Select(Reg(use_reg_a, clock_en=register_outputs), Reg(op_a, clock_en=register_outputs), self.reg_file_rsp.read1_data)
@@ -708,7 +765,7 @@ def gen():
 
     netlist = Build.generate_rtl(top, "decode.sv")
     top_level_name = netlist.get_module_class_name(netlist.top_level)
-    flow = QuartusFlow(target_dir="q_decode", top_level=top_level_name, source_files=("decode.sv",), clocks=(("clk", 10), ("top_clk", 100)), project_name="decode")
+    flow = QuartusFlow(target_dir="q_decode", top_level=top_level_name, source_files=("decode.sv",), clocks=(("clk", 10), ("top_clk", 100)), project_name="decode", no_timing_report_clocks="clk")
     flow.generate()
     flow.run()
 
