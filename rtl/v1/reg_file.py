@@ -21,6 +21,8 @@ except ImportError:
     from scan import ScanWrapper
     from synth import *
 
+TIMING_CLOSURE_REG = Reg
+
 """
 The register file for Brew consists of a single write and two read ports.
 
@@ -133,9 +135,9 @@ class RegFile(Module):
         #self.read2_rsv_bit <<= Select(read2_addr, *rsv_board_as_bits)
         #self.rsv_rsv_bit   <<= Select(rsv_addr,   *rsv_board_as_bits)
 
-        wait_for_read1 = wait(read1_valid, read1_addr)
-        wait_for_read2 = wait(read2_valid, read2_addr)
-        wait_for_rsv   = wait(rsv_valid,   rsv_addr)
+        wait_for_read1 = TIMING_CLOSURE_REG(wait(read1_valid, read1_addr))
+        wait_for_read2 = TIMING_CLOSURE_REG(wait(read2_valid, read2_addr))
+        wait_for_rsv   = TIMING_CLOSURE_REG(wait(rsv_valid,   rsv_addr))
         wait_for_some = wait_for_read1 | wait_for_read2 | wait_for_rsv
         wait_for_write = Wire(logic)
         wait_for_write = Select(

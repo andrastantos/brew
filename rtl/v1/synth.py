@@ -48,12 +48,12 @@ class QuartusFlow(object):
         qsf_file_name = target_dir / f"{file_base_name}.qsf"
         with open(qsf_file_name, "wt") as project_file:
             project_file.write(f"set_global_assignment -name FAMILY \"MAX 10\"\n")
-            project_file.write(f"set_global_assignment -name DEVICE 10M04SAE144A7G\n")
+            project_file.write(f"set_global_assignment -name DEVICE 10M04SAE144C7G\n")
             project_file.write(f"set_global_assignment -name TOP_LEVEL_ENTITY {self.top_level}\n")
             project_file.write(f"set_global_assignment -name ORIGINAL_QUARTUS_VERSION 21.1.0\n")
             project_file.write(f"set_global_assignment -name PROJECT_OUTPUT_DIRECTORY {output_directory}\n")
-            project_file.write(f"set_global_assignment -name MIN_CORE_JUNCTION_TEMP \"-40\"\n")
-            project_file.write(f"set_global_assignment -name MAX_CORE_JUNCTION_TEMP 125\n")
+            project_file.write(f"set_global_assignment -name MIN_CORE_JUNCTION_TEMP \"0\"\n")
+            project_file.write(f"set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85\n")
             project_file.write(f"set_global_assignment -name ERROR_CHECK_FREQUENCY_DIVISOR 256\n")
             #project_file.write(f"set_global_assignment -name EDA_SIMULATION_TOOL "Questa Intel FPGA (Verilog)"\n")
             #project_file.write(f"set_global_assignment -name EDA_TIME_SCALE "1 ps" -section_id eda_simulation\n")

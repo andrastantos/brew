@@ -50,6 +50,8 @@ It does the following:
 
 """
 
+TIMING_CLOSURE_REG = Reg
+
 class ExecUnitResultIf(Interface):
     result = BrewData
 
@@ -367,11 +369,14 @@ class LoadStoreOutputIf(Interface):
     mem_av = logic
     mem_unaligned = logic
 class LoadStoreUnit(Module):
+    clk = ClkPort()
+    rst = RstPort()
+
     input_port = Input(LoadStoreInputIf)
     output_port = Output(LoadStoreOutputIf)
 
     def body(self):
-        eff_addr = (self.input_port.op_b + self.input_port.op_c)[31:0]
+        eff_addr = TIMING_CLOSURE_REG((self.input_port.op_b + self.input_port.op_c)[31:0])
         phy_addr = (eff_addr + Select(self.input_port.task_mode, 0, (self.input_port.mem_base << BrewMemShift)))[31:0]
 
         mem_av = self.input_port.is_ldst & (eff_addr[31:BrewMemShift] > self.input_port.mem_limit)
