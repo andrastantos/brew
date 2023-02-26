@@ -154,7 +154,7 @@ class Pipeline(GenericModule):
         tpc          <<= Reg(execute_stage.tpc_out)
         task_mode    <<= Reg(execute_stage.task_mode_out)
         ecause       <<= Reg(execute_stage.ecause_out)
-        do_branch    <<= execute_stage.do_branch
+        do_branch    <<= Reg(execute_stage.do_branch)
 
         # RESULT EXTEND STAGE
         ######################

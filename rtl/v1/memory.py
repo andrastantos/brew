@@ -215,7 +215,7 @@ def sim():
                 self.paddr  = req.paddr
                 self.pwdata = req.pwdata
             else:
-                self.pwrite = 1 if pwrite else 0
+                self.pwrite = int(pwrite) if pwrite is not None else None
                 self.paddr  = paddr
                 self.pwdata = pwdata
         def report(self,prefix):
@@ -285,10 +285,10 @@ def sim():
                 self.dram_not_ext    = req.dram_not_ext.sim_value.value
                 self.data            = req.data.sim_value.value if req.data.sim_value is not None else None
             else:
-                self.read_not_write  = 1 if read_not_write else 0
+                self.read_not_write  = int(read_not_write) if read_not_write is not None else None
                 self.byte_en         = byte_en
                 self.addr            = addr
-                self.dram_not_ext    = 1 if dram_not_ext else 0
+                self.dram_not_ext    = int(dram_not_ext) if dram_not_ext is not None else None
                 self.data            = data
         def report(self,prefix):
             assert self.dram_not_ext is not None
