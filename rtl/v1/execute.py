@@ -1722,13 +1722,15 @@ def gen():
     def top():
         return ScanWrapper(ExecuteStage, {"clk", "rst"}, csr_base=0xc, nram_base=0xf, has_multiply=True, has_shift=True)
 
-    netlist = Build.generate_rtl(top, "execute.sv")
+    back_end = SystemVerilog()
+    back_end.yosys_fix = True
+    netlist = Build.generate_rtl(top, "execute.sv", back_end)
     top_level_name = netlist.get_module_class_name(netlist.top_level)
     flow = QuartusFlow(target_dir="q_execute", top_level=top_level_name, source_files=("execute.sv",), clocks=(("clk", 10), ("top_clk", 100)), project_name="execute")
     flow.generate()
     flow.run()
 
 if __name__ == "__main__":
-    #gen()
-    sim()
+    gen()
+    #sim()
 

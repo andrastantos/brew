@@ -215,7 +215,9 @@ def gen():
     def top():
         return Pipeline(csr_base=0xc, nram_base=0xf, has_multiply=False, has_shift=False)
 
-    netlist = Build.generate_rtl(top, "pipeline.sv")
+    back_end = SystemVerilog()
+    back_end.yosys_fix = True
+    netlist = Build.generate_rtl(top, "pipeline.sv", back_end)
     top_level_name = netlist.get_module_class_name(netlist.top_level)
     flow = QuartusFlow(target_dir="q_pipeline", top_level=top_level_name, source_files=("pipeline.sv",), clocks=(("clk", 100),), project_name="pipeline")
     flow.generate()
