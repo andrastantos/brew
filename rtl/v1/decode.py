@@ -417,10 +417,13 @@ class DecodeStage(GenericModule):
         WZE        = 16    #    do_wze = logic
 
         if self.use_mini_table:
-            inst_table = (line for line in full_inst_table if is_mini_set(line[CODE]))
+            inst_table = tuple(line for line in full_inst_table if is_mini_set(line[CODE]))
         else:
             inst_table = full_inst_table
 
+        print("Available instructions:")
+        for inst in inst_table:
+            print(f"    {inst[0]}")
         mask_expressions = []
         mask_expression_names = set()
         for expr, name in (parse_bit_mask(line[CODE]) for line in inst_table):
@@ -543,9 +546,9 @@ class DecodeStage(GenericModule):
         bze        = SelectOne(*optimize_selector(select_list_bze,        "bze"), default_port = 0)       if len(select_list_bze) > 0 else 0
         wze        = SelectOne(*optimize_selector(select_list_wze,        "wze"), default_port = 0)       if len(select_list_wze) > 0 else 0
 
-        read1_needed = Select(self.fetch.av, SelectOne(*optimize_selector(select_list_read1_needed, "read1_needed"), default_port=0), 0)
-        read2_needed = Select(self.fetch.av, SelectOne(*optimize_selector(select_list_read2_needed, "read2_needed"), default_port=0), 0)
-        rsv_needed   = Select(self.fetch.av, SelectOne(*optimize_selector(select_list_rsv_needed,   "rsv_needed"),   default_port=0), 0)
+        read1_needed = Select(self.fetch.av, SelectOne(*optimize_selector(select_list_read1_needed, "read1_needed"), default_port=0) if len(select_list_read1_needed) > 0 else 0, 0)
+        read2_needed = Select(self.fetch.av, SelectOne(*optimize_selector(select_list_read2_needed, "read2_needed"), default_port=0) if len(select_list_read2_needed) > 0 else 0, 0)
+        rsv_needed   = Select(self.fetch.av, SelectOne(*optimize_selector(select_list_rsv_needed,   "rsv_needed"),   default_port=0) if len(select_list_rsv_needed)   > 0 else 0, 0)
 
         # We let the register file handle the hand-shaking for us. We just need to implement the output buffers
         self.fetch.ready <<= self.reg_file_req.ready
@@ -593,55 +596,65 @@ def sim():
         reg_file_req = Input(RegFileReadRequestIf)
         reg_file_rsp = Output(RegFileReadResponseIf)
 
-        def simulate(self) -> TSimEvent:
+        def simulate(self, simulator: Simulator) -> TSimEvent:
             self.out_buf_full = False
 
             def wait_clk():
-                first = True
-                while first or self.clk.get_sim_edge() != EdgeType.Positive:
-                    first = False
-                    yield (self.clk, self.reg_file_rsp.ready)
-                    if not self.out_buf_full or self.reg_file_rsp.ready:
+                yield (self.clk, self.reg_file_rsp.ready, self.reg_file_rsp.valid)
+                while self.clk.get_sim_edge() != EdgeType.Positive:
+                    if not self.out_buf_full or (self.reg_file_rsp.ready and self.reg_file_rsp.valid):
                         self.reg_file_req.ready <<= 1
                     else:
                         self.reg_file_req.ready <<= 0
+                    yield (self.clk, self.reg_file_rsp.ready, self.reg_file_rsp.valid)
 
 
             self.reg_file_rsp.valid <<= 0
             self.reg_file_req.ready <<= 1
 
-            rd_addr1 = None
-            rd_addr2 = None
-            rsv_addr = None
             while True:
                 yield from wait_clk()
 
-                if not self.out_buf_full:
+                if (self.reg_file_rsp.valid & self.reg_file_rsp.ready) == 1:
+                    self.out_buf_full = False
                     self.reg_file_rsp.read1_data <<= None
                     self.reg_file_rsp.read2_data <<= None
                     self.reg_file_rsp.valid <<= 0
-                else:
+
+                if (self.reg_file_req.valid & self.reg_file_req.ready) == 1:
+                    self.reg_file_rsp.read1_data <<= None
+                    self.reg_file_rsp.read2_data <<= None
+                    self.reg_file_rsp.valid <<= 0
+
+                    rd_addr1 = copy(self.reg_file_req.read1_addr.sim_value) if self.reg_file_req.read1_valid == 1 else None
+                    rd_addr2 = copy(self.reg_file_req.read2_addr.sim_value) if self.reg_file_req.read2_valid == 1 else None
+                    rsv_addr = copy(self.reg_file_req.rsv_addr.sim_value  ) if self.reg_file_req.rsv_valid == 1   else None
+
                     if rd_addr1 is not None:
                         rd_data1 = 0x100+rd_addr1
-                        print(f"RF reading $r{rd_addr1:x} with value {rd_data1}")
+                        simulator.log(f"RF reading $r{rd_addr1:x} with value {rd_data1}")
                     else:
                         rd_data1 = None
                     if rd_addr2 is not None:
                         rd_data2 = 0x100+rd_addr2
-                        print(f"RF reading $r{rd_addr2:x} with value {rd_data2}")
+                        simulator.log(f"RF reading $r{rd_addr2:x} with value {rd_data2}")
                     else:
                         rd_data2 = None
                     if rsv_addr is not None:
-                        print(f"RF reserving $r{rsv_addr:x}")
+                        simulator.log(f"RF reserving $r{rsv_addr:x}")
+                    self.out_buf_full = True
+                    for _ in range(randint(0,5)):
+                        self.reg_file_req.ready <<= 0
+                        self.reg_file_rsp.valid <<= 0
+                        simulator.log("RF waiting")
+                        yield from wait_clk()
                     self.reg_file_rsp.read1_data <<= rd_data1
                     self.reg_file_rsp.read2_data <<= rd_data2
                     self.reg_file_rsp.valid <<= 1
-
-                self.out_buf_full = (self.reg_file_req.valid & self.reg_file_req.ready) == 1
-                if self.out_buf_full:
-                    rd_addr1 = copy(self.reg_file_req.read1_addr.sim_value) if self.reg_file_req.read1_valid == 1 else None
-                    rd_addr2 = copy(self.reg_file_req.read2_addr.sim_value) if self.reg_file_req.read2_valid == 1 else None
-                    rsv_addr = copy(self.reg_file_req.rsv_addr.sim_value  ) if self.reg_file_req.rsv_valid == 1   else None
+                #else:
+                #    self.reg_file_rsp.read1_data <<= None
+                #    self.reg_file_rsp.read2_data <<= None
+                #    self.reg_file_rsp.valid <<= 0
 
 
     class FetchEmulator(Module):
@@ -692,7 +705,26 @@ def sim():
             for i in range(4):
                 yield from wait_clk()
 
-            yield from issue((0x0123,), False) # $r0 <- $r2 ^ $r3
+
+            """
+            $<8000: SWI
+            $ .002: $pc <- $rD
+            $ .004: $rD <- $pc
+            $ .01.: $rD <- tiny FIELD_A
+            $ .04.: $rD <- ~$rA
+            $ .2..: $rD <- $rA | $rB
+            $ .00f: $rD <- VALUE
+            $ .3.f: $rD <- FIELD_E & $rB
+            $ .0f0: $rD <- short VALUE
+            $ .4f.: $rD <- FIELD_E + $rA
+            $ .c**: MEM[$rA+tiny OFS*4] <- $rD
+            $ .d**: $rD <- MEM[$rA+tiny OFS*4]
+            $ .e4.: $rD <- MEM8[$rA]
+            $ .e8.: MEM8[$rA] <- $rD
+            """
+
+            yield from issue((0x0223,), False) # $r0 <- $r2 | $r3
+            yield from issue((0x400f,0xdead,0xbeef), False) # $r4 <- VALUE
             for i in range(4):
                 yield from wait_clk()
 
@@ -702,7 +734,7 @@ def sim():
 
         input_port = Input(DecodeExecIf)
 
-        def simulate(self) -> TSimEvent:
+        def simulate(self, simulator) -> TSimEvent:
             def wait_clk():
                 yield (self.clk, )
                 while self.clk.get_sim_edge() != EdgeType.Positive:
@@ -720,7 +752,15 @@ def sim():
                     yield from wait_clk()
                 self.input_port.ready <<= 0
 
-            self.input_port.ready <<= 1
+
+            self.input_port.ready <<= 0
+            yield from wait_rst()
+            while True:
+                yield from wait_transfer()
+                simulator.log("EXEC got something")
+                for _ in range(randint(0,5)):
+                    simulator.log("EXEC waiting")
+                    yield from wait_clk()
 
 
 
