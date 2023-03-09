@@ -16,11 +16,13 @@ try:
     from .brew_utils import *
     from .scan import ScanWrapper
     from .synth import *
+    from .assembler import *
 except ImportError:
     from brew_types import *
     from brew_utils import *
     from scan import ScanWrapper
     from synth import *
+    from assembler import *
 
 """
 Decode logic
@@ -77,7 +79,7 @@ class DecodeStage(GenericModule):
         field_b = self.fetch.inst_0[7:4]
         field_a = self.fetch.inst_0[3:0]
         field_e = Select(
-            self.fetch.inst_len == 2, # 48-bit instructions
+            self.fetch.inst_len == inst_len_48,
             concat(
                 self.fetch.inst_1[15], self.fetch.inst_1[15], self.fetch.inst_1[15], self.fetch.inst_1[15],
                 self.fetch.inst_1[15], self.fetch.inst_1[15], self.fetch.inst_1[15], self.fetch.inst_1[15],
@@ -186,11 +188,12 @@ class DecodeStage(GenericModule):
         full_inst_table = (
             *shift_ops,
             *mult_ops,
-            #  CODE                                  EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
+            #  Exception group                       EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
             ( "$<8000: SWI",                          oc.branch,   None,         None,        bo.swi,      None,      None,       None,           None,      field_a,         None,         None,       None,   0,  0,  0,  0 ),
             ( "  8000: STM",                          oc.branch,   None,         None,        bo.stm,      None,      None,       None,           None,      None,            None,         None,       None,   0,  0,  0,  0 ),
             ( "  9000: WOI",                          oc.branch,   ao.a_minus_b, None,        bo.cb_eq,    None,      field_a,    field_b,        None,      "REG",           "REG",        0,          None,   0,  0,  0,  0 ), # Decoded as 'if $0 == $0 $pc <- $pc'
             ( " >9000: SII",                          *SII),
+            #  PC manipulation group                 EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
             ( "  .001: FENCE",                        oc.alu,      None,         None,        None,        None,      None,       None,           None,      None,            None,         None,       None,   0,  0,  0,  0 ), # Decoded as a kind of NOP
             ( "$ .002: $pc <- $rD",                   oc.branch,   None,         None,        bo.pc_w,     None,      field_d,    None,           None,      "REG",           None,         None,       None,   0,  0,  0,  0 ),
             ( "  .003: $tpc <- $rD",                  oc.branch,   None,         None,        bo.tpc_w,    None,      field_d,    None,           None,      "REG",           None,         None,       None,   0,  0,  0,  0 ),
@@ -657,13 +660,16 @@ def sim():
                 #    self.reg_file_rsp.valid <<= 0
 
 
-    class FetchEmulator(Module):
+    class FetchEmulator(GenericModule):
         clk = ClkPort()
         rst = RstPort()
 
         fetch = Output(FetchDecodeIf)
 
-        def simulate(self) -> TSimEvent:
+        def construct(self, exp_queue: List[DecodeExpectations]):
+            self.exp_queue = exp_queue
+
+        def simulate(self, simulator) -> TSimEvent:
             def wait_clk():
                 yield (self.clk, )
                 while self.clk.get_sim_edge() != EdgeType.Positive:
@@ -681,7 +687,7 @@ def sim():
                     yield from wait_clk()
                 self.fetch.valid <<= 0
 
-            def issue(inst, av):
+            def issue(inst, exp: DecodeExpectations, av = False, ):
                 if len(inst) == 1:
                     self.fetch.inst_0 <<= inst[0]
                     self.fetch.inst_1 <<= None
@@ -696,7 +702,9 @@ def sim():
                     self.fetch.inst_2 <<= inst[2]
                 else:
                     assert False
-                self.fetch.inst_len <<= len(inst)
+                exp.fetch_av = av
+                self.exp_queue.append(exp)
+                self.fetch.inst_len <<= len(inst) - 1
                 self.fetch.av <<= av
                 yield from wait_transfer()
 
@@ -722,17 +730,54 @@ def sim():
             $ .e4.: $rD <- MEM8[$rA]
             $ .e8.: MEM8[$rA] <- $rD
             """
+            test_inst_table = [
+                "swi",
+                "pc_eq_r",
+                "r_eq_pc",
+                "r_eq_t",
+                "r_eq_not_r",
+                "r_eq_r_or_r",
+                "r_eq_I",
+                "r_eq_I_and_r",
+                "r_eq_i",
+                "r_eq_i_plus_r",
+                "mem32_r_plus_t_eq_r",
+                "r_eq_mem32_r_plus_t",
+                "r_eq_mem8_r",
+                "mem8_r_eq_r"
+            ]
+            a = BrewAssembler()
+            de = DecodeExpectations()
+            def _i(method, *args, **kwargs):
+                nonlocal a, de, simulator
+                asm_fn = getattr(a, method)
+                decode_fn = getattr(de, method)
+                words = asm_fn(*args, **kwargs)
+                words_str = ":".join(f"{i:04x}" for i in words)
+                simulator.log(f"ISSUING {method} {words_str}")
+                return words, decode_fn(*args, **kwargs)
 
-            yield from issue((0x0223,), False) # $r0 <- $r2 | $r3
-            yield from issue((0x400f,0xdead,0xbeef), False) # $r4 <- VALUE
+            yield from issue(*_i("r_eq_r_or_r", 0,2,3))
+            #yield from issue(a.r_eq_I(4, 0xdeadbeef))
+            #yield from issue(a.mem8_r_eq_r(4,5))
+            for i in range(4):
+                yield from wait_clk()
+            pass
+            for i in range(10):
+                inst = test_inst_table[randint(0,len(test_inst_table)-1)]
+                yield from issue(*_i(inst))
+
             for i in range(4):
                 yield from wait_clk()
 
-    class ExecEmulator(Module):
+    class ExecEmulator(GenericModule):
         clk = ClkPort()
         rst = RstPort()
 
         input_port = Input(DecodeExecIf)
+
+        def construct(self, exp_queue: List[DecodeExpectations]):
+            self.exp_queue = exp_queue
 
         def simulate(self, simulator) -> TSimEvent:
             def wait_clk():
@@ -758,6 +803,8 @@ def sim():
             while True:
                 yield from wait_transfer()
                 simulator.log("EXEC got something")
+                exp = self.exp_queue.pop(0)
+                exp.check(self.input_port, simulator)
                 for _ in range(randint(0,5)):
                     simulator.log("EXEC waiting")
                     yield from wait_clk()
@@ -769,8 +816,9 @@ def sim():
         rst = RstPort()
 
         def body(self):
-            self.fetch_emulator = FetchEmulator()
-            self.exec_emulator = ExecEmulator()
+            exec_exp_queue = []
+            self.fetch_emulator = FetchEmulator(exec_exp_queue)
+            self.exec_emulator = ExecEmulator(exec_exp_queue)
             self.reg_file_emulator = RegFileEmulator()
 
             self.dut = DecodeStage(use_mini_table=True)
@@ -806,7 +854,7 @@ def sim():
                 yield from clk()
             self.rst <<= 0
 
-            for i in range(50):
+            for i in range(500):
                 yield from clk()
             now = yield 10
             print(f"Done at {now}")
