@@ -599,6 +599,12 @@ def sim():
         reg_file_req = Input(RegFileReadRequestIf)
         reg_file_rsp = Output(RegFileReadResponseIf)
 
+        def construct(self):
+            self.wait_range = 0
+
+        def set_wait_range(self, wait_range):
+            self.wait_range = wait_range
+
         def simulate(self, simulator: Simulator) -> TSimEvent:
             self.out_buf_full = False
 
@@ -646,7 +652,7 @@ def sim():
                     if rsv_addr is not None:
                         simulator.log(f"RF reserving $r{rsv_addr:x}")
                     self.out_buf_full = True
-                    for _ in range(randint(0,5)):
+                    for _ in range(randint(0,self.wait_range)):
                         self.reg_file_req.ready <<= 0
                         self.reg_file_rsp.valid <<= 0
                         simulator.log("RF waiting")
@@ -666,8 +672,10 @@ def sim():
 
         fetch = Output(FetchDecodeIf)
 
-        def construct(self, exp_queue: List[DecodeExpectations]):
+        def construct(self, exp_queue: List[DecodeExpectations], set_exec_wait_range: Callable, set_reg_file_wait_range: Callable):
             self.exp_queue = exp_queue
+            self.set_exec_wait_range = set_exec_wait_range
+            self.set_reg_file_wait_range = set_reg_file_wait_range
 
         def simulate(self, simulator) -> TSimEvent:
             def wait_clk():
@@ -778,6 +786,7 @@ def sim():
 
         def construct(self, exp_queue: List[DecodeExpectations]):
             self.exp_queue = exp_queue
+            self.wait_range = 0
 
         def simulate(self, simulator) -> TSimEvent:
             def wait_clk():
