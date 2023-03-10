@@ -1,15 +1,15 @@
 [*]
-[*] GTKWave Analyzer v3.3.100 (w)1999-2019 BSI
-[*] Wed Mar 08 17:28:14 2023
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Fri Mar 10 21:50:28 2023
 [*]
-[dumpfile] "C:\personal\brew\rtl\v1\decode.vcd"
-[dumpfile_mtime] "Wed Mar 08 17:22:19 2023"
-[dumpfile_size] 101058
-[savefile] "C:\personal\brew\rtl\v1\decode.gtkw"
+[dumpfile] "/home/tantos/brew/rtl/v1/decode.vcd"
+[dumpfile_mtime] "Fri Mar 10 21:45:44 2023"
+[dumpfile_size] 892006
+[savefile] "/home/tantos/brew/rtl/v1/decode.gtkw"
 [timestart] 0
-[size] 1920 1017
+[size] 1920 990
 [pos] -1 -1
-*-7.127596 381 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-7.127596 218 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [sst_width] 435
 [signals_width] 405

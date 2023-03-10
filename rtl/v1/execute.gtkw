@@ -1,21 +1,21 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Thu Feb 16 19:59:38 2023
+[*] Sat Feb 25 23:57:58 2023
 [*]
 [dumpfile] "/home/tantos/brew/rtl/v1/execute.vcd"
-[dumpfile_mtime] "Thu Feb 16 19:58:13 2023"
-[dumpfile_size] 378597
+[dumpfile_mtime] "Sat Feb 25 23:45:04 2023"
+[dumpfile_size] 630584
 [savefile] "/home/tantos/brew/rtl/v1/execute.gtkw"
-[timestart] 84
+[timestart] 652
 [size] 1920 990
 [pos] -1 -1
-*-7.375637 962 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-6.375637 1034 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.dut.
 [sst_width] 316
 [signals_width] 462
 [sst_expanded] 1
-[sst_vpaned_height] 280
+[sst_vpaned_height] 269
 @28
 top.dut.clk
 top.dut.rst
@@ -45,11 +45,19 @@ top.dut.input_port_result_reg_addr_valid
 top.dut.input_port_shifter_op
 @1000200
 -INPUT_PORT
+@28
+top.dut.memory_unit.input_port_ready
+top.dut.memory_unit.input_port_valid
+top.dut.stage_2_ready
+top.dut.stage_2_reg_en
+top.dut.stage_2_valid
+@22
+top.dut.mult_unit.output_port_result[31:0]
+top.dut.result[31:0]
 @800200
 -OUTPUT_PORT
 @28
 top.dut.output_port_valid
-top.dut.output_port_ready
 @22
 top.dut.output_port_addr[3:0]
 @28
@@ -64,6 +72,11 @@ top.dut.output_port_do_wse
 top.dut.output_port_do_wze
 @1000200
 -OUTPUT_PORT
+@28
+top.dut.stage_1_fsm.input_valid
+top.dut.stage_1_fsm.output_valid
+@29
+top.dut.branch_unit.output_port_spc_changed
 @800200
 -SIDEBAND
 @22
@@ -84,25 +97,5 @@ top.dut.do_branch
 top.dut.interrupt
 @1000200
 -SIDEBAND
-@22
-top.dut.pc[30:0]
-top.dut.branch_target_unit.input_port_pc[30:0]
-top.dut.branch_target_unit.output_port_straight_addr[30:0]
-@28
-top.dut.stage_1_reg_en
-top.dut.stage_2_reg_en
-@22
-top.dut.s1_tpc_out[30:0]
-top.dut.ldst_unit.output_port_phy_addr[31:0]
-@28
-top.dut.do_branch
-top.dut.multi_cycle_exec_lockout
-top.dut.branch_unit.output_port_do_branch
-top.dut.branch_unit.input_port_mem_av
-top.dut.branch_unit.is_exception
-top.dut.branch_unit.input_port_task_mode
-top.dut.branch_unit.output_port_task_mode_changed
-top.dut.branch_unit.in_mode_branch
-top.dut.branch_unit.input_port_is_branch_insn
 [pattern_trace] 1
 [pattern_trace] 0
