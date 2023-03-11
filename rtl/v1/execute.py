@@ -248,6 +248,7 @@ class BranchUnitOutputIf(Interface):
     task_mode         = logic
     task_mode_changed = logic
     ecause            = Unsigned(12)
+    is_exception      = logic
     do_branch         = logic
 
 class BranchUnit(Module):
@@ -353,7 +354,7 @@ class BranchUnit(Module):
         # we can check it to determine the reason for the reset
         interrupt_mask =  Select(self.input_port.interrupt & self.input_port.task_mode, 0, 1 << exc_hwi)
         self.output_port.ecause <<= exception_mask | interrupt_mask
-
+        self.output_port.is_exception <<= is_exception
 
 
 
@@ -425,14 +426,14 @@ class ExecuteStage(GenericModule):
     task_mode_out = Output(logic)
     ecause_in = Input(Unsigned(12))
     ecause_out = Output(Unsigned(12))
+    eaddr_out = Output(BrewAddr)
     do_branch = Output(logic)
     interrupt = Input(logic)
 
     complete = Output(logic) # goes high for 1 cycle when an instruction completes. Used for verification
 
-    def construct(self, csr_base: int, nram_base: int, has_multiply: bool = True, has_shift: bool = True):
+    def construct(self, csr_base: int, has_multiply: bool = True, has_shift: bool = True):
         self.csr_base = csr_base
-        self.nram_base = nram_base
         self.has_multiply = has_multiply
         self.has_shift = has_shift
 
@@ -608,7 +609,7 @@ class ExecuteStage(GenericModule):
         #do_branch
 
         # Memory unit
-        memory_unit = MemoryStage(csr_base=self.csr_base, nram_base=self.nram_base)
+        memory_unit = MemoryStage(csr_base=self.csr_base)
 
 
         mem_input.read_not_write <<= (s1_exec_unit == op_class.ld_st) & (s1_ldst_op == ldst_ops.load)
@@ -679,6 +680,13 @@ class ExecuteStage(GenericModule):
             self.task_mode_in
         )
         self.ecause_out <<= Select(stage_2_reg_en & ~s1_was_branch, self.ecause_in, self.ecause_in | branch_output.ecause)
+        # We mask eaddr_out updates in the shadow of a branch: do_branch is one cycle delayed, so if that fires, the current instruction
+        # should be cancelled and have no side-effects. That goes for eaddr_out as well.
+        self.eaddr_out <<= Reg(Select(
+            self.input_port.fetch_av | ((self.input_port.exec_unit == op_class.branch) & (self.input_port.branch_op == branch_ops.swi)),
+            pc,
+            ldst_unit.output_port.phy_addr
+        ), clock_en=branch_output.is_exception & ~self.do_branch)
 
         #self.complete <<= stage_2_reg_en
         self.complete <<= stage_2_valid
@@ -1221,7 +1229,6 @@ def sim():
                             read_not_write = op == ldst_ops.load,
                             byte_en = byte_en,
                             addr = phy_addr >> 1,
-                            dram_not_ext = None,
                             data = None if op == ldst_ops.load else (op_a >> 0) & 0xffff
                         ))
                         if mem_access_len == access_len_32:
@@ -1229,7 +1236,6 @@ def sim():
                                 read_not_write = op == ldst_ops.load,
                                 byte_en = byte_en,
                                 addr = (phy_addr >> 1) + 1,
-                                dram_not_ext = None,
                                 data = None if op == ldst_ops.load else (op_a >> 16) & 0xffff
                             ))
                 else:
@@ -1487,24 +1493,21 @@ def sim():
                         self.input_port.prdata <<= None
 
     class BusIfQueueItem(object):
-        def __init__(self, req: BusIfRequestIf = None, *, read_not_write = None, byte_en = None, addr = None, dram_not_ext = None, data = None):
+        def __init__(self, req: BusIfRequestIf = None, *, read_not_write = None, byte_en = None, addr = None, data = None):
             if req is not None:
                 self.read_not_write  = req.read_not_write.sim_value.value
                 self.byte_en         = req.byte_en.sim_value.value
                 self.addr            = req.addr.sim_value.value
-                self.dram_not_ext    = req.dram_not_ext.sim_value.value
                 self.data            = req.data.sim_value.value if req.data.sim_value is not None else None
             else:
                 self.read_not_write  = int(read_not_write) if read_not_write is not None else None
                 self.byte_en         = byte_en
                 self.addr            = addr
-                self.dram_not_ext    = int(dram_not_ext) if dram_not_ext is not None else None
                 self.data            = data
         def report(self,prefix):
-            assert self.dram_not_ext is not None
             assert self.addr is not None
             assert self.byte_en is not None
-            access_type = 'DRAM' if self.dram_not_ext == 1 else 'EXT'
+            access_type = 'BUS'
             if self.read_not_write == 1:
                 print(f"{prefix} reading {access_type} {self.addr:08x} byte_en:{self.byte_en:02b}")
             else:
@@ -1514,7 +1517,6 @@ def sim():
             assert self.read_not_write is None or actual.read_not_write == self.read_not_write
             assert self.byte_en is None or actual.byte_en == self.byte_en
             assert self.addr is None or actual.addr == self.addr
-            assert self.dram_not_ext is None or actual.dram_not_ext == self.dram_not_ext
             assert self.data is None or actual.data == self.data
 
     class BusIfQueue(object):
@@ -1573,7 +1575,6 @@ def sim():
                         while self.input_port.valid == 1:
                             next_beat = BusIfQueueItem(self.input_port)
                             next_beat.report(f"{simulator.now:4d} REQUEST {beat_cnt:5d} ")
-                            assert first_beat.dram_not_ext == next_beat.dram_not_ext
                             assert first_beat.read_not_write == next_beat.read_not_write
                             assert first_beat.addr & ~255 == next_beat.addr & ~255
                             assert first_beat.byte_en == 3
@@ -1642,8 +1643,7 @@ def sim():
             csr_queue = []
             result_queue = []
             pc_result_queue = []
-            csr_base=0xc
-            nram_base=0xf
+            csr_base=0x1
 
 
             class SidebandState(object): pass
@@ -1664,7 +1664,7 @@ def sim():
             result_checker = ResultChecker(result_queue)
             pc_checker = PCChecker(pc_result_queue)
 
-            dut = ExecuteStage(csr_base=csr_base, nram_base=nram_base)
+            dut = ExecuteStage(csr_base=csr_base)
 
             dut.input_port <<= decode_emulator.output_port
             result_checker.input_port <<= dut.output_port
@@ -1720,7 +1720,7 @@ def sim():
 
 def gen():
     def top():
-        return ScanWrapper(ExecuteStage, {"clk", "rst"}, csr_base=0xc, nram_base=0xf, has_multiply=True, has_shift=True)
+        return ScanWrapper(ExecuteStage, {"clk", "rst"}, csr_base=0x1, has_multiply=True, has_shift=True)
 
     back_end = SystemVerilog()
     back_end.yosys_fix = True
@@ -1731,6 +1731,6 @@ def gen():
     flow.run()
 
 if __name__ == "__main__":
-    gen()
-    #sim()
+    #gen()
+    sim()
 

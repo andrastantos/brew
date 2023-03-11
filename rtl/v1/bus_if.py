@@ -100,7 +100,7 @@ Non-DRAM accesses:
 6. For writes, the relevant byte of 'req_data' should be valid.
 """
 
-class BusIf(Module):
+class BusIf(GenericModule):
     clk = ClkPort()
     rst = RstPort()
 
@@ -117,9 +117,30 @@ class BusIf(Module):
     ext_req           = Input(logic)
     ext_grnt          = Output(logic)
 
-    def construct(self):
-        pass
+    def construct(self, nram_base: int = 0):
+        self.nram_base = nram_base
 
+    """
+    Address map:
+
+        0x00000000 ... 0x3fffffff: NRAM space
+        0x40000000 ... 0x7fffffff: CSR space (not of concern for the bus interface)
+        0x80000000 ... 0xbfffffff: DRAM space 0
+        0xc0000000 ... 0xffffffff: DRAM space 1
+
+        In each space, bits 29:26 determine the number of wait-states.
+        If each space, bits 25:0 determine the location to address, leaving 64MB of addressable space.
+
+        NOTE: wait-states are actually ignored by the bus-interface when interacting with non-DMA DRAM transfers.
+              however, DMA transactions do need wait-state designation, so in reality no more than 64MB of DRAM
+              can be addressed in each of the spaces
+        NOTE: addressing more than 64MB of DRAM is a bit problematic because they can't be contiguous. This isn't
+              a big deal for this controller as there aren't enough external banks to get to that high of memory
+              configurations anyway.
+        NOTE: NRAM space base address is controlled through the `nram_base` parameter. Anything that's not NRAM
+              is treated as DRAM by the bus interface (CSR space is expected to not generate requests).
+        NOTE: since addresses are in 16-bit quantities inside here, we're counting bits 30 downwards
+    """
     def body(self):
         class BusIfStates(Enum):
             idle           = 0
@@ -160,9 +181,9 @@ class BusIf(Module):
         req_read_not_write <<= Select(arb_mem_not_fetch, self.fetch_request.read_not_write, self.mem_request.read_not_write)
         req_byte_en = Wire()
         req_byte_en <<= Select(arb_mem_not_fetch, self.fetch_request.byte_en, self.mem_request.byte_en)
-        req_dram_not_ext = Wire()
-        req_dram_not_ext <<= Select(arb_mem_not_fetch, self.fetch_request.dram_not_ext, self.mem_request.dram_not_ext)
         req_advance = req_valid & req_ready
+
+        req_dram_not_ext = req_addr[30:29] != self.nram_base
 
         arb_mem_not_fetch <<= Select(
             state == BusIfStates.idle,
@@ -194,7 +215,7 @@ class BusIf(Module):
                     (self.wait_states - 1)[3:0],
                     0
                 ),
-                req_addr[25:22]
+                req_addr[28:25]
             )
         )
 
@@ -387,14 +408,16 @@ def sim():
     # These two queues will contain the expected read-back values
     read_data_l = []
     read_data_h = []
-    class Generator(Module):
+    class Generator(GenericModule):
         clk = ClkPort()
         rst = RstPort()
 
         request_port = Output(BusIfRequestIf)
 
-        def construct(self) -> None:
+        def construct(self, nram_base: int = 0) -> None:
             self.mode = None
+            self.nram_base = nram_base
+            self.dram_base = 2 if nram_base == 0 else 0
 
         def set_mode(self, mode):
             self.mode = mode
@@ -416,7 +439,6 @@ def sim():
                 self.request_port.byte_en <<= None
                 self.request_port.addr <<= None
                 self.request_port.data <<= None
-                self.request_port.dram_not_ext <<= None
 
             def read_or_write(addr, is_dram, burst_len, byte_en, data, do_write):
                 if burst_len is not None:
@@ -435,9 +457,8 @@ def sim():
                 self.request_port.valid <<= 1
                 self.request_port.read_not_write <<= not do_write
                 self.request_port.byte_en <<= byte_en
-                self.request_port.addr <<= self.burst_addr
+                self.request_port.addr <<= self.burst_addr | ((self.dram_base if self.is_dram else self.nram_base) << 29)
                 self.request_port.data <<= data
-                self.request_port.dram_not_ext <<= not self.is_dram
 
             def start_read(addr, is_dram, burst_len, byte_en):
                 if burst_len > 0:
@@ -628,6 +649,6 @@ def gen():
 
 
 if __name__ == "__main__":
-    gen()
-    #sim()
+    #gen()
+    sim()
 

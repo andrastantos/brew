@@ -10,7 +10,7 @@ BrewInstAddr = Unsigned(31)
 BrewDWordAddr = Unsigned(30)
 BrewLineAddr = Unsigned(BrewLineAddrWidth)
 BrewLineAddrBtm = 2 # This is in words
-BrewBusAddr = Unsigned(26) # including wait-state selection in top 4 bits
+BrewBusAddr = Unsigned(31)
 BrewBusData = Unsigned(16)
 BrewData = Unsigned(32)
 BrewRegCnt = 15
@@ -83,8 +83,7 @@ access_len_32 = 2
 class BusIfRequestIf(ReadyValid):
     read_not_write  = logic
     byte_en         = Unsigned(2)
-    addr            = BrewBusAddr # Top 4 bits are used to set wait-state. This way anything can be accessed by any wait-state we want.
-    dram_not_ext    = logic
+    addr            = BrewBusAddr
     data            = BrewBusData
 
 class BusIfResponseIf(Interface):

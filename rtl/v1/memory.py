@@ -57,9 +57,8 @@ class MemoryStage(GenericModule):
     # Interface to the CSR registers
     csr_if = Output(CsrIf)
 
-    def construct(self, csr_base: int, nram_base: int):
+    def construct(self, csr_base: int):
         self.csr_base = csr_base
-        self.nram_base = nram_base
 
     def body(self):
 
@@ -82,7 +81,6 @@ class MemoryStage(GenericModule):
             BRQ_read_not_write  ------/^^^^^^^^^^^\----~-------------/^^^^^\-------~----------/^^^^^^^^^^^^^~^^^^^^^^^^\----~-------------
             BRQ_byte_en         ------<     3     >----~-------------<  3  >-------~----------<           3 ~          >----~-------------
             BRQ_addr            ------<=====X=====>----~-------------<=====>-------~----------<=====X=======~==========>----~-------------
-            BRQ_dram_not_ext    ------/^^^^^^^^^^^\----~-------------/^^^^^\-------~----------\_____________~__________/----~-------------
             BRQ_data            -----------------------~---------------------------~------------------------~---------------~-------------
                                 /^^\__/^^\__/^^\__/^^\_~_/^^\__/^^\__/^^\__/^^\__/^~^\__/^^\__/^^\__/^^\__/^~^\__/^^\__/^^\_~_/^^\__/^^\__
             BRSP_valid          _______________________~_/^^^^^^^^^^^\_____________~____/^^^^^\_____________~____/^^^^^\____~_/^^^^^\_____
@@ -141,8 +139,6 @@ class MemoryStage(GenericModule):
 
         is_csr = Wire(logic)
 
-        is_nram = self.input_port.addr[31:28] == self.nram_base
-
         input_advance = (self.input_port.ready & self.input_port.valid)
         bus_request_advance = (self.bus_req_if.ready & self.bus_req_if.valid)
         bus_response_advance = self.bus_rsp_if.valid
@@ -162,7 +158,7 @@ class MemoryStage(GenericModule):
                 1
             )
         )
-        csr_select = self.input_port.addr[31:28] == self.csr_base
+        csr_select = self.input_port.addr[31:30] == self.csr_base
         is_csr <<= Select(
             input_advance,
             Reg(
@@ -181,7 +177,7 @@ class MemoryStage(GenericModule):
 
         first_addr = self.input_port.addr[BrewBusAddr.length:1]
         # We already have aligned addresses. As a result, LSB should be 0 for 32-bit accesses, so incrementing it is the same as setting LSB to 1.
-        next_addr = Reg((first_addr | 1)[BrewBusAddr.length-1:0], clock_en=input_advance)
+        next_addr = Reg(first_addr | 1, clock_en=input_advance)
 
         byte_en = Wire(Unsigned(2))
         byte_en[0] <<= (self.input_port.access_len != 0) | ~self.input_port.addr[0]
@@ -193,7 +189,6 @@ class MemoryStage(GenericModule):
         self.bus_req_if.read_not_write  <<= remember(self.input_port, self.input_port.read_not_write)
         self.bus_req_if.byte_en         <<= remember(self.input_port, byte_en)
         self.bus_req_if.addr            <<= Select(input_advance, next_addr, first_addr)
-        self.bus_req_if.dram_not_ext    <<= remember(self.input_port, ~is_nram)
         self.bus_req_if.data            <<= Select(input_advance, data_store, self.input_port.data[15:0])
 
         self.output_port.data_l <<= Select(csr_pen, Select(multi_cycle, self.bus_rsp_if.data, data_store), self.csr_if.prdata[15: 0])
@@ -277,24 +272,21 @@ def sim():
                         self.input_port.prdata <<= None
 
     class BusIfQueueItem(object):
-        def __init__(self, req: BusIfRequestIf = None, *, read_not_write = None, byte_en = None, addr = None, dram_not_ext = None, data = None):
+        def __init__(self, req: BusIfRequestIf = None, *, read_not_write = None, byte_en = None, addr = None, data = None):
             if req is not None:
                 self.read_not_write  = req.read_not_write.sim_value.value
                 self.byte_en         = req.byte_en.sim_value.value
                 self.addr            = req.addr.sim_value.value
-                self.dram_not_ext    = req.dram_not_ext.sim_value.value
                 self.data            = req.data.sim_value.value if req.data.sim_value is not None else None
             else:
                 self.read_not_write  = int(read_not_write) if read_not_write is not None else None
                 self.byte_en         = byte_en
                 self.addr            = addr
-                self.dram_not_ext    = int(dram_not_ext) if dram_not_ext is not None else None
                 self.data            = data
         def report(self,prefix):
-            assert self.dram_not_ext is not None
             assert self.addr is not None
             assert self.byte_en is not None
-            access_type = 'DRAM' if self.dram_not_ext == 1 else 'EXT'
+            access_type = 'BUS'
             if self.read_not_write == 1:
                 print(f"{prefix} reading {access_type} {self.addr:08x} byte_en:{self.byte_en:02b}")
             else:
@@ -304,7 +296,6 @@ def sim():
             assert self.read_not_write is None or actual.read_not_write == self.read_not_write
             assert self.byte_en is None or actual.byte_en == self.byte_en
             assert self.addr is None or actual.addr == self.addr
-            assert self.dram_not_ext is None or actual.dram_not_ext == self.dram_not_ext
             assert self.data is None or actual.data == self.data
 
     class BusIfQueue(object):
@@ -363,7 +354,6 @@ def sim():
                         while self.input_port.valid == 1:
                             next_beat = BusIfQueueItem(self.input_port)
                             next_beat.report(f"{simulator.now:4d} REQUEST {beat_cnt:5d} ")
-                            assert first_beat.dram_not_ext == next_beat.dram_not_ext
                             assert first_beat.read_not_write == next_beat.read_not_write
                             assert first_beat.addr & ~255 == next_beat.addr & ~255
                             assert first_beat.byte_en == 3
@@ -470,18 +460,14 @@ def sim():
 
         output_port = Output(MemInputIf)
 
-        def construct(self, csr_base: int, nram_base: int, req_queue: List[BusIfQueueItem], rsp_queue: List[ResponseQueueItem], csr_queue: List[CsrQueueItem]) -> None:
+        def construct(self, csr_base: int, req_queue: List[BusIfQueueItem], rsp_queue: List[ResponseQueueItem], csr_queue: List[CsrQueueItem]) -> None:
             self.req_queue = req_queue
             self.rsp_queue = rsp_queue
             self.csr_queue = csr_queue
             self.csr_base = csr_base
-            self.nram_base = nram_base
 
         def is_csr(self, addr):
-            return (addr >> (32-4)) == self.csr_base
-
-        def is_nram(self, addr):
-            return (addr >> (32-4)) == self.nram_base
+            return (addr >> (32-2)) == self.csr_base
 
         def simulate(self) -> TSimEvent:
             def wait_clk():
@@ -503,7 +489,7 @@ def sim():
 
             def munge_addr(addr, offs=0):
                 addr = addr // 2 + offs
-                return addr & ((1 << 26)-1)
+                return addr
 
             def do_load(addr: int, access_len: int):
                 self.output_port.read_not_write <<= 1
@@ -512,12 +498,12 @@ def sim():
                 self.output_port.access_len <<= access_len
                 if not self.is_csr(addr):
                     if access_len == access_len_32:
-                        self.req_queue.append(BusIfQueueItem(read_not_write=1, byte_en=3, addr=munge_addr(addr,0), dram_not_ext=not self.is_nram(addr), data=None))
-                        self.req_queue.append(BusIfQueueItem(read_not_write=1, byte_en=3, addr=munge_addr(addr,1), dram_not_ext=not self.is_nram(addr), data=None))
+                        self.req_queue.append(BusIfQueueItem(read_not_write=1, byte_en=3, addr=munge_addr(addr,0), data=None))
+                        self.req_queue.append(BusIfQueueItem(read_not_write=1, byte_en=3, addr=munge_addr(addr,1), data=None))
                     elif access_len == access_len_16:
-                        self.req_queue.append(BusIfQueueItem(read_not_write=1, byte_en=3, addr=munge_addr(addr), dram_not_ext=not self.is_nram(addr), data=None))
+                        self.req_queue.append(BusIfQueueItem(read_not_write=1, byte_en=3, addr=munge_addr(addr), data=None))
                     elif access_len == access_len_8:
-                        self.req_queue.append(BusIfQueueItem(read_not_write=1, byte_en=1 << (addr & 1), addr=munge_addr(addr), dram_not_ext=not self.is_nram(addr), data=None))
+                        self.req_queue.append(BusIfQueueItem(read_not_write=1, byte_en=1 << (addr & 1), addr=munge_addr(addr), data=None))
                     else:
                         assert False
                     self.rsp_queue.append(ResponseQueueItem(
@@ -543,12 +529,12 @@ def sim():
                 self.output_port.access_len <<= access_len
                 if not self.is_csr(addr):
                     if access_len == access_len_32:
-                        self.req_queue.append(BusIfQueueItem(read_not_write=0, byte_en=3, addr=munge_addr(addr,0), dram_not_ext=not self.is_nram(addr), data=(data >>  0) & 0xffff))
-                        self.req_queue.append(BusIfQueueItem(read_not_write=0, byte_en=3, addr=munge_addr(addr,1), dram_not_ext=not self.is_nram(addr), data=(data >> 16) & 0xffff))
+                        self.req_queue.append(BusIfQueueItem(read_not_write=0, byte_en=3, addr=munge_addr(addr,0), data=(data >>  0) & 0xffff))
+                        self.req_queue.append(BusIfQueueItem(read_not_write=0, byte_en=3, addr=munge_addr(addr,1), data=(data >> 16) & 0xffff))
                     elif access_len == access_len_16:
-                        self.req_queue.append(BusIfQueueItem(read_not_write=0, byte_en=3, addr=munge_addr(addr), dram_not_ext=not self.is_nram(addr), data=data & 0xffff))
+                        self.req_queue.append(BusIfQueueItem(read_not_write=0, byte_en=3, addr=munge_addr(addr), data=data & 0xffff))
                     elif access_len == access_len_8:
-                        self.req_queue.append(BusIfQueueItem(read_not_write=0, byte_en=1 << (addr & 1), addr=munge_addr(addr), dram_not_ext=not self.is_nram(addr), data=data & 0xffff))
+                        self.req_queue.append(BusIfQueueItem(read_not_write=0, byte_en=1 << (addr & 1), addr=munge_addr(addr), data=data & 0xffff))
                     else:
                         assert False
                 else:
@@ -576,10 +562,10 @@ def sim():
             yield from do_store(addr=0x0005001, data=0x456789ab, access_len=access_len_8)
             for i in range(4):
                 yield from wait_clk()
-            yield from do_load(addr=0x140+(self.csr_base<<28), access_len=access_len_32)
+            yield from do_load(addr=0x140+(self.csr_base<<30), access_len=access_len_32)
             for i in range(4):
                 yield from wait_clk()
-            yield from do_store(addr=0x240+(self.csr_base<<28), data=0xdeadbeef, access_len=access_len_32)
+            yield from do_store(addr=0x240+(self.csr_base<<30), data=0xdeadbeef, access_len=access_len_32)
 
 
 
@@ -592,17 +578,16 @@ def sim():
             req_queue = []
             rsp_queue = []
             csr_queue = []
-            csr_base=0xc
-            nram_base=0xf
+            csr_base=0x1
 
             seed(0)
-            stimulator = Stimulator(csr_base=csr_base, nram_base=nram_base, req_queue=req_queue, rsp_queue=rsp_queue, csr_queue=csr_queue)
+            stimulator = Stimulator(csr_base=csr_base, req_queue=req_queue, rsp_queue=rsp_queue, csr_queue=csr_queue)
             csr_emulator = CsrEmulator(csr_queue)
             bus_req_emulator = BusIfReqEmulator(bus_queue, expect_queue=req_queue)
             bus_rsp_emulator = BusIfRspEmulator(bus_queue)
             response_checker = ResponseChecker(queue=rsp_queue)
 
-            dut = MemoryStage(csr_base=csr_base, nram_base=nram_base)
+            dut = MemoryStage(csr_base=csr_base)
 
             dut.input_port <<= stimulator.output_port
             response_checker.input_port <<= dut.output_port
@@ -637,7 +622,7 @@ def sim():
 
 def gen():
     def top():
-        return ScanWrapper(MemoryStage, {"clk", "rst"}, csr_base=0xc, nram_base=0xf)
+        return ScanWrapper(MemoryStage, {"clk", "rst"}, csr_base=0x1)
 
     netlist = Build.generate_rtl(top, "memory.sv")
     top_level_name = netlist.get_module_class_name(netlist.top_level)

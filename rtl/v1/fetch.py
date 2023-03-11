@@ -102,7 +102,7 @@ QueuePointerType = Unsigned(fetch_queue_length.bit_length())
 
 def truncate_queue_ptr(ptr):
     return ptr[QueuePointerType.get_length()-1:0]
-class InstBuffer(Module):
+class InstBuffer(GenericModule):
     """
     This module deals with the interfacing to the bus interface and generating an instruction word stream for the fetch stage.
 
@@ -138,8 +138,8 @@ class InstBuffer(Module):
     task_mode  = Input(logic)
     do_branch = Input(logic) # do_branch is active for one cycle only; in the same cycle the new spc/tpc/task_mode values are available
 
-    def construct(self):
-        self.page_bits = 8
+    def construct(self, page_bits: int = 7):
+        self.page_bits = page_bits # 256 bytes, but we count in 16-bit words
 
     def body(self):
         def truncate_addr(a):
@@ -250,8 +250,7 @@ class InstBuffer(Module):
         self.bus_if_request.valid           <<= (state == InstBufferStates.request) & (~fetch_page_limit)
         self.bus_if_request.read_not_write  <<= 1
         self.bus_if_request.byte_en         <<= 3
-        self.bus_if_request.addr            <<= fetch_addr[21:0]
-        self.bus_if_request.dram_not_ext    <<= fetch_addr[22] # TODO: what is the memory map for ROMs???
+        self.bus_if_request.addr            <<= fetch_addr[BrewBusAddr.length-1:0]
         self.bus_if_request.data            <<= None
 
         self.fsm.add_transition(InstBufferStates.idle,         start_new_request,              InstBufferStates.request)
@@ -434,7 +433,7 @@ class InstAssemble(Module):
 
 
 
-class FetchStage(Module):
+class FetchStage(GenericModule):
     clk = ClkPort()
     rst = RstPort()
 
@@ -453,8 +452,11 @@ class FetchStage(Module):
     task_mode  = Input(logic)
     do_branch = Input(logic)
 
+    def construct(self, page_bits: int):
+        self.page_bits = page_bits
+
     def body(self):
-        inst_buf = InstBuffer()
+        inst_buf = InstBuffer(page_bits=self.page_bits)
         inst_queue = InstQueue()
         inst_assemble = InstAssemble()
 
@@ -745,7 +747,7 @@ def sim():
             self.bus_if_req = Wire(BusIfRequestIf)
             self.bus_if_rsp = Wire(BusIfResponseIf)
 
-            self.dut = FetchStage()
+            self.dut = FetchStage(page_bits=7)
             self.decode_emulator = DecodeEmulator()
             self.bus_emulator = BusEmulator()
             self.sideband_emulator = SidebandEmulator()
@@ -810,6 +812,6 @@ def gen():
 
 
 if __name__ == "__main__":
-    gen()
-    #sim()
+    #gen()
+    sim()
 
