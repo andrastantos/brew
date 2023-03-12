@@ -109,6 +109,7 @@ class BusIf(GenericModule):
     fetch_response = Output(BusIfResponseIf)
     mem_request  = Input(BusIfRequestIf)
     mem_response = Output(BusIfResponseIf)
+    dma_request = Input(BusIfDmaRequestIf)
 
     # DRAM interface
     dram = Output(ExternalBusIf)
@@ -151,6 +152,8 @@ class BusIf(GenericModule):
             pre_external   = 5
             non_dram_first = 6
             non_dram_wait  = 7
+            dma_first      = 8
+            dma_wait       = 9
 
         self.fsm = FSM()
 
@@ -162,37 +165,75 @@ class BusIf(GenericModule):
         state <<= self.fsm.state
         next_state <<= self.fsm.next_state
 
-        arb_mem_not_fetch = Wire(logic)
+        class Ports(Enum):
+            fetch_port = 0
+            mem_port = 1
+            dma_port = 2
+
+        arb_port_select = Wire()
+        arb_port_comb = SelectFirst(
+            self.dma_request.valid, Ports.dma_port,
+            self.mem_request.valid, Ports.mem_port,
+            default_port = Ports.fetch_port
+        )
+        arb_port_comb2 = Select(
+            self.dma_request.valid,
+            Select(
+                self.mem_request.valid,
+                Ports.fetch_port,
+                Ports.mem_port
+            ),
+            Ports.dma_port
+        )
+        sim_asserts.AssertOnClk(arb_port_comb == arb_port_comb2)
+        arb_port_select <<= hold(arb_port_comb, enable=state == BusIfStates.idle)
 
         req_ready = Wire()
         req_ready <<= (state == BusIfStates.idle) | (state == BusIfStates.first) | (state == BusIfStates.middle)
-        self.mem_request.ready <<= req_ready & arb_mem_not_fetch
-        self.fetch_request.ready <<= req_ready & ~arb_mem_not_fetch
-        # We create wires for these things in anticipation for the arbitrator between several inputs
+        self.mem_request.ready <<= req_ready & (arb_port_select == Ports.mem_port)
+        self.fetch_request.ready <<= req_ready & (arb_port_select == Ports.fetch_port)
+        self.dma_request.ready <<= req_ready & (arb_port_select == Ports.dma_port)
+
         req_valid = Wire()
-        req_valid <<= Select(arb_mem_not_fetch, self.fetch_request.valid, self.mem_request.valid)
         start = Wire()
-        start <<= (state == BusIfStates.idle) & Select(arb_mem_not_fetch, self.fetch_request.valid, self.mem_request.valid)
         req_addr = Wire()
-        req_addr <<= Select(arb_mem_not_fetch, self.fetch_request.addr, self.mem_request.addr)
         req_data = Wire()
-        req_data <<= Select(arb_mem_not_fetch, self.fetch_request.data, self.mem_request.data)
         req_read_not_write = Wire()
-        req_read_not_write <<= Select(arb_mem_not_fetch, self.fetch_request.read_not_write, self.mem_request.read_not_write)
         req_byte_en = Wire()
-        req_byte_en <<= Select(arb_mem_not_fetch, self.fetch_request.byte_en, self.mem_request.byte_en)
+
+        req_valid <<= Select(arb_port_select, self.fetch_request.valid, self.mem_request.valid, self.dma_request.valid)
+        start <<= (state == BusIfStates.idle) & req_valid
+        req_addr <<= Select(arb_port_select, self.fetch_request.addr, self.mem_request.addr, self.dma_request.addr)
+        req_data <<= Select(arb_port_select, self.fetch_request.data, self.mem_request.data, None)
+        req_read_not_write <<= Select(arb_port_select, self.fetch_request.read_not_write, self.mem_request.read_not_write, self.dma_request.read_not_write)
+        req_byte_en <<= Select(arb_port_select, self.fetch_request.byte_en, self.mem_request.byte_en, self.dma_request.byte_en)
         req_advance = req_valid & req_ready
 
-        req_dram_not_ext = req_addr[30:29] != self.nram_base
+        req_dram = (req_addr[30:29] != self.nram_base) & (arb_port_select != Ports.dma_port)
+        req_nram = (req_addr[30:29] == self.nram_base) & (arb_port_select != Ports.dma_port)
+        req_dma  = (arb_port_select == Ports.dma_port)
 
-        arb_mem_not_fetch <<= Select(
-            state == BusIfStates.idle,
-            Reg(self.mem_request.valid, clock_en=state == BusIfStates.idle),
-            self.mem_request.valid
+        dma_ch = Reg(self.dma_request.channel, clock_en=start)
+        tc = Reg(self.dma_request.terminal_count, clock_en=start)
+
+        wait_states = Wire(Unsigned(4))
+        wait_states <<= Reg(
+            Select(
+                start,
+                Select(
+                    wait_states == 0,
+                    (wait_states - 1)[3:0],
+                    0
+                ),
+                (req_addr[28:25]-1)[3:0]
+            )
         )
+        waiting = ~self.dram.nWAIT | (wait_states != 0)
+
         self.fsm.add_transition(BusIfStates.idle,         self.ext_req & ~req_valid,                                            BusIfStates.external)
-        self.fsm.add_transition(BusIfStates.idle,                         req_valid & ~req_dram_not_ext,                        BusIfStates.non_dram_first)
-        self.fsm.add_transition(BusIfStates.idle,                         req_valid &  req_dram_not_ext,                        BusIfStates.first)
+        self.fsm.add_transition(BusIfStates.idle,                         req_valid & req_nram,                                 BusIfStates.non_dram_first)
+        self.fsm.add_transition(BusIfStates.idle,                         req_valid & req_dma,                                  BusIfStates.dma_first)
+        self.fsm.add_transition(BusIfStates.idle,                         req_valid & req_dram,                                 BusIfStates.first)
         self.fsm.add_transition(BusIfStates.external,    ~self.ext_req,                                                         BusIfStates.idle)
         self.fsm.add_transition(BusIfStates.first,                       ~req_valid,                                            BusIfStates.precharge)
         self.fsm.add_transition(BusIfStates.first,                        req_valid,                                            BusIfStates.middle)
@@ -202,22 +243,11 @@ class BusIf(GenericModule):
         self.fsm.add_transition(BusIfStates.pre_external, self.ext_req,                                                         BusIfStates.external)
         self.fsm.add_transition(BusIfStates.pre_external,~self.ext_req,                                                         BusIfStates.idle)
         self.fsm.add_transition(BusIfStates.non_dram_first, 1,                                                                  BusIfStates.non_dram_wait)
-        self.fsm.add_transition(BusIfStates.non_dram_wait, ~self.dram.nWAIT,                                                    BusIfStates.non_dram_wait)
-        self.fsm.add_transition(BusIfStates.non_dram_wait,  self.dram.nWAIT,                                                    BusIfStates.idle)
-
-        self.wait_states = Wire(Unsigned(4))
-
-        self.wait_states <<= Reg(
-            Select(
-                start,
-                Select(
-                    self.wait_states == 0,
-                    (self.wait_states - 1)[3:0],
-                    0
-                ),
-                req_addr[28:25]
-            )
-        )
+        self.fsm.add_transition(BusIfStates.non_dram_wait,  waiting,                                                            BusIfStates.non_dram_wait)
+        self.fsm.add_transition(BusIfStates.non_dram_wait, ~waiting,                                                            BusIfStates.idle)
+        self.fsm.add_transition(BusIfStates.dma_first, 1,                                                                       BusIfStates.dma_wait)
+        self.fsm.add_transition(BusIfStates.dma_wait,  waiting,                                                                 BusIfStates.dma_wait)
+        self.fsm.add_transition(BusIfStates.dma_wait, ~waiting,                                                                 BusIfStates.idle)
 
         input_row_addr = Wire()
         input_row_addr <<= concat(
@@ -237,13 +267,13 @@ class BusIf(GenericModule):
             req_addr[7:0]
         ), clock_en=req_advance)
         read_not_write = Wire()
-        read_not_write <<= Reg(req_read_not_write, clock_en=req_advance)
+        read_not_write <<= Reg(req_read_not_write, clock_en=start) # reads and writes can't mix within a burst
+        data_out_en = Wire()
+        data_out_en <<= Reg(~req_read_not_write & (arb_port_select != Ports.dma_port), clock_en=start) # reads and writes can't mix within a burst
         byte_en = Wire()
         byte_en <<= Select(req_advance, Reg(req_byte_en, clock_en=req_advance), req_byte_en)
         data_out = Wire()
         data_out <<= Reg(req_data, clock_en=req_advance)
-        dram_not_ext = Wire()
-        dram_not_ext <<= Reg(req_dram_not_ext, clock_en=req_advance)
 
         AssertOnClk((input_row_addr == row_addr) | (state == BusIfStates.idle))
 
@@ -284,10 +314,14 @@ class BusIf(GenericModule):
         ) # We re-register the state to remove all glitches
         nNREN = Wire()
         nNREN <<= Reg((next_state != BusIfStates.non_dram_first) & (next_state != BusIfStates.non_dram_wait), reset_value_port = 1) # We re-register the state to remove all glitches
+        nDACK = Wire(Unsigned(4))
+        for i in range(nDACK.get_num_bits()):
+            nDACK[i] <<= Reg((next_state != BusIfStates.dma_first) & (next_state != BusIfStates.dma_wait) | (dma_ch != i), reset_value_port = 1)
+        NR_CAS_logic = (state == BusIfStates.non_dram_first) | (state == BusIfStates.dma_first) | (waiting & ((state == BusIfStates.dma_wait) | (state == BusIfStates.non_dram_wait)))
         NR_nCAS_a = Wire()
-        NR_nCAS_a <<= Reg((state != BusIfStates.non_dram_first) | ~byte_en[0], reset_value_port = 1) # We re-register the state to remove all glitches
+        NR_nCAS_a <<= Reg(~NR_CAS_logic | ~byte_en[0], reset_value_port = 1) # We re-register the state to remove all glitches
         NR_nCAS_b = Wire()
-        NR_nCAS_b <<= Reg((state != BusIfStates.non_dram_first) | ~byte_en[1], reset_value_port = 1) # We re-register the state to remove all glitches
+        NR_nCAS_b <<= Reg(~NR_CAS_logic | ~byte_en[1], reset_value_port = 1) # We re-register the state to remove all glitches
         CAS_nWINDOW_A_a = Wire()
         CAS_nWINDOW_A_a <<= Reg(
             ~byte_en[0] |
@@ -295,7 +329,9 @@ class BusIf(GenericModule):
             (next_state == BusIfStates.precharge) |
             (next_state == BusIfStates.pre_external) |
             (next_state == BusIfStates.non_dram_first) |
-            (next_state == BusIfStates.non_dram_wait),
+            (next_state == BusIfStates.non_dram_wait) |
+            (next_state == BusIfStates.dma_first) |
+            (next_state == BusIfStates.dma_wait),
             reset_value_port = 1
         ) # We re-register the state to remove all glitches
         CAS_nWINDOW_A_b = Wire()
@@ -305,7 +341,9 @@ class BusIf(GenericModule):
             (next_state == BusIfStates.precharge) |
             (next_state == BusIfStates.pre_external) |
             (next_state == BusIfStates.non_dram_first) |
-            (next_state == BusIfStates.non_dram_wait),
+            (next_state == BusIfStates.non_dram_wait) |
+            (next_state == BusIfStates.dma_first) |
+            (next_state == BusIfStates.dma_wait),
             reset_value_port = 1
         ) # We re-register the state to remove all glitches
         CAS_nWINDOW_C_a = Wire()
@@ -324,11 +362,12 @@ class BusIf(GenericModule):
         self.dram.nCAS_a     <<= DRAM_nCAS_a & NR_nCAS_a
         self.dram.nCAS_b     <<= DRAM_nCAS_b & NR_nCAS_b
         self.dram.addr       <<= Select(
-            ((state == BusIfStates.first) | (state == BusIfStates.non_dram_first)) & self.clk,
+            ((state == BusIfStates.first) | (state == BusIfStates.non_dram_first) | (state == BusIfStates.dma_first)) & self.clk,
             NegReg(col_addr),
             row_addr
         )
-        self.dram.nWE        <<= read_not_write
+        self.dram.nWE         <<= read_not_write
+        self.dram.data_out_en <<= data_out_en
         data_out_low = Wire()
         data_out_low <<= NegReg(data_out[7:0])
         data_out_high = Wire()
@@ -340,9 +379,16 @@ class BusIf(GenericModule):
         )
 
         self.dram.nNREN      <<= nNREN
+        self.dram.nDACK      <<= nDACK
+        self.dram.TC         <<= tc
 
         read_active = Wire()
-        read_active <<= (state != BusIfStates.idle) & (state != BusIfStates.precharge) & (state != BusIfStates.pre_external) & (state != BusIfStates.external) & read_not_write
+        read_active <<= (
+            (state != BusIfStates.idle) &
+            (state != BusIfStates.precharge) &
+            (state != BusIfStates.pre_external) &
+            (state != BusIfStates.external)
+        ) & read_not_write
         data_in_low = Wire()
         data_in_low <<= Reg(self.dram.data_in)
         data_in_high = Wire()
@@ -351,8 +397,8 @@ class BusIf(GenericModule):
         resp_data = Wire()
         resp_data <<= Reg(concat(data_in_high, data_in_low))
 
-        self.mem_response.valid <<= Reg(Reg(read_active & arb_mem_not_fetch))
-        self.fetch_response.valid <<= Reg(Reg(read_active & ~arb_mem_not_fetch))
+        self.mem_response.valid <<= Reg(Reg(read_active & (arb_port_select == Ports.mem_port)))
+        self.fetch_response.valid <<= Reg(Reg(read_active & (arb_port_select == Ports.fetch_port)))
         self.mem_response.data <<= resp_data
         self.fetch_response.data <<= resp_data
 
@@ -505,20 +551,17 @@ def sim():
                     cont_read()
                     yield from wait_for_advance()
                 reset()
+                yield from wait_clk()
 
             reset()
             if self.mode == "fetch":
                 yield from wait_clk()
                 while self.rst == 1:
                     yield from wait_clk()
-                yield from read(0xe,False,0,3)
-                yield from wait_clk()
-                yield from read(0x12,False,1,3)
-                yield from wait_clk()
-                yield from read(0x24,False,3,3)
-                yield from wait_clk()
+                yield from read(0xe,True,0,3)
+                yield from read(0x12,True,1,3)
+                yield from read(0x24,True,3,3)
                 yield from read(0x3,False,0,1)
-                yield from wait_clk()
                 yield from read(0x4,False,0,2)
                 yield from wait_clk()
                 yield from wait_clk()
@@ -532,6 +575,103 @@ def sim():
                     yield from wait_clk()
                 yield from read(0x100e,False,0,3)
 
+    class DmaGenerator(GenericModule):
+        clk = ClkPort()
+        rst = RstPort()
+
+        request_port = Output(BusIfDmaRequestIf)
+
+        def construct(self, nram_base: int = 0) -> None:
+            self.mode = None
+            self.nram_base = nram_base
+            self.dram_base = 2 if nram_base == 0 else 0
+
+        def set_mode(self, mode):
+            self.mode = mode
+
+        #read_not_write  = logic
+        #byte_en         = Unsigned(2)
+        #addr            = BrewBusAddr
+        #data            = BrewBusData
+        #last            = logic
+
+        def simulate(self) -> TSimEvent:
+            self.burst_cnt = None
+            self.burst_addr = None
+            self.is_dram = None
+
+            def reset():
+                self.request_port.valid <<= 0
+                self.request_port.read_not_write <<= None
+                self.request_port.byte_en <<= None
+                self.request_port.addr <<= None
+                self.request_port.channel <<= None
+                self.request_port.terminal_count <<= None
+
+            def read_or_write(addr, is_dram, byte_en, channel, terminal_count, do_write):
+                assert addr is not None
+                assert is_dram is not None
+                self.burst_addr = addr
+                self.is_dram = is_dram
+                self.channel = channel
+                self.terminal_count = terminal_count
+
+                self.request_port.valid <<= 1
+                self.request_port.read_not_write <<= not do_write
+                self.request_port.byte_en <<= byte_en
+                self.request_port.addr <<= self.burst_addr | ((self.dram_base if self.is_dram else self.nram_base) << 29)
+                self.request_port.channel <<= self.channel
+                self.request_port.terminal_count <<= self.terminal_count
+
+            def start_read(addr, is_dram, byte_en, channel, terminal_count):
+                read_or_write(addr, is_dram, byte_en, channel, terminal_count, do_write=False)
+
+            def start_write(addr, is_dram, byte_en, channel, terminal_count):
+                read_or_write(addr, is_dram, byte_en, channel, terminal_count, do_write=True)
+
+            def wait_clk():
+                yield (self.clk, )
+                while self.clk.get_sim_edge() != EdgeType.Positive:
+                    yield (self.clk, )
+
+            def wait_for_advance():
+                yield from wait_clk()
+                while not (self.request_port.ready & self.request_port.valid):
+                    yield from wait_clk()
+
+            def write(addr, is_dram, byte_en, channel, terminal_count):
+                start_write(addr, is_dram, byte_en, channel, terminal_count)
+                yield from wait_for_advance()
+                reset()
+                yield from wait_clk()
+
+            def read(addr, is_dram, byte_en, channel, terminal_count):
+                start_read(addr, is_dram, byte_en, channel, terminal_count)
+                yield from wait_for_advance()
+                reset()
+                yield from wait_clk()
+
+            reset()
+            #if self.mode == "fetch":
+            yield from wait_clk()
+            while self.rst == 1:
+                yield from wait_clk()
+            yield from read(0x1000e,True,3,0,0)
+            #    yield from read(0x12,True,1,3)
+            #    yield from read(0x24,True,3,3)
+            #    yield from read(0x3,False,0,1)
+            #    yield from read(0x4,False,0,2)
+            #    yield from wait_clk()
+            #    yield from wait_clk()
+            #    yield from wait_clk()
+            #    yield from wait_clk()
+            #    yield from read(0x34,True,0,2)
+            #    yield from read(0x4,False,0,3)
+            #elif self.mode == "mem":
+            #    yield from wait_clk()
+            #    while self.rst == 1:
+            #        yield from wait_clk()
+            #    yield from read(0x100e,False,0,3)
 
     '''
     class Checker(RvSimSink):
@@ -597,6 +737,10 @@ def sim():
             mem_generator.set_mode("mem")
             mem_req <<= mem_generator.request_port
 
+            dma_req = Wire(BusIfDmaRequestIf)
+            dma_generator = DmaGenerator()
+            dma_req <<= dma_generator.request_port
+
             dram_if = Wire(ExternalBusIf)
             dram_sim = DRAM_sim()
 
@@ -605,6 +749,7 @@ def sim():
             dut.fetch_request <<= fetch_req
             fetch_rsp <<= dut.fetch_response
             dut.mem_request <<= mem_req
+            dut.dma_request <<= dma_req
             mem_rsp <<= dut.mem_response
             dram_if <<= dut.dram
             dram_sim.bus_if <<= dram_if
@@ -629,7 +774,7 @@ def sim():
                 yield from clk()
             self.rst <<= 0
 
-            for i in range(50):
+            for i in range(150):
                 yield from clk()
             now = yield 10
             print(f"Done at {now}")

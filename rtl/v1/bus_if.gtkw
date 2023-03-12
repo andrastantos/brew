@@ -1,17 +1,17 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Mon Feb  6 16:32:57 2023
+[*] Sun Mar 12 02:05:54 2023
 [*]
-[dumpfile] "/home/tantos/brew/rtl/v1/bus_if2.vcd"
-[dumpfile_mtime] "Mon Feb  6 16:32:42 2023"
-[dumpfile_size] 120268
-[savefile] "/home/tantos/brew/rtl/v1/bus_if2.gtkw"
+[dumpfile] "/home/tantos/brew/rtl/v1/bus_if.vcd"
+[dumpfile_mtime] "Sun Mar 12 02:05:45 2023"
+[dumpfile_size] 224829
+[savefile] "/home/tantos/brew/rtl/v1/bus_if.gtkw"
 [timestart] 0
 [size] 1920 990
 [pos] -1 -1
-*-7.360241 662 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-7.360241 450 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
-[sst_width] 233
+[sst_width] 393
 [signals_width] 394
 [sst_expanded] 1
 [sst_vpaned_height] 280
@@ -32,58 +32,95 @@ top.dram_if_nCAS_b
 top.dram_if_nNREN
 top.dram_if_nWAIT
 top.dram_if_nWE
+@800022
+top.dut.dram_nDACK[3:0]
+@28
+(0)top.dut.dram_nDACK[3:0]
+(1)top.dut.dram_nDACK[3:0]
+(2)top.dut.dram_nDACK[3:0]
+(3)top.dut.dram_nDACK[3:0]
+@29
+top.dut.dram_data_out_en
+@28
+top.dut.dram_TC
+@1001200
+-group_end
 @1000200
 -DRAM_IF
+@28
+top.dut.waiting
+@22
+top.dut.wait_states[3:0]
+@28
+top.dut.state
 @800200
 -FETCH_REQ
 @28
-top.fetch_req_valid
-top.fetch_req_ready
-top.fetch_req_byte_en[1:0]
+top.dut.fetch_request_valid
+top.dut.fetch_request_ready
 @22
-top.fetch_req_data[15:0]
+top.dut.fetch_request_addr[30:0]
 @28
-top.fetch_req_read_not_write
+top.dut.fetch_request_byte_en[1:0]
+@22
+top.dut.fetch_request_data[15:0]
+@28
+top.dut.fetch_request_read_not_write
+@22
+top.dut.fetch_response_data[15:0]
+@28
+top.dut.fetch_response_valid
 @1000200
 -FETCH_REQ
-@800200
+@c00200
 -FETCH_RSP
+@28
+top.fetch_rsp_valid
 @22
 top.fetch_rsp_data[15:0]
-@28
-top.fetch_rsp_ready
-top.fetch_rsp_valid
-@1000200
+@1401200
 -FETCH_RSP
 @800200
 -MEM_REQ
+@28
+top.dut.mem_request_valid
+top.dut.mem_request_ready
+@22
+top.dut.mem_request_addr[30:0]
 @28
 top.dut.mem_request_byte_en[1:0]
 @22
 top.dut.mem_request_data[15:0]
 @28
-top.dut.mem_request_dram_not_ext
 top.dut.mem_request_read_not_write
-top.dut.mem_request_ready
-top.dut.mem_request_valid
 @1000200
 -MEM_REQ
-@800200
+@c00200
 -MEM_RSP
 @22
 top.dut.mem_response_data[15:0]
 @28
-top.dut.mem_response_ready
 top.dut.mem_response_valid
-@1000200
+@1401200
 -MEM_RSP
+@800200
+-DMA_REQ
+@28
+top.dut.dma_request_ready
+top.dut.dma_request_valid
+@22
+top.dut.dma_request_addr[30:0]
+@28
+top.dut.dma_request_byte_en[1:0]
+top.dut.dma_request_channel[1:0]
+top.dut.dma_request_read_not_write
+top.dut.dma_request_terminal_count
+@1000200
+-DMA_REQ
 @22
 top.dut.row_addr[10:0]
 top.dut.col_addr[10:0]
 @28
 top.dut.state
-top.dut.req_dram_not_ext
-top.dut.dram_not_ext
-top.dut.arb_mem_not_fetch
 [pattern_trace] 1
 [pattern_trace] 0

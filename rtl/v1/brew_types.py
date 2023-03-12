@@ -90,6 +90,13 @@ class BusIfResponseIf(Interface):
     valid           = logic
     data            = BrewBusData
 
+class BusIfDmaRequestIf(ReadyValid):
+    read_not_write  = logic
+    channel         = Unsigned(2) # Up to four channels supported
+    byte_en         = Unsigned(2)
+    addr            = BrewBusAddr
+    terminal_count  = logic
+
 class ExternalBusIf(Interface):
     nRAS          = logic
     nCAS_a        = logic
@@ -98,8 +105,11 @@ class ExternalBusIf(Interface):
     nWE           = logic
     data_in       = Reverse(BrewByte)
     data_out      = BrewByte
+    data_out_en   = logic
     nNREN         = logic
     nWAIT         = Reverse(logic)
+    nDACK         = Unsigned(4)
+    TC            = logic
 
 class FetchDecodeIf(ReadyValid):
     inst_0 = Unsigned(16)
