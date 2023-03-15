@@ -183,26 +183,14 @@ class RegFileReadResponseIf(ReadyValid):
 
 
 class ApbIf(Interface):
-
-    #def __init_subclass__(cls, addr_width: int):
-    #    cls.add_member("paddr", Unsigned(addr_width))
-
     pwrite = logic
     psel = logic
     penable = logic
     pready = Reverse(logic)
 
-    #paddr = BrewCsrAddr
+    paddr = GenericMember
     pwdata = BrewCsrData
     prdata = Reverse(BrewCsrData)
-
-class CsrIf(ApbIf):
-    def __init_subclass__(cls):
-        cls.add_member("paddr", BrewCsrAddr)
-
-class DmaRegIf(ApbIf):
-    def __init_subclass__(cls):
-        cls.add_member("paddr", Unsigned(4))
 
 '''
 APB signalling

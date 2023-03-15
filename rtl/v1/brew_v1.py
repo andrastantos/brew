@@ -57,7 +57,7 @@ class BrewV1Top(GenericModule):
         bus_to_fetch = Wire(BusIfResponseIf)
         mem_to_bus = Wire(BusIfRequestIf)
         bus_to_mem = Wire(BusIfResponseIf)
-        csr_if = Wire(CsrIf)
+        csr_if = Wire(ApbIf)
 
         # BUS INTERFACE
         ###########################

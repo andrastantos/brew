@@ -55,7 +55,7 @@ class MemoryStage(GenericModule):
     bus_rsp_if = Input(BusIfResponseIf)
 
     # Interface to the CSR registers
-    csr_if = Output(CsrIf)
+    csr_if = Output(ApbIf)
 
     def construct(self, csr_base: int):
         self.csr_base = csr_base
@@ -198,13 +198,13 @@ class MemoryStage(GenericModule):
         self.csr_if.psel <<= input_advance & is_csr | csr_pen
         self.csr_if.penable <<= csr_pen
         self.csr_if.pwrite <<= remember(self.input_port, ~self.input_port.read_not_write)
-        self.csr_if.paddr <<= remember(self.input_port, self.input_port.addr[BrewCsrAddr.length+1:2])
+        self.csr_if.paddr <<= remember(self.input_port, self.input_port.addr[BrewCsrAddrWidth+1:2])
         self.csr_if.pwdata <<= remember(self.input_port, self.input_port.data)
 
 def sim():
 
     class CsrQueueItem(object):
-        def __init__(self, req: CsrIf = None, *, pwrite = None, paddr = None, pwdata = None):
+        def __init__(self, req: ApbIf = None, *, pwrite = None, paddr = None, pwdata = None):
             if req is not None:
                 self.pwrite = req.pwrite
                 self.paddr  = req.paddr
@@ -229,7 +229,7 @@ def sim():
         clk = ClkPort()
         rst = RstPort()
 
-        input_port = Input(CsrIf)
+        input_port = Input(ApbIf)
 
         def construct(self, queue: List[CsrQueueItem]):
             self.queue = queue
