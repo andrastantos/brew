@@ -96,6 +96,7 @@ class BusIfDmaRequestIf(ReadyValid):
     one_hot_channel = GenericMember
     byte_en         = Unsigned(2)
     addr            = BrewBusAddr
+    is_master       = logic
     terminal_count  = logic
 
 class BusIfDmaResponseIf(Interface):

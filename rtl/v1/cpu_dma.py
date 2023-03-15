@@ -85,8 +85,16 @@ class CpuDma(Module):
         ch_limit_ofs = 1
         int_reg_ofs = self.ch_count*2+0
         #stat_reg_ofs = self.ch_count*2+1 # read-only, thus not directly used as a constant
-        dma_mode_reg_ofs = self.ch_count*2+2
-        direction_reg_ofs = self.ch_count*2+3
+        config_reg_ofs = self.ch_count*2+2
+        ch_bit_shift = 4
+        # status register bits (each channel is shifted by 4 bits)
+        stat_active_bit = 0
+        stat_req_pending_bit = 1
+        # config register bits (each channel is shifted by 4 bits)
+        cfg_single_bit = 0
+        cfg_read_not_write_bit = 1
+        cfg_is_master_bit = 2
+        cfg_high_priority_bit = 3
 
         prev_drq = Reg(self.drq)
         next_addr = Wire(BrewAddr)
@@ -94,13 +102,19 @@ class CpuDma(Module):
 
         class ChInfo():
             def __init__(self):
+                # Basic registers
                 self.addr = Wire(BrewAddr)
                 self.limit = Wire(BrewAddr)
+                # Configuration bits
                 self.single = Wire(logic)
+                self.read_not_write = Wire(logic)
+                self.is_master = Wire(logic)
+                self.high_priority = Wire(logic)
+                # Status bits
                 self.active = Wire(logic)
                 self.int_pending = Wire(logic)
-                self.request = Wire(logic)
-                self.read_not_write = Wire(logic)
+                self.req_pending = Wire(logic)
+
 
         ch_infos = tuple(ChInfo() for _ in range(self.ch_count))
 
@@ -114,6 +128,7 @@ class CpuDma(Module):
         for idx, ch_info in enumerate(ch_infos):
             ch_base = idx*2
             ch_served = selected_dma_channel[idx] & self.bus_rsp_if.valid
+
             ch_info.addr <<= Reg(
                 Select(
                     (reg_addr == ch_base + ch_addr_ofs) & reg_write_strobe,
@@ -126,6 +141,12 @@ class CpuDma(Module):
                 )
             )
             ch_info.limit <<= Reg(self.reg_if.pwdata, clock_en = (reg_addr == ch_base + ch_limit_ofs) & reg_write_strobe)
+
+            ch_info.single         <<= Reg(self.reg_if.pwdata[idx*ch_bit_shift+cfg_single_bit        ], clock_en = (reg_addr == config_reg_ofs) & reg_write_strobe)
+            ch_info.read_not_write <<= Reg(self.reg_if.pwdata[idx*ch_bit_shift+cfg_read_not_write_bit], clock_en = (reg_addr == config_reg_ofs) & reg_write_strobe)
+            ch_info.is_master      <<= Reg(self.reg_if.pwdata[idx*ch_bit_shift+cfg_is_master_bit     ], clock_en = (reg_addr == config_reg_ofs) & reg_write_strobe)
+            ch_info.high_priority  <<= Reg(self.reg_if.pwdata[idx*ch_bit_shift+cfg_high_priority_bit ], clock_en = (reg_addr == config_reg_ofs) & reg_write_strobe)
+
             ch_info.active <<= Reg(
                 Select(
                     (reg_addr == ch_base + ch_addr_ofs) & reg_write_strobe,
@@ -148,16 +169,14 @@ class CpuDma(Module):
                     1
                 )
             )
-            ch_info.single <<= Reg(self.reg_if.pwdata[idx], clock_en = (reg_addr == dma_mode_reg_ofs) & reg_write_strobe)
-            ch_info.read_not_write <<= Reg(self.reg_if.pwdata[idx], clock_en = (reg_addr == direction_reg_ofs) & reg_write_strobe)
-            ch_info.request <<= Select(
-                ch_info.single,
+            ch_info.req_pending <<= Select(
+                ch_info.single & ~ch_info.is_master,
                 # Single mode: create edge-sensitive requests (with an extra cycle latency)
                 Reg(
                     Select(self.drq[idx] & ~prev_drq[idx],
                         Select(
                             ch_served,
-                            ch_info.request,
+                            ch_info.req_pending,
                             0
                         ),
                         1
@@ -166,14 +185,12 @@ class CpuDma(Module):
                 # Burst mode: level-sensitive requests
                 self.drq[idx]
             )
-            setattr(self, f"ch_{idx}_addr", ch_info.addr)
-            setattr(self, f"ch_{idx}_limit", ch_info.limit)
-            setattr(self, f"ch_{idx}_active", ch_info.active)
-            setattr(self, f"ch_{idx}_int_pending", ch_info.int_pending)
-            setattr(self, f"ch_{idx}_single", ch_info.single)
-            setattr(self, f"ch_{idx}_request", ch_info.request)
+
+            # Export all ch_info members into a wire that can be dumped into a VCD file
+            for name, member in vars(ch_info).items():
+                if is_wire(member):
+                    setattr(self, f"ch_{idx}_{name}", member)
             setattr(self, f"ch_{idx}_served", ch_served)
-            setattr(self, f"ch_{idx}_read_not_write", ch_info.read_not_write)
         del ch_served
 
         ch_read_not_writes = concat(*(ch_info.read_not_write for ch_info in reversed(ch_infos)))
@@ -185,17 +202,40 @@ class CpuDma(Module):
             # int_reg_ofs
             concat(*(ch_info.int_pending for ch_info in reversed(ch_infos))),
             # stat_reg_ofs
-            concat(*(ch_info.active for ch_info in reversed(ch_infos))),
-            # dma_mode_reg_ofs
-            concat(*(ch_info.single for ch_info in reversed(ch_infos))),
-            # direction_reg_ofs
-            ch_read_not_writes,
+            concat(
+                *(itertools.chain.from_iterable(("1'b0", "1'b0", ch_info.req_pending, ch_info.active) for ch_info in reversed(ch_infos)))
+            ),
+            # config_reg_ofs
+            #    cfg_single_bit = 0
+            #    cfg_read_not_write_bit = 1
+            #    cfg_is_master_bit = 2
+            #    cfg_high_priority_bit = 3
+            concat(
+                *(itertools.chain.from_iterable((ch_info.is_master, ch_info.high_priority, ch_info.read_not_write, ch_info.single) for ch_info in reversed(ch_infos)))
+            ),
         ))
 
-        # Arbitration logic
+        # Arbitration logic (we have a high-priority and a low-priority arbiter, each implementing their own round-robin)
+        # NOTE: We step both arbiters at the same time, independent of whether they were the ones providing the requestor.
+        #       This might be slightly sub-optimal, but I doubt it would cause trouble in real life.
         priority_change = Wire(logic)
+        high_pri_selected_dma_channel = Wire(Unsigned(self.ch_count))
+        low_pri_selected_dma_channel = Wire(Unsigned(self.ch_count))
+        high_pri_req_pending = Wire(Unsigned(self.ch_count))
+        low_pri_req_pending  = Wire(Unsigned(self.ch_count))
+        high_pri_selected = Wire()
+
         priority_change <<= self.bus_req_if.ready & self.bus_req_if.valid
-        selected_dma_channel <<= RoundRobinArbiter(concat(*(ch_info.request for ch_info in ch_infos)), advance=priority_change)
+        high_pri_req_pending <<= concat(*(ch_info.req_pending &  ch_info.high_priority for ch_info in ch_infos))
+        low_pri_req_pending  <<= concat(*(ch_info.req_pending & ~ch_info.high_priority for ch_info in ch_infos))
+        high_pri_selected_dma_channel <<= RoundRobinArbiter(high_pri_req_pending, advance=priority_change &  high_pri_selected)
+        low_pri_selected_dma_channel  <<= RoundRobinArbiter(low_pri_req_pending,  advance=priority_change & ~high_pri_selected)
+        high_pri_selected <<= high_pri_selected_dma_channel != 0
+        selected_dma_channel <<= Select(
+            high_pri_selected,
+            low_pri_selected_dma_channel,
+            high_pri_selected_dma_channel
+        )
 
         def byte_en_from_lsb(addr):
             return concat(addr[0], ~addr[0])
@@ -213,6 +253,7 @@ class CpuDma(Module):
         self.bus_req_if.one_hot_channel <<= selected_dma_channel
         self.bus_req_if.byte_en         <<= SelectOne(selected_dma_channel, *(byte_en_from_lsb(ch_info.addr) for ch_info in ch_infos))
         self.bus_req_if.addr            <<= selected_addr[31:1]
+        self.bus_req_if.is_master       <<= SelectOne(selected_dma_channel, *(ch_info.is_master for ch_info in ch_infos))
         self.bus_req_if.terminal_count  <<= tc
 
 
