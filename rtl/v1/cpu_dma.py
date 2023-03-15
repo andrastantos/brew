@@ -16,6 +16,7 @@ except ImportError:
 
 from dataclasses import dataclass
 import itertools
+from copy import copy
 
 """
     DMA core integrated into the CPU
@@ -169,7 +170,7 @@ class CpuDma(Module):
                     1
                 )
             )
-            ch_info.req_pending <<= Select(
+            ch_info.req_pending <<= ch_info.active & Select(
                 ch_info.single & ~ch_info.is_master,
                 # Single mode: create edge-sensitive requests (with an extra cycle latency)
                 Reg(
@@ -226,11 +227,14 @@ class CpuDma(Module):
         high_pri_selected = Wire()
 
         priority_change <<= self.bus_req_if.ready & self.bus_req_if.valid
-        high_pri_req_pending <<= concat(*(ch_info.req_pending &  ch_info.high_priority for ch_info in ch_infos))
-        low_pri_req_pending  <<= concat(*(ch_info.req_pending & ~ch_info.high_priority for ch_info in ch_infos))
-        high_pri_selected_dma_channel <<= RoundRobinArbiter(high_pri_req_pending, advance=priority_change &  high_pri_selected)
-        low_pri_selected_dma_channel  <<= RoundRobinArbiter(low_pri_req_pending,  advance=priority_change & ~high_pri_selected)
-        high_pri_selected <<= high_pri_selected_dma_channel != 0
+        req_pendig = or_gate(*(ch_info.req_pending for ch_info in ch_infos))
+        high_pri_req_pending <<= concat(*(ch_info.req_pending &  ch_info.high_priority for ch_info in reversed(ch_infos)))
+        low_pri_req_pending  <<= concat(*(ch_info.req_pending & ~ch_info.high_priority for ch_info in reversed(ch_infos)))
+        high_pri_arbiter = RoundRobinArbiter()
+        low_pri_arbiter = RoundRobinArbiter()
+        high_pri_selected_dma_channel <<= high_pri_arbiter(high_pri_req_pending, advance=priority_change &  high_pri_selected)
+        low_pri_selected_dma_channel  <<= low_pri_arbiter(low_pri_req_pending,  advance=priority_change & ~high_pri_selected)
+        high_pri_selected <<= high_pri_req_pending != 0
         selected_dma_channel <<= Select(
             high_pri_selected,
             low_pri_selected_dma_channel,
@@ -240,21 +244,192 @@ class CpuDma(Module):
         def byte_en_from_lsb(addr):
             return concat(addr[0], ~addr[0])
 
-        selected_addr = SelectOne(selected_dma_channel, *(ch_info.addr for ch_info in ch_infos))
-        selected_limit = SelectOne(selected_dma_channel, *(ch_info.limit for ch_info in ch_infos))
+        def select_for_ch(one_hot_channel, per_channel_values):
+            return SelectOne(*itertools.chain.from_iterable(
+                (selector, value) for selector, value in zip(one_hot_channel, per_channel_values)
+            ))
+
+        selected_addr = select_for_ch(selected_dma_channel, (ch_info.addr for ch_info in ch_infos))
+        selected_limit = select_for_ch(selected_dma_channel, (ch_info.limit for ch_info in ch_infos))
         tc <<= ~(selected_addr < selected_limit)
         next_addr <<= (selected_addr + 1)[31:0]
 
         # Bus interface
-        self.bus_req_if.valid           <<= selected_dma_channel != 0
+        self.bus_req_if.valid           <<= req_pendig
         read_not_writes = Wire(Unsigned(self.ch_count))
         read_not_writes <<= ch_read_not_writes & selected_dma_channel
         self.bus_req_if.read_not_write  <<= or_gate(*read_not_writes) # reduction or; only a single DMA channel is enabled, so all other channels are masked out
         self.bus_req_if.one_hot_channel <<= selected_dma_channel
-        self.bus_req_if.byte_en         <<= SelectOne(selected_dma_channel, *(byte_en_from_lsb(ch_info.addr) for ch_info in ch_infos))
+        self.bus_req_if.byte_en         <<= select_for_ch(selected_dma_channel, (byte_en_from_lsb(ch_info.addr) for ch_info in ch_infos))
         self.bus_req_if.addr            <<= selected_addr[31:1]
-        self.bus_req_if.is_master       <<= SelectOne(selected_dma_channel, *(ch_info.is_master for ch_info in ch_infos))
+        self.bus_req_if.is_master       <<= select_for_ch(selected_dma_channel, (ch_info.is_master for ch_info in ch_infos))
         self.bus_req_if.terminal_count  <<= tc
+
+
+def sim():
+    class BusIfSim(Module):
+        clk = ClkPort()
+        rst = RstPort()
+
+        req_port = Input(BusIfDmaRequestIf)
+        rsp_port = Output(BusIfDmaResponseIf)
+
+        dack = Output(Unsigned(4))
+
+        def simulate(self, simulator: Simulator):
+            def wait_clk():
+                yield (self.clk, )
+                while self.clk.get_sim_edge() != EdgeType.Positive:
+                    yield (self.clk, )
+
+            def wait_rst():
+                yield from wait_clk()
+                while self.rst == 1:
+                    yield from wait_clk()
+
+            self.req_port.ready <<= 0
+            self.rsp_port.valid <<= 0
+            yield from wait_rst()
+
+            self.req_port.ready <<= 1
+            while True:
+                yield from wait_clk()
+                if self.req_port.ready & self.req_port.valid:
+                    self.dack <<= self.req_port.one_hot_channel
+                    yield from wait_clk()
+                    yield from wait_clk()
+                    self.rsp_port.valid <<= 1
+                    self.dack <<= 0
+                    yield from wait_clk()
+                    self.rsp_port.valid <<= 0
+
+    class Driver(Module):
+        clk = ClkPort()
+        rst = RstPort()
+
+        drq = Output(Unsigned(4))
+        dack = Input(Unsigned(4))
+        reg_if = Output(ApbIf)
+
+        def construct(self):
+            self.reg_if.paddr.set_net_type(Unsigned(4))
+
+        def simulate(self, simulator: Simulator):
+            def wait_clk():
+                yield (self.clk, )
+                while self.clk.get_sim_edge() != EdgeType.Positive:
+                    yield (self.clk, )
+
+            def wait_rst():
+                yield from wait_clk()
+                while self.rst == 1:
+                    yield from wait_clk()
+
+            def write_reg(addr, value):
+                self.reg_if.psel <<= 1
+                self.reg_if.penable <<= 0
+                self.reg_if.pwrite <<= 1
+                self.reg_if.paddr <<= addr
+                self.reg_if.pwdata <<= value
+                yield from wait_clk()
+                self.reg_if.penable <<= 1
+                yield from wait_clk()
+                while not self.reg_if.pready:
+                    yield from wait_clk()
+                simulator.log(f"REG {addr:02x} written with value {value:08x}")
+                self.reg_if.psel <<= 0
+                self.reg_if.penable <<= None
+                self.reg_if.pwrite <<= None
+                self.reg_if.paddr <<= None
+                self.reg_if.pwdata <<= None
+
+            def read_reg(addr):
+                self.reg_if.psel <<= 1
+                self.reg_if.penable <<= 0
+                self.reg_if.pwrite <<= 0
+                self.reg_if.paddr <<= addr
+                self.reg_if.pwdata <<= None
+                yield from wait_clk()
+                self.reg_if.penable <<= 1
+                yield from wait_clk()
+                while not self.reg_if.pready:
+                    yield from wait_clk()
+                ret_val = copy(self.reg_if.prdata)
+                simulator.log(f"REG {addr:02x} read returned value {ret_val:08x}")
+                self.reg_if.psel <<= 0
+                self.reg_if.penable <<= None
+                self.reg_if.pwrite <<= None
+                self.reg_if.paddr <<= None
+                self.reg_if.pwdata <<= None
+                return ret_val
+
+            def start_transfer(ch, base, limit, read_not_write, *, master=False, single=False, high_pri=False):
+                conf_val = (
+                    (1 << 0) & (-single) |
+                    (1 << 1) & (-read_not_write) |
+                    (1 << 2) & (-master) |
+                    (1 << 3) & (-high_pri)
+                )
+                yield from write_reg(4*2+3, conf_val << (4*ch))
+                yield from write_reg(ch*2+1, limit)
+                yield from write_reg(ch*2+0, base) # Write base last as that activates the channel
+
+            self.drq <<= 0
+            self.reg_if.psel <<= 0
+            yield from wait_rst()
+            yield from start_transfer(0, 100, 110, False)
+            for i in range(10):
+                for _ in range(randint(0,3)):
+                    yield from wait_clk()
+                    simulator.log(f"CH {0} drq sent")
+                    self.drq <<= 1 << 0
+                    yield from wait_clk()
+                    while (self.dack & (1 << 0)) != 1:
+                        yield from wait_clk()
+                    simulator.log(f"CH {0} dack received")
+                    self.drq <<= 0
+                    while (self.dack & (1 << 0)) != 0:
+                        yield from wait_clk()
+
+
+    class top(Module):
+        clk = ClkPort()
+        rst = RstPort()
+
+        def body(self):
+            dut = CpuDma()
+            bus_if_sim = BusIfSim()
+            driver = Driver()
+
+            bus_if_sim.req_port <<= dut.bus_req_if
+            dut.bus_rsp_if <<= bus_if_sim.rsp_port
+            dut.reg_if <<= driver.reg_if
+            dut.drq <<= driver.drq
+            driver.dack <<= bus_if_sim.dack
+
+        def simulate(self, simulator: Simulator):
+            def clk() -> int:
+                yield 5
+                self.clk <<= ~self.clk & self.clk
+                yield 5
+                self.clk <<= ~self.clk
+                yield 0
+
+            print("Simulation started")
+
+            self.rst <<= 1
+            self.clk <<= 1
+            yield 10
+            for i in range(5):
+                yield from clk()
+            self.rst <<= 0
+
+            for i in range(100):
+                yield from clk()
+            now = yield 10
+            print(f"Done at {now}")
+
+    Build.simulation(top, "cpu_dma.vcd", add_unnamed_scopes=True)
 
 
 def gen():
@@ -296,5 +471,5 @@ def gen():
     flow.run()
 
 if __name__ == "__main__":
-    gen()
-    #sim()
+    #gen()
+    sim()
