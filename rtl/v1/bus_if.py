@@ -286,7 +286,7 @@ class BusIf(GenericModule):
             req_addr[7:0]
         ), clock_en=req_advance)
         read_not_write = Wire()
-        read_not_write <<= Reg(req_read_not_write, clock_en=start) # reads and writes can't mix within a burst
+        read_not_write <<= Reg(req_read_not_write, clock_en=start, reset_value_port=1) # reads and writes can't mix within a burst
         data_out_en = Wire()
         data_out_en <<= Reg(~req_read_not_write & (arb_port_select != Ports.dma_port), clock_en=start) # reads and writes can't mix within a burst
         byte_en = Wire()
@@ -487,8 +487,8 @@ def sim():
                             full_addr = full_addr & (self.addr_bus_mask << self.addr_bus_len) | self.bus_if.addr
                             if self.bus_if.nWE == 0:
                                 # Write to the address
-                                data = f"{self.bus_if.data_out:x}"
-                                simulator.log(f"Writing byte {byte} to address {full_addr:08x} {data:04x}")
+                                data = f"{self.bus_if.data_out:04x}"
+                                simulator.log(f"Writing byte {byte} to address {full_addr:08x} {data}")
                             else:
                                 shift = 8 if byte == "high" else 0
                                 data = (full_addr >> shift) & 0xff
@@ -701,7 +701,8 @@ def sim():
             yield from wait_clk()
             while self.rst == 1:
                 yield from wait_clk()
-            yield from read(0x1000e,True,3,0,0)
+            yield from read(0x1000e,True,1,0,0)
+            yield from write(0x10010,True,2,0,0)
             #    yield from read(0x12,True,1,3)
             #    yield from read(0x24,True,3,3)
             #    yield from read(0x3,False,0,1)
