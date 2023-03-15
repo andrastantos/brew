@@ -111,6 +111,7 @@ class BusIf(GenericModule):
     mem_request  = Input(BusIfRequestIf)
     mem_response = Output(BusIfResponseIf)
     dma_request = Input(BusIfDmaRequestIf)
+    dma_response = Output(BusIfDmaResponseIf)
 
     # DRAM interface
     dram = Output(ExternalBusIf)
@@ -217,7 +218,7 @@ class BusIf(GenericModule):
         req_nram = (req_addr[30:29] == self.nram_base) & (arb_port_select != Ports.dma_port)
         req_dma  = (arb_port_select == Ports.dma_port)
 
-        dma_ch = Reg(self.dma_request.channel, clock_en=start)
+        dma_ch = Reg(self.dma_request.one_hot_channel, clock_en=start)
         tc = Reg(self.dma_request.terminal_count, clock_en=start)
 
         req_wait_states = (req_addr[28:25]-1)[3:0]
@@ -338,9 +339,14 @@ class BusIf(GenericModule):
             (next_state != BusIfStates.non_dram_first) & (next_state != BusIfStates.non_dram_wait) & (next_state != BusIfStates.non_dram_dual_first) & (next_state != BusIfStates.non_dram_dual_wait),
             reset_value_port = 1
         ) # We re-register the state to remove all glitches
-        nDACK = Wire(Unsigned(4))
-        for i in range(nDACK.get_num_bits()):
-            nDACK[i] <<= Reg((next_state != BusIfStates.dma_first) & (next_state != BusIfStates.dma_wait) | (dma_ch != i), reset_value_port = 1)
+        nDACK = Wire(self.dma_request.one_hot_channel.get_net_type())
+        nDACK <<= ~Reg(
+            Select(
+                (state == BusIfStates.dma_first) | ((state == BusIfStates.dma_wait) & waiting),
+                0,
+                dma_ch
+            )
+        )
         NR_CAS_logic = (
             (state == BusIfStates.non_dram_dual_first) | (state == BusIfStates.non_dram_first) | (state == BusIfStates.dma_first) |
             (waiting & ((state == BusIfStates.non_dram_dual_wait) | (state == BusIfStates.non_dram_wait) | (state == BusIfStates.dma_wait)))
@@ -441,6 +447,7 @@ class BusIf(GenericModule):
 
         self.mem_response.valid <<= Reg(Reg(read_active & (arb_port_select == Ports.mem_port)))
         self.fetch_response.valid <<= Reg(Reg(read_active & (arb_port_select == Ports.fetch_port)))
+        self.dma_response.valid <<= (state == BusIfStates.dma_wait) & ~waiting
         self.mem_response.data <<= resp_data
         self.fetch_response.data <<= resp_data
 
@@ -629,6 +636,9 @@ def sim():
             self.nram_base = nram_base
             self.dram_base = 2 if nram_base == 0 else 0
 
+        def body(self):
+            self.request_port.one_hot_channel.set_net_type(Unsigned(4))
+
         def set_mode(self, mode):
             self.mode = mode
 
@@ -644,7 +654,7 @@ def sim():
                 self.request_port.read_not_write <<= None
                 self.request_port.byte_en <<= None
                 self.request_port.addr <<= None
-                self.request_port.channel <<= None
+                self.request_port.one_hot_channel <<= None
                 self.request_port.terminal_count <<= None
 
             def read_or_write(addr, is_dram, byte_en, channel, terminal_count, wait_states, do_write):
@@ -655,7 +665,7 @@ def sim():
                 self.request_port.read_not_write <<= not do_write
                 self.request_port.byte_en <<= byte_en
                 self.request_port.addr <<= addr | ((self.dram_base if is_dram else self.nram_base) << 29) | ((wait_states + 1) << (29-4))
-                self.request_port.channel <<= channel
+                self.request_port.one_hot_channel <<= 1 << channel
                 self.request_port.terminal_count <<= terminal_count
 
             def start_read(addr, is_dram, byte_en, channel, terminal_count, wait_states):

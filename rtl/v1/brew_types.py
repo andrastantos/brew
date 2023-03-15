@@ -20,7 +20,8 @@ BrewRegAddr = Number(min_val=0, max_val=BrewRegCnt-1)
 BrewMemBase = Unsigned(22)
 BrewMemShift = 10 # This is in bytes
 
-BrewCsrAddr = Unsigned(10) # We have 4kB of CSR space, in 1024 32-bit registers
+BrewCsrAddrWidth = 10 # We have 4kB of CSR space, in 1024 32-bit registers
+BrewCsrAddr = Unsigned(BrewCsrAddrWidth)
 BrewCsrData = Unsigned(32)
 
 inst_len_16 = 0
@@ -92,10 +93,13 @@ class BusIfResponseIf(Interface):
 
 class BusIfDmaRequestIf(ReadyValid):
     read_not_write  = logic
-    channel         = Unsigned(2) # Up to four channels supported
+    one_hot_channel = GenericMember
     byte_en         = Unsigned(2)
     addr            = BrewBusAddr
     terminal_count  = logic
+
+class BusIfDmaResponseIf(Interface):
+    valid           = logic
 
 class ExternalBusIf(Interface):
     nRAS          = logic
@@ -178,15 +182,27 @@ class RegFileReadResponseIf(ReadyValid):
     read2_data = BrewData
 
 
-class CsrIf(Interface):
+class ApbIf(Interface):
+
+    #def __init_subclass__(cls, addr_width: int):
+    #    cls.add_member("paddr", Unsigned(addr_width))
+
     pwrite = logic
     psel = logic
     penable = logic
     pready = Reverse(logic)
 
-    paddr = BrewCsrAddr
+    #paddr = BrewCsrAddr
     pwdata = BrewCsrData
     prdata = Reverse(BrewCsrData)
+
+class CsrIf(ApbIf):
+    def __init_subclass__(cls):
+        cls.add_member("paddr", BrewCsrAddr)
+
+class DmaRegIf(ApbIf):
+    def __init_subclass__(cls):
+        cls.add_member("paddr", Unsigned(4))
 
 '''
 APB signalling
