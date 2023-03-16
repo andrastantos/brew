@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Wed Mar 15 01:10:11 2023
+[*] Thu Mar 16 18:41:48 2023
 [*]
 [dumpfile] "/home/tantos/brew/rtl/v1/bus_if.vcd"
-[dumpfile_mtime] "Wed Mar 15 01:06:34 2023"
-[dumpfile_size] 266304
+[dumpfile_mtime] "Thu Mar 16 18:39:23 2023"
+[dumpfile_size] 283356
 [savefile] "/home/tantos/brew/rtl/v1/bus_if.gtkw"
-[timestart] 0
+[timestart] 1146
 [size] 1920 990
 [pos] -1 -1
-*-7.360241 181 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-7.360241 1930 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [sst_width] 393
 [signals_width] 394
@@ -44,6 +44,7 @@ top.dut.dram_nDACK[3:0]
 (3)top.dut.dram_nDACK[3:0]
 top.dut.dram_data_out_en
 top.dut.dram_TC
+top.dut.dram_bus_en
 @1001200
 -group_end
 @1000200
@@ -114,25 +115,28 @@ top.dut.mem_response_valid
 -MEM_RSP
 @800200
 -DMA_REQ
+@29
+top.dut.arb_port_select
 @28
 top.dut.dma_request_ready
 top.dut.dma_request_valid
 @22
 top.dut.dma_request_addr[30:0]
-@800023
+@800022
 top.dut.dma_request_one_hot_channel[3:0]
-@29
+@28
 (0)top.dut.dma_request_one_hot_channel[3:0]
 (1)top.dut.dma_request_one_hot_channel[3:0]
 (2)top.dut.dma_request_one_hot_channel[3:0]
 (3)top.dut.dma_request_one_hot_channel[3:0]
-@1001201
+@1001200
 -group_end
 @28
 top.dut.dma_request_byte_en[1:0]
 top.dut.dma_request_read_not_write
 top.dut.dma_request_terminal_count
 top.dut.dma_response_valid
+top.dut.dma_request_is_master
 @1000200
 -DMA_REQ
 @22

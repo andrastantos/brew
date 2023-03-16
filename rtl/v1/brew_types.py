@@ -115,6 +115,7 @@ class ExternalBusIf(Interface):
     nWAIT         = Reverse(logic)
     nDACK         = Unsigned(4)
     TC            = logic
+    bus_en        = logic
 
 class FetchDecodeIf(ReadyValid):
     inst_0 = Unsigned(16)

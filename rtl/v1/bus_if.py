@@ -116,10 +116,6 @@ class BusIf(GenericModule):
     # DRAM interface
     dram = Output(ExternalBusIf)
 
-    # External bus-request
-    ext_req           = Input(logic)
-    ext_grnt          = Output(logic)
-
     def construct(self, nram_base: int = 0):
         self.nram_base = nram_base
 
@@ -151,14 +147,13 @@ class BusIf(GenericModule):
             middle               = 2
             external             = 3
             precharge            = 4
-            pre_external         = 5
-            non_dram_first       = 6
-            non_dram_wait        = 7
-            non_dram_dual        = 8
-            non_dram_dual_first  = 9
-            non_dram_dual_wait   = 10
-            dma_first            = 11
-            dma_wait             = 12
+            non_dram_first       = 5
+            non_dram_wait        = 6
+            non_dram_dual        = 7
+            non_dram_dual_first  = 8
+            non_dram_dual_wait   = 9
+            dma_first            = 10
+            dma_wait             = 11
 
         self.fsm = FSM()
 
@@ -197,7 +192,7 @@ class BusIf(GenericModule):
         req_ready <<= (state == BusIfStates.idle) | (state == BusIfStates.first) | (state == BusIfStates.middle)
         self.mem_request.ready <<= req_ready & (arb_port_select == Ports.mem_port)
         self.fetch_request.ready <<= req_ready & (arb_port_select == Ports.fetch_port)
-        self.dma_request.ready <<= req_ready & (arb_port_select == Ports.dma_port)
+        self.dma_request.ready <<= (req_ready & (arb_port_select == Ports.dma_port)) | (state == BusIfStates.external)
 
         req_valid = Wire()
         start = Wire()
@@ -216,7 +211,8 @@ class BusIf(GenericModule):
 
         req_dram = (req_addr[30:29] != self.nram_base) & (arb_port_select != Ports.dma_port)
         req_nram = (req_addr[30:29] == self.nram_base) & (arb_port_select != Ports.dma_port)
-        req_dma  = (arb_port_select == Ports.dma_port)
+        req_dma  = (arb_port_select == Ports.dma_port) & ~self.dma_request.is_master
+        req_ext  = (arb_port_select == Ports.dma_port) &  self.dma_request.is_master
 
         dma_ch = Reg(self.dma_request.one_hot_channel, clock_en=start)
         tc = Reg(self.dma_request.terminal_count, clock_en=start)
@@ -244,18 +240,16 @@ class BusIf(GenericModule):
         two_cycle_nram_access = Wire(logic)
         two_cycle_nram_access = Reg((req_byte_en == 3) & req_nram, clock_en=start)
 
-        self.fsm.add_transition(BusIfStates.idle,         self.ext_req & ~req_valid,                                            BusIfStates.external)
+        self.fsm.add_transition(BusIfStates.idle,                         req_valid & req_ext,                                  BusIfStates.external)
         self.fsm.add_transition(BusIfStates.idle,                         req_valid & req_nram,                                 BusIfStates.non_dram_first)
         self.fsm.add_transition(BusIfStates.idle,                         req_valid & req_dma,                                  BusIfStates.dma_first)
         self.fsm.add_transition(BusIfStates.idle,                         req_valid & req_dram,                                 BusIfStates.first)
-        self.fsm.add_transition(BusIfStates.external,    ~self.ext_req,                                                         BusIfStates.idle)
+        self.fsm.add_transition(BusIfStates.external,                     req_valid & ~req_ext,                                 BusIfStates.idle)
+        self.fsm.add_transition(BusIfStates.external,                    ~req_valid,                                            BusIfStates.idle)
         self.fsm.add_transition(BusIfStates.first,                       ~req_valid,                                            BusIfStates.precharge)
         self.fsm.add_transition(BusIfStates.first,                        req_valid,                                            BusIfStates.middle)
         self.fsm.add_transition(BusIfStates.middle,                      ~req_valid,                                            BusIfStates.precharge)
-        self.fsm.add_transition(BusIfStates.precharge,   ~self.ext_req,                                                         BusIfStates.idle)
-        self.fsm.add_transition(BusIfStates.precharge,    self.ext_req,                                                         BusIfStates.pre_external)
-        self.fsm.add_transition(BusIfStates.pre_external, self.ext_req,                                                         BusIfStates.external)
-        self.fsm.add_transition(BusIfStates.pre_external,~self.ext_req,                                                         BusIfStates.idle)
+        self.fsm.add_transition(BusIfStates.precharge, 1,                                                                       BusIfStates.idle)
         self.fsm.add_transition(BusIfStates.non_dram_first, 1,                                                                  BusIfStates.non_dram_wait)
         self.fsm.add_transition(BusIfStates.non_dram_wait,  waiting,                                                            BusIfStates.non_dram_wait)
         self.fsm.add_transition(BusIfStates.non_dram_wait, ~waiting &  two_cycle_nram_access,                                   BusIfStates.non_dram_dual)
@@ -330,8 +324,7 @@ class BusIf(GenericModule):
             (next_state == BusIfStates.non_dram_wait) |
             (next_state == BusIfStates.non_dram_dual) |
             (next_state == BusIfStates.non_dram_dual_first) |
-            (next_state == BusIfStates.non_dram_dual_wait) |
-            (next_state == BusIfStates.pre_external),
+            (next_state == BusIfStates.non_dram_dual_wait),
             reset_value_port = 1
         ) # We re-register the state to remove all glitches
         nNREN = Wire()
@@ -342,7 +335,7 @@ class BusIf(GenericModule):
         nDACK = Wire(self.dma_request.one_hot_channel.get_net_type())
         nDACK <<= ~Reg(
             Select(
-                (state == BusIfStates.dma_first) | ((state == BusIfStates.dma_wait) & waiting),
+                (state == BusIfStates.dma_first) | ((state == BusIfStates.dma_wait) & waiting) | (state == BusIfStates.external),
                 0,
                 dma_ch
             )
@@ -362,7 +355,6 @@ class BusIf(GenericModule):
             ~byte_en[0] |
             (next_state == BusIfStates.idle) |
             (next_state == BusIfStates.precharge) |
-            (next_state == BusIfStates.pre_external) |
             (next_state == BusIfStates.non_dram_first) |
             (next_state == BusIfStates.non_dram_wait) |
             (next_state == BusIfStates.non_dram_dual) |
@@ -377,7 +369,6 @@ class BusIf(GenericModule):
             ~byte_en[1] |
             (next_state == BusIfStates.idle) |
             (next_state == BusIfStates.precharge) |
-            (next_state == BusIfStates.pre_external) |
             (next_state == BusIfStates.non_dram_first) |
             (next_state == BusIfStates.non_dram_wait) |
             (next_state == BusIfStates.non_dram_dual) |
@@ -422,6 +413,7 @@ class BusIf(GenericModule):
         self.dram.nNREN      <<= nNREN
         self.dram.nDACK      <<= nDACK
         self.dram.TC         <<= tc
+        self.dram.bus_en     <<= state != BusIfStates.external
 
         read_active = Wire()
         read_active <<= (
@@ -657,22 +649,26 @@ def sim():
                 self.request_port.one_hot_channel <<= None
                 self.request_port.terminal_count <<= None
 
-            def read_or_write(addr, is_dram, byte_en, channel, terminal_count, wait_states, do_write):
-                assert addr is not None
-                assert is_dram is not None
+            def read_or_write(addr, is_dram, byte_en, channel, terminal_count, wait_states, do_write, is_master):
+                assert addr is not None or is_master
+                assert is_dram is not None or is_master
 
                 self.request_port.valid <<= 1
                 self.request_port.read_not_write <<= not do_write
                 self.request_port.byte_en <<= byte_en
-                self.request_port.addr <<= addr | ((self.dram_base if is_dram else self.nram_base) << 29) | ((wait_states + 1) << (29-4))
+                self.request_port.addr <<= None if is_master else addr | ((self.dram_base if is_dram else self.nram_base) << 29) | ((wait_states + 1) << (29-4))
                 self.request_port.one_hot_channel <<= 1 << channel
                 self.request_port.terminal_count <<= terminal_count
+                self.request_port.is_master <<= is_master
 
             def start_read(addr, is_dram, byte_en, channel, terminal_count, wait_states):
-                read_or_write(addr, is_dram, byte_en, channel, terminal_count, wait_states, do_write=False)
+                read_or_write(addr, is_dram, byte_en, channel, terminal_count, wait_states, do_write=False, is_master=False)
 
             def start_write(addr, is_dram, byte_en, channel, terminal_count, wait_states):
-                read_or_write(addr, is_dram, byte_en, channel, terminal_count, wait_states, do_write=True)
+                read_or_write(addr, is_dram, byte_en, channel, terminal_count, wait_states, do_write=True, is_master=False)
+
+            def start_master(channel):
+                read_or_write(None, None, None, channel, None, None, do_write=None, is_master=True)
 
             def wait_clk():
                 yield (self.clk, )
@@ -703,6 +699,15 @@ def sim():
                 yield from wait_clk()
             yield from read(0x1000e,True,1,0,0)
             yield from write(0x10010,True,2,0,0)
+            for _ in range(20):
+                yield from wait_clk()
+            start_master(1)
+            yield from wait_for_advance()
+            for _ in range(40):
+                yield from wait_clk()
+            reset()
+            yield from wait_clk()
+
             #    yield from read(0x12,True,1,3)
             #    yield from read(0x24,True,3,3)
             #    yield from read(0x3,False,0,1)
@@ -799,8 +804,6 @@ def sim():
             mem_rsp <<= dut.mem_response
             dram_if <<= dut.dram
             dram_sim.bus_if <<= dram_if
-
-            dut.ext_req <<= 0
 
 
         def simulate(self) -> TSimEvent:
