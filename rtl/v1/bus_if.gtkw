@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Thu Mar 16 18:41:48 2023
+[*] Thu Mar 16 18:53:11 2023
 [*]
 [dumpfile] "/home/tantos/brew/rtl/v1/bus_if.vcd"
-[dumpfile_mtime] "Thu Mar 16 18:39:23 2023"
-[dumpfile_size] 283356
+[dumpfile_mtime] "Thu Mar 16 18:52:35 2023"
+[dumpfile_size] 283910
 [savefile] "/home/tantos/brew/rtl/v1/bus_if.gtkw"
-[timestart] 1146
+[timestart] 955
 [size] 1920 990
 [pos] -1 -1
-*-7.360241 1930 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-7.360241 1550 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [sst_width] 393
 [signals_width] 394

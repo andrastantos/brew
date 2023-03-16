@@ -335,7 +335,7 @@ class BusIf(GenericModule):
         nDACK = Wire(self.dma_request.one_hot_channel.get_net_type())
         nDACK <<= ~Reg(
             Select(
-                (state == BusIfStates.dma_first) | ((state == BusIfStates.dma_wait) & waiting) | (state == BusIfStates.external),
+                (state == BusIfStates.dma_first) | ((state == BusIfStates.dma_wait) & waiting) | ((state == BusIfStates.external) & req_valid & req_ext),
                 0,
                 dma_ch
             )
