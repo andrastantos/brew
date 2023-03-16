@@ -100,6 +100,7 @@ class CpuDma(Module):
         prev_drq = Reg(self.drq)
         next_addr = Wire(BrewAddr)
         tc = Wire(logic)
+        tc_reg = Reg(tc, clock_en=self.bus_req_if.ready & self.bus_req_if.valid)
 
         class ChInfo():
             def __init__(self):
@@ -126,9 +127,10 @@ class CpuDma(Module):
 
         selected_dma_channel = Wire(Unsigned(self.ch_count)) # one-hot encoded channel selector, based on arbitration
 
+        served_dma_channel = Reg(selected_dma_channel, clock_en=self.bus_req_if.ready & self.bus_req_if.valid)
         for idx, ch_info in enumerate(ch_infos):
             ch_base = idx*2
-            ch_served = selected_dma_channel[idx] & self.bus_rsp_if.valid
+            ch_served = served_dma_channel[idx] & self.bus_rsp_if.valid
 
             ch_info.addr <<= Reg(
                 Select(
@@ -154,14 +156,14 @@ class CpuDma(Module):
                     Select(
                         ch_served,
                         ch_info.active,
-                        ~tc
+                        ~tc_reg
                     ),
                     1
                 )
             )
             ch_info.int_pending <<= Reg(
                 Select(
-                    tc & ch_served,
+                    tc_reg & ch_served,
                     Select(
                         (reg_addr == int_reg_ofs) & reg_write_strobe & self.reg_if.pwdata[idx],
                         ch_info.int_pending,
@@ -226,7 +228,7 @@ class CpuDma(Module):
         low_pri_req_pending  = Wire(Unsigned(self.ch_count))
         high_pri_selected = Wire()
 
-        priority_change <<= self.bus_req_if.ready & self.bus_req_if.valid
+        priority_change <<= self.bus_rsp_if.valid
         req_pendig = or_gate(*(ch_info.req_pending for ch_info in ch_infos))
         high_pri_req_pending <<= concat(*(ch_info.req_pending &  ch_info.high_priority for ch_info in reversed(ch_infos)))
         low_pri_req_pending  <<= concat(*(ch_info.req_pending & ~ch_info.high_priority for ch_info in reversed(ch_infos)))
@@ -252,7 +254,7 @@ class CpuDma(Module):
         selected_addr = select_for_ch(selected_dma_channel, (ch_info.addr for ch_info in ch_infos))
         selected_limit = select_for_ch(selected_dma_channel, (ch_info.limit for ch_info in ch_infos))
         tc <<= ~(selected_addr < selected_limit)
-        next_addr <<= (selected_addr + 1)[31:0]
+        next_addr <<= Reg((selected_addr + 1)[31:0], clock_en=self.bus_req_if.ready & self.bus_req_if.valid)
 
         # Bus interface
         self.bus_req_if.valid           <<= req_pendig
@@ -275,6 +277,7 @@ def sim():
         rsp_port = Output(BusIfDmaResponseIf)
 
         dack = Output(Unsigned(4))
+        tc = Output(logic)
 
         def simulate(self, simulator: Simulator):
             def wait_clk():
@@ -296,6 +299,7 @@ def sim():
                 yield from wait_clk()
                 if self.req_port.ready & self.req_port.valid:
                     self.dack <<= self.req_port.one_hot_channel
+                    self.tc <<= self.req_port.terminal_count
                     yield from wait_clk()
                     yield from wait_clk()
                     self.rsp_port.valid <<= 1
@@ -309,6 +313,7 @@ def sim():
 
         drq = Output(Unsigned(4))
         dack = Input(Unsigned(4))
+        tc = Input(logic)
         reg_if = Output(ApbIf)
 
         def construct(self):
@@ -370,7 +375,7 @@ def sim():
                     (1 << 2) & (-master) |
                     (1 << 3) & (-high_pri)
                 )
-                yield from write_reg(4*2+3, conf_val << (4*ch))
+                yield from write_reg(4*2+2, conf_val << (4*ch))
                 yield from write_reg(ch*2+1, limit)
                 yield from write_reg(ch*2+0, base) # Write base last as that activates the channel
 
@@ -378,18 +383,48 @@ def sim():
             self.reg_if.psel <<= 0
             yield from wait_rst()
             yield from start_transfer(0, 100, 110, False)
-            for i in range(10):
+            while True:
                 for _ in range(randint(0,3)):
                     yield from wait_clk()
-                    simulator.log(f"CH {0} drq sent")
-                    self.drq <<= 1 << 0
+                simulator.log(f"CH {0} drq sent")
+                self.drq <<= 1 << 0
+                yield from wait_clk()
+                while (self.dack & (1 << 0)) != 1:
                     yield from wait_clk()
-                    while (self.dack & (1 << 0)) != 1:
-                        yield from wait_clk()
+                tc = copy(self.tc)
+                if tc:
+                    simulator.log(f"CH {0} TERMINAL dack received")
+                else:
                     simulator.log(f"CH {0} dack received")
-                    self.drq <<= 0
-                    while (self.dack & (1 << 0)) != 0:
-                        yield from wait_clk()
+                self.drq <<= 0
+                while (self.dack & (1 << 0)) != 0:
+                    yield from wait_clk()
+                if tc:
+                    break
+
+            self.drq <<= 0
+            self.reg_if.psel <<= 0
+            for _ in range(10): yield from wait_clk()
+            yield from start_transfer(0, 100, 110, False, single=True)
+            while True:
+                for _ in range(randint(0,3)):
+                    yield from wait_clk()
+                simulator.log(f"CH {0} drq sent")
+                self.drq <<= 1 << 0
+                yield from wait_clk()
+                while (self.dack & (1 << 0)) != 1:
+                    yield from wait_clk()
+                tc = copy(self.tc)
+                if tc:
+                    simulator.log(f"CH {0} TERMINAL dack received")
+                else:
+                    simulator.log(f"CH {0} dack received")
+                self.drq <<= 0
+                while (self.dack & (1 << 0)) != 0:
+                    yield from wait_clk()
+                if tc:
+                    break
+
 
 
     class top(Module):
@@ -406,6 +441,7 @@ def sim():
             dut.reg_if <<= driver.reg_if
             dut.drq <<= driver.drq
             driver.dack <<= bus_if_sim.dack
+            driver.tc <<= bus_if_sim.tc
 
         def simulate(self, simulator: Simulator):
             def clk() -> int:
@@ -424,7 +460,7 @@ def sim():
                 yield from clk()
             self.rst <<= 0
 
-            for i in range(100):
+            for i in range(300):
                 yield from clk()
             now = yield 10
             print(f"Done at {now}")
