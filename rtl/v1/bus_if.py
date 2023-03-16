@@ -26,26 +26,26 @@ It does the following:
 - Sends data (in case of reads) back to requestors
 
 
-                        <------- 4-beat burst -------------><---- single ----><---- single ----><---------- 4-beat burst ---------->
-    CLK             \__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/
-    DRAM_nRAS       ^^^^^^^^^\_____________________________/^^^^^\___________/^^^^^\___________/^^^^^\_____________________________/
-    DRAM_nCAS_A     ^^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^^^^^^^^^\__/^^^^^^^^^^^^^^\__/^^^^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^
-    DRAM_nCAS_B     ^^^^^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^^^^^^^^^\__/^^^^^^^^^^^^^^\__/^^^^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^
-    DRAM_ADDR       ---------<==X=====X=====X=====X=====>--------<==X=====>--------<==X=====>--------<==X=====X=====X=====X=====>---
-    DRAM_nWE        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    DRAM_DATA       --------------<>-<>-<>-<>-<>-<>-<>-<>-------------<>-<>--------------<>-<>-------------<>-<>-<>-<>-<>-<>-<>-<>--
-    DRAM_nWE        ^^^^^^^^^\_____________________________/^^^^^\___________/^^^^^\___________/^^^^^\_____________________________/
-    DRAM_DATA       ------------<==X==X==X==X==X==X==X==>-----------<==X==>-----------<==X==>-----------<==X==X==X==X==X==X==X==>---
-    CLK             \__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/
-    req_valid       ___/^^^^^^^^^^^^^^^^^^^^^^^\___________/^^^^^\___________/^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\____________
-    req_ready       ^^^^^^^^^^^^^^^^^^^^^^^^^^^\___________/^^^^^\___________/^^^^^\___________/^^^^^^^^^^^^^^^^^^^^^^^\___________/
-    req_wr          _________________________________________________________/^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\____________
-    req_addr        ---<=====X=====X=====X=====>-----------<=====>-----------<=====X=================X=====X=====X=====\____________
-    req_data        ---------------------------------------------------------------<=================X=====X=====X=====>------------
-                       |----------------->                 |---------------->|----------------->
-    rsp_valid       _____________________/^^^^^^^^^^^^^^^^^^^^^^^\___________/^^^^^\___________/^^^^^\______________________________
-    rsp_ready       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    rsp_data        ---------------------<=====X=====X=====X=====>-----------<=====>-----------<=====>------------------------------
+                        <------- 4-beat burst -------------><---- single ----><---- single ----><---------- 4-beat burst ----------><- refresh->
+    CLK             \__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\_
+    DRAM_nRAS       ^^^^^^^^^\_____________________________/^^^^^\___________/^^^^^\___________/^^^^^\_____________________________/^^^^^\_____/^^^^^^^^^^
+    DRAM_nCAS_A     ^^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^^^^^^^^^\__/^^^^^^^^^^^^^^\__/^^^^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    DRAM_nCAS_B     ^^^^^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^^^^^^^^^\__/^^^^^^^^^^^^^^\__/^^^^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^^^^^^^^^^^^^^^^^^^^
+    DRAM_ADDR       ---------<==X=====X=====X=====X=====>--------<==X=====>--------<==X=====>--------<==X=====X=====X=====X=====>--------<==>-------------
+    DRAM_nWE        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    DRAM_DATA       --------------<>-<>-<>-<>-<>-<>-<>-<>-------------<>-<>--------------<>-<>-------------<>-<>-<>-<>-<>-<>-<>-<>------------------------
+    DRAM_nWE        ^^^^^^^^^\_____________________________/^^^^^\___________/^^^^^\___________/^^^^^\_____________________________/^^^^^\-----/^^^^^^^^^^
+    DRAM_DATA       ------------<==X==X==X==X==X==X==X==>-----------<==X==>-----------<==X==>-----------<==X==X==X==X==X==X==X==>-------------------------
+    CLK             \__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\_
+    req_valid       ___/^^^^^^^^^^^^^^^^^^^^^^^\___________/^^^^^\___________/^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\_____________________________/^^^^
+    req_ready       ^^^^^^^^^^^^^^^^^^^^^^^^^^^\___________/^^^^^\___________/^^^^^\___________/^^^^^^^^^^^^^^^^^^^^^^^\_______________________/^^^^^^^^^^
+    req_wr          _________________________________________________________/^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    req_addr        ---<=====X=====X=====X=====>-----------<=====>-----------<=====X=================X=====X=====X=====>----------------------------------
+    req_data        ---------------------------------------------------------------<=================X=====X=====X=====>----------------------------------
+                       |----------------->                 |---------------->|----------------->---------------->
+    rsp_valid       _____________________/^^^^^^^^^^^^^^^^^^^^^^^\___________/^^^^^\___________/^^^^^\____________________________________________________
+    rsp_ready       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    rsp_data        ---------------------<=====X=====X=====X=====>-----------<=====>-----------<=====>----------------------------------------------------
 
 Notes:
 1. Burst length is not communicated over the interface: only the de-assertion of req_valid/req_ready signals the end of a burst.
@@ -113,6 +113,9 @@ class BusIf(GenericModule):
     dma_request = Input(BusIfDmaRequestIf)
     dma_response = Output(BusIfDmaResponseIf)
 
+    # CRS interface for config registers
+    reg_if = Input(ApbIf)
+
     # DRAM interface
     dram = Output(ExternalBusIf)
 
@@ -140,7 +143,45 @@ class BusIf(GenericModule):
               is treated as DRAM by the bus interface (CSR space is expected to not generate requests).
         NOTE: since addresses are in 16-bit quantities inside here, we're counting bits 30 downwards
     """
+
+    reg_refresh_cfg_ofs = 0
+    # Register setup:
+    # bits 7-0: refresh divider
+    # bit 8: refresh disable (if set)
+
     def body(self):
+        reg_write_strobe = self.reg_if.psel & self.reg_if.pwrite & self.reg_if.penable
+        self.reg_if.pready <<= 1
+
+        reg_addr = self.reg_if.paddr
+
+        # Refresh logic
+        # We seem to need to generate 256 refresh cycles in 4ms. That would mean a refresh cycle
+        # every 200 or so cycles at least. So, an 8-bit counter should suffice
+        refresh_counter_size = 8
+        refresh_counter = Wire(Unsigned(refresh_counter_size))
+        refresh_divider = Reg(self.reg_if.pwdata[refresh_counter_size-1:0], clock_en=(reg_addr == self.reg_refresh_cfg_ofs) & reg_write_strobe)
+        refresh_disable = ~Reg(self.reg_if.pwdata[refresh_counter_size], clock_en=(reg_addr == self.reg_refresh_cfg_ofs) & reg_write_strobe)
+        refresh_tc = refresh_counter == 0
+        refresh_rsp = Wire(logic)
+        refresh_req = Wire(logic)
+        refresh_req <<= Reg(Select(
+            refresh_tc & ~refresh_disable,
+            Select(
+                refresh_rsp,
+                refresh_req,
+                0
+            ),
+            1
+        ))
+        refresh_counter <<= Reg(Select(
+                refresh_tc,
+                (refresh_counter-1)[refresh_counter_size-1:0],
+                refresh_divider
+        ))
+        refresh_addr = Wire(self.dram.addr.get_net_type())
+        refresh_addr <<= Reg(Select(refresh_tc, refresh_addr, self.dram.addr.get_net_type()(refresh_addr+1)))
+
         class BusIfStates(Enum):
             idle                 = 0
             first                = 1
@@ -154,6 +195,7 @@ class BusIf(GenericModule):
             non_dram_dual_wait   = 9
             dma_first            = 10
             dma_wait             = 11
+            refresh              = 12
 
         self.fsm = FSM()
 
@@ -169,27 +211,20 @@ class BusIf(GenericModule):
             fetch_port = 0
             mem_port = 1
             dma_port = 2
+            refresh_port = 3
 
         arb_port_select = Wire()
         arb_port_comb = SelectFirst(
+            refresh_req, Ports.refresh_port,
             self.dma_request.valid, Ports.dma_port,
             self.mem_request.valid, Ports.mem_port,
             default_port = Ports.fetch_port
         )
-        arb_port_comb2 = Select(
-            self.dma_request.valid,
-            Select(
-                self.mem_request.valid,
-                Ports.fetch_port,
-                Ports.mem_port
-            ),
-            Ports.dma_port
-        )
-        sim_asserts.AssertOnClk(arb_port_comb == arb_port_comb2)
         arb_port_select <<= hold(arb_port_comb, enable=state == BusIfStates.idle)
 
         req_ready = Wire()
         req_ready <<= (state == BusIfStates.idle) | (state == BusIfStates.first) | (state == BusIfStates.middle)
+        refresh_rsp <<= (state == BusIfStates.refresh)
         self.mem_request.ready <<= req_ready & (arb_port_select == Ports.mem_port)
         self.fetch_request.ready <<= req_ready & (arb_port_select == Ports.fetch_port)
         self.dma_request.ready <<= (req_ready & (arb_port_select == Ports.dma_port)) | (state == BusIfStates.external)
@@ -201,7 +236,7 @@ class BusIf(GenericModule):
         req_read_not_write = Wire()
         req_byte_en = Wire()
 
-        req_valid <<= Select(arb_port_select, self.fetch_request.valid, self.mem_request.valid, self.dma_request.valid)
+        req_valid <<= Select(arb_port_select, self.fetch_request.valid, self.mem_request.valid, self.dma_request.valid, 1)
         start <<= (state == BusIfStates.idle) & req_valid
         req_addr <<= Select(arb_port_select, self.fetch_request.addr, self.mem_request.addr, self.dma_request.addr)
         req_data <<= Select(arb_port_select, self.fetch_request.data, self.mem_request.data, None)
@@ -209,10 +244,11 @@ class BusIf(GenericModule):
         req_byte_en <<= Select(arb_port_select, self.fetch_request.byte_en, self.mem_request.byte_en, self.dma_request.byte_en)
         req_advance = req_valid & req_ready
 
-        req_dram = (req_addr[30:29] != self.nram_base) & (arb_port_select != Ports.dma_port)
-        req_nram = (req_addr[30:29] == self.nram_base) & (arb_port_select != Ports.dma_port)
+        req_dram = (req_addr[30:29] != self.nram_base) & ((arb_port_select == Ports.mem_port) | (arb_port_select == Ports.fetch_port))
+        req_nram = (req_addr[30:29] == self.nram_base) & ((arb_port_select == Ports.mem_port) | (arb_port_select == Ports.fetch_port))
         req_dma  = (arb_port_select == Ports.dma_port) & ~self.dma_request.is_master
         req_ext  = (arb_port_select == Ports.dma_port) &  self.dma_request.is_master
+        req_rfsh = (arb_port_select == Ports.refresh_port)
 
         dma_ch = Reg(self.dma_request.one_hot_channel, clock_en=start)
         tc = Reg(self.dma_request.terminal_count, clock_en=start)
@@ -244,6 +280,7 @@ class BusIf(GenericModule):
         self.fsm.add_transition(BusIfStates.idle,                         req_valid & req_nram,                                 BusIfStates.non_dram_first)
         self.fsm.add_transition(BusIfStates.idle,                         req_valid & req_dma,                                  BusIfStates.dma_first)
         self.fsm.add_transition(BusIfStates.idle,                         req_valid & req_dram,                                 BusIfStates.first)
+        self.fsm.add_transition(BusIfStates.idle,                         req_valid & req_rfsh,                                 BusIfStates.refresh)
         self.fsm.add_transition(BusIfStates.external,                     req_valid & ~req_ext,                                 BusIfStates.idle)
         self.fsm.add_transition(BusIfStates.external,                    ~req_valid,                                            BusIfStates.idle)
         self.fsm.add_transition(BusIfStates.first,                       ~req_valid,                                            BusIfStates.precharge)
@@ -261,6 +298,7 @@ class BusIf(GenericModule):
         self.fsm.add_transition(BusIfStates.dma_first, 1,                                                                       BusIfStates.dma_wait)
         self.fsm.add_transition(BusIfStates.dma_wait,  waiting,                                                                 BusIfStates.dma_wait)
         self.fsm.add_transition(BusIfStates.dma_wait, ~waiting,                                                                 BusIfStates.idle)
+        self.fsm.add_transition(BusIfStates.refresh, 1,                                                                         BusIfStates.idle)
 
         input_row_addr = Wire()
         input_row_addr <<= concat(
@@ -270,7 +308,7 @@ class BusIf(GenericModule):
             req_addr[15:8]
         )
         row_addr = Wire()
-        row_addr <<= Reg(input_row_addr, clock_en=start)
+        row_addr <<= Reg(Select(req_rfsh, input_row_addr, refresh_addr), clock_en=start)
 
         col_addr = Wire()
         col_addr <<= Reg(concat(
@@ -394,7 +432,13 @@ class BusIf(GenericModule):
         self.dram.nCAS_a     <<= DRAM_nCAS_a & NR_nCAS_a
         self.dram.nCAS_b     <<= DRAM_nCAS_b & NR_nCAS_b
         self.dram.addr       <<= Select(
-            ((state == BusIfStates.first) | (state == BusIfStates.non_dram_first) | (state == BusIfStates.non_dram_dual_first) | (state == BusIfStates.dma_first)) & self.clk,
+            (
+                (state == BusIfStates.first) |
+                (state == BusIfStates.non_dram_first) |
+                (state == BusIfStates.non_dram_dual_first) |
+                (state == BusIfStates.dma_first) |
+                (state == BusIfStates.refresh)
+            ) & self.clk,
             NegReg(col_addr),
             row_addr
         )
@@ -491,6 +535,71 @@ def sim():
                                 data_assigned = True
                 if not data_assigned:
                     self.bus_if.data_in <<= None
+
+    class CsrDriver(Module):
+        clk = ClkPort()
+        rst = RstPort()
+
+        reg_if = Output(ApbIf)
+
+        def construct(self):
+            self.reg_if.paddr.set_net_type(Unsigned(1))
+
+        def simulate(self, simulator: Simulator):
+            def wait_clk():
+                yield (self.clk, )
+                while self.clk.get_sim_edge() != EdgeType.Positive:
+                    yield (self.clk, )
+
+            def wait_rst():
+                yield from wait_clk()
+                while self.rst == 1:
+                    yield from wait_clk()
+
+            def write_reg(addr, value):
+                self.reg_if.psel <<= 1
+                self.reg_if.penable <<= 0
+                self.reg_if.pwrite <<= 1
+                self.reg_if.paddr <<= addr
+                self.reg_if.pwdata <<= value
+                yield from wait_clk()
+                self.reg_if.penable <<= 1
+                yield from wait_clk()
+                while not self.reg_if.pready:
+                    yield from wait_clk()
+                simulator.log(f"REG {addr:02x} written with value {value:08x}")
+                self.reg_if.psel <<= 0
+                self.reg_if.penable <<= None
+                self.reg_if.pwrite <<= None
+                self.reg_if.paddr <<= None
+                self.reg_if.pwdata <<= None
+
+            def read_reg(addr):
+                self.reg_if.psel <<= 1
+                self.reg_if.penable <<= 0
+                self.reg_if.pwrite <<= 0
+                self.reg_if.paddr <<= addr
+                self.reg_if.pwdata <<= None
+                yield from wait_clk()
+                self.reg_if.penable <<= 1
+                yield from wait_clk()
+                while not self.reg_if.pready:
+                    yield from wait_clk()
+                ret_val = copy(self.reg_if.prdata)
+                simulator.log(f"REG {addr:02x} read returned value {ret_val:08x}")
+                self.reg_if.psel <<= 0
+                self.reg_if.penable <<= None
+                self.reg_if.pwrite <<= None
+                self.reg_if.paddr <<= None
+                self.reg_if.pwdata <<= None
+                return ret_val
+
+            self.reg_if.psel <<= 0
+            yield from wait_rst()
+            for _ in range(3):
+                yield from wait_clk()
+            yield from write_reg(0, (1 << 8) | (10))
+
 
     # These two queues will contain the expected read-back values
     read_data_l = []
@@ -792,6 +901,8 @@ def sim():
             dma_generator = DmaGenerator()
             dma_req <<= dma_generator.request_port
 
+            csr_driver = CsrDriver()
+
             dram_if = Wire(ExternalBusIf)
             dram_sim = DRAM_sim()
 
@@ -804,6 +915,7 @@ def sim():
             mem_rsp <<= dut.mem_response
             dram_if <<= dut.dram
             dram_sim.bus_if <<= dram_if
+            dut.reg_if <<= csr_driver.reg_if
 
 
         def simulate(self) -> TSimEvent:
