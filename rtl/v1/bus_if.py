@@ -176,11 +176,15 @@ class BusIf(GenericModule):
         ))
         refresh_counter <<= Reg(Select(
                 refresh_tc,
-                (refresh_counter-1)[refresh_counter_size-1:0],
+                Select(
+                    refresh_req,
+                    (refresh_counter-1)[refresh_counter_size-1:0],
+                    refresh_counter
+                ),
                 refresh_divider
         ))
         refresh_addr = Wire(self.dram.addr.get_net_type())
-        refresh_addr <<= Reg(Select(refresh_tc, refresh_addr, self.dram.addr.get_net_type()(refresh_addr+1)))
+        refresh_addr <<= Reg(Select(refresh_rsp, refresh_addr, self.dram.addr.get_net_type()(refresh_addr+1)))
 
         class BusIfStates(Enum):
             idle                 = 0
