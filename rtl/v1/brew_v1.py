@@ -14,6 +14,7 @@ try:
 
     from .pipeline import Pipeline
     from .bus_if import BusIf
+    from .cpu_dma import CpuDma
     from .synth import *
 except ImportError:
     from brew_types import *
@@ -21,6 +22,7 @@ except ImportError:
 
     from pipeline import Pipeline
     from bus_if import BusIf
+    from cpu_dma import CpuDma
     from synth import *
 
 class BrewV1Top(GenericModule):
@@ -30,9 +32,8 @@ class BrewV1Top(GenericModule):
     # DRAM interface
     dram              = Output(ExternalBusIf)
 
-    # External bus-request
-    nEXTRQ            = Input(logic)
-    nEXTGRNT          = Output(logic)
+    # External dma-request
+    DRQ               = Input(Unsigned(4))
 
     nINT              = Input(logic)
 
@@ -46,6 +47,7 @@ class BrewV1Top(GenericModule):
     def body(self):
         bus_if = BusIf(nram_base=self.nram_base)
         pipeline = Pipeline(csr_base=self.csr_base, has_multiply=self.has_multiply, has_shift=self.has_shift, page_bits=self.page_bits)
+        dma = CpuDma()
 
         # Things that need CSR access
         ecause    = Wire(Unsigned(12))
@@ -57,7 +59,11 @@ class BrewV1Top(GenericModule):
         bus_to_fetch = Wire(BusIfResponseIf)
         mem_to_bus = Wire(BusIfRequestIf)
         bus_to_mem = Wire(BusIfResponseIf)
+        dma_to_bus = Wire(BusIfDmaRequestIf)
+        bus_to_dma = Wire(BusIfDmaResponseIf)
         csr_if = Wire(ApbIf)
+        bus_if_reg_if = Wire(ApbIf)
+        dma_reg_if = Wire(ApbIf)
 
         # BUS INTERFACE
         ###########################
@@ -65,11 +71,21 @@ class BrewV1Top(GenericModule):
         bus_to_fetch <<= bus_if.fetch_response
         bus_if.mem_request <<= mem_to_bus
         bus_to_mem <<= bus_if.mem_response
+        bus_if.dma_request <<= dma_to_bus
+        bus_to_dma <<= bus_if.dma_response
 
         self.dram <<= bus_if.dram
 
-        bus_if.ext_req         <<= ~self.nEXTRQ
-        self.nEXTGRNT          <<= ~bus_if.ext_grnt
+        bus_if.reg_if <<= bus_if_reg_if
+
+        # DMA
+        ###########################
+        dma_to_bus <<= dma.bus_req_if
+        dma.bus_rsp_if <<= bus_to_dma
+
+        dma.drq <<= self.DRQ
+
+        dma.reg_if <<= dma_reg_if
 
         # PIPELINE
         ############################
@@ -94,6 +110,40 @@ class BrewV1Top(GenericModule):
         event_load              = pipeline.load
         event_store             = pipeline.store
         event_execute           = pipeline.execute
+
+        # CSR address decode
+        #############################
+        csr_top_level_psel = csr_if.psel & (csr_if.paddr[5:4] == 0)
+        csr_bus_if_psel    = csr_if.psel & (csr_if.paddr[5:4] == 1)
+        csr_dma_psel       = csr_if.psel & (csr_if.paddr[5:4] == 2)
+
+        top_level_prdata = Wire(Unsigned(32))
+        top_level_pready = Wire(logic)
+
+        # CSR bus routing
+        #############################
+        dma_reg_if.pwrite  <<= csr_if.pwrite
+        dma_reg_if.psel    <<= csr_dma_psel
+        dma_reg_if.penable <<= csr_if.penable
+        dma_reg_if.paddr   <<= csr_if.paddr[3:0]
+        dma_reg_if.pwdata  <<= csr_if.pwdata
+
+        bus_if_reg_if.pwrite  <<= csr_if.pwrite
+        bus_if_reg_if.psel    <<= csr_dma_psel
+        bus_if_reg_if.penable <<= csr_if.penable
+        bus_if_reg_if.paddr   <<= csr_if.paddr[3:0]
+        bus_if_reg_if.pwdata  <<= csr_if.pwdata
+
+        csr_if.prdata <<= SelectOne(
+            csr_dma_psel, dma_reg_if.prdata,
+            csr_bus_if_psel, bus_if_reg_if.prdata,
+            default_port = top_level_prdata
+        )
+        csr_if.pready <<= SelectOne(
+            csr_dma_psel, dma_reg_if.pready,
+            csr_bus_if_psel, bus_if_reg_if.pready,
+            default_port = top_level_pready
+        )
 
         # EVENT COUNTERS
         #############################
@@ -132,13 +182,13 @@ class BrewV1Top(GenericModule):
             csr_wr  ___________________________/^^^^^\______
         '''
 
-        #csr_read_strobe = csr_if.psel & ~csr_if.pwrite # we don't care about qualification: perform a ready every clock...
-        csr_write_strobe = csr_if.psel &  csr_if.pwrite & csr_if.penable
-        csr_if.pready <<= 1
+        #csr_read_strobe = csr_top_level_psel & ~csr_if.pwrite # we don't care about qualification: perform a ready every clock...
+        csr_write_strobe = csr_top_level_psel &  csr_if.pwrite & csr_if.penable
+        top_level_pready <<= 1
 
         csr_addr = Wire(Unsigned(4))
         csr_addr <<= csr_if.paddr[3:0]
-        csr_if.prdata <<= Reg(Select(
+        top_level_prdata <<= Reg(Select(
             csr_addr,
             ## CSR0: version and capabilities
             0x00000000,
@@ -168,7 +218,7 @@ def gen():
     back_end.yosys_fix = True
     netlist = Build.generate_rtl(top, "brew_v1_top.sv", back_end)
     top_level_name = netlist.get_module_class_name(netlist.top_level)
-    flow = QuartusFlow(target_dir="q_brew_v1_top", top_level=top_level_name, source_files=("brew_v1_top.sv",), clocks=(("clk", 100),), project_name="brew_v1_top")
+    flow = QuartusFlow(target_dir="q_brew_v1_top", top_level=top_level_name, source_files=("brew_v1.sv", "brew_v1_top.sv"), clocks=(("clk", 100),), project_name="BREW_V1")
     flow.generate()
     flow.run()
 
