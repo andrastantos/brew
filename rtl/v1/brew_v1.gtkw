@@ -1,0 +1,154 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Sat Mar 18 03:51:10 2023
+[*]
+[dumpfile] "/home/tantos/brew/rtl/v1/brew_v1.vcd"
+[dumpfile_mtime] "Sat Mar 18 03:45:20 2023"
+[dumpfile_size] 337474
+[savefile] "/home/tantos/brew/rtl/v1/brew_v1.gtkw"
+[timestart] 0
+[size] 1920 990
+[pos] -1 -1
+*-7.502933 939 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.cpu.
+[treeopen] top.cpu.pipeline.
+[sst_width] 337
+[signals_width] 295
+[sst_expanded] 1
+[sst_vpaned_height] 269
+@28
+top.cpu.clk
+top.cpu.rst
+@800200
+-FETCH
+@22
+top.cpu.fetch_to_bus_addr[30:0]
+@28
+top.cpu.fetch_to_bus_byte_en[1:0]
+@22
+top.cpu.fetch_to_bus_data[15:0]
+@28
+top.cpu.fetch_to_bus_read_not_write
+top.cpu.fetch_to_bus_ready
+top.cpu.fetch_to_bus_valid
+@1000200
+-FETCH
+@22
+top.cpu.bus_if.fetch_request_addr[30:0]
+@28
+top.cpu.bus_if.fetch_request_byte_en[1:0]
+@22
+top.cpu.bus_if.fetch_request_data[15:0]
+@28
+top.cpu.bus_if.fetch_request_read_not_write
+top.cpu.bus_if.fetch_request_ready
+top.cpu.bus_if.fetch_request_valid
+@22
+top.cpu.bus_if.fetch_response_data[15:0]
+@28
+top.cpu.bus_if.fetch_response_valid
+top.cpu.bus_if.dram_nNREN
+top.cpu.bus_if.dram_nCAS_a
+top.cpu.bus_if.dram_nCAS_b
+top.cpu.pipeline.fetch_stage.inst_buf.state
+top.cpu.pipeline.fetch_stage.inst_buf.branch_req
+top.cpu.pipeline.fetch_stage.inst_buf.advance_request
+@22
+top.cpu.pipeline.fetch_stage.inst_buf.req_len[4:0]
+@28
+top.cpu.pipeline.fetch_stage.inst_buf.start_new_request
+@c00200
+-DECODE_INPUT
+@22
+top.cpu.pipeline.fetch_stage.decode_inst_0[15:0]
+top.cpu.pipeline.fetch_stage.decode_inst_1[15:0]
+top.cpu.pipeline.fetch_stage.decode_inst_2[15:0]
+@28
+top.cpu.pipeline.fetch_stage.decode_inst_len[1:0]
+top.cpu.pipeline.fetch_stage.decode_ready
+top.cpu.pipeline.fetch_stage.decode_valid
+@1401200
+-DECODE_INPUT
+@c00200
+-REG_FILE_REQ
+@22
+top.cpu.pipeline.decode_stage.reg_file_req_read1_addr[3:0]
+@28
+top.cpu.pipeline.decode_stage.reg_file_req_read1_valid
+@22
+top.cpu.pipeline.decode_stage.reg_file_req_read2_addr[3:0]
+@28
+top.cpu.pipeline.decode_stage.reg_file_req_read2_valid
+top.cpu.pipeline.decode_stage.reg_file_req_ready
+@22
+top.cpu.pipeline.decode_stage.reg_file_req_rsv_addr[3:0]
+@28
+top.cpu.pipeline.decode_stage.reg_file_req_rsv_valid
+top.cpu.pipeline.decode_stage.reg_file_req_valid
+@22
+top.cpu.pipeline.decode_stage.reg_file_rsp_read1_data[31:0]
+top.cpu.pipeline.decode_stage.reg_file_rsp_read2_data[31:0]
+@28
+top.cpu.pipeline.decode_stage.reg_file_rsp_ready
+top.cpu.pipeline.decode_stage.reg_file_rsp_valid
+@1401200
+-REG_FILE_REQ
+@c00200
+-EXEC_INPUT
+@28
+top.cpu.pipeline.decode_stage.output_port_alu_op
+top.cpu.pipeline.decode_stage.output_port_branch_op
+top.cpu.pipeline.decode_stage.output_port_do_bse
+top.cpu.pipeline.decode_stage.output_port_do_bze
+top.cpu.pipeline.decode_stage.output_port_do_wse
+top.cpu.pipeline.decode_stage.output_port_do_wze
+top.cpu.pipeline.decode_stage.output_port_exec_unit
+top.cpu.pipeline.decode_stage.output_port_fetch_av
+top.cpu.pipeline.decode_stage.output_port_inst_len[1:0]
+top.cpu.pipeline.decode_stage.output_port_ldst_op
+top.cpu.pipeline.decode_stage.output_port_mem_access_len[1:0]
+@22
+top.cpu.pipeline.decode_stage.output_port_op_a[31:0]
+top.cpu.pipeline.decode_stage.output_port_op_b[31:0]
+top.cpu.pipeline.decode_stage.output_port_op_c[31:0]
+@28
+top.cpu.pipeline.decode_stage.output_port_ready
+@22
+top.cpu.pipeline.decode_stage.output_port_result_reg_addr[3:0]
+@28
+top.cpu.pipeline.decode_stage.output_port_result_reg_addr_valid
+top.cpu.pipeline.decode_stage.output_port_shifter_op
+top.cpu.pipeline.decode_stage.output_port_valid
+@1401200
+-EXEC_INPUT
+@c00200
+-EXEC_OUTPUT
+@22
+top.cpu.pipeline.execute_stage.output_port_addr[3:0]
+@28
+top.cpu.pipeline.execute_stage.output_port_data_en
+@22
+top.cpu.pipeline.execute_stage.output_port_data_h[15:0]
+top.cpu.pipeline.execute_stage.output_port_data_l[15:0]
+@28
+top.cpu.pipeline.execute_stage.output_port_do_bse
+top.cpu.pipeline.execute_stage.output_port_do_bze
+top.cpu.pipeline.execute_stage.output_port_do_wse
+top.cpu.pipeline.execute_stage.output_port_do_wze
+top.cpu.pipeline.execute_stage.output_port_valid
+@1401200
+-EXEC_OUTPUT
+@c00201
+-REG_FILE_WRITE
+@22
+top.cpu.pipeline.reg_file.write_addr[3:0]
+top.cpu.pipeline.reg_file.write_data[31:0]
+top.cpu.pipeline.reg_file.write_data_d[31:0]
+@28
+top.cpu.pipeline.reg_file.write_data_en
+top.cpu.pipeline.reg_file.write_valid
+@1401201
+-REG_FILE_WRITE
+[pattern_trace] 1
+[pattern_trace] 0
