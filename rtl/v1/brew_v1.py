@@ -16,6 +16,7 @@ try:
     from .bus_if import BusIf
     from .cpu_dma import CpuDma
     from .synth import *
+    from .assembler import *
 except ImportError:
     from brew_types import *
     from brew_utils import *
@@ -24,6 +25,7 @@ except ImportError:
     from bus_if import BusIf
     from cpu_dma import CpuDma
     from synth import *
+    from assembler import *
 
 class BrewV1Top(GenericModule):
     clk               = ClkPort()
@@ -210,6 +212,294 @@ class BrewV1Top(GenericModule):
         for idx, event_select in enumerate(event_selects):
             event_select <<= Reg(csr_if.pwdata[idx*4+3:idx*4], clock_en=(csr_addr == 4) & csr_write_strobe)
 
+def sim():
+    from copy import copy
+    class Dram(GenericModule):
+        nRAS          = Input(logic)
+        nCAS          = Input(logic)
+        addr          = Input(Unsigned(11))
+        nWE           = Input(logic)
+        data_out      = Output(BrewByte)
+        data_out_en   = Output(logic)
+        data_in       = Input(BrewByte)
+        data_in_en    = Input(logic)
+
+        def construct(self, latency: int = 3, hold_time: int = 2):
+            self.latency = latency
+            self.hold_time = hold_time
+        def simulate(self, simulator: Simulator):
+            content = {}
+            self.data_out <<= None
+            self.data_out_en <<= 0
+            while True:
+                yield self.nRAS
+                if self.nRAS.get_sim_edge() == EdgeType.Positive:
+                    # Get got deselected
+                    self.data_out <<= None
+                    self.data_out_en <<= 0
+                elif self.nRAS.get_sim_edge() == EdgeType.Negative:
+                    simulator.sim_assert(self.nCAS == 1, "nRAS should not assert while nCAS is low")
+                    row_addr = copy(self.addr.sim_value)
+                    while True:
+                        yield self.nCAS, self.nRAS
+                        if self.nRAS.get_sim_edge() == EdgeType.Positive:
+                            # End of burst
+                            break
+                        simulator.sim_assert(self.nRAS.get_sim_edge() == EdgeType.NoEdge)
+                        if self.nCAS.get_sim_edge() == EdgeType.Negative:
+                            col_addr = copy(self.addr.sim_value)
+                            addr = row_addr << self.addr.get_num_bits() | col_addr
+                            if self.nWE == 0:
+                                try:
+                                    value = content[addr]
+                                except KeyError:
+                                    value = None
+                                val_str = "--" if value is None else f"{value:02x}"
+                                simulator.log(f"DRAM Reading address {addr:08x}, returning {val_str}")
+                                yield self.latency
+                                self.data_out <<= value
+                                self.data_out_en <<= 1
+                            elif self.nWE == 1:
+                                value = None if self.data_in_en != 1 else self.data_in
+                                content[addr] = value
+                                val_str = "--" if value is None else f"{value:02x}"
+                                simulator.log(f"DRAM Writing address {addr:08x} with value {val_str}")
+                                self.data_out <<= None
+                                self.data_out_en <<= 0
+                        elif self.nCAS.get_sim_edge() == EdgeType.Positive:
+                            if self.nWE == 0:
+                                yield self.hold_time
+                                self.data_out <<= None
+                                self.data_out_en <<= 0
+                        else:
+                            simulator.sim_assert(f"Unexpected nCAS edge: {self.nCAS.get_sim_edge()}")
+
+    class AddressDecode(Module):
+        nNREN         = Input(logic)
+        nCAS_l        = Input(logic)
+        nCAS_h        = Input(logic)
+        addr          = Input(Unsigned(11))
+        full_addr     = Output(Unsigned(23))
+        rom_en        = Output(logic)
+        con_en        = Output(logic)
+
+        def body(self):
+            self.nCAS = Wire(logic)
+            self.nCAS <<= self.nCAS_l & self.nCAS_h
+
+        def simulate(self, simulator: Simulator):
+            self.rom_base = 0x0000_0000
+            self.con_base = 0x0001_0000
+            self.decode_mask = 0xffff_0000
+            self.rom_en <<= 0
+            self.con_en <<= 0
+            while True:
+                yield self.nNREN
+                if self.nNREN.get_sim_edge() == EdgeType.Negative:
+                    simulator.sim_assert(self.nCAS == 1, "nNREN should not assert while nCAS is low")
+                    row_addr = copy(self.addr.sim_value)
+                    while True:
+                        yield self.nCAS, self.nNREN
+                        if self.nNREN.get_sim_edge() == EdgeType.Positive:
+                            # End of burst
+                            self.rom_en <<= 0
+                            self.con_en <<= 0
+                            break
+                        simulator.sim_assert(self.nNREN.get_sim_edge() == EdgeType.NoEdge)
+                        if self.nCAS.get_sim_edge() == EdgeType.Negative:
+                            col_addr = copy(self.addr.sim_value)
+                            addr = (row_addr << self.addr.get_num_bits() | col_addr) << 1 | self.nCAS_l
+                            self.full_addr <<= addr
+                            if (addr & self.decode_mask) == self.con_base:
+                                self.con_en <<= 1
+                                self.rom_en <<= 0
+                            elif (addr & self.decode_mask) == self.rom_base:
+                                self.con_en <<= 0
+                                self.rom_en <<= 1
+                            else:
+                                self.con_en <<= 0
+                                self.rom_end <<= 0
+                        elif self.nCAS.get_sim_edge() == EdgeType.Positive:
+                            self.rom_en <<= 0
+                            self.con_en <<= 0
+                        else:
+                            simulator.sim_assert(f"Unexpected nCAS edge: {self.nCAS.get_sim_edge()}")
+
+    class Rom(GenericModule):
+        enable        = Input(logic)
+        addr          = Input(Unsigned(23))
+        data_out      = Output(BrewByte)
+        data_out_en   = Output(logic)
+
+        def append(self, words):
+            for word in words:
+                self.content.append((word >> 0) & 0xff)
+                self.content.append((word >> 8) & 0xff)
+
+        def construct(self, latency: int = 3, hold_time: int = 2):
+            self.latency = latency
+            self.hold_time = hold_time
+            self.content = []
+
+            a = BrewAssembler()
+            self.append(a.r_eq_r_xor_r(0,0,0))
+            self.append(a.r_eq_r_plus_t(1,0,1))
+            self.append(a.r_eq_r_plus_t(2,0,2))
+            self.append(a.r_eq_r_plus_t(3,0,3))
+            self.append(a.r_eq_r_plus_t(4,0,4))
+            self.append(a.r_eq_r_plus_t(5,0,5))
+            self.append(a.r_eq_r_plus_r(6,5,1))
+            self.append(a.r_eq_r_plus_r(7,5,2))
+            self.append(a.r_eq_r_plus_r(8,5,3))
+            self.append(a.r_eq_r_plus_r(9,5,4))
+            self.append(a.r_eq_r_plus_r(10,5,5))
+            self.append(a.r_eq_r_plus_r(11,6,5))
+
+        def simulate(self, simulator: Simulator) -> TSimEvent:
+            self.data_out <<= None
+            self.data_out_en <<= 0
+            while True:
+                yield self.enable
+                if self.enable.get_sim_edge() == EdgeType.Positive:
+                    # Got selected
+                    try:
+                        value = self.content[int(self.addr)]
+                    except KeyError:
+                        value = None
+                    val_str = "--" if value is None else f"{value:02x}"
+                    simulator.log(f"ROM Reading address {self.addr:08x}, returning {val_str}")
+                    yield self.latency
+                    self.data_out <<= value
+                    self.data_out_en <<= 1
+                elif self.enable.get_sim_edge() == EdgeType.Negative:
+                    yield self.hold_time
+                    self.data_out <<= None
+                    self.data_out_en <<= 0
+                else:
+                    simulator.sim_assert(f"Unexpected ROM enable edge: {self.enable.get_sim_edge()}")
+
+    class Console(Module):
+        enable        = Input(logic)
+        addr          = Input(Unsigned(23))
+        nWE           = Input(logic)
+        data_in       = Input(BrewByte)
+        data_in_en    = Input(logic)
+
+        def simulate(self, simulator: Simulator) -> TSimEvent:
+            while True:
+                yield self.enable
+                if self.enable.get_sim_edge() == EdgeType.Positive:
+                    if self.nWE == 1:
+                        value = None if self.data_in_en != 1 else self.data_in
+                        val_str = "--" if value is None else f"{value:02x}"
+                        simulator.log(f"CONSOLE got value {val_str}")
+                elif self.enable.get_sim_edge() == EdgeType.Negative:
+                    pass
+                else:
+                    simulator.sim_assert(f"Unexpected CONSOLE enable edge: {self.enable.get_sim_edge()}")
+
+
+    """
+    class TriStateConnect(Module):
+        output_port: Output()
+
+        def construct(self):
+            self.input_ports = Dict()
+
+        def create_named_port_callback(self, name: str, net_type: Optional['NetType'] = None) -> Optional[Port]:
+            ret_val = Input(net_type)
+            self.input_ports[name] = ret_val
+            return ret_val
+        def create_positional_port_callback(self, idx: int, net_type: Optional['NetType'] = None) -> Tuple[str, Port]:
+            name = f"value_{idx}"
+            return (name, self.create_named_port_callback(name, net_type))
+        def generate_output_type(self) -> Optional['NumberMeta']:
+            input_ports = self.input_ports.values()
+            common_net_type = get_common_net_type(input_ports)
+            if common_net_type is None:
+                raise SyntaxErrorException(f"Can't figure out output port type for TriStateConnect")
+            output_type = common_net_type.result_type(tuple(port.get_net_type() for port in input_ports), "SELECT") # Select has the same semantics as far as output type creation goes
+            return output_type
+        def simulate(self) -> TSimEvent:
+            input_ports = self.input_ports.values()
+            while True:
+                yield input_ports
+                for input_port in input_ports:
+                    if input_port.sim_value is not None:
+                        self.output_port <<= input_port
+                        break
+    """
+
+    class top(Module):
+        clk               = ClkPort()
+        rst               = RstPort()
+
+        def body(self):
+            cpu = BrewV1Top(csr_base=0x1, nram_base=0x0, has_multiply=True, has_shift=True, page_bits=7)
+            dram_l = Dram()
+            dram_h = Dram()
+            addr_decode = AddressDecode()
+            rom = Rom()
+            con = Console()
+
+            dram_l.nRAS          <<= cpu.dram.nRAS
+            dram_l.nCAS          <<= cpu.dram.nCAS_a
+            dram_l.addr          <<= cpu.dram.addr
+            dram_l.nWE           <<= cpu.dram.nWE
+            dram_l.data_in       <<= cpu.dram.data_out
+            dram_l.data_in_en    <<= cpu.dram.data_out_en
+
+            dram_h.nRAS          <<= cpu.dram.nRAS
+            dram_h.nCAS          <<= cpu.dram.nCAS_b
+            dram_h.addr          <<= cpu.dram.addr
+            dram_h.nWE           <<= cpu.dram.nWE
+            dram_h.data_in       <<= cpu.dram.data_out
+            dram_h.data_in_en    <<= cpu.dram.data_out_en
+
+            cpu.dram.data_in     <<= SelectOne(
+                dram_l.data_out_en, dram_l.data_out,
+                dram_h.data_out_en, dram_h.data_out,
+                rom.data_out_en, rom.data_out,
+            )
+
+            addr_decode.nNREN    <<= cpu.dram.nNREN
+            addr_decode.nCAS_l   <<= cpu.dram.nCAS_a
+            addr_decode.nCAS_h   <<= cpu.dram.nCAS_b
+            addr_decode.addr     <<= cpu.dram.addr
+
+            rom.enable           <<= addr_decode.rom_en
+            rom.addr             <<= addr_decode.full_addr
+            con.enable           <<= addr_decode.con_en
+            con.addr             <<= addr_decode.full_addr
+
+            cpu.dram.nWAIT       <<= 1
+            cpu.DRQ              <<= 0
+            cpu.nINT             <<= 1
+
+        def simulate(self, simulator: Simulator) -> TSimEvent:
+            def clk() -> int:
+                yield 10
+                self.clk <<= ~self.clk & self.clk
+                yield 10
+                self.clk <<= ~self.clk
+                yield 0
+
+            simulator.log("Simulation started")
+
+            self.rst <<= 1
+            self.clk <<= 1
+            yield 10
+            for i in range(5):
+                yield from clk()
+            self.rst <<= 0
+
+            for i in range(50):
+                yield from clk()
+            yield 10
+            simulator.log("Done")
+
+    Build.simulation(top, "brew_v1.vcd", add_unnamed_scopes=False)
+
 def gen():
     def top():
         return BrewV1Top(csr_base=0x1, nram_base=0x0, has_multiply=True, has_shift=True, page_bits=7)
@@ -223,7 +513,7 @@ def gen():
     flow.run()
 
 if __name__ == "__main__":
-    gen()
-    #sim()
+    #gen()
+    sim()
 
 

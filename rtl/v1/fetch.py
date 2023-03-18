@@ -254,7 +254,7 @@ class InstBuffer(GenericModule):
         self.bus_if_request.data            <<= None
 
         self.fsm.add_transition(InstBufferStates.idle,         start_new_request,              InstBufferStates.request)
-        self.fsm.add_transition(InstBufferStates.request,     ~branch_req & (~advance_request | (req_len == 0)),  InstBufferStates.idle)
+        self.fsm.add_transition(InstBufferStates.request,     ~branch_req & (~self.bus_if_request.valid | (req_len == 0)),  InstBufferStates.idle)
         self.fsm.add_transition(InstBufferStates.request,      branch_req &  advance_request & ~advance_response,  InstBufferStates.flush_start)
         self.fsm.add_transition(InstBufferStates.request,      branch_req &  advance_request &  advance_response,  InstBufferStates.idle)
         self.fsm.add_transition(InstBufferStates.flush_start,                                   advance_response,  InstBufferStates.idle)
