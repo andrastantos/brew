@@ -21,8 +21,9 @@ except ImportError:
     from scan import ScanWrapper
     from synth import *
 
-TIMING_CLOSURE_REG = Reg
 
+#TIMING_CLOSURE_REG = Reg
+TIMING_CLOSURE_REG = lambda a: a
 """
 The register file for Brew consists of a single write and two read ports.
 
@@ -72,7 +73,18 @@ class RegFile(Module):
         req_advance = self.read_req.ready & self.read_req.valid
         rsp_advance = self.read_rsp.ready & self.read_rsp.valid
 
-        def remember(thing):
+        outstanding_req = Wire(logic)
+        outstanding_req <<= req_advance | (~rsp_advance & Reg(Select(
+            req_advance,
+            Select(
+                rsp_advance,
+                outstanding_req,
+                0
+            ),
+            1
+        )))
+
+        def remember(thing: Junction):
             return Select(req_advance, Reg(thing, clock_en=req_advance), thing)
 
         read1_valid = remember(self.read_req.read1_valid)
@@ -128,7 +140,7 @@ class RegFile(Module):
             return Select(addr, *rsv_board)
 
         def wait(read_valid, read_addr):
-            return read_valid & get_rsv_bit(read_addr) & ~((self.write.addr == read_addr) & self.write.valid)
+            return outstanding_req & read_valid & get_rsv_bit(read_addr) & ~((self.write.addr == read_addr) & self.write.valid)
 
         #rsv_board_as_bits = tuple(rsv_board)
         #self.read1_rsv_bit <<= Select(read1_addr, *rsv_board_as_bits)
@@ -148,7 +160,7 @@ class RegFile(Module):
 
 
         # Setting and clearing reservation bits (if we set and clear at the same cycle, set takes priority)
-        rsv_set_valid = rsv_valid & ~wait_for_write
+        rsv_set_valid = rsv_valid & ~wait_for_write & outstanding_req
         rsv_clr_valid = self.write.valid & ~wait_for_rsv
         for i in range(BrewRegCnt):
             rsv_board[i] <<= Reg(
@@ -163,17 +175,6 @@ class RegFile(Module):
                 )
             )
 
-
-        outstanding_req = Wire(logic)
-        outstanding_req <<= Reg(Select(
-            req_advance,
-            Select(
-                rsp_advance,
-                outstanding_req,
-                0
-            ),
-            1
-        ))
 
         wait_for_write_d = Reg(wait_for_write)
         out_buf_full = Wire(logic)

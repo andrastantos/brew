@@ -342,7 +342,7 @@ def sim():
             self.content = []
 
             a = BrewAssembler()
-            self.append(a.r_eq_r_xor_r(0,0,0))
+            self.append(a.r_eq_t(0,0))
             self.append(a.r_eq_r_plus_t(1,0,1))
             self.append(a.r_eq_r_plus_t(2,0,2))
             self.append(a.r_eq_r_plus_t(3,0,3))
@@ -364,7 +364,7 @@ def sim():
                     # Got selected
                     try:
                         value = self.content[int(self.addr)]
-                    except KeyError:
+                    except IndexError:
                         value = None
                     val_str = "--" if value is None else f"{value:02x}"
                     simulator.log(f"ROM Reading address {self.addr:08x}, returning {val_str}")
@@ -493,7 +493,7 @@ def sim():
                 yield from clk()
             self.rst <<= 0
 
-            for i in range(50):
+            for i in range(500):
                 yield from clk()
             yield 10
             simulator.log("Done")
