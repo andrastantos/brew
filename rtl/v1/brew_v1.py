@@ -4,6 +4,7 @@
 
 import sys
 from pathlib import Path
+import itertools
 
 sys.path.append(str(Path(__file__).parent / ".." / ".." / ".." / "silicon"))
 sys.path.append(str(Path(__file__).parent / ".." / ".." / ".." / "silicon" / "unit_tests"))
@@ -227,8 +228,16 @@ def sim():
         def construct(self, latency: int = 3, hold_time: int = 2):
             self.latency = latency
             self.hold_time = hold_time
+            self.content = {}
+
+        def set_mem(self, addr: int, data: ByteString):
+            for ofs, byte in enumerate(data):
+                self.content[ofs+addr] = byte
+
+        def get_mem(self, addr: int) -> Optional[int]:
+            return self.content.get(addr, None)
+
         def simulate(self, simulator: Simulator):
-            content = {}
             self.data_out <<= None
             self.data_out_en <<= 0
             while True:
@@ -251,7 +260,7 @@ def sim():
                             addr = row_addr << self.addr.get_num_bits() | col_addr
                             if self.nWE == 0:
                                 try:
-                                    value = content[addr]
+                                    value = self.content[addr]
                                 except KeyError:
                                     value = None
                                 val_str = "--" if value is None else f"{value:02x}"
@@ -261,7 +270,7 @@ def sim():
                                 self.data_out_en <<= 1
                             elif self.nWE == 1:
                                 value = None if self.data_in_en != 1 else self.data_in
-                                content[addr] = value
+                                self.content[addr] = value
                                 val_str = "--" if value is None else f"{value:02x}"
                                 simulator.log(f"DRAM Writing address {addr:08x} with value {val_str}")
                                 self.data_out <<= None
@@ -335,6 +344,19 @@ def sim():
             for word in words:
                 self.content.append((word >> 0) & 0xff)
                 self.content.append((word >> 8) & 0xff)
+
+        def set_mem(self, addr: int, data: ByteString):
+            while self.get_size() < addr:
+                self.content.append(None)
+            for byte in data:
+                self.content.append(byte)
+
+        def get_mem(self, addr: int) -> Optional[int]:
+            try:
+                return self.content[addr]
+            except IndexError:
+                return None
+
         def get_size(self):
             return len(self.content)
 
@@ -342,29 +364,6 @@ def sim():
             self.latency = latency
             self.hold_time = hold_time
             self.content = []
-
-            a = BrewAssembler()
-            self.append(a.r_eq_t(0,0))
-            self.append(a.r_eq_r_plus_t(1,0,1))
-            self.append(a.r_eq_r_plus_t(2,0,2))
-            self.append(a.r_eq_r_plus_t(3,0,3))
-            self.append(a.r_eq_r_plus_t(4,0,4))
-            self.append(a.r_eq_r_plus_t(5,0,5))
-            self.append(a.r_eq_r_plus_r(6,5,1))
-            self.append(a.r_eq_r_plus_r(7,5,2))
-            self.append(a.r_eq_r_plus_r(8,5,3))
-            self.append(a.r_eq_r_plus_r(9,5,4))
-            self.append(a.r_eq_r_plus_r(10,5,5))
-            self.append(a.r_eq_r_plus_r(11,6,5))
-            self.append(a.r_eq_I(12,12))
-            self.append(a.pc_eq_I(self.get_size()+0x0400_0000+6)) # Setting internal wait-states to 0, but otherwise continue execution
-            self.append(a.r_eq_r_plus_r(11,6,5))
-            self.append(a.r_eq_r_plus_r(12,6,6))
-            self.append(a.r_eq_r_plus_r(13,7,6))
-            self.append(a.r_eq_r_plus_r(14,7,7))
-            self.append(a.r_eq_r_plus_t(1,1,1))
-            self.append(a.pc_eq_I(self.get_size()+0x0400_0000-2)) # Endless loop.
-            self.append(a.r_eq_r_plus_t(14,14,14))
 
         def simulate(self, simulator: Simulator) -> TSimEvent:
             self.data_out <<= None
@@ -445,47 +444,51 @@ def sim():
         clk               = ClkPort()
         rst               = RstPort()
 
+        nram_base = 0x0000_0000
+        csr_base  = 0x4000_0000
+        dram_base = 0x8000_0000
+
         def body(self):
-            cpu = BrewV1Top(csr_base=0x1, nram_base=0x0, has_multiply=True, has_shift=True, page_bits=7)
-            dram_l = Dram()
-            dram_h = Dram()
-            addr_decode = AddressDecode()
-            rom = Rom()
-            con = Console()
+            self.cpu = BrewV1Top(csr_base=self.csr_base >> 30, nram_base=self.nram_base >> 30, has_multiply=True, has_shift=True, page_bits=7)
+            self.dram_l = Dram()
+            self.dram_h = Dram()
+            self.addr_decode = AddressDecode()
+            self.rom = Rom()
+            self.con = Console()
 
-            dram_l.nRAS          <<= cpu.dram.nRAS
-            dram_l.nCAS          <<= cpu.dram.nCAS_a
-            dram_l.addr          <<= cpu.dram.addr
-            dram_l.nWE           <<= cpu.dram.nWE
-            dram_l.data_in       <<= cpu.dram.data_out
-            dram_l.data_in_en    <<= cpu.dram.data_out_en
+            self.dram_l.nRAS          <<= self.cpu.dram.nRAS
+            self.dram_l.nCAS          <<= self.cpu.dram.nCAS_a
+            self.dram_l.addr          <<= self.cpu.dram.addr
+            self.dram_l.nWE           <<= self.cpu.dram.nWE
+            self.dram_l.data_in       <<= self.cpu.dram.data_out
+            self.dram_l.data_in_en    <<= self.cpu.dram.data_out_en
 
-            dram_h.nRAS          <<= cpu.dram.nRAS
-            dram_h.nCAS          <<= cpu.dram.nCAS_b
-            dram_h.addr          <<= cpu.dram.addr
-            dram_h.nWE           <<= cpu.dram.nWE
-            dram_h.data_in       <<= cpu.dram.data_out
-            dram_h.data_in_en    <<= cpu.dram.data_out_en
+            self.dram_h.nRAS          <<= self.cpu.dram.nRAS
+            self.dram_h.nCAS          <<= self.cpu.dram.nCAS_b
+            self.dram_h.addr          <<= self.cpu.dram.addr
+            self.dram_h.nWE           <<= self.cpu.dram.nWE
+            self.dram_h.data_in       <<= self.cpu.dram.data_out
+            self.dram_h.data_in_en    <<= self.cpu.dram.data_out_en
 
-            cpu.dram.data_in     <<= SelectOne(
-                dram_l.data_out_en, dram_l.data_out,
-                dram_h.data_out_en, dram_h.data_out,
-                rom.data_out_en, rom.data_out,
+            self.cpu.dram.data_in     <<= SelectOne(
+                self.dram_l.data_out_en, self.dram_l.data_out,
+                self.dram_h.data_out_en, self.dram_h.data_out,
+                self.rom.data_out_en,    self.rom.data_out,
             )
 
-            addr_decode.nNREN    <<= cpu.dram.nNREN
-            addr_decode.nCAS_l   <<= cpu.dram.nCAS_a
-            addr_decode.nCAS_h   <<= cpu.dram.nCAS_b
-            addr_decode.addr     <<= cpu.dram.addr
+            self.addr_decode.nNREN    <<= self.cpu.dram.nNREN
+            self.addr_decode.nCAS_l   <<= self.cpu.dram.nCAS_a
+            self.addr_decode.nCAS_h   <<= self.cpu.dram.nCAS_b
+            self.addr_decode.addr     <<= self.cpu.dram.addr
 
-            rom.enable           <<= addr_decode.rom_en
-            rom.addr             <<= addr_decode.full_addr
-            con.enable           <<= addr_decode.con_en
-            con.addr             <<= addr_decode.full_addr
+            self.rom.enable           <<= self.addr_decode.rom_en
+            self.rom.addr             <<= self.addr_decode.full_addr
+            self.con.enable           <<= self.addr_decode.con_en
+            self.con.addr             <<= self.addr_decode.full_addr
 
-            cpu.dram.nWAIT       <<= 1
-            cpu.DRQ              <<= 0
-            cpu.nINT             <<= 1
+            self.cpu.dram.nWAIT       <<= 1
+            self.cpu.DRQ              <<= 0
+            self.cpu.nINT             <<= 1
 
         def simulate(self, simulator: Simulator) -> TSimEvent:
             def clk() -> int:
@@ -495,6 +498,7 @@ def sim():
                 self.clk <<= ~self.clk
                 yield 0
 
+            #self.program()
             simulator.log("Simulation started")
 
             self.rst <<= 1
@@ -509,7 +513,61 @@ def sim():
             yield 10
             simulator.log("Done")
 
-    Build.simulation(top, "brew_v1.vcd", add_unnamed_scopes=False)
+        def set_mem(self, addr: int, data: ByteString):
+            section = addr & 0xc000_0000
+            if section == self.nram_base:
+                self.rom.set_mem(addr & 0x03ff_ffff, data)
+            elif section == self.dram_base:
+                self.dram_l.set_mem(addr & 0x03ff_ffff, data[::2])
+                self.dram_h.set_mem(addr & 0x03ff_ffff, data[1::2])
+            else:
+                raise SimulationException(f"Address {addr:08x} doesn't fall into any mapped memory region")
+
+    def program():
+        nonlocal top_inst
+
+        pc = 0
+        a = BrewAssembler()
+
+        def i2b(inst: Sequence[int]) -> ByteString:
+            return bytes(itertools.chain.from_iterable((w & 0xff, (w>>8)&0xff) for w in inst))
+
+        def prog(inst):
+            nonlocal pc
+            top_inst.set_mem(pc, i2b(inst))
+            pc += len(inst)*2
+
+        prog(a.r_eq_t(0,0))
+        prog(a.r_eq_r_plus_t(1,0,1))
+        prog(a.r_eq_r_plus_t(2,0,2))
+        prog(a.r_eq_r_plus_t(3,0,3))
+        prog(a.r_eq_r_plus_t(4,0,4))
+        prog(a.r_eq_r_plus_t(5,0,5))
+        prog(a.r_eq_r_plus_r(6,5,1))
+        prog(a.r_eq_r_plus_r(7,5,2))
+        prog(a.r_eq_r_plus_r(8,5,3))
+        prog(a.r_eq_r_plus_r(9,5,4))
+        prog(a.r_eq_r_plus_r(10,5,5))
+        prog(a.r_eq_r_plus_r(11,6,5))
+        prog(a.r_eq_I(12,12))
+        prog(a.pc_eq_I(pc+0x0400_0000+6)) # Setting internal wait-states to 0, but otherwise continue execution
+        pc = pc | 0x0400_0000
+        prog(a.r_eq_r_plus_r(11,6,5))
+        prog(a.r_eq_r_plus_r(12,6,6))
+        prog(a.r_eq_r_plus_r(13,7,6))
+        prog(a.r_eq_r_plus_r(14,7,7))
+        prog(a.r_eq_r_plus_t(1,1,1))
+        prog(a.pc_eq_I(pc-2)) # Endless loop.
+        prog(a.r_eq_r_plus_t(14,14,14))
+
+    top_class = top
+    vcd_filename = "brew_v1.vcd"
+    if vcd_filename is None:
+        vcd_filename = top_class.__name__.lower()
+    with Netlist().elaborate() as netlist:
+        top_inst = top_class()
+    program()
+    netlist.simulate(vcd_filename, add_unnamed_scopes=False)
 
 def gen():
     def top():
