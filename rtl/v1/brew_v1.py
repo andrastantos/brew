@@ -335,6 +335,8 @@ def sim():
             for word in words:
                 self.content.append((word >> 0) & 0xff)
                 self.content.append((word >> 8) & 0xff)
+        def get_size(self):
+            return len(self.content)
 
         def construct(self, latency: int = 3, hold_time: int = 2):
             self.latency = latency
@@ -354,6 +356,47 @@ def sim():
             self.append(a.r_eq_r_plus_r(9,5,4))
             self.append(a.r_eq_r_plus_r(10,5,5))
             self.append(a.r_eq_r_plus_r(11,6,5))
+            self.append(a.r_eq_I(12,12))
+            self.append(a.pc_eq_I(self.get_size()+0x0400_0000+6)) # Setting internal wait-states to 0, but otherwise continue execution
+            self.append(a.r_eq_r_plus_r(11,6,5))
+            self.append(a.r_eq_r_plus_r(12,6,6))
+            self.append(a.r_eq_r_plus_r(13,7,6))
+            self.append(a.r_eq_r_plus_r(14,7,7))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
+            self.append(a.r_eq_r_plus_t(1,1,1))
 
         def simulate(self, simulator: Simulator) -> TSimEvent:
             self.data_out <<= None
@@ -493,7 +536,7 @@ def sim():
                 yield from clk()
             self.rst <<= 0
 
-            for i in range(500):
+            for i in range(1500):
                 yield from clk()
             yield 10
             simulator.log("Done")

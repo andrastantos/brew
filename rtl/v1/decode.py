@@ -390,7 +390,7 @@ class DecodeStage(GenericModule):
                 elif digit in ('0123456789abcdef'):
                     value = int(digit, 16)
                     if do_gt:
-                        ret_val = ret_val & (field > value)
+                        ret_val = ret_val & (field > value) & ~field_is_f
                     elif do_lt:
                         ret_val = ret_val & (field < value)
                     else:

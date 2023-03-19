@@ -1,18 +1,18 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sat Mar 18 22:42:17 2023
+[*] Sun Mar 19 14:46:56 2023
 [*]
 [dumpfile] "/home/tantos/brew/rtl/v1/brew_v1.vcd"
-[dumpfile_mtime] "Sat Mar 18 22:39:51 2023"
-[dumpfile_size] 757871
+[dumpfile_mtime] "Sun Mar 19 14:44:10 2023"
+[dumpfile_size] 2234262
 [savefile] "/home/tantos/brew/rtl/v1/brew_v1.gtkw"
-[timestart] 0
+[timestart] 10748
 [size] 1920 990
 [pos] -1 -1
-*-7.502933 930 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-10.064759 14550 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.cpu.
-[treeopen] top.cpu.pipeline.
+[treeopen] top.cpu.bus_if.
 [treeopen] top.cpu.pipeline.reg_file.
 [treeopen] top.cpu.pipeline.reg_file.mem1.
 [treeopen] top.cpu.pipeline.reg_file.mem1.real_mem.
@@ -25,7 +25,45 @@ top.cpu.clk
 top.cpu.rst
 @800200
 -FETCH
+@c00023
+top.cpu.bus_if.req_addr[30:0]
+@28
+(0)top.cpu.bus_if.req_addr[30:0]
+(1)top.cpu.bus_if.req_addr[30:0]
+(2)top.cpu.bus_if.req_addr[30:0]
+(3)top.cpu.bus_if.req_addr[30:0]
+(4)top.cpu.bus_if.req_addr[30:0]
+(5)top.cpu.bus_if.req_addr[30:0]
+(6)top.cpu.bus_if.req_addr[30:0]
+(7)top.cpu.bus_if.req_addr[30:0]
+(8)top.cpu.bus_if.req_addr[30:0]
+(9)top.cpu.bus_if.req_addr[30:0]
+(10)top.cpu.bus_if.req_addr[30:0]
+(11)top.cpu.bus_if.req_addr[30:0]
+(12)top.cpu.bus_if.req_addr[30:0]
+(13)top.cpu.bus_if.req_addr[30:0]
+(14)top.cpu.bus_if.req_addr[30:0]
+(15)top.cpu.bus_if.req_addr[30:0]
+(16)top.cpu.bus_if.req_addr[30:0]
+(17)top.cpu.bus_if.req_addr[30:0]
+(18)top.cpu.bus_if.req_addr[30:0]
+(19)top.cpu.bus_if.req_addr[30:0]
+(20)top.cpu.bus_if.req_addr[30:0]
+(21)top.cpu.bus_if.req_addr[30:0]
+(22)top.cpu.bus_if.req_addr[30:0]
+(23)top.cpu.bus_if.req_addr[30:0]
+(24)top.cpu.bus_if.req_addr[30:0]
+(25)top.cpu.bus_if.req_addr[30:0]
+(26)top.cpu.bus_if.req_addr[30:0]
+(27)top.cpu.bus_if.req_addr[30:0]
+(28)top.cpu.bus_if.req_addr[30:0]
+(29)top.cpu.bus_if.req_addr[30:0]
+(30)top.cpu.bus_if.req_addr[30:0]
+@1401201
+-group_end
 @22
+top.cpu.bus_if.wait_states_store[3:0]
+top.cpu.bus_if.wait_states[3:0]
 top.cpu.fetch_to_bus_addr[30:0]
 @28
 top.cpu.fetch_to_bus_byte_en[1:0]
@@ -61,17 +99,18 @@ top.cpu.pipeline.fetch_stage.inst_buf.advance_request
 top.cpu.pipeline.fetch_stage.inst_buf.req_len[4:0]
 @28
 top.cpu.pipeline.fetch_stage.inst_buf.start_new_request
-@c00200
+@800200
 -DECODE_INPUT
 @22
 top.cpu.pipeline.fetch_stage.decode_inst_0[15:0]
 top.cpu.pipeline.fetch_stage.decode_inst_1[15:0]
 top.cpu.pipeline.fetch_stage.decode_inst_2[15:0]
-@28
+@24
 top.cpu.pipeline.fetch_stage.decode_inst_len[1:0]
+@28
 top.cpu.pipeline.fetch_stage.decode_ready
 top.cpu.pipeline.fetch_stage.decode_valid
-@1401200
+@1000200
 -DECODE_INPUT
 @c00200
 -REG_FILE_REQ
@@ -98,7 +137,7 @@ top.cpu.pipeline.decode_stage.reg_file_rsp_ready
 top.cpu.pipeline.decode_stage.reg_file_rsp_valid
 @1401200
 -REG_FILE_REQ
-@c00200
+@800200
 -EXEC_INPUT
 @28
 top.cpu.pipeline.decode_stage.output_port_valid
@@ -122,7 +161,7 @@ top.cpu.pipeline.decode_stage.output_port_op_c[31:0]
 top.cpu.pipeline.decode_stage.output_port_result_reg_addr[3:0]
 @28
 top.cpu.pipeline.decode_stage.output_port_shifter_op
-@1401200
+@1000200
 -EXEC_INPUT
 @c00200
 -EXEC_OUTPUT
@@ -141,9 +180,9 @@ top.cpu.pipeline.execute_stage.output_port_do_wze
 top.cpu.pipeline.execute_stage.output_port_valid
 @1401200
 -EXEC_OUTPUT
-@23
-top.cpu.pipeline.reg_file.mem1.real_mem.inner_mem.addr_0_port[3:0]
 @22
+top.cpu.pipeline.spc[30:0]
+top.cpu.pipeline.reg_file.mem1.real_mem.inner_mem.addr_0_port[3:0]
 top.cpu.pipeline.reg_file.mem1.real_mem.inner_mem.data_in_0_port[31:0]
 @28
 top.cpu.pipeline.reg_file.mem1.real_mem.inner_mem.write_en_0_port
