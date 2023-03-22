@@ -561,7 +561,7 @@ class ExecuteStage(GenericModule):
         mem_input.valid <<= stage_1_valid & ~block_mem
         stage_2_ready <<= Select((s1_exec_unit == op_class.ld_st) & ~block_mem, stage_2_fsm.input_ready,  mem_input.ready)
         stage_2_valid <<= Select((s1_exec_unit == op_class.ld_st) & ~block_mem, stage_2_fsm.output_valid, s2_mem_output.valid) & ~s2_was_branch
-        stage_2_fsm.output_ready <<= 1
+        stage_2_fsm.output_ready <<= Select((s1_exec_unit == op_class.ld_st) & ~block_mem, 1, s2_mem_output.valid)
 
         stage_2_reg_en = Wire(logic)
         stage_2_reg_en <<= stage_1_valid & stage_2_ready
@@ -638,8 +638,10 @@ class ExecuteStage(GenericModule):
         s2_result_reg_addr_valid = Reg(s1_result_reg_addr_valid, clock_en = stage_2_reg_en)
         self.output_port.valid <<= stage_2_valid & s2_result_reg_addr_valid
 
-        self.output_port.data_l <<= Select(s1_exec_unit == op_class.ld_st, Reg(result[15: 0], clock_en = stage_2_reg_en), s2_mem_output.data_l)
-        self.output_port.data_h <<= Select(s1_exec_unit == op_class.ld_st, Reg(result[31:16], clock_en = stage_2_reg_en), s2_mem_output.data_h)
+        s2_exec_unit = Reg(s1_exec_unit, clock_en = stage_2_reg_en)
+
+        self.output_port.data_l <<= Select(s2_exec_unit == op_class.ld_st, Reg(result[15: 0], clock_en = stage_2_reg_en), s2_mem_output.data_l)
+        self.output_port.data_h <<= Select(s2_exec_unit == op_class.ld_st, Reg(result[31:16], clock_en = stage_2_reg_en), s2_mem_output.data_h)
         self.output_port.data_en <<= Reg(~branch_output.do_branch, clock_en = stage_2_reg_en)
         self.output_port.addr <<= Reg(s1_result_reg_addr, clock_en = stage_2_reg_en)
         self.output_port.do_bse <<= Reg(s1_do_bse, clock_en = stage_2_reg_en)
