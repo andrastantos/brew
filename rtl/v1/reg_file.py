@@ -96,8 +96,8 @@ class RegFile(Module):
 
         # We have two memory instances, one for each read port. The write ports of
         # these instances are connected together so they get written the same data
-        mem1 = SimpleDualPortMemory(registered_input_b=False, registered_output_b=True, addr_type=BrewRegAddr, data_type=BrewData)
-        mem2 = SimpleDualPortMemory(registered_input_b=False, registered_output_b=True, addr_type=BrewRegAddr, data_type=BrewData)
+        mem1 = SimpleDualPortMemory(registered_input_a=False, registered_output_a=True, registered_input_b=True, registered_output_b=False, addr_type=BrewRegAddr, data_type=BrewData)
+        mem2 = SimpleDualPortMemory(registered_input_a=False, registered_output_a=True, registered_input_b=True, registered_output_b=False, addr_type=BrewRegAddr, data_type=BrewData)
 
         # We disable forwarding and wirting to the RF if write.data_en is not asserted.
         # This allows for clearing a reservation without touching the data
