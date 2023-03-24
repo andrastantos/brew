@@ -167,6 +167,8 @@ class Pipeline(GenericModule):
         rf_rsp <<= reg_file.read_rsp
         reg_file.write <<= rf_write
 
+        reg_file.do_branch <<= do_branch
+
 
 def gen():
     def top():

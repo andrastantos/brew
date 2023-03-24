@@ -561,11 +561,11 @@ class DecodeStage(GenericModule):
         self.reg_file_rsp.ready <<= self.output_port.ready
 
         self.reg_file_req.read1_addr  <<= BrewRegAddr(rd1_addr)
-        self.reg_file_req.read1_valid <<= read1_needed
+        self.reg_file_req.read1_valid <<= read1_needed & ~self.do_branch
         self.reg_file_req.read2_addr  <<= BrewRegAddr(rd2_addr)
-        self.reg_file_req.read2_valid <<= read2_needed
+        self.reg_file_req.read2_valid <<= read2_needed & ~self.do_branch
         self.reg_file_req.rsv_addr    <<= BrewRegAddr(res_addr)
-        self.reg_file_req.rsv_valid   <<= rsv_needed
+        self.reg_file_req.rsv_valid   <<= rsv_needed & ~self.do_branch
 
         register_outputs = self.reg_file_req.ready & self.reg_file_req.valid
 

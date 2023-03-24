@@ -45,6 +45,8 @@ class RegFile(Module):
     # Interface towards the write-back of the pipeline
     write = Input(RegFileWriteBackIf)
 
+    do_branch = Input(logic)
+
     '''
     CLK                    /^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__
     write.valid            ______/^^^^^\_______________________/^^^^^\_______________________________________________/^^^^^\___________
@@ -87,11 +89,16 @@ class RegFile(Module):
         def remember(thing: Junction):
             return Select(req_advance, Reg(thing, clock_en=req_advance), thing)
 
-        read1_valid = remember(self.read_req.read1_valid)
+        def remember2(thing: Junction):
+            out_val = Wire(thing.get_net_type())
+            out_val <<= Select(req_advance, Reg(Select(self.do_branch, Select(req_advance, out_val, thing), 0)), thing)
+            return out_val
+
+        read1_valid = remember2(self.read_req.read1_valid)
         read1_addr  = remember(self.read_req.read1_addr)
-        read2_valid = remember(self.read_req.read2_valid)
+        read2_valid = remember2(self.read_req.read2_valid)
         read2_addr  = remember(self.read_req.read2_addr)
-        rsv_valid   = remember(self.read_req.rsv_valid)
+        rsv_valid   = remember2(self.read_req.rsv_valid)
         rsv_addr    = remember(self.read_req.rsv_addr)
 
         # We have two memory instances, one for each read port. The write ports of
@@ -152,9 +159,22 @@ class RegFile(Module):
         wait_for_rsv   = TIMING_CLOSURE_REG(wait(rsv_valid,   rsv_addr))
         wait_for_some = wait_for_read1 | wait_for_read2 | wait_for_rsv
         wait_for_write = Wire(logic)
-        wait_for_write = Select(
+        #wait_for_write <<= Select(
+        #    req_advance | self.write.valid,
+        #    Reg(wait_for_some, clock_en = req_advance | self.write.valid),
+        #    wait_for_some
+        #)
+        wait_for_write <<= Select(
             req_advance | self.write.valid,
-            Reg(wait_for_some, clock_en = req_advance | self.write.valid),
+            Reg(Select(
+                self.do_branch,
+                Select(
+                    req_advance | self.write.valid,
+                    wait_for_write,
+                    wait_for_some
+                ),
+                0
+            )),
             wait_for_some
         )
 
@@ -165,20 +185,24 @@ class RegFile(Module):
         for i in range(BrewRegCnt):
             rsv_board[i] <<= Reg(
                 Select(
-                    rsv_set_valid & (rsv_addr == i),
+                    self.do_branch,
                     Select(
-                        rsv_clr_valid & (self.write.addr == i),
-                        rsv_board[i],
-                        0
+                        rsv_set_valid & (rsv_addr == i),
+                        Select(
+                            rsv_clr_valid & (self.write.addr == i),
+                            rsv_board[i],
+                            0
+                        ),
+                        1
                     ),
-                    1
+                    0
                 )
             )
 
 
-        wait_for_write_d = Reg(wait_for_write)
+        wait_for_write_d = Reg(Select(self.do_branch, wait_for_write, 0))
         out_buf_full = Wire(logic)
-        out_buf_full <<= Reg(Select(req_advance, Select(rsp_advance, out_buf_full, 0), 1))
+        out_buf_full <<= Reg(Select(self.do_branch, Select(req_advance, Select(rsp_advance, out_buf_full, 0), 1), 0))
 
         self.read_req.ready <<= ~wait_for_write_d & (self.read_rsp.ready | ~out_buf_full)
         self.read_rsp.valid <<= ~wait_for_write_d & out_buf_full
@@ -349,6 +373,7 @@ def sim():
             self.excericeser = Excerciser()
             self.dut = RegFile()
 
+            self.dut.do_branch <<= 0
             self.dut.read_req <<= self.excericeser.read_req
             self.excericeser.read_rsp <<= self.dut.read_rsp
 
@@ -390,5 +415,5 @@ def gen():
     flow.run()
 
 if __name__ == "__main__":
-    gen()
-    #sim()
+    #gen()
+    sim()
