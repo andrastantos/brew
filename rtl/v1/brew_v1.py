@@ -225,13 +225,15 @@ def sim():
         data_in       = Input(BrewByte)
         data_in_en    = Input(logic)
 
-        def construct(self, latency: int = 3, hold_time: int = 2):
+        def construct(self, name:str, latency: int = 30, hold_time: int = 20):
             self.latency = latency
             self.hold_time = hold_time
             self.content = {}
+            self.name = name
 
         def set_mem(self, addr: int, data: ByteString):
             for ofs, byte in enumerate(data):
+                print(f"-------- programming DRAM {self.name} at address {addr+ofs:08x} with {byte:02x}")
                 self.content[ofs+addr] = byte
 
         def get_mem(self, addr: int) -> Optional[int]:
@@ -247,7 +249,7 @@ def sim():
                     self.data_out <<= None
                     self.data_out_en <<= 0
                 elif self.nRAS.get_sim_edge() == EdgeType.Negative:
-                    simulator.sim_assert(self.nCAS == 1, "nRAS should not assert while nCAS is low")
+                    simulator.sim_assert(self.nCAS == 1, f"DRAM {self.name}: nRAS should not assert while nCAS is low")
                     row_addr = copy(self.addr.sim_value)
                     while True:
                         yield self.nCAS, self.nRAS
@@ -256,27 +258,29 @@ def sim():
                             break
                         simulator.sim_assert(self.nRAS.get_sim_edge() == EdgeType.NoEdge)
                         if self.nCAS.get_sim_edge() == EdgeType.Negative:
+                            yield 0
+                            yield 0
                             col_addr = copy(self.addr.sim_value)
                             addr = row_addr << self.addr.get_num_bits() | col_addr
-                            if self.nWE == 0:
+                            if self.nWE == 1:
                                 try:
                                     value = self.content[addr]
                                 except KeyError:
                                     value = None
                                 val_str = "--" if value is None else f"{value:02x}"
-                                simulator.log(f"DRAM Reading address {addr:08x}, returning {val_str}")
+                                simulator.log(f"DRAM {self.name} Reading address {addr:08x}, returning {val_str}")
                                 yield self.latency
                                 self.data_out <<= value
                                 self.data_out_en <<= 1
-                            elif self.nWE == 1:
+                            elif self.nWE == 0:
                                 value = None if self.data_in_en != 1 else self.data_in
                                 self.content[addr] = value
                                 val_str = "--" if value is None else f"{value:02x}"
-                                simulator.log(f"DRAM Writing address {addr:08x} with value {val_str}")
+                                simulator.log(f"DRAM {self.name} Writing address {addr:08x} with value {val_str}")
                                 self.data_out <<= None
                                 self.data_out_en <<= 0
                         elif self.nCAS.get_sim_edge() == EdgeType.Positive:
-                            if self.nWE == 0:
+                            if self.nWE == 1:
                                 yield self.hold_time
                                 self.data_out <<= None
                                 self.data_out_en <<= 0
@@ -360,7 +364,7 @@ def sim():
         def get_size(self):
             return len(self.content)
 
-        def construct(self, latency: int = 3, hold_time: int = 2):
+        def construct(self, latency: int = 80, hold_time: int = 20):
             self.latency = latency
             self.hold_time = hold_time
             self.content = []
@@ -450,8 +454,8 @@ def sim():
 
         def body(self):
             self.cpu = BrewV1Top(csr_base=self.csr_base >> 30, nram_base=self.nram_base >> 30, has_multiply=True, has_shift=True, page_bits=7)
-            self.dram_l = Dram()
-            self.dram_h = Dram()
+            self.dram_l = Dram(name="l")
+            self.dram_h = Dram(name="h")
             self.addr_decode = AddressDecode()
             self.rom = Rom()
             self.con = Console()
@@ -492,9 +496,9 @@ def sim():
 
         def simulate(self, simulator: Simulator) -> TSimEvent:
             def clk() -> int:
-                yield 10
+                yield 50
                 self.clk <<= ~self.clk & self.clk
-                yield 10
+                yield 50
                 self.clk <<= ~self.clk
                 yield 0
 
@@ -518,8 +522,8 @@ def sim():
             if section == self.nram_base:
                 self.rom.set_mem(addr & 0x03ff_ffff, data)
             elif section == self.dram_base:
-                self.dram_l.set_mem(addr & 0x03ff_ffff, data[::2])
-                self.dram_h.set_mem(addr & 0x03ff_ffff, data[1::2])
+                self.dram_l.set_mem((addr & 0x03ff_ffff) >> 1, data[::2])
+                self.dram_h.set_mem((addr & 0x03ff_ffff) >> 1, data[1::2])
             else:
                 raise SimulationException(f"Address {addr:08x} doesn't fall into any mapped memory region")
 
@@ -537,28 +541,99 @@ def sim():
             top_inst.set_mem(pc, i2b(inst))
             pc += len(inst)*2
 
-        prog(a.r_eq_t(0,0))
-        prog(a.r_eq_r_plus_t(1,0,1))
-        prog(a.r_eq_r_plus_t(2,0,2))
-        prog(a.r_eq_r_plus_t(3,0,3))
-        prog(a.r_eq_r_plus_t(4,0,4))
-        prog(a.r_eq_r_plus_t(5,0,5))
-        prog(a.r_eq_r_plus_r(6,5,1))
-        prog(a.r_eq_r_plus_r(7,5,2))
-        prog(a.r_eq_r_plus_r(8,5,3))
-        prog(a.r_eq_r_plus_r(9,5,4))
-        prog(a.r_eq_r_plus_r(10,5,5))
-        prog(a.r_eq_r_plus_r(11,6,5))
-        prog(a.r_eq_I(12,12))
-        prog(a.pc_eq_I(pc+0x0400_0000+6)) # Setting internal wait-states to 0, but otherwise continue execution
-        pc = pc | 0x0400_0000
-        prog(a.r_eq_r_plus_r(11,6,5))
-        prog(a.r_eq_r_plus_r(12,6,6))
-        prog(a.r_eq_r_plus_r(13,7,6))
-        prog(a.r_eq_r_plus_r(14,7,7))
-        prog(a.r_eq_r_plus_t(1,1,1))
-        prog(a.pc_eq_I(pc-2)) # Endless loop.
-        prog(a.r_eq_r_plus_t(14,14,14))
+        def test_1():
+            """
+            This test loads a few registers, then jumps to a zero-wait-state ROM address, but continues executing from the same physical location.
+            It then loads a few more registers and enters an endless loop.
+            """
+            nonlocal pc
+            pc = 0
+            prog(a.r_eq_t(0,0))
+            prog(a.r_eq_r_plus_t(1,0,1))
+            prog(a.r_eq_r_plus_t(2,0,2))
+            prog(a.r_eq_r_plus_t(3,0,3))
+            prog(a.r_eq_r_plus_t(4,0,4))
+            prog(a.r_eq_r_plus_t(5,0,5))
+            prog(a.r_eq_r_plus_r(6,5,1))
+            prog(a.r_eq_r_plus_r(7,5,2))
+            prog(a.r_eq_r_plus_r(8,5,3))
+            prog(a.r_eq_r_plus_r(9,5,4))
+            prog(a.r_eq_r_plus_r(10,5,5))
+            prog(a.r_eq_r_plus_r(11,6,5))
+            prog(a.r_eq_I(12,12))
+            prog(a.pc_eq_I(pc+0x0400_0000+6)) # Setting internal wait-states to 0, but otherwise continue execution
+            pc = pc | 0x0400_0000
+            prog(a.r_eq_r_plus_r(11,6,5))
+            prog(a.r_eq_r_plus_r(12,6,6))
+            prog(a.r_eq_r_plus_r(13,7,6))
+            prog(a.r_eq_r_plus_r(14,7,7))
+            prog(a.r_eq_r_plus_t(1,1,1))
+            prog(a.pc_eq_I(pc-2)) # Endless loop.
+            prog(a.r_eq_r_plus_t(14,14,14))
+
+
+        def test_2():
+            """
+            This test jumps to DRAM right out of reset, then loads a few registers, and enters an endless loop.
+            """
+            nonlocal pc
+            pc = 0
+            prog(a.pc_eq_I(0x8000_0000)) # Jumping to DRAM
+            pc = 0x8000_0000
+            prog(a.r_eq_t(0,0))
+            prog(a.r_eq_r_plus_t(1,0,1))
+            prog(a.r_eq_r_plus_t(2,0,2))
+            prog(a.r_eq_r_plus_t(3,0,3))
+            prog(a.r_eq_r_plus_t(4,0,4))
+            prog(a.r_eq_r_plus_t(5,0,5))
+            prog(a.r_eq_r_plus_r(6,5,1))
+            prog(a.r_eq_r_plus_r(7,5,2))
+            prog(a.r_eq_r_plus_r(8,5,3))
+            prog(a.r_eq_r_plus_r(9,5,4))
+            prog(a.r_eq_r_plus_r(10,5,5))
+            prog(a.r_eq_r_plus_r(11,6,5))
+            prog(a.r_eq_I(12,12))
+            prog(a.r_eq_r_plus_r(11,6,5))
+            prog(a.r_eq_r_plus_r(12,6,6))
+            prog(a.r_eq_r_plus_r(13,7,6))
+            prog(a.r_eq_r_plus_r(14,7,7))
+            prog(a.r_eq_r_plus_t(1,1,1))
+            prog(a.pc_eq_I(pc-2)) # Endless loop.
+            prog(a.r_eq_r_plus_t(14,14,14))
+
+
+        def test_3():
+            """
+            This test jumps to DRAM right out of reset, then loads a few registers, and a few loads and stores before entering an endless loop.
+            """
+            nonlocal pc
+            pc = 0
+            prog(a.pc_eq_I(0x8000_0000)) # Jumping to DRAM
+            pc = 0x8000_0000
+            prog(a.r_eq_t(0,0))
+            prog(a.r_eq_r_plus_t(1,0,1))
+            prog(a.r_eq_r_plus_t(2,0,2))
+            prog(a.r_eq_r_plus_t(3,0,3))
+            prog(a.r_eq_r_plus_t(4,0,4))
+            prog(a.r_eq_r_plus_t(5,0,5))
+            prog(a.r_eq_r_plus_r(6,5,1))
+            prog(a.r_eq_r_plus_r(7,5,2))
+            prog(a.r_eq_r_plus_r(8,5,3))
+            prog(a.r_eq_r_plus_r(9,5,4))
+            prog(a.r_eq_r_plus_r(10,5,5))
+            prog(a.r_eq_r_plus_r(11,6,5))
+            prog(a.r_eq_I(12,12))
+            prog(a.r_eq_r_plus_r(11,6,5))
+            prog(a.r_eq_r_plus_r(12,6,6))
+            prog(a.r_eq_r_plus_r(13,7,6))
+            prog(a.r_eq_r_plus_r(14,7,7))
+            prog(a.r_eq_mem32_I(0,0x8000_0000))
+            prog(a.mem32_I_eq_r(0x8000_1000,14))
+            prog(a.r_eq_r_plus_t(1,1,1))
+            prog(a.pc_eq_I(pc-2)) # Endless loop.
+            prog(a.r_eq_r_plus_t(14,14,14))
+
+        test_3()
 
     top_class = top
     vcd_filename = "brew_v1.vcd"
