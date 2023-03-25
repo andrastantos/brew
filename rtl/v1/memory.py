@@ -146,8 +146,10 @@ class MemoryStage(GenericModule):
 
         multi_cycle = Wire(logic)
         multi_cycle <<= Reg((self.input_port.access_len == access_len_32) & ~is_csr, clock_en = input_advance)
+        # Active is set for 32-bit transfers, until all requests are sent
         active = Wire(logic)
         active <<= Reg(Select((self.input_port.access_len == access_len_32) & ~is_csr & input_advance, Select(bus_request_advance, active, 0), 1))
+        # Pending is set for 32-bit transfers, until the first response is back
         pending = Wire(logic)
         pending <<= Reg(Select((self.input_port.access_len == access_len_32) & ~is_csr & input_advance & self.input_port.read_not_write, Select(bus_response_advance, pending, 0), 1))
         gap = Wire(logic)
@@ -171,7 +173,7 @@ class MemoryStage(GenericModule):
             csr_select
         )
 
-        self.input_port.ready <<= self.bus_req_if.ready & ~active # this is not ideal: we won't accept a CSR access if the bus is occupied. Yet, I don't think we should depend on is_dram here.
+        self.input_port.ready <<= self.bus_req_if.ready & ~active & ~gap # this is not ideal: we won't accept a CSR access if the bus is occupied. Yet, I don't think we should depend on is_dram here.
         self.bus_req_if.valid <<= ((self.input_port.valid & ~csr_select) | active) & ~gap
         self.output_port.valid <<= (self.bus_rsp_if.valid & ~pending) | (csr_pen & self.csr_if.pready & ~self.csr_if.pwrite)
 
@@ -341,7 +343,10 @@ def sim():
                 if self.rst == 1:
                     self.input_port.ready <<= 0
                 else:
-                    self.input_port.ready <<= 1
+                    self.input_port.ready <<= 0
+                    if self.input_port.valid == 1:
+                        self.input_port.ready <<= 1
+                        yield from wait_clk()
                     if self.input_port.valid == 1 and self.input_port.ready == 1:
                         # Start of burst, record signals so we can check further beats
                         first_beat = BusIfQueueItem(self.input_port)
