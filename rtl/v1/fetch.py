@@ -185,13 +185,15 @@ class InstBuffer(GenericModule):
         class InstBufferStates(Enum):
             idle = 0
             request = 1
-            flush_start = 2
+            flushing = 2
 
         self.fsm.reset_value <<= InstBufferStates.idle
         self.fsm.default_state <<= InstBufferStates.idle
 
         state = Wire()
+        next_state = Wire()
         state <<= self.fsm.state
+        next_state <<= self.fsm.next_state
 
         # branch_req will remain high until our request is accepted by the bus_if
         # NOTE: Acutally, I don't think that's necessary for two reasons:
@@ -212,6 +214,14 @@ class InstBuffer(GenericModule):
         #        0
         #    )
         #)
+        outstanding_request = Wire(Unsigned(2))
+        next_outstanding_request = SelectOne(
+            advance_request &  advance_response, outstanding_request,
+            advance_request & ~advance_response, (outstanding_request+1)[1:0],
+            ~advance_request &  advance_response, (outstanding_request-1)[1:0],
+            ~advance_request & ~advance_response, outstanding_request,
+        )
+        outstanding_request <<= Reg(next_outstanding_request)
 
         start_new_request = ((self.queue_free_cnt >= fetch_threshold) | branch_req) & (state == InstBufferStates.idle)
 
@@ -234,18 +244,6 @@ class InstBuffer(GenericModule):
                 fetch_av
             )
         )
-        flushing = Wire(logic)
-        flushing <<= Reg(
-            Select(
-                branch_req | (state == InstBufferStates.flush_start),
-                Select(
-                    advance_response,
-                    0,
-                    flushing
-                ),
-                1
-            )
-        )
 
         self.bus_if_request.valid           <<= (state == InstBufferStates.request) & (~fetch_page_limit)
         self.bus_if_request.read_not_write  <<= 1
@@ -255,15 +253,15 @@ class InstBuffer(GenericModule):
 
         self.fsm.add_transition(InstBufferStates.idle,         start_new_request,              InstBufferStates.request)
         self.fsm.add_transition(InstBufferStates.request,     ~branch_req & (~self.bus_if_request.valid | (req_len == 0)),  InstBufferStates.idle)
-        self.fsm.add_transition(InstBufferStates.request,      branch_req &  advance_request & ~advance_response,  InstBufferStates.flush_start)
-        self.fsm.add_transition(InstBufferStates.request,      branch_req &  advance_request &  advance_response,  InstBufferStates.idle)
-        self.fsm.add_transition(InstBufferStates.flush_start,                                   advance_response,  InstBufferStates.idle)
+        self.fsm.add_transition(InstBufferStates.request,      branch_req & (next_outstanding_request != 0),  InstBufferStates.flushing)
+        self.fsm.add_transition(InstBufferStates.request,      branch_req & (next_outstanding_request == 0),  InstBufferStates.idle)
+        self.fsm.add_transition(InstBufferStates.flushing,     (next_outstanding_request == 0),  InstBufferStates.idle)
 
 
         # The response interface is almost completely a pass-through. All we need to do is to handle the AV flag.
         self.queue.data <<= self.bus_if_response.data
         self.queue.av <<= req_av
-        self.queue.valid <<= self.bus_if_response.valid & ~flushing
+        self.queue.valid <<= self.bus_if_response.valid & (state != InstBufferStates.flushing)
         #AssertOnClk(
         #    state != InstBufferStates.idle | self.queue.ready | (state != InstBufferStates.flush)
         #)
