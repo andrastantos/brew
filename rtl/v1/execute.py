@@ -451,7 +451,7 @@ class ExecuteStage(GenericModule):
         stage_1_valid = Wire(logic)
         stage_2_ready = Wire(logic)
 
-        multi_cycle_exec_lockout = Reg(self.input_port.ready & self.input_port.valid & (self.input_port.exec_unit == op_class.mult))
+        multi_cycle_exec_lockout = Reg(self.input_port.ready & self.input_port.valid & (self.input_port.exec_unit == op_class.mult) & ~self.input_port.fetch_av)
 
         stage_1_fsm = ForwardBufLogic()
         stage_1_fsm.input_valid <<= ~multi_cycle_exec_lockout & ~s1_was_branch & self.input_port.valid
@@ -564,7 +564,7 @@ class ExecuteStage(GenericModule):
         stage_2_fsm.output_ready <<= Select((s1_exec_unit == op_class.ld_st) & ~block_mem, 1, s2_mem_output.valid)
 
         stage_2_reg_en = Wire(logic)
-        stage_2_reg_en <<= stage_1_valid & stage_2_ready
+        stage_2_reg_en <<= stage_1_valid & stage_2_ready & ~Reg(self.do_branch)
 
         # PC handling:
         # We are upgrading TPC/SPC in the first cycle of execute, as if for straight execution.

@@ -331,7 +331,7 @@ def sim():
                                 self.rom_en <<= 1
                             else:
                                 self.con_en <<= 0
-                                self.rom_end <<= 0
+                                self.rom_en <<= 0
                         elif self.nCAS.get_sim_edge() == EdgeType.Positive:
                             self.rom_en <<= 0
                             self.con_en <<= 0
@@ -635,6 +635,46 @@ def sim():
 
         test_3()
 
+        def test_4():
+            """
+            Test jumping to task mode, then back to scheduler mode due to a fetch AV
+            """
+            nonlocal pc
+            pc = 0
+            task_start = 0x8000_1000
+            prog(a.pc_eq_I(0x8000_0000)) # Jumping to DRAM
+            pc = 0x8000_0000
+            prog(a.r_eq_t(0,0))
+            prog(a.r_eq_r_plus_t(1,0,1))
+            prog(a.r_eq_r_plus_t(2,0,2))
+            prog(a.r_eq_r_plus_t(3,0,3))
+            prog(a.r_eq_r_plus_t(4,0,4))
+            prog(a.r_eq_r_plus_t(5,0,5))
+            prog(a.r_eq_r_plus_r(6,5,1))
+            prog(a.r_eq_r_plus_r(7,5,2))
+            prog(a.r_eq_r_plus_r(8,5,3))
+            prog(a.r_eq_r_plus_r(9,5,4))
+            prog(a.r_eq_r_plus_r(10,5,5))
+            prog(a.r_eq_r_plus_r(11,6,5))
+            prog(a.r_eq_I(12,12))
+            prog(a.r_eq_r_plus_r(11,6,5))
+            prog(a.r_eq_r_plus_r(12,6,6))
+            prog(a.r_eq_r_plus_r(13,7,6))
+            prog(a.r_eq_r_plus_r(14,7,7))
+            prog(a.r_eq_mem32_I(0,0x8000_0000))
+            prog(a.mem32_I_eq_r(0x8000_1000,14))
+            loop = pc
+            prog(a.tpc_eq_I(task_start))
+            prog(a.r_eq_r_plus_t(1,1,1))
+            prog(a.stm())
+            prog(a.pc_eq_I(loop)) # Endless loop.
+            prog(a.r_eq_r_plus_t(14,14,14))
+            pc = task_start
+            loop = pc
+            prog(a.r_eq_r_plus_t(2,2,1))
+            prog(a.pc_eq_I(loop))
+
+        test_4()
     top_class = top
     vcd_filename = "brew_v1.vcd"
     if vcd_filename is None:

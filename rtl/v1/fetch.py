@@ -329,7 +329,6 @@ class InstAssemble(Module):
             )
 
         fsm_advance = Wire(logic)
-        load_from_top = Wire(logic)
 
         # Datapath registers
         inst_len_reg = Wire(Unsigned(2))
@@ -357,26 +356,29 @@ class InstAssemble(Module):
         fsm_state <<= self.decode_fsm.state
 
         # We're in a state where we don't have anything partial
-        self.decode_fsm.add_transition(InstAssembleStates.have_0_fragments, ~self.do_branch &  fsm_advance & (inst_len == inst_len_16), InstAssembleStates.have_all_fragments)
-        self.decode_fsm.add_transition(InstAssembleStates.have_0_fragments, ~self.do_branch &  fsm_advance & (inst_len == inst_len_32), InstAssembleStates.need_1_fragments)
-        self.decode_fsm.add_transition(InstAssembleStates.have_0_fragments, ~self.do_branch &  fsm_advance & (inst_len == inst_len_48), InstAssembleStates.need_2_fragments)
-        self.decode_fsm.add_transition(InstAssembleStates.have_0_fragments, ~self.do_branch & ~fsm_advance                            , InstAssembleStates.have_0_fragments)
-        self.decode_fsm.add_transition(InstAssembleStates.have_0_fragments,  self.do_branch                                           , InstAssembleStates.have_0_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_0_fragments, ~self.do_branch &  fsm_advance &  self.inst_buf.av                           , InstAssembleStates.have_all_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_0_fragments, ~self.do_branch &  fsm_advance & ~self.inst_buf.av &(inst_len == inst_len_16), InstAssembleStates.have_all_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_0_fragments, ~self.do_branch &  fsm_advance & ~self.inst_buf.av &(inst_len == inst_len_32), InstAssembleStates.need_1_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_0_fragments, ~self.do_branch &  fsm_advance & ~self.inst_buf.av &(inst_len == inst_len_48), InstAssembleStates.need_2_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_0_fragments, ~self.do_branch & ~fsm_advance                                               , InstAssembleStates.have_0_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_0_fragments,  self.do_branch                                                              , InstAssembleStates.have_0_fragments)
         # We're in a state where we have 1 parcel for the bottom
         self.decode_fsm.add_transition(InstAssembleStates.need_1_fragments, ~self.do_branch &  fsm_advance, InstAssembleStates.have_all_fragments)
         self.decode_fsm.add_transition(InstAssembleStates.need_1_fragments, ~self.do_branch & ~fsm_advance, InstAssembleStates.need_1_fragments)
         self.decode_fsm.add_transition(InstAssembleStates.need_1_fragments,  self.do_branch               , InstAssembleStates.have_0_fragments)
         # We're in a state where we have 2 fragments for the bottom
-        self.decode_fsm.add_transition(InstAssembleStates.need_2_fragments, ~self.do_branch &  fsm_advance, InstAssembleStates.need_1_fragments)
-        self.decode_fsm.add_transition(InstAssembleStates.need_2_fragments, ~self.do_branch & ~fsm_advance, InstAssembleStates.need_2_fragments)
-        self.decode_fsm.add_transition(InstAssembleStates.need_2_fragments,  self.do_branch,                InstAssembleStates.have_0_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.need_2_fragments, ~self.do_branch &  fsm_advance & ~self.inst_buf.av, InstAssembleStates.need_1_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.need_2_fragments, ~self.do_branch &  fsm_advance &  self.inst_buf.av, InstAssembleStates.have_all_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.need_2_fragments, ~self.do_branch & ~fsm_advance                    , InstAssembleStates.need_2_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.need_2_fragments,  self.do_branch                                   , InstAssembleStates.have_0_fragments)
         # We have all the fragments: we either advance to the next set of instructions, or reset if the source is not valid
-        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch &  fsm_advance & self.inst_buf.valid & (inst_len == inst_len_16), InstAssembleStates.have_all_fragments)
-        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch &  fsm_advance & self.inst_buf.valid & (inst_len == inst_len_32), InstAssembleStates.need_1_fragments)
-        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch &  fsm_advance & self.inst_buf.valid & (inst_len == inst_len_48), InstAssembleStates.need_2_fragments)
-        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch &  fsm_advance & ~self.inst_buf.valid                           , InstAssembleStates.have_0_fragments)
-        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch & ~fsm_advance                                                  , InstAssembleStates.have_all_fragments)
-        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments,  self.do_branch                                                                 , InstAssembleStates.have_0_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch &  fsm_advance &  self.inst_buf.valid &  self.inst_buf.av                            , InstAssembleStates.have_all_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch &  fsm_advance &  self.inst_buf.valid & ~self.inst_buf.av & (inst_len == inst_len_16), InstAssembleStates.have_all_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch &  fsm_advance &  self.inst_buf.valid & ~self.inst_buf.av & (inst_len == inst_len_32), InstAssembleStates.need_1_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch &  fsm_advance &  self.inst_buf.valid & ~self.inst_buf.av & (inst_len == inst_len_48), InstAssembleStates.need_2_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch &  fsm_advance & ~self.inst_buf.valid                                                , InstAssembleStates.have_0_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch & ~fsm_advance                                                                       , InstAssembleStates.have_all_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments,  self.do_branch                                                                                      , InstAssembleStates.have_0_fragments)
 
         # Handshake logic: we're widening the datapath, so it's essentially the same as a ForwardBuf
         terminal_fsm_state = Wire(logic)
