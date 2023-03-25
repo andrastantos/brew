@@ -247,9 +247,12 @@ class CpuDma(Module):
             return concat(addr[0], ~addr[0])
 
         def select_for_ch(one_hot_channel, per_channel_values):
-            return SelectOne(*itertools.chain.from_iterable(
-                (selector, value) for selector, value in zip(one_hot_channel, per_channel_values)
-            ))
+            return SelectOne(
+                *itertools.chain.from_iterable(
+                    (selector, value) for selector, value in zip(one_hot_channel, per_channel_values)
+                ),
+                default_port = 0
+            )
 
         selected_addr = select_for_ch(selected_dma_channel, (ch_info.addr for ch_info in ch_infos))
         selected_limit = select_for_ch(selected_dma_channel, (ch_info.limit for ch_info in ch_infos))
