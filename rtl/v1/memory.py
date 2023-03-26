@@ -173,7 +173,8 @@ class MemoryStage(GenericModule):
             csr_select
         )
 
-        self.input_port.ready <<= self.bus_req_if.ready & ~active & ~gap # this is not ideal: we won't accept a CSR access if the bus is occupied. Yet, I don't think we should depend on is_dram here.
+        csr_active = Wire()
+        self.input_port.ready <<= (self.bus_req_if.ready & ~active & ~gap) | (csr_select & self.input_port.valid & ~csr_active) # this is not ideal: we won't accept a CSR access if the bus is occupied. Yet, I don't think we should depend on is_dram here.
         self.bus_req_if.valid <<= ((self.input_port.valid & ~csr_select) | active) & ~gap
         self.output_port.valid <<= (self.bus_rsp_if.valid & ~pending) | (csr_pen & self.csr_if.pready & ~self.csr_if.pwrite)
 
@@ -197,6 +198,7 @@ class MemoryStage(GenericModule):
         self.output_port.data_h <<= Select(csr_pen, self.bus_rsp_if.data,                                  self.csr_if.prdata[31:16])
 
         csr_pen <<= Reg(Select(input_advance, Select(self.csr_if.pready & is_csr, csr_pen, 0), is_csr))
+        csr_active <<= Reg(self.csr_if.psel) # Active for an extra cycle, to allow the bus to return to idle
         self.csr_if.psel <<= input_advance & is_csr | csr_pen
         self.csr_if.penable <<= csr_pen
         self.csr_if.pwrite <<= remember(self.input_port, ~self.input_port.read_not_write)
