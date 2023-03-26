@@ -281,7 +281,8 @@ class InstQueue(Module):
     do_branch = Input(logic)
 
     def body(self):
-        self.assemble <<= Fifo(depth=fetch_queue_length)(self.inst, clear = self.do_branch)
+        fifo = Fifo(depth=fetch_queue_length)
+        self.assemble <<= fifo(self.inst, clear = self.do_branch)
 
         self.empty_cnt = Wire(QueuePointerType)
         dec = self.inst.ready & self.inst.valid
