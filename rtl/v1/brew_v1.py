@@ -47,6 +47,18 @@ class BrewV1Top(GenericModule):
         self.has_shift = has_shift
         self.page_bits = page_bits
 
+        self.csr_top_level_ofs = 0
+        self.csr_cpu_ver_reg    = (self.csr_base << 30) + self.csr_top_level_ofs + 0*4
+        self.csr_mem_base_reg   = (self.csr_base << 30) + self.csr_top_level_ofs + 1*4
+        self.csr_mem_limit_reg  = (self.csr_base << 30) + self.csr_top_level_ofs + 2*4
+        self.csr_ecause_reg     = (self.csr_base << 30) + self.csr_top_level_ofs + 3*4
+        self.csr_eaddr_reg      = (self.csr_base << 30) + self.csr_top_level_ofs + 4*4
+        self.csr_event_sel_reg  = (self.csr_base << 30) + self.csr_top_level_ofs + 5*4
+        self.csr_event_cnt0_reg = (self.csr_base << 30) + self.csr_top_level_ofs + 6*4
+        self.csr_event_cnt1_reg = (self.csr_base << 30) + self.csr_top_level_ofs + 7*4
+        self.csr_event_cnt2_reg = (self.csr_base << 30) + self.csr_top_level_ofs + 8*4
+        self.csr_event_cnt3_reg = (self.csr_base << 30) + self.csr_top_level_ofs + 9*4
+
     def body(self):
         bus_if = BusIf(nram_base=self.nram_base)
         pipeline = Pipeline(csr_base=self.csr_base, has_multiply=self.has_multiply, has_shift=self.has_shift, page_bits=self.page_bits)
@@ -522,8 +534,25 @@ def sim():
             if section == self.nram_base:
                 self.rom.set_mem(addr & 0x03ff_ffff, data)
             elif section == self.dram_base:
-                self.dram_l.set_mem((addr & 0x03ff_ffff) >> 1, data[::2])
-                self.dram_h.set_mem((addr & 0x03ff_ffff) >> 1, data[1::2])
+                for idx, byte in enumerate(data):
+                    lin_addr = (addr & 0x03ff_ffff) + idx
+                    # re-arrange address bits to the way DRAM sees it.
+                    dram_addr = (
+                        # col addr
+                        (((lin_addr >>  0) & 0xff) <<  0) |
+                        (((lin_addr >> 16) & 0x01) <<  8) |
+                        (((lin_addr >> 18) & 0x01) <<  9) |
+                        (((lin_addr >> 20) & 0x01) << 10) |
+                        # row addr
+                        (((lin_addr >>  8) & 0xff) << 11) |
+                        (((lin_addr >> 17) & 0x01) << 19) |
+                        (((lin_addr >> 19) & 0x01) << 20) |
+                        (((lin_addr >> 21) & 0x01) << 21)
+                    )
+                    if (dram_addr & 1) == 0:
+                        self.dram_l.set_mem(dram_addr >> 1, byte.to_bytes())
+                    else:
+                        self.dram_h.set_mem(dram_addr >> 1, byte.to_bytes())
             else:
                 raise SimulationException(f"Address {addr:08x} doesn't fall into any mapped memory region")
 
@@ -674,7 +703,58 @@ def sim():
             prog(a.r_eq_r_plus_t(2,2,1))
             prog(a.pc_eq_I(loop))
 
-        test_4()
+
+        def test_5():
+            """
+            Test jumping back and forth between task and system mode, no exceptions thrown
+            """
+            nonlocal pc
+            nonlocal top_inst
+            pc = 0
+            task_start = 0x8000_1000
+            prog(a.pc_eq_I(0x8000_0000)) # Jumping to DRAM
+            pc = 0x8000_0000
+            prog(a.r_eq_t(0,0))
+            prog(a.r_eq_r_plus_t(1,0,1))
+            prog(a.r_eq_r_plus_t(2,0,2))
+            prog(a.r_eq_r_plus_t(3,0,3))
+            prog(a.r_eq_r_plus_t(4,0,4))
+            prog(a.r_eq_r_plus_t(5,0,5))
+            prog(a.r_eq_r_plus_r(6,5,1))
+            prog(a.r_eq_r_plus_r(7,5,2))
+            prog(a.r_eq_r_plus_r(8,5,3))
+            prog(a.r_eq_r_plus_r(9,5,4))
+            prog(a.r_eq_r_plus_r(10,5,5))
+            prog(a.r_eq_r_plus_r(11,6,5))
+            prog(a.r_eq_I(12,12))
+            prog(a.r_eq_r_plus_r(11,6,5))
+            prog(a.r_eq_r_plus_r(12,6,6))
+            prog(a.r_eq_r_plus_r(13,7,6))
+            prog(a.r_eq_r_plus_r(14,7,7))
+            prog(a.r_eq_mem32_I(0,0x8000_0000))
+            prog(a.mem32_I_eq_r(0x8000_0800,14))
+            prog(a.r_eq_I(0,0xffffffff))
+            prog(a.mem32_I_eq_r(top_inst.cpu.csr_mem_limit_reg,0))
+            prog(a.r_eq_t(0,0))
+            prog(a.mem32_I_eq_r(top_inst.cpu.csr_mem_base_reg,0))
+
+            # Scheduler mode loop: incrementing $r1
+            prog(a.tpc_eq_I(task_start))
+            loop = pc
+            prog(a.r_eq_r_plus_t(1,1,1))
+            prog(a.stm())
+            prog(a.pc_eq_I(loop)) # Endless loop.
+            prog(a.r_eq_r_plus_t(14,14,14))
+
+            # Scheduler mode loop: incrementing $r2
+            pc = task_start
+            loop = pc
+            prog(a.r_eq_r_plus_t(2,2,1))
+            prog(a.swi(3))
+            prog(a.pc_eq_I(loop))
+            prog(a.r_eq_r_plus_t(13,13,13))
+
+        test_5()
     top_class = top
     vcd_filename = "brew_v1.vcd"
     if vcd_filename is None:
