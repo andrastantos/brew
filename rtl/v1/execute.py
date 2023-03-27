@@ -48,6 +48,11 @@ It does the following:
     |        Multilper        |
     +-------------------------+
 
+PC is cycle-1 relative. If there was a branch, that will be determined in cycle-2,
+though the branch target address is calculated in cycle-1. This means that cycle-1
+executes the instruction in a branch-shadow, if there were no bubbles in the pipeline.
+There is logic in cycle-2 to remember a branch from the previous cycle and cancel
+any instruction that leaks through from cycle-1.
 """
 
 #TIMING_CLOSURE_REG = Reg

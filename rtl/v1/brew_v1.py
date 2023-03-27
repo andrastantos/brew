@@ -226,6 +226,93 @@ class BrewV1Top(GenericModule):
             event_select <<= Reg(csr_if.pwdata[idx*4+3:idx*4], clock_en=(csr_addr == 4) & csr_write_strobe)
 
 def sim():
+    class RegFileLeech(Module):
+        clk = ClkPort()
+        rst = RstPort()
+
+        def set_reg_file(self, reg_file: 'RegFile'):
+            self.reg_file = reg_file
+            self.wb_if = reg_file.write
+        def simulate(self, simulator: Simulator):
+            def wait_clk():
+                yield self.clk
+                while self.clk.get_sim_edge() != EdgeType.Positive:
+                    yield self.clk
+
+            while True:
+                yield from wait_clk()
+                if self.wb_if.valid == 1 and self.wb_if.data_en == 1:
+                    reg_name = f"$r{self.wb_if.addr}"
+                    reg_value = f"{self.wb_if.data:08x} ({self.wb_if.data})"
+                    simulator.log(f"                          <<<<<<<<<< {reg_name} <= {reg_value}")
+
+    class ExecLeech(Module):
+        clk = ClkPort()
+        rst = RstPort()
+
+        def set_execute(self, execute: 'ExecuteStage'):
+            self.execute = execute
+            self.do_branch = execute.do_branch
+            self.tpc = execute.tpc_in
+            self.spc = execute.spc_in
+            self.task_mode = execute.task_mode_in
+            self.exec_input = execute.input_port
+        def simulate(self, simulator: Simulator):
+            def wait_clk():
+                yield self.clk
+                while self.clk.get_sim_edge() != EdgeType.Positive:
+                    yield self.clk
+
+            while True:
+                yield from wait_clk()
+                if (self.exec_input.valid & self.exec_input.ready) == 1:
+                    b = "SKIP" if self.do_branch == 1 else "Exec"
+                    if self.task_mode == 0:
+                        prefix = "S"
+                        pc = self.spc
+                    else:
+                        prefix = "T"
+                        pc = self.tpc
+                    if self.do_branch == 0:
+                        simulator.log(f"                          ========== {b}: {prefix}{(pc << 1):08x}")
+
+    class LdStLeech(Module):
+        clk = ClkPort()
+        rst = RstPort()
+
+        def set_execute(self, execute: 'ExecuteStage'):
+            self.execute = execute
+            self.bus_req_if = execute.bus_req_if
+            self.bus_rsp_if = execute.bus_rsp_if
+        def simulate(self, simulator: Simulator):
+            def wait_clk():
+                yield self.clk
+                while self.clk.get_sim_edge() != EdgeType.Positive:
+                    yield self.clk
+
+            while True:
+                yield from wait_clk()
+                if (self.bus_req_if.valid & self.bus_req_if.ready) == 1:
+                    simulator.sim_assert(self.bus_req_if.byte_en != 0)
+                    if self.bus_req_if.byte_en == 1:
+                        addr = self.bus_req_if.addr
+                        access_size = 8
+                    if self.bus_req_if.byte_en == 2:
+                        addr = self.bus_req_if.addr + 1
+                        access_size = 8
+                    if self.bus_req_if.byte_en == 3:
+                        addr = self.bus_req_if.addr
+                        access_size = 16
+                    if self.bus_req_if.read_not_write == 1:
+                        mode = "reading"
+                        value = ""
+                    elif self.bus_req_if.read_not_write == 0:
+                        mode = "writing"
+                        value = f" with value {self.bus_req_if.data:04x} ({self.bus_req_if.data})"
+                    else:
+                        mode = "NONE"
+                    simulator.log(f"                          ---------- {mode} memory addr {addr:08x}{value}")
+
     from copy import copy
     class Dram(GenericModule):
         nRAS          = Input(logic)
@@ -280,7 +367,7 @@ def sim():
                                 except KeyError:
                                     value = None
                                 val_str = "--" if value is None else f"{value:02x}"
-                                simulator.log(f"DRAM {self.name} Reading address {addr:08x}, returning {val_str}")
+                                #simulator.log(f"DRAM {self.name} Reading address {addr:08x}, returning {val_str}")
                                 yield self.latency
                                 self.data_out <<= value
                                 self.data_out_en <<= 1
@@ -288,7 +375,7 @@ def sim():
                                 value = None if self.data_in_en != 1 else self.data_in
                                 self.content[addr] = value
                                 val_str = "--" if value is None else f"{value:02x}"
-                                simulator.log(f"DRAM {self.name} Writing address {addr:08x} with value {val_str}")
+                                #simulator.log(f"DRAM {self.name} Writing address {addr:08x} with value {val_str}")
                                 self.data_out <<= None
                                 self.data_out_en <<= 0
                         elif self.nCAS.get_sim_edge() == EdgeType.Positive:
@@ -393,7 +480,7 @@ def sim():
                     except IndexError:
                         value = None
                     val_str = "--" if value is None else f"{value:02x}"
-                    simulator.log(f"ROM Reading address {self.addr:08x}, returning {val_str}")
+                    #simulator.log(f"ROM Reading address {self.addr:08x}, returning {val_str}")
                     yield self.latency
                     self.data_out <<= value
                     self.data_out_en <<= 1
@@ -471,6 +558,9 @@ def sim():
             self.addr_decode = AddressDecode()
             self.rom = Rom()
             self.con = Console()
+            self.rf_leech = RegFileLeech()
+            self.exec_leech = ExecLeech()
+            self.ldst_leech = LdStLeech()
 
             self.dram_l.nRAS          <<= self.cpu.dram.nRAS
             self.dram_l.nCAS          <<= self.cpu.dram.nCAS_a
@@ -507,6 +597,18 @@ def sim():
             self.cpu.nINT             <<= 1
 
         def simulate(self, simulator: Simulator) -> TSimEvent:
+            def get_reg_file():
+                reg_file = first(first(self.cpu.get_inner_objects("pipeline")).get_inner_objects("reg_file"))
+                return reg_file
+
+            def get_exec():
+                exec = first(first(self.cpu.get_inner_objects("pipeline")).get_inner_objects("execute_stage"))
+                return exec
+
+            self.rf_leech.set_reg_file(get_reg_file())
+            self.exec_leech.set_execute(get_exec())
+            self.ldst_leech.set_execute(get_exec())
+
             def clk() -> int:
                 yield 50
                 self.clk <<= ~self.clk & self.clk
