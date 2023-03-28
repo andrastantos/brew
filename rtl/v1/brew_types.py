@@ -10,7 +10,7 @@ BrewInstAddr = Unsigned(31)
 BrewDWordAddr = Unsigned(30)
 BrewLineAddr = Unsigned(BrewLineAddrWidth)
 BrewLineAddrBtm = 2 # This is in words
-BrewBusAddr = Unsigned(26) # including wait-state selection in top 4 bits
+BrewBusAddr = Unsigned(31)
 BrewBusData = Unsigned(16)
 BrewData = Unsigned(32)
 BrewRegCnt = 15
@@ -20,7 +20,8 @@ BrewRegAddr = Number(min_val=0, max_val=BrewRegCnt-1)
 BrewMemBase = Unsigned(22)
 BrewMemShift = 10 # This is in bytes
 
-BrewCsrAddr = Unsigned(10) # We have 4kB of CSR space, in 1024 32-bit registers
+BrewCsrAddrWidth = 10 # We have 4kB of CSR space, in 1024 32-bit registers
+BrewCsrAddr = Unsigned(BrewCsrAddrWidth)
 BrewCsrData = Unsigned(32)
 
 inst_len_16 = 0
@@ -83,13 +84,23 @@ access_len_32 = 2
 class BusIfRequestIf(ReadyValid):
     read_not_write  = logic
     byte_en         = Unsigned(2)
-    addr            = BrewBusAddr # Top 4 bits are used to set wait-state. This way anything can be accessed by any wait-state we want.
-    dram_not_ext    = logic
+    addr            = BrewBusAddr
     data            = BrewBusData
 
 class BusIfResponseIf(Interface):
     valid           = logic
     data            = BrewBusData
+
+class BusIfDmaRequestIf(ReadyValid):
+    read_not_write  = logic
+    one_hot_channel = GenericMember
+    byte_en         = Unsigned(2)
+    addr            = BrewBusAddr
+    is_master       = logic
+    terminal_count  = logic
+
+class BusIfDmaResponseIf(Interface):
+    valid           = logic
 
 class ExternalBusIf(Interface):
     nRAS          = logic
@@ -99,8 +110,12 @@ class ExternalBusIf(Interface):
     nWE           = logic
     data_in       = Reverse(BrewByte)
     data_out      = BrewByte
+    data_out_en   = logic
     nNREN         = logic
     nWAIT         = Reverse(logic)
+    nDACK         = Unsigned(4)
+    TC            = logic
+    bus_en        = logic
 
 class FetchDecodeIf(ReadyValid):
     inst_0 = Unsigned(16)
@@ -169,13 +184,13 @@ class RegFileReadResponseIf(ReadyValid):
     read2_data = BrewData
 
 
-class CsrIf(Interface):
+class ApbIf(Interface):
     pwrite = logic
     psel = logic
     penable = logic
     pready = Reverse(logic)
 
-    paddr = BrewCsrAddr
+    paddr = GenericMember
     pwdata = BrewCsrData
     prdata = Reverse(BrewCsrData)
 

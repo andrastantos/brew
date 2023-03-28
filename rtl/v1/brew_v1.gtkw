@@ -1,0 +1,223 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Sat Mar 25 00:44:42 2023
+[*]
+[dumpfile] "/home/tantos/brew/rtl/v1/brew_v1.vcd"
+[dumpfile_mtime] "Sat Mar 25 00:43:48 2023"
+[dumpfile_size] 7659150
+[savefile] "/home/tantos/brew/rtl/v1/brew_v1.gtkw"
+[timestart] 14646
+[size] 1920 990
+[pos] -1 -1
+*-10.928362 19779 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.cpu.
+[treeopen] top.cpu.dma.high_pri_arbiter.u16.
+[treeopen] top.cpu.dma.high_pri_arbiter.u18.
+[treeopen] top.cpu.dma.high_pri_arbiter.u20.
+[treeopen] top.cpu.dma.high_pri_arbiter.u22.
+[treeopen] top.cpu.dma.high_pri_arbiter.u26.
+[treeopen] top.cpu.dma.high_pri_arbiter.u28.
+[treeopen] top.cpu.dma.high_pri_arbiter.u30.
+[treeopen] top.cpu.dma.high_pri_arbiter.u32.
+[treeopen] top.cpu.dma.high_pri_arbiter.u5.
+[treeopen] top.cpu.pipeline.
+[treeopen] top.cpu.pipeline.execute_stage.
+[treeopen] top.cpu.pipeline.reg_file.mem1.
+[treeopen] top.cpu.pipeline.reg_file.mem1.real_mem.
+[sst_width] 337
+[signals_width] 363
+[sst_expanded] 1
+[sst_vpaned_height] 269
+@28
+top.cpu.clk
+top.cpu.rst
+@800200
+-DRAM
+@28
+top.cpu.bus_if.dram_TC
+@22
+top.cpu.bus_if.dram_addr[10:0]
+@28
+top.cpu.bus_if.dram_bus_en
+@22
+top.cpu.bus_if.dram_data_in[7:0]
+top.cpu.bus_if.dram_data_out[7:0]
+@28
+top.cpu.bus_if.dram_data_out_en
+top.cpu.bus_if.dram_nCAS_a
+top.cpu.bus_if.dram_nCAS_b
+@22
+top.cpu.bus_if.dram_nDACK[3:0]
+@28
+top.cpu.bus_if.dram_nNREN
+top.cpu.bus_if.dram_nRAS
+top.cpu.bus_if.dram_nWAIT
+top.cpu.bus_if.dram_nWE
+@1000200
+-DRAM
+@800200
+-FETCH
+@c00022
+top.cpu.bus_if.req_addr[30:0]
+@28
+(0)top.cpu.bus_if.req_addr[30:0]
+(1)top.cpu.bus_if.req_addr[30:0]
+(2)top.cpu.bus_if.req_addr[30:0]
+(3)top.cpu.bus_if.req_addr[30:0]
+(4)top.cpu.bus_if.req_addr[30:0]
+(5)top.cpu.bus_if.req_addr[30:0]
+(6)top.cpu.bus_if.req_addr[30:0]
+(7)top.cpu.bus_if.req_addr[30:0]
+(8)top.cpu.bus_if.req_addr[30:0]
+(9)top.cpu.bus_if.req_addr[30:0]
+(10)top.cpu.bus_if.req_addr[30:0]
+(11)top.cpu.bus_if.req_addr[30:0]
+(12)top.cpu.bus_if.req_addr[30:0]
+(13)top.cpu.bus_if.req_addr[30:0]
+(14)top.cpu.bus_if.req_addr[30:0]
+(15)top.cpu.bus_if.req_addr[30:0]
+(16)top.cpu.bus_if.req_addr[30:0]
+(17)top.cpu.bus_if.req_addr[30:0]
+(18)top.cpu.bus_if.req_addr[30:0]
+(19)top.cpu.bus_if.req_addr[30:0]
+(20)top.cpu.bus_if.req_addr[30:0]
+(21)top.cpu.bus_if.req_addr[30:0]
+(22)top.cpu.bus_if.req_addr[30:0]
+(23)top.cpu.bus_if.req_addr[30:0]
+(24)top.cpu.bus_if.req_addr[30:0]
+(25)top.cpu.bus_if.req_addr[30:0]
+(26)top.cpu.bus_if.req_addr[30:0]
+(27)top.cpu.bus_if.req_addr[30:0]
+(28)top.cpu.bus_if.req_addr[30:0]
+(29)top.cpu.bus_if.req_addr[30:0]
+(30)top.cpu.bus_if.req_addr[30:0]
+@1401200
+-group_end
+@22
+top.cpu.bus_if.wait_states_store[3:0]
+top.cpu.bus_if.wait_states[3:0]
+top.cpu.fetch_to_bus_addr[30:0]
+@28
+top.cpu.fetch_to_bus_byte_en[1:0]
+@22
+top.cpu.fetch_to_bus_data[15:0]
+@28
+top.cpu.fetch_to_bus_read_not_write
+top.cpu.fetch_to_bus_ready
+top.cpu.fetch_to_bus_valid
+@1000200
+-FETCH
+@28
+top.cpu.pipeline.execute_stage.input_port_branch_op
+top.cpu.pipeline.decode_stage.do_branch
+@23
+top.cpu.pipeline.spc[30:0]
+@800200
+-DECODE_INPUT
+@22
+top.cpu.pipeline.fetch_stage.decode_inst_0[15:0]
+top.cpu.pipeline.fetch_stage.decode_inst_1[15:0]
+top.cpu.pipeline.fetch_stage.decode_inst_2[15:0]
+@24
+top.cpu.pipeline.fetch_stage.decode_inst_len[1:0]
+@28
+top.cpu.pipeline.fetch_stage.decode_ready
+top.cpu.pipeline.fetch_stage.decode_valid
+@1000200
+-DECODE_INPUT
+@800200
+-REG_FILE_REQ
+@28
+top.cpu.pipeline.decode_stage.reg_file_req_ready
+top.cpu.pipeline.decode_stage.reg_file_req_valid
+@22
+top.cpu.pipeline.decode_stage.reg_file_req_read1_addr[3:0]
+@28
+top.cpu.pipeline.decode_stage.reg_file_req_read1_valid
+@22
+top.cpu.pipeline.decode_stage.reg_file_req_read2_addr[3:0]
+@28
+top.cpu.pipeline.decode_stage.reg_file_req_read2_valid
+@22
+top.cpu.pipeline.decode_stage.reg_file_req_rsv_addr[3:0]
+@28
+top.cpu.pipeline.decode_stage.reg_file_req_rsv_valid
+@22
+top.cpu.pipeline.decode_stage.reg_file_rsp_read1_data[31:0]
+top.cpu.pipeline.decode_stage.reg_file_rsp_read2_data[31:0]
+@28
+top.cpu.pipeline.decode_stage.reg_file_rsp_ready
+top.cpu.pipeline.decode_stage.reg_file_rsp_valid
+@1000200
+-REG_FILE_REQ
+@800200
+-EXEC_INPUT
+@28
+top.cpu.pipeline.decode_stage.output_port_valid
+top.cpu.pipeline.decode_stage.output_port_ready
+top.cpu.pipeline.decode_stage.output_port_result_reg_addr_valid
+top.cpu.pipeline.decode_stage.output_port_alu_op
+top.cpu.pipeline.decode_stage.output_port_branch_op
+top.cpu.pipeline.decode_stage.output_port_do_bse
+top.cpu.pipeline.decode_stage.output_port_do_bze
+top.cpu.pipeline.decode_stage.output_port_do_wse
+top.cpu.pipeline.decode_stage.output_port_do_wze
+top.cpu.pipeline.decode_stage.output_port_exec_unit
+top.cpu.pipeline.decode_stage.output_port_fetch_av
+top.cpu.pipeline.decode_stage.output_port_inst_len[1:0]
+top.cpu.pipeline.decode_stage.output_port_ldst_op
+top.cpu.pipeline.decode_stage.output_port_mem_access_len[1:0]
+@22
+top.cpu.pipeline.decode_stage.output_port_op_a[31:0]
+top.cpu.pipeline.decode_stage.output_port_op_b[31:0]
+top.cpu.pipeline.decode_stage.output_port_op_c[31:0]
+top.cpu.pipeline.decode_stage.output_port_result_reg_addr[3:0]
+@28
+top.cpu.pipeline.decode_stage.output_port_shifter_op
+@1000200
+-EXEC_INPUT
+@800200
+-EXEC_OUTPUT
+@22
+top.cpu.pipeline.execute_stage.output_port_addr[3:0]
+@28
+top.cpu.pipeline.execute_stage.output_port_data_en
+@22
+top.cpu.pipeline.execute_stage.output_port_data_h[15:0]
+top.cpu.pipeline.execute_stage.output_port_data_l[15:0]
+@28
+top.cpu.pipeline.execute_stage.output_port_do_bse
+top.cpu.pipeline.execute_stage.output_port_do_bze
+top.cpu.pipeline.execute_stage.output_port_do_wse
+top.cpu.pipeline.execute_stage.output_port_do_wze
+top.cpu.pipeline.execute_stage.output_port_valid
+top.cpu.pipeline.execute_stage.do_branch
+@22
+top.cpu.pipeline.execute_stage.spc_out[30:0]
+@1000200
+-EXEC_OUTPUT
+@22
+top.cpu.pipeline.spc[30:0]
+top.cpu.pipeline.reg_file.mem1.real_mem.inner_mem.addr_0_port[3:0]
+top.cpu.pipeline.reg_file.mem1.real_mem.inner_mem.data_in_0_port[31:0]
+@28
+top.cpu.pipeline.reg_file.mem1.real_mem.inner_mem.write_en_0_port
+top.cpu.pipeline.decode_stage.output_port_ready
+top.cpu.pipeline.decode_stage.output_port_valid
+top.cpu.pipeline.decode_stage.reg_file_req_valid
+top.cpu.pipeline.decode_stage.reg_file_req_ready
+top.cpu.pipeline.reg_file.read_rsp_ready
+top.cpu.pipeline.reg_file.read_rsp_valid
+top.cpu.pipeline.reg_file.write_valid
+top.cpu.pipeline.reg_file.wait_for_write
+top.cpu.pipeline.reg_file.wait_for_rsv
+@22
+top.cpu.pipeline.reg_file.rsv_addr[3:0]
+top.cpu.pipeline.reg_file.rsv_board[14:0]
+@28
+top.cpu.pipeline.reg_file.rsv_valid
+top.cpu.pipeline.reg_file.rsv_set_valid
+top.cpu.pipeline.reg_file.outstanding_req
+[pattern_trace] 1
+[pattern_trace] 0

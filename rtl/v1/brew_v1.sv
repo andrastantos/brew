@@ -4,38 +4,54 @@
 // Pipeline
 ////////////////////////////////////////////////////////////////////////////////
 module BREW_V1 (
-    input logic clk,
-    input logic rst,
-    output logic DRAM_nRAS,
-    output logic DRAM_nCAS_a,
-    output logic DRAM_nCAS_b,
-    output logic [10:0] DRAM_ADDR,
-    output logic DRAM_nWE,
-    inout [7:0] DRAM_DATA,
-    input logic DRAM_nWAIT,
-    input logic ext_req,
-    output logic ext_grnt,
-    input logic interrupt
+    input  logic        CLK,
+    input  logic        RST,
+    inout  logic        DRAM_nRAS,
+    inout  logic        DRAM_nCAS_a,
+    inout  logic        DRAM_nCAS_b,
+    inout  logic [10:0] DRAM_ADDR,
+    inout  logic        DRAM_nWE,
+    inout  logic [7:0]  DRAM_DATA,
+    input  logic        DRAM_nWAIT,
+    input  logic [3:0]  DRQ,
+    output logic [3:0]  nDACK,
+    output logic        TC,
+    input  logic        nINT
 );
-    logic [7:0] DRAM_out;
+    logic        p_dram_nRAS;
+    logic        p_dram_nCAS_a;
+    logic        p_dram_nCAS_b;
+    logic [10:0] p_dram_addr;
+    logic        p_dram_nWE;
+    logic [7:0]  p_dram_data_out;
+    logic        p_dram_data_out_en;
+    logic        p_bus_en;
 
-    Pipeline pipeline (
-        .clk(clk),
-        .rst(rst),
+    BrewV1Top brew_v1_top(
+        .clk                 (CLK),
+        .rst                 (RST),
 
-        .dram_nRAS(DRAM_nRAS),
-        .dram_nCAS_a(DRAM_nCAS_a),
-        .dram_nCAS_b(DRAM_nCAS_b),
-        .dram_addr(DRAM_ADDR),
-        .dram_nWE(DRAM_nWE),
-        .dram_data_in(DRAM_DATA),
-        .dram_data_out(DRAM_out),
-        .dram_nWAIT(DRAM_nWAIT),
-        .ext_req(ext_req),
-        .ext_grnt(ext_grnt),
-        .interrupt(interrupt)
+        .dram_nRAS           (p_dram_nRAS),
+        .dram_nCAS_a         (p_dram_nCAS_a),
+        .dram_nCAS_b         (p_dram_nCAS_b),
+        .dram_addr           (p_dram_addr),
+        .dram_nWE            (p_dram_nWE),
+        .dram_data_in        (DRAM_DATA),
+        .dram_data_out       (p_dram_data_out),
+        .dram_data_out_en    (p_dram_data_out_en),
+        .dram_nWAIT          (DRAM_nWAIT),
+        .dram_nDACK          (nDACK),
+        .dram_TC             (TC),
+        .dram_bus_en         (p_bus_en),
+        .nINT                (nINT),
+        .DRQ                 (DRQ)
     );
 
-    assign DRAM_DATA = DRAM_nWE ? 8'bZ : DRAM_out;
+    assign DRAM_nRAS = p_bus_en ? p_dram_nRAS : 1'bZ;
+    assign DRAM_nCAS_a = p_bus_en ? p_dram_nCAS_a : 1'bZ;
+    assign DRAM_nCAS_b = p_bus_en ? p_dram_nCAS_b : 1'bZ;
+    assign DRAM_ADDR = p_bus_en ? p_dram_addr : 11'bZ;
+    assign DRAM_nWE = p_bus_en ? p_dram_nWE : 1'bZ;
+    assign DRAM_DATA = (p_bus_en & p_dram_data_out_en) ? p_dram_data_out : 8'bZ;
 
 endmodule

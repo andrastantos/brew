@@ -41,86 +41,74 @@ class Pipeline(GenericModule):
     clk = ClkPort()
     rst = RstPort()
 
-    # DRAM interface
-    dram = Output(ExternalBusIf)
+    # Memory interfaces
+    fetch_to_bus = Output(BusIfRequestIf)
+    bus_to_fetch = Input(BusIfResponseIf)
+    mem_to_bus = Output(BusIfRequestIf)
+    bus_to_mem = Input(BusIfResponseIf)
+    csr_if = Output(ApbIf)
 
-    # External bus-request
-    ext_req           = Input(logic)
-    ext_grnt          = Output(logic)
+    # Things that need CSR access
+    ecause    = Output(Unsigned(12))
+    eaddr     = Output(BrewAddr)
+    mem_base  = Input(BrewMemBase)
+    mem_limit = Input(BrewMemBase)
 
     interrupt         = Input(logic)
 
-    def construct(self, csr_base: int, nram_base: int, has_multiply: bool = True, has_shift: bool = True):
+    # Events
+    fetch_wait_on_bus = Output(logic)
+    decode_wait_on_rf = Output(logic)
+    mem_wait_on_bus   = Output(logic)
+    branch_taken      = Output(logic)
+    branch            = Output(logic)
+    load              = Output(logic)
+    store             = Output(logic)
+    execute           = Output(logic)
+
+    def construct(self, csr_base: int, has_multiply: bool = True, has_shift: bool = True, page_bits: int = 7):
         self.csr_base = csr_base
-        self.nram_base = nram_base
         self.has_multiply = has_multiply
         self.has_shift = has_shift
+        self.page_bits = page_bits
 
     def body(self):
-        # base and limit
-        mem_base  = Wire(BrewMemBase)
-        mem_limit = Wire(BrewMemBase)
-
         # Instruction pointers
         spc  = Wire(BrewInstAddr)
         tpc  = Wire(BrewInstAddr)
         task_mode  = Wire(logic)
 
-        # ECause and RCause
-        ecause = Wire(Unsigned(12))
-
         # Connecting tissue
-        fetch_to_bus = Wire(BusIfRequestIf)
-        bus_to_fetch = Wire(BusIfResponseIf)
-        mem_to_bus = Wire(BusIfRequestIf)
-        bus_to_mem = Wire(BusIfResponseIf)
-
         fetch_to_decode = Wire(FetchDecodeIf)
         decode_to_exec = Wire(DecodeExecIf)
-        csr_if = Wire(CsrIf)
-
         do_branch = Wire(logic)
-
         exec_to_extend = Wire(ResultExtendIf)
-
         rf_req = Wire(RegFileReadRequestIf)
         rf_rsp = Wire(RegFileReadResponseIf)
         rf_write = Wire(RegFileWriteBackIf)
 
-
-        bus_if = BusIf()
-        fetch_stage = FetchStage()
+        # Stages
+        fetch_stage = FetchStage(page_bits=self.page_bits)
         decode_stage = DecodeStage(has_multiply=self.has_multiply, has_shift=self.has_multiply)
-        execute_stage = ExecuteStage(csr_base=self.csr_base, nram_base=self.nram_base, has_multiply=self.has_multiply, has_shift=self.has_multiply)
+        execute_stage = ExecuteStage(csr_base=self.csr_base, has_multiply=self.has_multiply, has_shift=self.has_multiply)
         result_extend_stage = ResultExtendStage()
         reg_file = RegFile()
 
-
-        # BUS INTERFACE
-        ###########################
-        bus_if.fetch_request <<= fetch_to_bus
-        bus_to_fetch <<= bus_if.fetch_response
-        bus_if.mem_request <<= mem_to_bus
-        bus_to_mem <<= bus_if.mem_response
-
-        self.dram <<= bus_if.dram
-
-        bus_if.ext_req         <<= self.ext_req
-        self.ext_grnt          <<= bus_if.ext_grnt
-
         # FETCH STAGE
         ############################
-        fetch_to_bus <<= fetch_stage.bus_if_request
-        fetch_stage.bus_if_response <<= bus_to_fetch
+        self.fetch_to_bus <<= fetch_stage.bus_if_request
+        fetch_stage.bus_if_response <<= self.bus_to_fetch
 
         fetch_to_decode <<= fetch_stage.decode
 
-        fetch_stage.mem_base <<= mem_base
-        fetch_stage.mem_limit <<= mem_limit
+        fetch_stage.mem_base <<= self.mem_base
+        fetch_stage.mem_limit <<= self.mem_limit
         fetch_stage.spc <<= spc
         fetch_stage.tpc <<= tpc
         fetch_stage.task_mode <<= task_mode
         fetch_stage.do_branch <<= do_branch
+
+        self.fetch_wait_on_bus <<= self.fetch_to_bus.valid & ~self.fetch_to_bus.ready
 
         # DECODE STAGE
         ############################
@@ -132,29 +120,41 @@ class Pipeline(GenericModule):
 
         decode_stage.do_branch <<= do_branch
 
+        self.decode_wait_on_rf <<= rf_req.valid & ~rf_req.ready
+
+        self.branch <<= decode_to_exec.exec_unit == op_class.branch & ~decode_to_exec.fetch_av
+        self.load <<= (decode_to_exec.exec_unit == op_class.ld_st) & (decode_to_exec.ldst_op == ldst_ops.load) & ~decode_to_exec.fetch_av
+        self.store <<= (decode_to_exec.exec_unit == op_class.ld_st) & (decode_to_exec.ldst_op == ldst_ops.store) & ~decode_to_exec.fetch_av
+
         # EXECUTE STAGE
         #############################
         execute_stage.input_port <<= decode_to_exec
         exec_to_extend           <<= execute_stage.output_port
 
-        mem_to_bus <<= execute_stage.bus_req_if
-        execute_stage.bus_rsp_if <<= bus_to_mem
+        self.mem_to_bus <<= execute_stage.bus_req_if
+        execute_stage.bus_rsp_if <<= self.bus_to_mem
 
-        csr_if <<= execute_stage.csr_if
+        self.csr_if <<= execute_stage.csr_if
 
-        execute_stage.mem_base      <<= mem_base
-        execute_stage.mem_limit     <<= mem_limit
+        execute_stage.mem_base      <<= self.mem_base
+        execute_stage.mem_limit     <<= self.mem_limit
         execute_stage.spc_in        <<= spc
         execute_stage.tpc_in        <<= tpc
         execute_stage.task_mode_in  <<= task_mode
-        execute_stage.ecause_in     <<= ecause
+        execute_stage.ecause_in     <<= self.ecause
         execute_stage.interrupt     <<= self.interrupt
+
+        self.execute <<= decode_to_exec.ready & decode_to_exec.valid & ~decode_to_exec.fetch_av
 
         spc          <<= Reg(execute_stage.spc_out)
         tpc          <<= Reg(execute_stage.tpc_out)
         task_mode    <<= Reg(execute_stage.task_mode_out)
-        ecause       <<= Reg(execute_stage.ecause_out)
+        self.ecause  <<= Reg(execute_stage.ecause_out)
         do_branch    <<= Reg(execute_stage.do_branch)
+        self.eaddr   <<= execute_stage.eaddr_out
+
+        self.mem_wait_on_bus <<= self.mem_to_bus.valid & ~self.mem_to_bus.ready
+        self.branch_taken <<= do_branch
 
         # RESULT EXTEND STAGE
         ######################
@@ -167,53 +167,12 @@ class Pipeline(GenericModule):
         rf_rsp <<= reg_file.read_rsp
         reg_file.write <<= rf_write
 
-        # CSRs
-        #####################
+        reg_file.do_branch <<= do_branch
 
-        '''
-        APB signalling
-
-                        <-- read -->      <-- write ->
-            CLK     \__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/
-            psel    ___/^^^^^^^^^^^\_____/^^^^^^^^^^^\______
-            penable _________/^^^^^\___________/^^^^^\______
-            pready  ---------/^^^^^\-----------/^^^^^\------
-            pwrite  ---/^^^^^^^^^^^\-----\___________/------
-            paddr   ---<===========>-----<===========>------
-            prdata  ---------<=====>------------------------
-            pwdata  ---------------------<===========>------
-            csr_rs  ___/^^^^^^^^^^^\________________________
-            csr_wr  ___________________________/^^^^^\______
-        '''
-
-        #csr_read_strobe = csr_if.psel & ~csr_if.pwrite # we don't care about qualification: perform a ready every clock...
-        csr_write_strobe = csr_if.psel &  csr_if.pwrite & csr_if.penable
-        csr_if.pready <<= 1
-
-        paddr = BrewCsrAddr
-        pwdata = BrewCsrData
-        prdata = Reverse(BrewCsrData)
-
-
-        csr_addr = Wire(Unsigned(4))
-        csr_addr <<= csr_if.paddr[3:0]
-        csr_if.prdata <<= Reg(Select(
-            csr_addr,
-            ## CSR0: version and capabilities
-            0x00000000,
-            ## CSR1: mem_base
-            concat(mem_base, "10'b0"),
-            ## CSR2: mem_limit
-            concat(mem_limit, "10'b0"),
-            ## CSR3: ecause
-            ecause,
-        ))
-        mem_base  <<= Reg(csr_if.pwdata[31:10], clock_en=(csr_addr == 1) & csr_write_strobe)
-        mem_limit <<= Reg(csr_if.pwdata[31:10], clock_en=(csr_addr == 2) & csr_write_strobe)
 
 def gen():
     def top():
-        return Pipeline(csr_base=0xc, nram_base=0xf, has_multiply=False, has_shift=False)
+        return Pipeline(csr_base=0x1, has_multiply=False, has_shift=False)
 
     back_end = SystemVerilog()
     back_end.yosys_fix = True

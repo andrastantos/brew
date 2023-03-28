@@ -145,6 +145,9 @@ class DecodeStage(GenericModule):
         so = shifter_ops
         lo = ldst_ops
         oc = op_class
+        a32 = access_len_32
+        a16 = access_len_16
+        a8  = access_len_8
         #      CODE                                  EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
         SII =                                       (oc.branch,   None,         None,        bo.swi,      None,      None,       None,           None,      7,               None,         None,       None,   0,  0,  0,  0 )
         if self.has_shift:
@@ -197,8 +200,8 @@ class DecodeStage(GenericModule):
             ( "  .001: FENCE",                        oc.alu,      None,         None,        None,        None,      None,       None,           None,      None,            None,         None,       None,   0,  0,  0,  0 ), # Decoded as a kind of NOP
             ( "$ .002: $pc <- $rD",                   oc.branch,   None,         None,        bo.pc_w,     None,      field_d,    None,           None,      "REG",           None,         None,       None,   0,  0,  0,  0 ),
             ( "  .003: $tpc <- $rD",                  oc.branch,   None,         None,        bo.tpc_w,    None,      field_d,    None,           None,      "REG",           None,         None,       None,   0,  0,  0,  0 ),
-            ( "$ .004: $rD <- $pc",                   oc.branch,   ao.pc_plus_b, None,        None,        None,      None,       None,           field_d,   None,            0,            None,       None,   0,  0,  0,  0 ),
-            ( "  .005: $rD <- $tpc",                  oc.branch,   ao.tpc,       None,        None,        None,      None,       None,           field_d,   None,            None,         None,       None,   0,  0,  0,  0 ),
+            ( "$ .004: $rD <- $pc",                   oc.alu,      ao.pc_plus_b, None,        None,        None,      None,       None,           field_d,   None,            0,            None,       None,   0,  0,  0,  0 ),
+            ( "  .005: $rD <- $tpc",                  oc.alu,      ao.tpc,       None,        None,        None,      None,       None,           field_d,   None,            None,         None,       None,   0,  0,  0,  0 ),
             ( "  .00>5: SII",                         *SII),
             # Unary group                            EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
             ( "$ .01.: $rD <- tiny FIELD_A",          oc.alu,      ao.a_or_b,    None,        None,        None,      None,       None,           field_d,   0,               ones_field_a, None,       None,   0,  0,  0,  0 ),
@@ -277,24 +280,24 @@ class DecodeStage(GenericModule):
             ( "  f.f.: if $rA[.]  == 1",              oc.branch,   None,         None,        bo.bb_one,   None,      field_a,    None,           None,      "REG",           field_c,      field_e,    None,   0,  0,  0,  0 ),
             ( "  f..f: if $rB[.]  == 0",              oc.branch,   None,         None,        bo.bb_one,   None,      field_b,    None,           None,      "REG",           field_c,      field_e,    None,   0,  0,  0,  0 ),
             # Stack group                            EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
-            ( "$ .c**: MEM[$rA+tiny OFS*4] <- $rD",   oc.ld_st,    None,         None,        None,        lo.store,  field_d,    tiny_field_a,   None,      "REG",           "REG",        tiny_ofs,   3,      0,  0,  0,  0 ),
-            ( "$ .d**: $rD <- MEM[$rA+tiny OFS*4]",   oc.ld_st,    None,         None,        None,        lo.load,   None,       tiny_field_a,   field_d,   None,            "REG",        tiny_ofs,   3,      0,  0,  0,  0 ),
+            ( "$ .c**: MEM[$rA+tiny OFS*4] <- $rD",   oc.ld_st,    None,         None,        None,        lo.store,  field_d,    tiny_field_a,   None,      "REG",           "REG",        tiny_ofs,   a32,    0,  0,  0,  0 ),
+            ( "$ .d**: $rD <- MEM[$rA+tiny OFS*4]",   oc.ld_st,    None,         None,        None,        lo.load,   None,       tiny_field_a,   field_d,   None,            "REG",        tiny_ofs,   a32,    0,  0,  0,  0 ),
             # Type operations                        EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
             ( "  .e0.: SII",                          *SII),
             ( "  .e1.: SII",                          *SII),
             ( "  .e2.: SII",                          *SII),
             ( "  .e3.: SII",                          *SII),
             # Indirect load/store group              EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
-            ( "$ .e4.: $rD <- MEM8[$rA]",             oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        0,          1,      0,  0,  1,  0 ),
-            ( "  .e5.: $rD <- MEM16[$rA]",            oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        0,          2,      0,  0,  0,  1 ),
-            ( "  .e6.: $rD <- MEM32[$rA]",            oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        0,          3,      0,  0,  0,  0 ),
-            ( "  .e7.: $rD <- MEMLL32[$rA]",          oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        0,          3,      0,  0,  0,  0 ),
-            ( "$ .e8.: MEM8[$rA] <- $rD",             oc.ld_st,    None,         None,        None,        lo.store,  field_d,    field_a,        None,      "REG",           "REG",        0,          1,      0,  0,  0,  0 ),
-            ( "  .e9.: MEM16[$rA] <- $rD",            oc.ld_st,    None,         None,        None,        lo.store,  field_d,    field_a,        None,      "REG",           "REG",        0,          2,      0,  0,  0,  0 ),
-            ( "  .ea.: MEM32[$rA] <- $rD",            oc.ld_st,    None,         None,        None,        lo.store,  field_d,    field_a,        None,      "REG",           "REG",        0,          3,      0,  0,  0,  0 ),
-            ( "  .eb.: MEMSR32[$rA] <- $rD",          oc.ld_st,    None,         None,        None,        lo.store,  field_d,    field_a,        None,      "REG",           "REG",        0,          3,      0,  0,  0,  0 ),
-            ( "  .ec.: $rD <- SMEM8[$rA]",            oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        0,          1,      1,  0,  0,  0 ),
-            ( "  .ed.: $rD <- SMEM16[$rA]",           oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        0,          2,      0,  1,  0,  0 ),
+            ( "$ .e4.: $rD <- MEM8[$rA]",             oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        0,          a8,     0,  0,  1,  0 ),
+            ( "  .e5.: $rD <- MEM16[$rA]",            oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        0,          a16,    0,  0,  0,  1 ),
+            ( "  .e6.: $rD <- MEM32[$rA]",            oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        0,          a32,    0,  0,  0,  0 ),
+            ( "  .e7.: $rD <- MEMLL32[$rA]",          oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        0,          a32,    0,  0,  0,  0 ),
+            ( "$ .e8.: MEM8[$rA] <- $rD",             oc.ld_st,    None,         None,        None,        lo.store,  field_d,    field_a,        None,      "REG",           "REG",        0,          a8,     0,  0,  0,  0 ),
+            ( "  .e9.: MEM16[$rA] <- $rD",            oc.ld_st,    None,         None,        None,        lo.store,  field_d,    field_a,        None,      "REG",           "REG",        0,          a16,    0,  0,  0,  0 ),
+            ( "  .ea.: MEM32[$rA] <- $rD",            oc.ld_st,    None,         None,        None,        lo.store,  field_d,    field_a,        None,      "REG",           "REG",        0,          a32,    0,  0,  0,  0 ),
+            ( "  .eb.: MEMSR32[$rA] <- $rD",          oc.ld_st,    None,         None,        None,        lo.store,  field_d,    field_a,        None,      "REG",           "REG",        0,          a32,    0,  0,  0,  0 ),
+            ( "  .ec.: $rD <- SMEM8[$rA]",            oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        0,          a8,     1,  0,  0,  0 ),
+            ( "  .ed.: $rD <- SMEM16[$rA]",           oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        0,          a16,    0,  1,  0,  0 ),
             # Indirect jump group                    EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
             ( "  1ee.: SII",                          *SII),
             ( "  2ee.: SII",                          *SII),
@@ -304,31 +307,31 @@ class DecodeStage(GenericModule):
             ( "  2ee.: SII",                          *SII),
             ( "  3ee.: SII",                          *SII),
             # Offset-indirect load/store group       EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
-            ( "  .f4.: $rD <- MEM8[$rA+FIELD_E]",     oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        field_e,    1,      0,  0,  1,  0 ),
-            ( "  .f5.: $rD <- MEM16[$rA+FIELD_E]",    oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        field_e,    2,      0,  0,  0,  1 ),
-            ( "  .f6.: $rD <- MEM32[$rA+FIELD_E]",    oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        field_e,    3,      0,  0,  0,  0 ),
-            ( "  .f7.: $rD <- MEMLL32[$rA+FIELD_E]",  oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        field_e,    3,      0,  0,  0,  0 ),
-            ( "  .f8.: MEM8[$rA+FIELD_E] <- $rD",     oc.ld_st,    None,         None,        None,        lo.store,  field_d,    field_a,        None,      "REG",           "REG",        field_e,    1,      0,  0,  0,  0 ),
-            ( "  .f9.: MEM16[$rA+FIELD_E] <- $rD",    oc.ld_st,    None,         None,        None,        lo.store,  field_d,    field_a,        None,      "REG",           "REG",        field_e,    2,      0,  0,  0,  0 ),
-            ( "  .fa.: MEM32[$rA+FIELD_E] <- $rD",    oc.ld_st,    None,         None,        None,        lo.store,  field_d,    field_a,        None,      "REG",           "REG",        field_e,    3,      0,  0,  0,  0 ),
-            ( "  .fb.: MEMSR32[$rA+FIELD_E] <- $rD",  oc.ld_st,    None,         None,        None,        lo.store,  field_d,    field_a,        None,      "REG",           "REG",        field_e,    3,      0,  0,  0,  0 ),
-            ( "  .fc.: $rD <- SMEM8[$rA+FIELD_E]",    oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        field_e,    1,      1,  0,  0,  0 ),
-            ( "  .fd.: $rD <- SMEM16[$rA+FIELD_E]",   oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        field_e,    2,      0,  1,  0,  0 ),
+            ( "  .f4.: $rD <- MEM8[$rA+FIELD_E]",     oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        field_e,    a8,     0,  0,  1,  0 ),
+            ( "  .f5.: $rD <- MEM16[$rA+FIELD_E]",    oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        field_e,    a16,    0,  0,  0,  1 ),
+            ( "  .f6.: $rD <- MEM32[$rA+FIELD_E]",    oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        field_e,    a32,    0,  0,  0,  0 ),
+            ( "  .f7.: $rD <- MEMLL32[$rA+FIELD_E]",  oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        field_e,    a32,    0,  0,  0,  0 ),
+            ( "  .f8.: MEM8[$rA+FIELD_E] <- $rD",     oc.ld_st,    None,         None,        None,        lo.store,  field_d,    field_a,        None,      "REG",           "REG",        field_e,    a8,     0,  0,  0,  0 ),
+            ( "  .f9.: MEM16[$rA+FIELD_E] <- $rD",    oc.ld_st,    None,         None,        None,        lo.store,  field_d,    field_a,        None,      "REG",           "REG",        field_e,    a16,    0,  0,  0,  0 ),
+            ( "  .fa.: MEM32[$rA+FIELD_E] <- $rD",    oc.ld_st,    None,         None,        None,        lo.store,  field_d,    field_a,        None,      "REG",           "REG",        field_e,    a32,    0,  0,  0,  0 ),
+            ( "  .fb.: MEMSR32[$rA+FIELD_E] <- $rD",  oc.ld_st,    None,         None,        None,        lo.store,  field_d,    field_a,        None,      "REG",           "REG",        field_e,    a32,    0,  0,  0,  0 ),
+            ( "  .fc.: $rD <- SMEM8[$rA+FIELD_E]",    oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        field_e,    a8,     1,  0,  0,  0 ),
+            ( "  .fd.: $rD <- SMEM16[$rA+FIELD_E]",   oc.ld_st,    None,         None,        None,        lo.load,   None,       field_a,        field_d,   None,            "REG",        field_e,    a16,    0,  1,  0,  0 ),
             # Offset-indirect jump group             EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
             ( "  1fe.: SII",                          *SII),
             ( "  2fe.: SII",                          *SII),
             ( "  3fe.: SII",                          *SII),
             # Absolute load/store group              EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
-            ( "  .f4f: $rD <- MEM8[FIELD_E]",         oc.ld_st,    None,         None,        None,        lo.load,   None,       None,           field_d,   None,            0,            field_e,    1,      0,  0,  1,  0 ),
-            ( "  .f5f: $rD <- MEM16[FIELD_E]",        oc.ld_st,    None,         None,        None,        lo.load,   None,       None,           field_d,   None,            0,            field_e,    2,      0,  0,  0,  1 ),
-            ( "  .f6f: $rD <- MEM32[FIELD_E]",        oc.ld_st,    None,         None,        None,        lo.load,   None,       None,           field_d,   None,            0,            field_e,    3,      0,  0,  0,  0 ),
-            ( "  .f7f: $rD <- MEMLL32[FIELD_E]",      oc.ld_st,    None,         None,        None,        lo.load,   None,       None,           field_d,   None,            0,            field_e,    3,      0,  0,  0,  0 ),
-            ( "  .f8f: MEM8[FIELD_E] <- $rD",         oc.ld_st,    None,         None,        None,        lo.store,  field_d,    None,           None,      "REG",           0,            field_e,    1,      0,  0,  0,  0 ),
-            ( "  .f9f: MEM16[FIELD_E] <- $rD",        oc.ld_st,    None,         None,        None,        lo.store,  field_d,    None,           None,      "REG",           0,            field_e,    2,      0,  0,  0,  0 ),
-            ( "  .faf: MEM32[FIELD_E] <- $rD",        oc.ld_st,    None,         None,        None,        lo.store,  field_d,    None,           None,      "REG",           0,            field_e,    3,      0,  0,  0,  0 ),
-            ( "  .fbf: MEMSR32[FIELD_E] <- $rD",      oc.ld_st,    None,         None,        None,        lo.store,  field_d,    None,           None,      "REG",           0,            field_e,    3,      0,  0,  0,  0 ),
-            ( "  .fcf: $rD <- SMEM8[FIELD_E]",        oc.ld_st,    None,         None,        None,        lo.load,   None,       None,           field_d,   None,            0,            field_e,    1,      1,  0,  0,  0 ),
-            ( "  .fdf: $rD <- SMEM16[FIELD_E]",       oc.ld_st,    None,         None,        None,        lo.load,   None,       None,           field_d,   None,            0,            field_e,    2,      0,  1,  0,  0 ),
+            ( "  .f4f: $rD <- MEM8[FIELD_E]",         oc.ld_st,    None,         None,        None,        lo.load,   None,       None,           field_d,   None,            0,            field_e,    a8,     0,  0,  1,  0 ),
+            ( "  .f5f: $rD <- MEM16[FIELD_E]",        oc.ld_st,    None,         None,        None,        lo.load,   None,       None,           field_d,   None,            0,            field_e,    a16,    0,  0,  0,  1 ),
+            ( "  .f6f: $rD <- MEM32[FIELD_E]",        oc.ld_st,    None,         None,        None,        lo.load,   None,       None,           field_d,   None,            0,            field_e,    a32,    0,  0,  0,  0 ),
+            ( "  .f7f: $rD <- MEMLL32[FIELD_E]",      oc.ld_st,    None,         None,        None,        lo.load,   None,       None,           field_d,   None,            0,            field_e,    a32,    0,  0,  0,  0 ),
+            ( "  .f8f: MEM8[FIELD_E] <- $rD",         oc.ld_st,    None,         None,        None,        lo.store,  field_d,    None,           None,      "REG",           0,            field_e,    a8,     0,  0,  0,  0 ),
+            ( "  .f9f: MEM16[FIELD_E] <- $rD",        oc.ld_st,    None,         None,        None,        lo.store,  field_d,    None,           None,      "REG",           0,            field_e,    a16,    0,  0,  0,  0 ),
+            ( "  .faf: MEM32[FIELD_E] <- $rD",        oc.ld_st,    None,         None,        None,        lo.store,  field_d,    None,           None,      "REG",           0,            field_e,    a32,    0,  0,  0,  0 ),
+            ( "  .fbf: MEMSR32[FIELD_E] <- $rD",      oc.ld_st,    None,         None,        None,        lo.store,  field_d,    None,           None,      "REG",           0,            field_e,    a32,    0,  0,  0,  0 ),
+            ( "  .fcf: $rD <- SMEM8[FIELD_E]",        oc.ld_st,    None,         None,        None,        lo.load,   None,       None,           field_d,   None,            0,            field_e,    a8,     1,  0,  0,  0 ),
+            ( "  .fdf: $rD <- SMEM16[FIELD_E]",       oc.ld_st,    None,         None,        None,        lo.load,   None,       None,           field_d,   None,            0,            field_e,    a16,    0,  1,  0,  0 ),
             # Absolute jump group                    EXEC_UNIT    ALU_OP        SHIFTER_OP   BRANCH_OP    LDST_OP    RD1_ADDR    RD2_ADDR        RES_ADDR   OP_A             OP_B          OP_C        MEM_LEN BSE WSE BZE WZE
             ( "  1fef: SII",                          *SII),
             ( "  2fef: SII",                          *SII),
@@ -390,7 +393,7 @@ class DecodeStage(GenericModule):
                 elif digit in ('0123456789abcdef'):
                     value = int(digit, 16)
                     if do_gt:
-                        ret_val = ret_val & (field > value)
+                        ret_val = ret_val & (field > value) & ~field_is_f
                     elif do_lt:
                         ret_val = ret_val & (field < value)
                     else:
@@ -561,11 +564,11 @@ class DecodeStage(GenericModule):
         self.reg_file_rsp.ready <<= self.output_port.ready
 
         self.reg_file_req.read1_addr  <<= BrewRegAddr(rd1_addr)
-        self.reg_file_req.read1_valid <<= read1_needed
+        self.reg_file_req.read1_valid <<= read1_needed & ~self.do_branch
         self.reg_file_req.read2_addr  <<= BrewRegAddr(rd2_addr)
-        self.reg_file_req.read2_valid <<= read2_needed
+        self.reg_file_req.read2_valid <<= read2_needed & ~self.do_branch
         self.reg_file_req.rsv_addr    <<= BrewRegAddr(res_addr)
-        self.reg_file_req.rsv_valid   <<= rsv_needed
+        self.reg_file_req.rsv_valid   <<= rsv_needed & ~self.do_branch
 
         register_outputs = self.reg_file_req.ready & self.reg_file_req.valid
 
@@ -765,24 +768,39 @@ def sim():
                 simulator.log(f"ISSUING {method} {words_str}")
                 return words, decode_fn(*args, **kwargs)
 
-            yield from issue(*_i("r_eq_r_or_r", 0,2,3))
+            yield from issue(*_i("r_eq_r_or_r", 0,2,3), av=True)
             #yield from issue(a.r_eq_I(4, 0xdeadbeef))
             #yield from issue(a.mem8_r_eq_r(4,5))
             for i in range(4):
                 yield from wait_clk()
             pass
-            for i in range(10):
-                inst = test_inst_table[randint(0,len(test_inst_table)-1)]
-                yield from issue(*_i(inst))
 
-            for i in range(4):
-                yield from wait_clk()
+            def test_cycle(cycle_count, exec_wait, reg_file_wait):
+                simulator.log(f"====== {'NO' if exec_wait == 0 else f'random {exec_wait}'} exec wait, {'NO' if reg_file_wait == 0 else f'random {reg_file_wait}'} reg file wait")
+                self.set_exec_wait_range(exec_wait)
+                self.set_reg_file_wait_range(reg_file_wait)
+                for i in range(cycle_count):
+                    inst = test_inst_table[randint(0,len(test_inst_table)-1)]
+                    yield from issue(*_i(inst))
+
+                for i in range(4):
+                    yield from wait_clk()
+
+            cycle_count = 50
+            yield from test_cycle(cycle_count, 0, 0)
+            yield from test_cycle(cycle_count, 0, 4)
+            yield from test_cycle(cycle_count, 4, 0)
+            yield from test_cycle(cycle_count, 4, 4)
+
 
     class ExecEmulator(GenericModule):
         clk = ClkPort()
         rst = RstPort()
 
         input_port = Input(DecodeExecIf)
+
+        def set_wait_range(self, wait_range):
+            self.wait_range = wait_range
 
         def construct(self, exp_queue: List[DecodeExpectations]):
             self.exp_queue = exp_queue
@@ -811,10 +829,10 @@ def sim():
             yield from wait_rst()
             while True:
                 yield from wait_transfer()
-                simulator.log("EXEC got something")
                 exp = self.exp_queue.pop(0)
+                simulator.log(f"EXEC got something {exp.fn_name}")
                 exp.check(self.input_port, simulator)
-                for _ in range(randint(0,5)):
+                for _ in range(randint(0,self.wait_range)):
                     simulator.log("EXEC waiting")
                     yield from wait_clk()
 
@@ -826,9 +844,9 @@ def sim():
 
         def body(self):
             exec_exp_queue = []
-            self.fetch_emulator = FetchEmulator(exec_exp_queue)
-            self.exec_emulator = ExecEmulator(exec_exp_queue)
             self.reg_file_emulator = RegFileEmulator()
+            self.exec_emulator = ExecEmulator(exec_exp_queue)
+            self.fetch_emulator = FetchEmulator(exec_exp_queue, self.exec_emulator.set_wait_range, self.reg_file_emulator.set_wait_range)
 
             self.dut = DecodeStage(use_mini_table=True)
 
@@ -863,7 +881,7 @@ def sim():
                 yield from clk()
             self.rst <<= 0
 
-            for i in range(500):
+            for i in range(1000):
                 yield from clk()
             now = yield 10
             print(f"Done at {now}")

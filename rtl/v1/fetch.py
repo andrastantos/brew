@@ -102,7 +102,7 @@ QueuePointerType = Unsigned(fetch_queue_length.bit_length())
 
 def truncate_queue_ptr(ptr):
     return ptr[QueuePointerType.get_length()-1:0]
-class InstBuffer(Module):
+class InstBuffer(GenericModule):
     """
     This module deals with the interfacing to the bus interface and generating an instruction word stream for the fetch stage.
 
@@ -138,8 +138,8 @@ class InstBuffer(Module):
     task_mode  = Input(logic)
     do_branch = Input(logic) # do_branch is active for one cycle only; in the same cycle the new spc/tpc/task_mode values are available
 
-    def construct(self):
-        self.page_bits = 8
+    def construct(self, page_bits: int = 7):
+        self.page_bits = page_bits # 256 bytes, but we count in 16-bit words
 
     def body(self):
         def truncate_addr(a):
@@ -185,13 +185,15 @@ class InstBuffer(Module):
         class InstBufferStates(Enum):
             idle = 0
             request = 1
-            flush_start = 2
+            flushing = 2
 
         self.fsm.reset_value <<= InstBufferStates.idle
         self.fsm.default_state <<= InstBufferStates.idle
 
         state = Wire()
+        next_state = Wire()
         state <<= self.fsm.state
+        next_state <<= self.fsm.next_state
 
         # branch_req will remain high until our request is accepted by the bus_if
         # NOTE: Acutally, I don't think that's necessary for two reasons:
@@ -212,6 +214,14 @@ class InstBuffer(Module):
         #        0
         #    )
         #)
+        outstanding_request = Wire(Unsigned(2))
+        next_outstanding_request = SelectOne(
+            advance_request &  advance_response, outstanding_request,
+            advance_request & ~advance_response, (outstanding_request+1)[1:0],
+            ~advance_request &  advance_response, (outstanding_request-1)[1:0],
+            ~advance_request & ~advance_response, outstanding_request,
+        )
+        outstanding_request <<= Reg(next_outstanding_request)
 
         start_new_request = ((self.queue_free_cnt >= fetch_threshold) | branch_req) & (state == InstBufferStates.idle)
 
@@ -234,37 +244,24 @@ class InstBuffer(Module):
                 fetch_av
             )
         )
-        flushing = Wire(logic)
-        flushing <<= Reg(
-            Select(
-                branch_req | (state == InstBufferStates.flush_start),
-                Select(
-                    advance_response,
-                    0,
-                    flushing
-                ),
-                1
-            )
-        )
 
         self.bus_if_request.valid           <<= (state == InstBufferStates.request) & (~fetch_page_limit)
         self.bus_if_request.read_not_write  <<= 1
         self.bus_if_request.byte_en         <<= 3
-        self.bus_if_request.addr            <<= fetch_addr[21:0]
-        self.bus_if_request.dram_not_ext    <<= fetch_addr[22] # TODO: what is the memory map for ROMs???
+        self.bus_if_request.addr            <<= fetch_addr[BrewBusAddr.length-1:0]
         self.bus_if_request.data            <<= None
 
         self.fsm.add_transition(InstBufferStates.idle,         start_new_request,              InstBufferStates.request)
-        self.fsm.add_transition(InstBufferStates.request,     ~branch_req & (~advance_request | (req_len == 0)),  InstBufferStates.idle)
-        self.fsm.add_transition(InstBufferStates.request,      branch_req &  advance_request & ~advance_response,  InstBufferStates.flush_start)
-        self.fsm.add_transition(InstBufferStates.request,      branch_req &  advance_request &  advance_response,  InstBufferStates.idle)
-        self.fsm.add_transition(InstBufferStates.flush_start,                                   advance_response,  InstBufferStates.idle)
+        self.fsm.add_transition(InstBufferStates.request,     ~branch_req & (~self.bus_if_request.valid | (req_len == 0)),  InstBufferStates.idle)
+        self.fsm.add_transition(InstBufferStates.request,      branch_req & (next_outstanding_request != 0),  InstBufferStates.flushing)
+        self.fsm.add_transition(InstBufferStates.request,      branch_req & (next_outstanding_request == 0),  InstBufferStates.idle)
+        self.fsm.add_transition(InstBufferStates.flushing,     (next_outstanding_request == 0),  InstBufferStates.idle)
 
 
         # The response interface is almost completely a pass-through. All we need to do is to handle the AV flag.
         self.queue.data <<= self.bus_if_response.data
         self.queue.av <<= req_av
-        self.queue.valid <<= self.bus_if_response.valid & ~flushing
+        self.queue.valid <<= self.bus_if_response.valid & (state != InstBufferStates.flushing)
         #AssertOnClk(
         #    state != InstBufferStates.idle | self.queue.ready | (state != InstBufferStates.flush)
         #)
@@ -284,7 +281,8 @@ class InstQueue(Module):
     do_branch = Input(logic)
 
     def body(self):
-        self.assemble <<= Fifo(depth=fetch_queue_length)(self.inst, clear = self.do_branch)
+        fifo = Fifo(depth=fetch_queue_length)
+        self.assemble <<= fifo(self.inst, clear = self.do_branch)
 
         self.empty_cnt = Wire(QueuePointerType)
         dec = self.inst.ready & self.inst.valid
@@ -332,7 +330,6 @@ class InstAssemble(Module):
             )
 
         fsm_advance = Wire(logic)
-        load_from_top = Wire(logic)
 
         # Datapath registers
         inst_len_reg = Wire(Unsigned(2))
@@ -360,26 +357,29 @@ class InstAssemble(Module):
         fsm_state <<= self.decode_fsm.state
 
         # We're in a state where we don't have anything partial
-        self.decode_fsm.add_transition(InstAssembleStates.have_0_fragments, ~self.do_branch &  fsm_advance & (inst_len == inst_len_16), InstAssembleStates.have_all_fragments)
-        self.decode_fsm.add_transition(InstAssembleStates.have_0_fragments, ~self.do_branch &  fsm_advance & (inst_len == inst_len_32), InstAssembleStates.need_1_fragments)
-        self.decode_fsm.add_transition(InstAssembleStates.have_0_fragments, ~self.do_branch &  fsm_advance & (inst_len == inst_len_48), InstAssembleStates.need_2_fragments)
-        self.decode_fsm.add_transition(InstAssembleStates.have_0_fragments, ~self.do_branch & ~fsm_advance                            , InstAssembleStates.have_0_fragments)
-        self.decode_fsm.add_transition(InstAssembleStates.have_0_fragments,  self.do_branch                                           , InstAssembleStates.have_0_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_0_fragments, ~self.do_branch &  fsm_advance &  self.inst_buf.av                           , InstAssembleStates.have_all_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_0_fragments, ~self.do_branch &  fsm_advance & ~self.inst_buf.av &(inst_len == inst_len_16), InstAssembleStates.have_all_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_0_fragments, ~self.do_branch &  fsm_advance & ~self.inst_buf.av &(inst_len == inst_len_32), InstAssembleStates.need_1_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_0_fragments, ~self.do_branch &  fsm_advance & ~self.inst_buf.av &(inst_len == inst_len_48), InstAssembleStates.need_2_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_0_fragments, ~self.do_branch & ~fsm_advance                                               , InstAssembleStates.have_0_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_0_fragments,  self.do_branch                                                              , InstAssembleStates.have_0_fragments)
         # We're in a state where we have 1 parcel for the bottom
         self.decode_fsm.add_transition(InstAssembleStates.need_1_fragments, ~self.do_branch &  fsm_advance, InstAssembleStates.have_all_fragments)
         self.decode_fsm.add_transition(InstAssembleStates.need_1_fragments, ~self.do_branch & ~fsm_advance, InstAssembleStates.need_1_fragments)
         self.decode_fsm.add_transition(InstAssembleStates.need_1_fragments,  self.do_branch               , InstAssembleStates.have_0_fragments)
         # We're in a state where we have 2 fragments for the bottom
-        self.decode_fsm.add_transition(InstAssembleStates.need_2_fragments, ~self.do_branch &  fsm_advance, InstAssembleStates.need_1_fragments)
-        self.decode_fsm.add_transition(InstAssembleStates.need_2_fragments, ~self.do_branch & ~fsm_advance, InstAssembleStates.need_2_fragments)
-        self.decode_fsm.add_transition(InstAssembleStates.need_2_fragments,  self.do_branch,                InstAssembleStates.have_0_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.need_2_fragments, ~self.do_branch &  fsm_advance & ~self.inst_buf.av, InstAssembleStates.need_1_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.need_2_fragments, ~self.do_branch &  fsm_advance &  self.inst_buf.av, InstAssembleStates.have_all_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.need_2_fragments, ~self.do_branch & ~fsm_advance                    , InstAssembleStates.need_2_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.need_2_fragments,  self.do_branch                                   , InstAssembleStates.have_0_fragments)
         # We have all the fragments: we either advance to the next set of instructions, or reset if the source is not valid
-        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch &  fsm_advance & self.inst_buf.valid & (inst_len == inst_len_16), InstAssembleStates.have_all_fragments)
-        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch &  fsm_advance & self.inst_buf.valid & (inst_len == inst_len_32), InstAssembleStates.need_1_fragments)
-        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch &  fsm_advance & self.inst_buf.valid & (inst_len == inst_len_48), InstAssembleStates.need_2_fragments)
-        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch &  fsm_advance & ~self.inst_buf.valid                           , InstAssembleStates.have_0_fragments)
-        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch & ~fsm_advance                                                  , InstAssembleStates.have_all_fragments)
-        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments,  self.do_branch                                                                 , InstAssembleStates.have_0_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch &  fsm_advance &  self.inst_buf.valid &  self.inst_buf.av                            , InstAssembleStates.have_all_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch &  fsm_advance &  self.inst_buf.valid & ~self.inst_buf.av & (inst_len == inst_len_16), InstAssembleStates.have_all_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch &  fsm_advance &  self.inst_buf.valid & ~self.inst_buf.av & (inst_len == inst_len_32), InstAssembleStates.need_1_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch &  fsm_advance &  self.inst_buf.valid & ~self.inst_buf.av & (inst_len == inst_len_48), InstAssembleStates.need_2_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch &  fsm_advance & ~self.inst_buf.valid                                                , InstAssembleStates.have_0_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch & ~fsm_advance                                                                       , InstAssembleStates.have_all_fragments)
+        self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments,  self.do_branch                                                                                      , InstAssembleStates.have_0_fragments)
 
         # Handshake logic: we're widening the datapath, so it's essentially the same as a ForwardBuf
         terminal_fsm_state = Wire(logic)
@@ -434,7 +434,7 @@ class InstAssemble(Module):
 
 
 
-class FetchStage(Module):
+class FetchStage(GenericModule):
     clk = ClkPort()
     rst = RstPort()
 
@@ -453,8 +453,11 @@ class FetchStage(Module):
     task_mode  = Input(logic)
     do_branch = Input(logic)
 
+    def construct(self, page_bits: int):
+        self.page_bits = page_bits
+
     def body(self):
-        inst_buf = InstBuffer()
+        inst_buf = InstBuffer(page_bits=self.page_bits)
         inst_queue = InstQueue()
         inst_assemble = InstAssemble()
 
@@ -745,7 +748,7 @@ def sim():
             self.bus_if_req = Wire(BusIfRequestIf)
             self.bus_if_rsp = Wire(BusIfResponseIf)
 
-            self.dut = FetchStage()
+            self.dut = FetchStage(page_bits=7)
             self.decode_emulator = DecodeEmulator()
             self.bus_emulator = BusEmulator()
             self.sideband_emulator = SidebandEmulator()
@@ -810,6 +813,6 @@ def gen():
 
 
 if __name__ == "__main__":
-    gen()
-    #sim()
+    #gen()
+    sim()
 

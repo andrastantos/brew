@@ -18,3 +18,6 @@ def field_b(inst_word):
 def field_a(inst_word):
     return inst_word[3:0]
 
+def hold(signal, enable):
+    return Select(enable, Reg(signal, clock_en=enable), signal)
+
