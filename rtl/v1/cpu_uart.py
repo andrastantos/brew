@@ -47,14 +47,15 @@ class Uart(Module):
         clk = ClkPort()
         rst = RstPort()
 
-        ser_clk_en = Input(logic)
-
         data_in = Input(PhyDataIf)
 
         parity = Input(EnumNet(UartParityType))
         stop_cnt = Input(EnumNet(UartStopBits))
         word_size = Input(Unsigned(3))
         hw_flow_ctrl = Input(logic)
+
+        prescaler_select = Input(Unsigned(3))
+        divider_limit = Input(Unsigned(8))
 
         txd = Output(logic)
         cts = Input(logic)
@@ -79,22 +80,36 @@ class Uart(Module):
             state = Wire()
             state <<= fsm.state
 
-            oversampler = Wire(Unsigned(4))
+
+            prescaler_counter = Wire(Unsigned(self.prescaler_select.get_net_type().max_val))
+            prescaler_counter <<= Reg(increment(prescaler_counter))
+            masks = ((1 << i)-1 for i in range(self.prescaler_select.get_net_type().max_val+1))
+            prescaler_tick = (prescaler_counter & Select(self.prescaler_select, *masks)) == 0
+
+            divider_counter = Wire(Unsigned(8))
+            divider_tick = (divider_counter == 0) & prescaler_tick
+            divider_counter <<= Reg(Select(
+                divider_tick | (state == UartTxPhyStates.idle),
+                decrement(divider_counter),
+                self.divider_limit
+            ), clock_en=prescaler_tick)
+
+            oversampler = Wire(logic)
             oversampler <<= Reg(
                 SelectOne(
                     state == UartTxPhyStates.idle, 0,
-                    state == UartTxPhyStates.stop_half, (oversampler+1)[2:0],
-                    default_port = (oversampler+1)[3:0]
+                    state == UartTxPhyStates.stop_half, oversampler,
+                    default_port = ~oversampler
                 ),
-                clock_en=self.ser_clk_en
+                clock_en=divider_tick
             )
-            baud_tick = (oversampler == 0xf) & self.ser_clk_en
-            baud_half_tick = (oversampler == 7) & self.ser_clk_en
+            baud_tick = oversampler & divider_tick
+            baud_half_tick = ~oversampler & divider_tick
 
             bit_counter = Wire(Unsigned(3))
 
             starting = self.data_in.ready & self.data_in.valid
-            self.data_in.ready <<= (state == UartTxPhyStates.idle) & self.ser_clk_en & (cts | ~self.hw_flow_ctrl)
+            self.data_in.ready <<= (state == UartTxPhyStates.idle) & (cts | ~self.hw_flow_ctrl)
 
             bit_counter <<= Reg(Select(
                 starting,
@@ -156,8 +171,6 @@ class Uart(Module):
         clk = ClkPort()
         rst = RstPort()
 
-        ser_clk_en = Input(logic)
-
         data_out = Output(PhyDataIf)
 
         parity = Input(EnumNet(UartParityType))
@@ -172,6 +185,9 @@ class Uart(Module):
         parity_error = Output(logic)
         overrun_error = Output(logic)
         clear = Input(logic)
+
+        prescaler_select = Input(Unsigned(3))
+        divider_limit = Input(Unsigned(8))
 
         def body(self):
             fsm = FSM()
@@ -196,21 +212,34 @@ class Uart(Module):
 
             rxd = Wire()
 
-            oversampler = Wire(Unsigned(4))
+            prescaler_counter = Wire(Unsigned(self.prescaler_select.get_net_type().max_val))
+            prescaler_counter <<= Reg(increment(prescaler_counter))
+            masks = ((1 << i)-1 for i in range(self.prescaler_select.get_net_type().max_val+1))
+            prescaler_tick = (prescaler_counter & Select(self.prescaler_select, *masks)) == 0
+
+            divider_counter = Wire(Unsigned(8))
+            divider_tick = (divider_counter == 0) & prescaler_tick
+            divider_counter <<= Reg(Select(
+                divider_tick | (state == UartRxPhyStates.idle),
+                decrement(divider_counter),
+                self.divider_limit
+            ), clock_en=prescaler_tick)
+
+            oversampler = Wire(logic)
             oversampler <<= Reg(
                 SelectOne(
                     state == UartRxPhyStates.idle, 0,
-                    state == UartRxPhyStates.stop_half, (oversampler+1)[2:0],
-                    default_port = (oversampler+1)[3:0]
+                    state == UartRxPhyStates.stop_half, oversampler,
+                    default_port = ~oversampler
                 ),
-                clock_en=self.ser_clk_en
+                clock_en=divider_tick
             )
-            baud_tick = (oversampler == 0xf) & self.ser_clk_en
-            baud_half_tick = (oversampler == 7) & self.ser_clk_en
+            baud_tick = oversampler & divider_tick
+            baud_half_tick = ~oversampler & divider_tick
 
             bit_counter = Wire(Unsigned(3))
 
-            starting = ~self.data_out.valid & (state == UartRxPhyStates.idle) & ~rxd & ~self.framing_error & ~self.parity_error
+            starting = ~self.data_out.valid & (state == UartRxPhyStates.idle) & ~rxd
             rx_full = Wire(logic)
             rx_full <<= Reg(
                 Select(
@@ -239,7 +268,7 @@ class Uart(Module):
                 Select(
                     starting,
                     Select(
-                        baud_tick & (next_state == UartRxPhyStates.data),
+                        baud_half_tick & (next_state == UartRxPhyStates.data),
                         shift_reg,
                         concat(rxd, shift_reg[7:1])
                     ),
@@ -276,7 +305,7 @@ class Uart(Module):
                 Select(
                     self.clear,
                     Select(
-                        Reg((state == UartRxPhyStates.stop_half) | (state == UartRxPhyStates.stop)) & (rxd == 0),
+                        ((state == UartRxPhyStates.stop_half) | (state == UartRxPhyStates.stop_two) | (state == UartRxPhyStates.stop)) & (rxd == 0),
                         self.framing_error,
                         1
                     ),
@@ -313,40 +342,6 @@ class Uart(Module):
             rxd <<= Reg(Reg(self.rxd, reset_value_port = 1), reset_value_port = 1)
             self.rts <<= Select(self.hw_flow_ctrl, 0, ~rx_full)
 
-    class BaudRateGenerator(Module):
-        clk = ClkPort()
-        rst = RstPort()
-
-        prescaler_limit = Input(Unsigned(2))
-        divider_limit = Input(Unsigned(8))
-        fractional_increment = Input(Unsigned(3))
-
-        ser_clk_en = Output(logic)
-
-        def body(self):
-            prescaler_counter = Wire(Unsigned(2**self.prescaler_limit.get_net_type().max_val))
-
-            prescaler_counter <<= Reg(increment(prescaler_counter) & SelectOne(
-                self.prescaler_limit == 0, 0,
-                self.prescaler_limit == 1, 1,
-                self.prescaler_limit == 2, 3,
-                self.prescaler_limit == 3, 7,
-            ))
-            prescaler_tick = prescaler_counter == 0
-
-            divider_counter = Wire(Unsigned(8))
-            divider_tick = divider_counter == 0
-
-            fractional_accumulator = Wire(Unsigned(3))
-            fractional_sum = fractional_accumulator + self.fractional_increment
-            fractional_accumulator <<= Reg(fractional_sum[2:0], clock_en=divider_tick)
-            fractional_overflow = Reg(fractional_sum[3])
-
-            divider_counter <<= Reg(Select(divider_tick, decrement(divider_counter), (self.divider_limit + fractional_overflow)[7:0]), clock_en=prescaler_tick)
-
-            self.ser_clk_en <<= divider_tick
-
-
     data_buf_reg_ofs = 0
     status_reg_ofs = 1
     config_reg_ofs = 2
@@ -368,13 +363,11 @@ class Uart(Module):
         bit 4-5 - word-size
         bit 6   - flow-control
     Reg 3: divider1
-        bit 0-1 - pre-scaler
-        bit 6-3 - fractional
+        bit 0-2 - pre-scaler
     Reg 4: divider2
         divider
     """
     def body(self):
-        baud_rate_gen = Uart.BaudRateGenerator()
         tx_phy = Uart.UartTxPhy()
         rx_phy = Uart.UartRxPhy()
 
@@ -383,9 +376,8 @@ class Uart(Module):
         rx_data <<= ForwardBuf(rx_phy.data_out)
         tx_data = Wire(PhyDataIf)
         tx_phy.data_in <<= ForwardBuf(tx_data)
-        prescaler_limit = Wire(Unsigned(2))
+        prescaler_select = Wire(Unsigned(3))
         divider_limit = Wire(Unsigned(8))
-        fractional_increment = Wire(Unsigned(3))
 
         self.bus_if.pready <<= Reg(
             Select(
@@ -418,7 +410,7 @@ class Uart(Module):
                 # Reg 2: config
                 config_reg,
                 # Reg 3: divider 1
-                concat(fractional_increment, "2'b0", prescaler_limit),
+                prescaler_select,
                 # Reg 4: divider 2
                 divider_limit,
             )
@@ -430,8 +422,7 @@ class Uart(Module):
         divider1_reg_wr = (self.bus_if.psel & self.bus_if.penable &  self.bus_if.pwrite & (self.bus_if.paddr == Uart.divider1_reg_ofs))
         divider2_reg_wr = (self.bus_if.psel & self.bus_if.penable &  self.bus_if.pwrite & (self.bus_if.paddr == Uart.divider2_reg_ofs))
         config_reg <<= Reg(self.bus_if.pwdata[6:0], clock_en=config_reg_wr)
-        fractional_increment <<= Reg(self.bus_if.pwdata[6:4], clock_en=divider1_reg_wr)
-        prescaler_limit <<= Reg(self.bus_if.pwdata[1:0], clock_en=divider1_reg_wr)
+        prescaler_select <<= Reg(self.bus_if.pwdata[2:0], clock_en=divider1_reg_wr)
         divider_limit <<= Reg(self.bus_if.pwdata, clock_en=divider2_reg_wr)
         tx_data.data <<= self.bus_if.pwdata
         #tx_valid_reg = Wire(logic)
@@ -447,12 +438,10 @@ class Uart(Module):
 
         self.interrupt <<= rx_phy.overrun_error | rx_phy.framing_error | rx_phy.parity_error | tx_data.ready | rx_data.valid
 
-        baud_rate_gen.prescaler_limit <<= prescaler_limit
-        baud_rate_gen.divider_limit <<= divider_limit
-        baud_rate_gen.fractional_increment <<= fractional_increment
-
-        tx_phy.ser_clk_en <<= baud_rate_gen.ser_clk_en
-        rx_phy.ser_clk_en <<= baud_rate_gen.ser_clk_en
+        rx_phy.prescaler_select <<= prescaler_select
+        rx_phy.divider_limit <<= divider_limit
+        tx_phy.prescaler_select <<= prescaler_select
+        tx_phy.divider_limit <<= divider_limit
 
         tx_phy.parity <<= (EnumNet(UartParityType))(config_reg[1:0])
         tx_phy.stop_cnt <<= (EnumNet(UartStopBits))(config_reg[3:2])
@@ -565,8 +554,8 @@ def sim():
             # Set up both UARTs to the same config
             yield from write_reg(0, Uart.config_reg_ofs, (UartParityType.none.value << 0) | (UartStopBits.one_and_half.value << 2) | (UartWordSize.bit8.value << 4) | (0 << 6))
             yield from write_reg(1, Uart.config_reg_ofs, (UartParityType.none.value << 0) | (UartStopBits.one_and_half.value << 2) | (UartWordSize.bit8.value << 4) | (0 << 6))
-            yield from write_reg(0, Uart.divider1_reg_ofs, (0 << 0) | (0 << 4))
-            yield from write_reg(1, Uart.divider1_reg_ofs, (0 << 0) | (0 << 4))
+            yield from write_reg(0, Uart.divider1_reg_ofs, 0)
+            yield from write_reg(1, Uart.divider1_reg_ofs, 0)
             yield from write_reg(0, Uart.divider2_reg_ofs, 5)
             yield from write_reg(1, Uart.divider2_reg_ofs, 5)
             yield from write_reg(0, Uart.status_reg_ofs, 0) # clear any pending status
