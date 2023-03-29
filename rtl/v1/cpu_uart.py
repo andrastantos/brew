@@ -69,6 +69,7 @@ class Uart(Module):
                 parity = 3
                 stop_half = 4
                 stop = 5
+                stop_two = 6
 
             fsm.reset_value <<= UartTxPhyStates.idle
             fsm.default_state <<= UartTxPhyStates.idle
@@ -79,7 +80,14 @@ class Uart(Module):
             state <<= fsm.state
 
             oversampler = Wire(Unsigned(4))
-            oversampler <<= Reg(Select(state == UartTxPhyStates.idle, (oversampler+1)[3:0], 0), clock_en=self.ser_clk_en)
+            oversampler <<= Reg(
+                SelectOne(
+                    state == UartTxPhyStates.idle, 0,
+                    state == UartTxPhyStates.stop_half, (oversampler+1)[2:0],
+                    default_port = (oversampler+1)[3:0]
+                ),
+                clock_en=self.ser_clk_en
+            )
             baud_tick = (oversampler == 0xf) & self.ser_clk_en
             baud_half_tick = (oversampler == 7) & self.ser_clk_en
 
@@ -125,12 +133,15 @@ class Uart(Module):
 
             fsm.add_transition(UartTxPhyStates.idle, starting, UartTxPhyStates.start)
             fsm.add_transition(UartTxPhyStates.start, baud_tick, UartTxPhyStates.data)
-            fsm.add_transition(UartTxPhyStates.data, (bit_counter == 0) & (self.parity == UartParityType.none) & baud_tick, UartTxPhyStates.stop)
+            fsm.add_transition(UartTxPhyStates.data, (bit_counter == 0) & (self.parity == UartParityType.none) & baud_tick & (self.stop_cnt == UartStopBits.one), UartTxPhyStates.stop)
+            fsm.add_transition(UartTxPhyStates.data, (bit_counter == 0) & (self.parity == UartParityType.none) & baud_tick & (self.stop_cnt == UartStopBits.one_and_half), UartTxPhyStates.stop_half)
+            fsm.add_transition(UartTxPhyStates.data, (bit_counter == 0) & (self.parity == UartParityType.none) & baud_tick & (self.stop_cnt == UartStopBits.two), UartTxPhyStates.stop_two)
             fsm.add_transition(UartTxPhyStates.data, (bit_counter == 0) & (self.parity != UartParityType.none) & baud_tick, UartTxPhyStates.parity)
-            fsm.add_transition(UartTxPhyStates.parity, baud_tick & (self.stop_cnt == UartStopBits.one), UartTxPhyStates.idle)
+            fsm.add_transition(UartTxPhyStates.parity, baud_tick & (self.stop_cnt == UartStopBits.one), UartTxPhyStates.stop)
             fsm.add_transition(UartTxPhyStates.parity, baud_tick & (self.stop_cnt == UartStopBits.one_and_half), UartTxPhyStates.stop_half)
-            fsm.add_transition(UartTxPhyStates.parity, baud_tick & (self.stop_cnt == UartStopBits.two), UartTxPhyStates.stop)
-            fsm.add_transition(UartTxPhyStates.stop_half, baud_half_tick, UartTxPhyStates.idle)
+            fsm.add_transition(UartTxPhyStates.parity, baud_tick & (self.stop_cnt == UartStopBits.two), UartTxPhyStates.stop_two)
+            fsm.add_transition(UartTxPhyStates.stop_two, baud_tick, UartTxPhyStates.stop)
+            fsm.add_transition(UartTxPhyStates.stop_half, baud_half_tick, UartTxPhyStates.stop)
             fsm.add_transition(UartTxPhyStates.stop, baud_tick, UartTxPhyStates.idle)
 
             self.txd <<= Reg(SelectOne(
@@ -138,7 +149,7 @@ class Uart(Module):
                 state == UartTxPhyStates.data, shift_reg[0],
                 state == UartTxPhyStates.parity, parity_reg,
                 default_port = 1
-            ))
+            ), reset_value_port = 1)
 
 
     class UartRxPhy(Module):
@@ -167,12 +178,13 @@ class Uart(Module):
 
             class UartRxPhyStates(Enum):
                 idle = 0
-                half_start = 6
-                start = 1
-                data = 2
-                parity = 3
-                stop_half = 4
-                stop = 5
+                half_start = 1
+                start = 2
+                data = 3
+                parity = 4
+                stop_half = 5
+                stop = 6
+                stop_two = 7
 
             fsm.reset_value <<= UartRxPhyStates.idle
             fsm.default_state <<= UartRxPhyStates.idle
@@ -188,17 +200,17 @@ class Uart(Module):
             oversampler <<= Reg(
                 SelectOne(
                     state == UartRxPhyStates.idle, 0,
-                    state == UartRxPhyStates.half_start, (oversampler+1)[2:0],
                     state == UartRxPhyStates.stop_half, (oversampler+1)[2:0],
                     default_port = (oversampler+1)[3:0]
                 ),
                 clock_en=self.ser_clk_en
             )
-            baud_tick = oversampler == 0
+            baud_tick = (oversampler == 0xf) & self.ser_clk_en
+            baud_half_tick = (oversampler == 7) & self.ser_clk_en
 
             bit_counter = Wire(Unsigned(3))
 
-            starting = ~self.data_out.ready & (state == UartRxPhyStates.idle) & ~rxd & ~self.framing_error & ~self.parity_error
+            starting = ~self.data_out.valid & (state == UartRxPhyStates.idle) & ~rxd & ~self.framing_error & ~self.parity_error
             rx_full = Wire(logic)
             rx_full <<= Reg(
                 Select(
@@ -227,13 +239,14 @@ class Uart(Module):
                 Select(
                     starting,
                     Select(
-                        baud_tick & (state == UartRxPhyStates.data),
+                        baud_tick & (next_state == UartRxPhyStates.data),
                         shift_reg,
                         concat(rxd, shift_reg[7:1])
                     ),
                     0
                 )
             )
+            self.data_out.data <<= shift_reg
 
             ref_parity_reg = Wire(logic)
             ref_parity_reg <<= Reg(
@@ -263,7 +276,7 @@ class Uart(Module):
                 Select(
                     self.clear,
                     Select(
-                        ((state == UartRxPhyStates.stop_half) | (state == UartRxPhyStates.stop)) & (rxd == 0),
+                        Reg((state == UartRxPhyStates.stop_half) | (state == UartRxPhyStates.stop)) & (rxd == 0),
                         self.framing_error,
                         1
                     ),
@@ -283,18 +296,21 @@ class Uart(Module):
             )
 
             fsm.add_transition(UartRxPhyStates.idle, starting, UartRxPhyStates.half_start)
-            fsm.add_transition(UartRxPhyStates.half_start, baud_tick, UartRxPhyStates.start)
-            fsm.add_transition(UartRxPhyStates.start, baud_tick, UartRxPhyStates.data)
-            fsm.add_transition(UartRxPhyStates.data, (bit_counter == 0) & (self.parity == UartParityType.none) & baud_tick, UartRxPhyStates.stop)
-            fsm.add_transition(UartRxPhyStates.data, (bit_counter == 0) & (self.parity != UartParityType.none) & baud_tick, UartRxPhyStates.parity)
-            fsm.add_transition(UartRxPhyStates.parity, baud_tick & (self.stop_cnt == UartStopBits.one), UartRxPhyStates.idle)
+            fsm.add_transition(UartRxPhyStates.half_start, baud_half_tick, UartRxPhyStates.start)
+            fsm.add_transition(UartRxPhyStates.start, baud_half_tick, UartRxPhyStates.data)
+            fsm.add_transition(UartRxPhyStates.data, (bit_counter == 0) & (self.parity == UartParityType.none) & baud_tick & (self.stop_cnt == UartStopBits.one), UartRxPhyStates.stop)
+            fsm.add_transition(UartRxPhyStates.data, (bit_counter == 0) & (self.parity == UartParityType.none) & baud_tick & (self.stop_cnt == UartStopBits.one_and_half), UartRxPhyStates.stop_half)
+            fsm.add_transition(UartRxPhyStates.data, (bit_counter == 0) & (self.parity == UartParityType.none) & baud_tick & (self.stop_cnt == UartStopBits.two), UartRxPhyStates.stop_two)
+            fsm.add_transition(UartRxPhyStates.data, (bit_counter == 0) & (self.parity != UartParityType.none) & baud_half_tick, UartRxPhyStates.parity)
+            fsm.add_transition(UartRxPhyStates.parity, baud_tick & (self.stop_cnt == UartStopBits.one), UartRxPhyStates.stop)
             fsm.add_transition(UartRxPhyStates.parity, baud_tick & (self.stop_cnt == UartStopBits.one_and_half), UartRxPhyStates.stop_half)
-            fsm.add_transition(UartRxPhyStates.parity, baud_tick & (self.stop_cnt == UartStopBits.two), UartRxPhyStates.stop)
-            fsm.add_transition(UartRxPhyStates.stop_half, baud_tick, UartRxPhyStates.idle)
+            fsm.add_transition(UartRxPhyStates.parity, baud_tick & (self.stop_cnt == UartStopBits.two), UartRxPhyStates.stop_two)
+            fsm.add_transition(UartRxPhyStates.stop_two, baud_tick, UartRxPhyStates.stop)
+            fsm.add_transition(UartRxPhyStates.stop_half, baud_half_tick, UartRxPhyStates.stop)
             fsm.add_transition(UartRxPhyStates.stop, baud_tick, UartRxPhyStates.idle)
 
             # CDC crossing
-            rxd <<= Reg(Reg(self.rxd))
+            rxd <<= Reg(Reg(self.rxd, reset_value_port = 1), reset_value_port = 1)
             self.rts <<= Select(self.hw_flow_ctrl, 0, ~rx_full)
 
     class BaudRateGenerator(Module):
@@ -547,17 +563,17 @@ def sim():
             for _ in range(3):
                 yield from wait_clk()
             # Set up both UARTs to the same config
-            yield from write_reg(0, Uart.config_reg_ofs, (UartParityType.none.value << 0) | (UartStopBits.one.value << 2) | (UartWordSize.bit8.value << 4) | (0 << 6))
-            yield from write_reg(1, Uart.config_reg_ofs, (UartParityType.none.value << 0) | (UartStopBits.one.value << 2) | (UartWordSize.bit8.value << 4) | (0 << 6))
+            yield from write_reg(0, Uart.config_reg_ofs, (UartParityType.none.value << 0) | (UartStopBits.one_and_half.value << 2) | (UartWordSize.bit8.value << 4) | (0 << 6))
+            yield from write_reg(1, Uart.config_reg_ofs, (UartParityType.none.value << 0) | (UartStopBits.one_and_half.value << 2) | (UartWordSize.bit8.value << 4) | (0 << 6))
             yield from write_reg(0, Uart.divider1_reg_ofs, (0 << 0) | (0 << 4))
             yield from write_reg(1, Uart.divider1_reg_ofs, (0 << 0) | (0 << 4))
             yield from write_reg(0, Uart.divider2_reg_ofs, 5)
             yield from write_reg(1, Uart.divider2_reg_ofs, 5)
-            yield from write_reg(0, Uart.config_reg_ofs, 0) # clear any pending status
-            yield from write_reg(1, Uart.config_reg_ofs, 0) # clear any pending status
+            yield from write_reg(0, Uart.status_reg_ofs, 0) # clear any pending status
+            yield from write_reg(1, Uart.status_reg_ofs, 0) # clear any pending status
 
             for _ in range(10):
-                yield from write_reg(0, Uart.data_buf_reg_ofs, 0xaa)
+                yield from write_reg(0, Uart.data_buf_reg_ofs, 0x55)
                 yield from read_reg(1, Uart.data_buf_reg_ofs)
 
     class top(Module):

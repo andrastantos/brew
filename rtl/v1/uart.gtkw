@@ -1,18 +1,20 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Wed Mar 29 01:36:20 2023
+[*] Wed Mar 29 04:10:21 2023
 [*]
 [dumpfile] "/home/tantos/brew/rtl/v1/uart.vcd"
-[dumpfile_mtime] "Wed Mar 29 01:35:25 2023"
-[dumpfile_size] 296576
+[dumpfile_mtime] "Wed Mar 29 04:09:31 2023"
+[dumpfile_size] 474190
 [savefile] "/home/tantos/brew/rtl/v1/uart.gtkw"
 [timestart] 0
 [size] 1920 990
 [pos] -1 -1
-*-9.739183 3262 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-14.634362 104110 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.local_top.
-[treeopen] top.local_top.uart1.
+[treeopen] top.local_top.uart2.
+[treeopen] top.local_top.uart2.rx_phy.
+[treeopen] top.local_top.uart2.rx_phy.fsm.
 [sst_width] 233
 [signals_width] 290
 [sst_expanded] 1
@@ -40,6 +42,36 @@ top.local_top.uart1.bus_if_pwdata[7:0]
 top.local_top.uart1.bus_if_pwrite
 @1000200
 -UART1_APB
+@800200
+-UART2_APB
+@24
+top.local_top.uart2.bus_if_paddr[2:0]
+@28
+top.local_top.uart2.bus_if_penable
+@22
+top.local_top.uart2.bus_if_prdata[31:0]
+@28
+top.local_top.uart2.bus_if_pready
+top.local_top.uart2.bus_if_psel
+@22
+top.local_top.uart2.bus_if_pwdata[7:0]
+@28
+top.local_top.uart2.bus_if_pwrite
+@1000200
+-UART2_APB
+@22
+top.local_top.uart2.rx_phy.data_out_data[7:0]
+top.local_top.uart2.rx_phy.shift_reg[7:0]
+@28
+top.local_top.uart2.rx_phy.baud_tick
+@800200
+-TX
+@28
+top.local_top.uart1.config_reg_wr
+@22
+top.local_top.uart1.config_reg[6:0]
+@28
+top.local_top.uart1.tx_phy.stop_cnt
 @22
 top.local_top.uart1.baud_rate_gen.prescaler_counter[7:0]
 @28
@@ -62,7 +94,34 @@ top.local_top.uart1.tx_phy.data_in_ready
 top.local_top.uart1.tx_phy.data_in_valid
 @24
 top.local_top.uart1.tx_phy.bit_counter[2:0]
-@29
+@28
 top.local_top.uart1.tx_phy.state
+top.local_top.uart1.tx_phy.baud_tick
+@22
+top.local_top.uart1.tx_phy.oversampler[3:0]
+@28
+top.local_top.uart1.tx_phy.txd
+@1000200
+-TX
+@28
+top.local_top.uart2.rx_phy.rxd
+top.local_top.uart2.rx_phy.rxd_1
+@22
+top.local_top.uart2.rx_phy.oversampler[3:0]
+@28
+top.local_top.uart2.rx_phy.state
+top.local_top.uart2.rx_phy.data_out_valid
+top.local_top.uart2.rx_phy.state
+top.local_top.uart2.rx_phy.next_state
+top.local_top.uart2.rx_phy.rxd
+@29
+top.local_top.uart2.rx_phy.baud_tick
+@28
+top.local_top.uart2.rx_phy.baud_half_tick
+top.local_top.uart2.rx_phy.data_out_ready
+top.local_top.uart2.rx_phy.data_out_valid
+top.local_top.uart2.rx_phy.starting
+top.local_top.uart2.rx_phy.framing_error
+top.local_top.uart2.rx_phy.parity_error
 [pattern_trace] 1
 [pattern_trace] 0
