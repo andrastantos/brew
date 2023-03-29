@@ -1,22 +1,22 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Wed Mar 29 04:10:21 2023
+[*] Wed Mar 29 18:54:42 2023
 [*]
 [dumpfile] "/home/tantos/brew/rtl/v1/uart.vcd"
-[dumpfile_mtime] "Wed Mar 29 04:09:31 2023"
-[dumpfile_size] 474190
+[dumpfile_mtime] "Wed Mar 29 18:54:07 2023"
+[dumpfile_size] 735760
 [savefile] "/home/tantos/brew/rtl/v1/uart.gtkw"
 [timestart] 0
 [size] 1920 990
 [pos] -1 -1
-*-14.634362 104110 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-15.962671 54600 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.local_top.
 [treeopen] top.local_top.uart2.
 [treeopen] top.local_top.uart2.rx_phy.
 [treeopen] top.local_top.uart2.rx_phy.fsm.
 [sst_width] 233
-[signals_width] 290
+[signals_width] 325
 [sst_expanded] 1
 [sst_vpaned_height] 269
 @28
@@ -26,6 +26,8 @@ top.local_top.uart1_cts
 top.local_top.uart1_rts
 top.local_top.uart1_rxd
 top.local_top.uart1_txd
+@29
+top.local_top.uart1.hw_flow_ctrl
 @800200
 -UART1_APB
 @28
@@ -67,20 +69,7 @@ top.local_top.uart2.rx_phy.baud_tick
 @800200
 -TX
 @28
-top.local_top.uart1.config_reg_wr
-@22
-top.local_top.uart1.config_reg[6:0]
-@28
 top.local_top.uart1.tx_phy.stop_cnt
-@22
-top.local_top.uart1.baud_rate_gen.prescaler_counter[7:0]
-@28
-top.local_top.uart1.baud_rate_gen.prescaler_tick
-@22
-top.local_top.uart1.baud_rate_gen.divider_counter[7:0]
-top.local_top.uart1.baud_rate_gen.divider_limit[7:0]
-@28
-top.local_top.uart1.baud_rate_gen.divider_tick
 @22
 top.local_top.uart1.divider_limit[7:0]
 top.local_top.uart1.tx_data_data[7:0]
@@ -97,26 +86,24 @@ top.local_top.uart1.tx_phy.bit_counter[2:0]
 @28
 top.local_top.uart1.tx_phy.state
 top.local_top.uart1.tx_phy.baud_tick
-@22
-top.local_top.uart1.tx_phy.oversampler[3:0]
-@28
+top.local_top.uart1.tx_phy.baud_half_tick
 top.local_top.uart1.tx_phy.txd
 @1000200
 -TX
 @28
-top.local_top.uart2.rx_phy.rxd
-top.local_top.uart2.rx_phy.rxd_1
+top.local_top.uart2.rx_phy.clk
+top.local_top.uart2.rx_phy.prescaler_select[2:0]
+top.local_top.uart2.rx_phy.prescaler_tick
+top.local_top.uart2.rx_phy.divider_tick
 @22
-top.local_top.uart2.rx_phy.oversampler[3:0]
+top.local_top.uart2.rx_phy.divider_counter[7:0]
 @28
 top.local_top.uart2.rx_phy.state
 top.local_top.uart2.rx_phy.data_out_valid
 top.local_top.uart2.rx_phy.state
 top.local_top.uart2.rx_phy.next_state
-top.local_top.uart2.rx_phy.rxd
-@29
+top.local_top.uart2.rx_phy.rxd_1
 top.local_top.uart2.rx_phy.baud_tick
-@28
 top.local_top.uart2.rx_phy.baud_half_tick
 top.local_top.uart2.rx_phy.data_out_ready
 top.local_top.uart2.rx_phy.data_out_valid

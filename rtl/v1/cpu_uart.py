@@ -8,9 +8,13 @@ sys.path.append(str(Path(__file__).parent / ".." / ".." / ".." / "silicon" / "un
 try:
     from .brew_types import *
     from .scan import *
+    from .synth import *
 except ImportError:
     from brew_types import *
     from scan import *
+    from synth import *
+
+from silicon import *
 
 class UartParityType(Enum):
     none = 0
@@ -59,6 +63,7 @@ class Uart(Module):
 
         txd = Output(logic)
         cts = Input(logic)
+        cts_out = Output(logic)
 
         def body(self):
             fsm = FSM()
@@ -76,6 +81,7 @@ class Uart(Module):
             fsm.default_state <<= UartTxPhyStates.idle
 
             cts = Reg(Reg(self.cts))
+            self.cts_out <<= cts
 
             state = Wire()
             state <<= fsm.state
@@ -344,9 +350,9 @@ class Uart(Module):
 
     data_buf_reg_ofs = 0
     status_reg_ofs = 1
-    config_reg_ofs = 2
-    divider1_reg_ofs = 3
-    divider2_reg_ofs = 4
+    config1_reg_ofs = 2
+    config2_reg_ofs = 3
+    divider_reg_ofs = 4
     """
     Reg 0:
         read  - received data (block if not ready)
@@ -357,27 +363,33 @@ class Uart(Module):
         bit 2 - parity error
         bit 3 - framing error
         bit 4 - overrun error
-    Reg 2: config
+        bit 5 - cts pin value (inverted)
+    Reg 2: config1
         bit 0-1 - parity
         bit 2-3 - stop_cnt
         bit 4-5 - word-size
         bit 6   - flow-control
-    Reg 3: divider1
+        bit 7   - interrupt enable
+    Reg 3: config2
         bit 0-2 - pre-scaler
-    Reg 4: divider2
+        bit 4   - rts (if SW flow-ctrl) (inverted)
+    Reg 4: divider
         divider
     """
     def body(self):
         tx_phy = Uart.UartTxPhy()
         rx_phy = Uart.UartRxPhy()
 
-        config_reg = Wire(Unsigned(7))
+        config_reg = Wire(Unsigned(8))
         rx_data = Wire(PhyDataIf)
         rx_data <<= ForwardBuf(rx_phy.data_out)
         tx_data = Wire(PhyDataIf)
         tx_phy.data_in <<= ForwardBuf(tx_data)
         prescaler_select = Wire(Unsigned(3))
+        soft_rts = Wire(logic)
         divider_limit = Wire(Unsigned(8))
+        interrupt_en = Wire(logic)
+        hw_flow_ctrl = Wire(logic)
 
         self.bus_if.pready <<= Reg(
             Select(
@@ -405,12 +417,17 @@ class Uart(Module):
                     rx_phy.framing_error,
                     rx_phy.parity_error,
                     tx_data.ready,
-                    rx_data.valid
+                    rx_data.valid,
+                    tx_phy.cts_out
                 ),
-                # Reg 2: config
+                # Reg 2: config1
                 config_reg,
-                # Reg 3: divider 1
-                prescaler_select,
+                # Reg 3: config2
+                concat(
+                    prescaler_select,
+                    "1'b0",
+                    soft_rts
+                ),
                 # Reg 4: divider 2
                 divider_limit,
             )
@@ -418,25 +435,19 @@ class Uart(Module):
         data_reg_wr = (self.bus_if.psel & self.bus_if.penable &  self.bus_if.pwrite & (self.bus_if.paddr == Uart.data_buf_reg_ofs))
         data_reg_rd = (self.bus_if.psel & self.bus_if.penable & ~self.bus_if.pwrite & (self.bus_if.paddr == Uart.data_buf_reg_ofs))
         status_reg_wr = (self.bus_if.psel & self.bus_if.penable &  self.bus_if.pwrite & (self.bus_if.paddr == Uart.status_reg_ofs))
-        config_reg_wr = (self.bus_if.psel & self.bus_if.penable &  self.bus_if.pwrite & (self.bus_if.paddr == Uart.config_reg_ofs))
-        divider1_reg_wr = (self.bus_if.psel & self.bus_if.penable &  self.bus_if.pwrite & (self.bus_if.paddr == Uart.divider1_reg_ofs))
-        divider2_reg_wr = (self.bus_if.psel & self.bus_if.penable &  self.bus_if.pwrite & (self.bus_if.paddr == Uart.divider2_reg_ofs))
-        config_reg <<= Reg(self.bus_if.pwdata[6:0], clock_en=config_reg_wr)
-        prescaler_select <<= Reg(self.bus_if.pwdata[2:0], clock_en=divider1_reg_wr)
-        divider_limit <<= Reg(self.bus_if.pwdata, clock_en=divider2_reg_wr)
+        config1_reg_wr = (self.bus_if.psel & self.bus_if.penable &  self.bus_if.pwrite & (self.bus_if.paddr == Uart.config1_reg_ofs))
+        config2_reg_wr = (self.bus_if.psel & self.bus_if.penable &  self.bus_if.pwrite & (self.bus_if.paddr == Uart.config2_reg_ofs))
+        divider_reg_wr = (self.bus_if.psel & self.bus_if.penable &  self.bus_if.pwrite & (self.bus_if.paddr == Uart.divider_reg_ofs))
+        config_reg <<= Reg(self.bus_if.pwdata, clock_en=config1_reg_wr)
+        prescaler_select <<= Reg(self.bus_if.pwdata[2:0], clock_en=config2_reg_wr)
+        soft_rts <<= Reg(self.bus_if.pwdata[4], clock_en=config2_reg_wr)
+        divider_limit <<= Reg(self.bus_if.pwdata, clock_en=divider_reg_wr)
         tx_data.data <<= self.bus_if.pwdata
-        #tx_valid_reg = Wire(logic)
-        #tx_valid_reg <<= Reg(SelectOne(
-        #     data_reg_wr & ~tx_data.ready, 1,
-        #     data_reg_wr &  tx_data.ready, tx_valid_reg,
-        #    ~data_reg_wr & ~tx_data.ready, tx_valid_reg,
-        #    ~data_reg_wr &  tx_data.ready, 0
-        #))
         tx_data.valid <<= data_reg_wr
         rx_data.ready <<= data_reg_rd
         rx_phy.clear <<= status_reg_wr
 
-        self.interrupt <<= rx_phy.overrun_error | rx_phy.framing_error | rx_phy.parity_error | tx_data.ready | rx_data.valid
+        self.interrupt <<= (rx_phy.overrun_error | rx_phy.framing_error | rx_phy.parity_error | tx_data.ready | rx_data.valid) & interrupt_en
 
         rx_phy.prescaler_select <<= prescaler_select
         rx_phy.divider_limit <<= divider_limit
@@ -447,17 +458,25 @@ class Uart(Module):
         tx_phy.stop_cnt <<= (EnumNet(UartStopBits))(config_reg[3:2])
         word_size = Select(config_reg[5:4], 0, 7, 6, 5)
         tx_phy.word_size <<= word_size
-        tx_phy.hw_flow_ctrl <<= config_reg[6]
+        tx_phy.hw_flow_ctrl <<= hw_flow_ctrl
+
 
         rx_phy.parity <<= (EnumNet(UartParityType))(config_reg[1:0])
         rx_phy.stop_cnt <<= (EnumNet(UartStopBits))(config_reg[3:2])
         rx_phy.word_size <<= word_size
-        rx_phy.hw_flow_ctrl <<= config_reg[6]
+        rx_phy.hw_flow_ctrl <<= hw_flow_ctrl
+
+        hw_flow_ctrl <<= config_reg[6]
+        interrupt_en <<= config_reg[7]
 
         self.txd <<= tx_phy.txd
         rx_phy.rxd <<= self.rxd
-        tx_phy.cts <<= self.cts
-        self.rts <<= rx_phy.rts
+        tx_phy.cts <<= ~self.cts
+        self.rts <<= ~Select(
+            hw_flow_ctrl,
+            soft_rts,
+            rx_phy.rts
+        )
 
 
 def sim():
@@ -552,18 +571,20 @@ def sim():
             for _ in range(3):
                 yield from wait_clk()
             # Set up both UARTs to the same config
-            yield from write_reg(0, Uart.config_reg_ofs, (UartParityType.none.value << 0) | (UartStopBits.one_and_half.value << 2) | (UartWordSize.bit8.value << 4) | (0 << 6))
-            yield from write_reg(1, Uart.config_reg_ofs, (UartParityType.none.value << 0) | (UartStopBits.one_and_half.value << 2) | (UartWordSize.bit8.value << 4) | (0 << 6))
-            yield from write_reg(0, Uart.divider1_reg_ofs, 0)
-            yield from write_reg(1, Uart.divider1_reg_ofs, 0)
-            yield from write_reg(0, Uart.divider2_reg_ofs, 5)
-            yield from write_reg(1, Uart.divider2_reg_ofs, 5)
+            yield from write_reg(0, Uart.config1_reg_ofs, (UartParityType.none.value << 0) | (UartStopBits.one_and_half.value << 2) | (UartWordSize.bit8.value << 4) | (1 << 6))
+            yield from write_reg(1, Uart.config1_reg_ofs, (UartParityType.none.value << 0) | (UartStopBits.one_and_half.value << 2) | (UartWordSize.bit8.value << 4) | (1 << 6))
+            yield from write_reg(0, Uart.config2_reg_ofs, 0)
+            yield from write_reg(1, Uart.config2_reg_ofs, 0)
+            yield from write_reg(0, Uart.divider_reg_ofs, 5)
+            yield from write_reg(1, Uart.divider_reg_ofs, 5)
             yield from write_reg(0, Uart.status_reg_ofs, 0) # clear any pending status
             yield from write_reg(1, Uart.status_reg_ofs, 0) # clear any pending status
 
-            for _ in range(10):
+            for _ in range(5):
                 yield from write_reg(0, Uart.data_buf_reg_ofs, 0x55)
                 yield from read_reg(1, Uart.data_buf_reg_ofs)
+            for i in range(5):
+                yield from write_reg(0, Uart.data_buf_reg_ofs, i)
 
     class top(Module):
         clk               = ClkPort()
@@ -610,12 +631,16 @@ def sim():
     netlist.simulate(vcd_filename, add_unnamed_scopes=False)
 
 def gen():
+    class UartWrapper(Uart):
+        def construct(self):
+            self.bus_if.paddr.set_net_type(Unsigned(3))
+
     def top():
-        return ScanWrapper(Uart, {"clk", "rst"})
+        return ScanWrapper(UartWrapper, {"clk", "rst"})
 
     netlist = Build.generate_rtl(top, "uart.sv")
     top_level_name = netlist.get_module_class_name(netlist.top_level)
-    flow = QuartusFlow(target_dir="uart", top_level=top_level_name, source_files=("uart.sv",), clocks=(("clk", 10), ("top_clk", 100)), project_name="uart")
+    flow = QuartusFlow(target_dir="q_uart", top_level=top_level_name, source_files=("uart.sv",), clocks=(("clk", 10), ("top_clk", 100)), project_name="uart")
     flow.generate()
     flow.run()
 

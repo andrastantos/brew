@@ -194,6 +194,26 @@ class ApbIf(Interface):
     pwdata = BrewCsrData
     prdata = Reverse(BrewCsrData)
 
+class Apb8If(Interface):
+    pwrite = logic
+    psel = logic
+    penable = logic
+    pready = Reverse(logic)
+
+    paddr = GenericMember
+    pwdata = Unsigned(8)
+    prdata = Reverse(BrewCsrData)
+
+class Apb16If(Interface):
+    pwrite = logic
+    psel = logic
+    penable = logic
+    pready = Reverse(logic)
+
+    paddr = GenericMember
+    pwdata = Unsigned(16)
+    prdata = Reverse(BrewCsrData)
+
 '''
 APB signalling
 
