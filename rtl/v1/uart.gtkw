@@ -1,0 +1,68 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Wed Mar 29 01:36:20 2023
+[*]
+[dumpfile] "/home/tantos/brew/rtl/v1/uart.vcd"
+[dumpfile_mtime] "Wed Mar 29 01:35:25 2023"
+[dumpfile_size] 296576
+[savefile] "/home/tantos/brew/rtl/v1/uart.gtkw"
+[timestart] 0
+[size] 1920 990
+[pos] -1 -1
+*-9.739183 3262 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.local_top.
+[treeopen] top.local_top.uart1.
+[sst_width] 233
+[signals_width] 290
+[sst_expanded] 1
+[sst_vpaned_height] 269
+@28
+top.local_top.clk
+top.local_top.rst
+top.local_top.uart1_cts
+top.local_top.uart1_rts
+top.local_top.uart1_rxd
+top.local_top.uart1_txd
+@800200
+-UART1_APB
+@28
+top.local_top.uart1.bus_if_paddr[2:0]
+top.local_top.uart1.bus_if_penable
+@22
+top.local_top.uart1.bus_if_prdata[31:0]
+@28
+top.local_top.uart1.bus_if_pready
+top.local_top.uart1.bus_if_psel
+@22
+top.local_top.uart1.bus_if_pwdata[7:0]
+@28
+top.local_top.uart1.bus_if_pwrite
+@1000200
+-UART1_APB
+@22
+top.local_top.uart1.baud_rate_gen.prescaler_counter[7:0]
+@28
+top.local_top.uart1.baud_rate_gen.prescaler_tick
+@22
+top.local_top.uart1.baud_rate_gen.divider_counter[7:0]
+top.local_top.uart1.baud_rate_gen.divider_limit[7:0]
+@28
+top.local_top.uart1.baud_rate_gen.divider_tick
+@22
+top.local_top.uart1.divider_limit[7:0]
+top.local_top.uart1.tx_data_data[7:0]
+@28
+top.local_top.uart1.tx_data_ready
+top.local_top.uart1.tx_data_valid
+@22
+top.local_top.uart1.tx_phy.data_in_data[7:0]
+@28
+top.local_top.uart1.tx_phy.data_in_ready
+top.local_top.uart1.tx_phy.data_in_valid
+@24
+top.local_top.uart1.tx_phy.bit_counter[2:0]
+@29
+top.local_top.uart1.tx_phy.state
+[pattern_trace] 1
+[pattern_trace] 0
