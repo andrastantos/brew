@@ -103,7 +103,8 @@ class BusIfDmaResponseIf(Interface):
     valid           = logic
 
 class ExternalBusIf(Interface):
-    nRAS          = logic
+    nRAS_A        = logic
+    nRAS_B        = logic
     nCAS_0        = logic
     nCAS_1        = logic
     addr          = Unsigned(11)

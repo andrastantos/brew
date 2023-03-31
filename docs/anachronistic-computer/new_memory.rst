@@ -112,7 +112,7 @@ Year   Capacity Word size Number of address lines Capacity per bank Number of ba
 1982   256kbit  4         8                       128kByte          1               128kByte     4
 1982   256kbit  4         8                       128kByte          2               256kByte     8
 1982   256kbit  4         8                       128kByte          4               512kByte     16
-1986   1Mbit    4         9                       512kByte          1               512MByte     4
+1986   1Mbit    4         9                       512kByte          1               512kByte     4
 1986   1Mbit    4         9                       512kByte          2               1MByte       8
 1988   4Mbit    4         10                      2MByte            1               1MByte       4
 1986   1Mbit    4         9                       512kByte          4               2MByte       16
@@ -402,8 +402,8 @@ Pin Number Pin Name    Description
 
 New additions:
 
-* A second request/grant pair so that I/O and graphics doesn't have to daisy-chain
-* Built-in DMA controller for external peripherals (if doesn't fit, more bus request/grant channels as those are cheap)
+* Built-in DMA controller for external peripherals
+* Changed bus-request/grant protocol to use DMA channels (programmable in the DMA controller)
 
 Bus extender
 ------------
@@ -470,6 +470,9 @@ We will stay with the very common NTSC clock rate of 28.63636MHz (double of what
 * 28.63636MHz/3 -> system clock (~9.54MHz)
 * 28.63636MHz/3 -> Audio clock option l (37.28kHz Fs)
 * 28.63636MHz/4 -> Audio clock option 2 (27.96kHz Fs)
+
+An alternative would be to use an additional clock source for the system clock (which would allow for highest memory bandwidth and CPU perf.)
+We could even add a third (audio) clock, or at least the option to use either clock for audio.
 
 ISA bus notes
 =============

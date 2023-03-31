@@ -131,7 +131,7 @@ class BusIf(GenericModule):
         0xc0000000 ... 0xffffffff: DRAM space 1
 
         In each space, bits 29:26 determine the number of wait-states.
-        If each space, bits 25:0 determine the location to address, leaving 64MB of addressable space.
+        In each space, bits 25:0 determine the location to address, leaving 64MB of addressable space.
 
         NOTE: wait-states are actually ignored by the bus-interface when interacting with non-DMA DRAM transfers.
               however, DMA transactions do need wait-state designation, so in reality no more than 64MB of DRAM
@@ -144,24 +144,33 @@ class BusIf(GenericModule):
         NOTE: since addresses are in 16-bit quantities inside here, we're counting bits 30 downwards
     """
 
-    reg_refresh_cfg_ofs = 0
+    reg_dram_config_ofs = 0
     # Register setup:
     # bits 7-0: refresh divider
     # bit 8: refresh disable (if set)
+    # bit 9: DRAM bank count: 0 - 2 banks, 1 - 4 banks
+    refresh_counter_size = 8
 
     def body(self):
+        refresh_counter = Wire(Unsigned(self.refresh_counter_size))
+        # CSR interface
         reg_write_strobe = self.reg_if.psel & self.reg_if.pwrite & self.reg_if.penable
         self.reg_if.pready <<= 1
 
         reg_addr = self.reg_if.paddr
 
+        refresh_divider = Reg(self.reg_if.pwdata[self.refresh_counter_size-1:0], clock_en=(reg_addr == self.reg_dram_config_ofs) & reg_write_strobe)
+        refresh_disable = ~Reg(self.reg_if.pwdata[self.refresh_counter_size], clock_en=(reg_addr == self.reg_dram_config_ofs) & reg_write_strobe)
+        dram_bank_count = Reg(self.reg_if.pwdata[self.refresh_counter_size+1], clock_en=(reg_addr == self.reg_dram_config_ofs) & reg_write_strobe)
+        self.reg_if.prdata <<= concat(
+            dram_bank_count,
+            refresh_disable,
+            refresh_counter
+        )
+
         # Refresh logic
         # We seem to need to generate 256 refresh cycles in 4ms. That would mean a refresh cycle
         # every 200 or so cycles at least. So, an 8-bit counter should suffice
-        refresh_counter_size = 8
-        refresh_counter = Wire(Unsigned(refresh_counter_size))
-        refresh_divider = Reg(self.reg_if.pwdata[refresh_counter_size-1:0], clock_en=(reg_addr == self.reg_refresh_cfg_ofs) & reg_write_strobe)
-        refresh_disable = ~Reg(self.reg_if.pwdata[refresh_counter_size], clock_en=(reg_addr == self.reg_refresh_cfg_ofs) & reg_write_strobe)
         refresh_tc = refresh_counter == 0
         refresh_rsp = Wire(logic)
         refresh_req = Wire(logic)
@@ -178,7 +187,7 @@ class BusIf(GenericModule):
                 refresh_tc,
                 Select(
                     refresh_req,
-                    (refresh_counter-1)[refresh_counter_size-1:0],
+                    (refresh_counter-1)[self.refresh_counter_size-1:0],
                     refresh_counter
                 ),
                 refresh_divider
@@ -249,6 +258,7 @@ class BusIf(GenericModule):
         req_advance = req_valid & req_ready
 
         req_dram = (req_addr[30:29] != self.nram_base) & ((arb_port_select == Ports.mem_port) | (arb_port_select == Ports.fetch_port))
+        req_dram_bank = concat(req_addr[23], req_addr[29])
         req_nram = (req_addr[30:29] == self.nram_base) & ((arb_port_select == Ports.mem_port) | (arb_port_select == Ports.fetch_port))
         req_dma  = (arb_port_select == Ports.dma_port) & ~self.dma_request.is_master
         req_ext  = (arb_port_select == Ports.dma_port) &  self.dma_request.is_master
@@ -313,7 +323,8 @@ class BusIf(GenericModule):
         )
         row_addr = Wire()
         row_addr <<= Reg(Select(req_rfsh, input_row_addr, refresh_addr), clock_en=start)
-
+        dram_bank = Wire()
+        dram_bank <<= Reg(req_dram_bank & (dram_bank_count << 1), clock_en=start) # masking out the top bit in the bank selector if only 2 banks are enabled
         col_addr = Wire()
         col_addr <<= Reg(concat(
             req_addr[20],
@@ -358,17 +369,17 @@ class BusIf(GenericModule):
         crossed, this is a safe circuit...
         '''
 
-        DRAM_nRAS = Wire()
-        DRAM_nRAS <<= Reg(
-            (next_state == BusIfStates.idle) |
-            (next_state == BusIfStates.external) |
-            (next_state == BusIfStates.non_dram_first) |
-            (next_state == BusIfStates.non_dram_wait) |
-            (next_state == BusIfStates.non_dram_dual) |
-            (next_state == BusIfStates.non_dram_dual_first) |
-            (next_state == BusIfStates.non_dram_dual_wait),
-            reset_value_port = 1
-        ) # We re-register the state to remove all glitches
+        dram_ras_active = (
+            (next_state == BusIfStates.first) |
+            (next_state == BusIfStates.middle) |
+            (next_state == BusIfStates.precharge) |
+            (next_state == BusIfStates.dma_first) |
+            (next_state == BusIfStates.dma_wait)
+        )
+        DRAM_nRAS_A = ~Reg((dram_ras_active & (dram_bank == 0)) | (next_state == BusIfStates.refresh)) # We re-register the state to remove all glitches
+        DRAM_nRAS_B = ~Reg((dram_ras_active & (dram_bank == 1)) | (next_state == BusIfStates.refresh)) # We re-register the state to remove all glitches
+        DRAM_nRAS_C = ~Reg((dram_ras_active & (dram_bank == 2)) | (next_state == BusIfStates.refresh)) # We re-register the state to remove all glitches
+        DRAM_nRAS_D = ~Reg((dram_ras_active & (dram_bank == 3)) | (next_state == BusIfStates.refresh)) # We re-register the state to remove all glitches
         nNREN = Wire()
         nNREN <<= Reg(
             (next_state != BusIfStates.non_dram_first) & (next_state != BusIfStates.non_dram_wait) & (next_state != BusIfStates.non_dram_dual_first) & (next_state != BusIfStates.non_dram_dual_wait),
@@ -432,10 +443,11 @@ class BusIf(GenericModule):
         DRAM_nCAS_0 = CAS_nWINDOW_A_0 | CAS_nWINDOW_B_0 |  self.clk
         DRAM_nCAS_1 = CAS_nWINDOW_B_1 | CAS_nWINDOW_C_1 | ~self.clk
 
-        self.dram.nRAS       <<= DRAM_nRAS
+        self.dram.nRAS_A     <<= DRAM_nRAS_A
+        self.dram.nRAS_B     <<= DRAM_nRAS_B
         self.dram.nCAS_0     <<= DRAM_nCAS_0 & NR_nCAS_0
         self.dram.nCAS_1     <<= DRAM_nCAS_1 & NR_nCAS_1
-        self.dram.addr       <<= Select(
+        dram_addr = Select(
             (
                 (state == BusIfStates.first) |
                 (state == BusIfStates.non_dram_first) |
@@ -446,6 +458,9 @@ class BusIf(GenericModule):
             NegReg(col_addr),
             row_addr
         )
+        self.dram.addr[8:0]   <<= dram_addr[8:0]
+        self.dram.addr[9]     <<= Select(dram_bank_count, dram_addr[9],  DRAM_nRAS_C)
+        self.dram.addr[10]    <<= Select(dram_bank_count, dram_addr[10], DRAM_nRAS_D)
         self.dram.nWE         <<= read_not_write
         self.dram.data_out_en <<= data_out_en
         data_out_low = Wire()
@@ -506,10 +521,10 @@ def sim():
             self.bus_if.data_in <<= None
             self.bus_if.nWAIT <<= 1
             while True:
-                yield (self.bus_if.nRAS, self.bus_if.nNREN, self.bus_if.nCAS_0, self.bus_if.nCAS_1)
+                yield (self.bus_if.nRAS_A, self.bus_if.nNREN, self.bus_if.nCAS_0, self.bus_if.nCAS_1)
                 data_assigned = False
                 for (byte, cas) in (("low", self.bus_if.nCAS_0), ("high", self.bus_if.nCAS_1)):
-                    if (self.bus_if.nRAS.get_sim_edge() == EdgeType.Negative) or (self.bus_if.nNREN.get_sim_edge() == EdgeType.Negative):
+                    if (self.bus_if.nRAS_A.get_sim_edge() == EdgeType.Negative) or (self.bus_if.nNREN.get_sim_edge() == EdgeType.Negative):
                         #assert self.DRAM_nCAS_0.get_sim_edge() == EdgeType.NoEdge
                         #assert self.DRAM_nCAS_1.get_sim_edge() == EdgeType.NoEdge
                         #assert self.DRAM_nCAS_0 == 1

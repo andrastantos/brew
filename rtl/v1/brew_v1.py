@@ -562,14 +562,14 @@ def sim():
             self.exec_leech = ExecLeech()
             self.ldst_leech = LdStLeech()
 
-            self.dram_l.nRAS          <<= self.cpu.dram.nRAS
+            self.dram_l.nRAS          <<= self.cpu.dram.nRAS_A
             self.dram_l.nCAS          <<= self.cpu.dram.nCAS_0
             self.dram_l.addr          <<= self.cpu.dram.addr
             self.dram_l.nWE           <<= self.cpu.dram.nWE
             self.dram_l.data_in       <<= self.cpu.dram.data_out
             self.dram_l.data_in_en    <<= self.cpu.dram.data_out_en
 
-            self.dram_h.nRAS          <<= self.cpu.dram.nRAS
+            self.dram_h.nRAS          <<= self.cpu.dram.nRAS_A
             self.dram_h.nCAS          <<= self.cpu.dram.nCAS_1
             self.dram_h.addr          <<= self.cpu.dram.addr
             self.dram_h.nWE           <<= self.cpu.dram.nWE
