@@ -274,7 +274,7 @@ def sim():
                         prefix = "T"
                         pc = self.tpc
                     if self.do_branch == 0:
-                        simulator.log(f"                          ========== {b}: {prefix}{(pc << 1):08x}")
+                        simulator.log(f"{b}: {prefix}{(pc << 1):08x}")
 
     class LdStLeech(Module):
         clk = ClkPort()
@@ -844,11 +844,17 @@ def sim():
             prog(a.tpc_eq_I(task_start))
             loop = pc
             prog(a.r_eq_r_plus_t(1,1,1))
+            print(f"******* STM $pc: {pc:08x} ({pc//2:08x})")
             prog(a.stm())
+
+            prog(a.r_eq_tpc(10)) # Adjust $tpc to be over the SWI instruction
+            prog(a.r_eq_r_plus_t(10,10,2))
+            prog(a.tpc_eq_r(10))
+
             prog(a.pc_eq_I(loop)) # Endless loop.
             prog(a.r_eq_r_plus_t(14,14,14))
 
-            # Scheduler mode loop: incrementing $r2
+            # Task mode loop: incrementing $r2
             pc = task_start
             loop = pc
             prog(a.r_eq_r_plus_t(2,2,1))

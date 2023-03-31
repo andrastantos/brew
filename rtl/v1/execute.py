@@ -667,7 +667,7 @@ class ExecuteStage(GenericModule):
             ),
             self.tpc_in
         )
-        straight_spc_out = Select(stage_1_reg_en, self.spc_in, Select(~self.task_mode_in, self.spc_in, branch_target_output.straight_addr))
+        straight_spc_out = Select(stage_1_reg_en, self.spc_in, Select(~self.task_mode_out, self.spc_in, branch_target_output.straight_addr))
         self.spc_out <<= Select(
             s1_was_branch,
             Select(

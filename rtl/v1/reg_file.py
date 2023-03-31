@@ -124,21 +124,28 @@ class RegFile(Module):
         #       bypass logic is not necessary. I'll leave it here though since some targets
         #       might not support such an arrangement. Quartus for instance complains, but
         #       complies.
+        # NOTE: There are some problems with the bypass: we only accept the request on the
+        #       same cycle the response comes back, so we can't present the right address to
+        #       the underlying memory before. That is to say, the read address could change
+        #       *on the same cycle* when the write occurs. It's nice that the memory is
+        #       configured as 'read new data', but the address inputs are registered on the
+        #       read port; as such, we still incur a one-cycle latency.
         mem1.port2_addr <<= read1_addr
-        #self.read_rsp.read1_data <<= Select(
-        #    Reg((self.write.addr == read1_addr) & self.write.valid & self.write.data_en),
-        #    mem1.port2_data_out,
-        #    write_data_d
-        #)
-        #
+        #self.read_rsp.read1_data <<= mem1.port2_data_out
+        self.read_rsp.read1_data <<= Select(
+            Reg((self.write.addr == read1_addr) & self.write.valid & self.write.data_en),
+            mem1.port2_data_out,
+            write_data_d
+        )
+
         mem2.port2_addr <<= read2_addr
-        #self.read_rsp.read2_data <<= Select(
-        #    Reg((self.write.addr == read2_addr) & self.write.valid & self.write.data_en),
-        #    mem2.port2_data_out,
-        #    write_data_d
-        #)
-        self.read_rsp.read1_data <<= mem1.port2_data_out
-        self.read_rsp.read2_data <<= mem2.port2_data_out
+        #self.read_rsp.read2_data <<= mem2.port2_data_out
+        self.read_rsp.read2_data <<= Select(
+            Reg((self.write.addr == read2_addr) & self.write.valid & self.write.data_en),
+            mem2.port2_data_out,
+            write_data_d
+        )
+
 
         # Score-board for reservations
         rsv_board = Wire(Unsigned(BrewRegCnt))
