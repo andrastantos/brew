@@ -386,14 +386,14 @@ class BusIf(GenericModule):
             (state == BusIfStates.non_dram_dual_first) | (state == BusIfStates.non_dram_first) | (state == BusIfStates.dma_first) |
             (waiting & ((state == BusIfStates.non_dram_dual_wait) | (state == BusIfStates.non_dram_wait) | (state == BusIfStates.dma_wait)))
         )
-        NR_CAS_logic_a = NR_CAS_logic & (~two_cycle_nram_access | (state == BusIfStates.non_dram_first) | (state == BusIfStates.non_dram_wait) | (state == BusIfStates.dma_first) | (state == BusIfStates.dma_wait))
-        NR_CAS_logic_b = NR_CAS_logic & (~two_cycle_nram_access | (state == BusIfStates.non_dram_dual_first) | (state == BusIfStates.non_dram_dual_wait) | (state == BusIfStates.dma_first) | (state == BusIfStates.dma_wait))
-        NR_nCAS_a = Wire()
-        NR_nCAS_a <<= Reg(~NR_CAS_logic_a | ~byte_en[0], reset_value_port = 1) # We re-register the state to remove all glitches
-        NR_nCAS_b = Wire()
-        NR_nCAS_b <<= Reg(~NR_CAS_logic_b | ~byte_en[1], reset_value_port = 1) # We re-register the state to remove all glitches
-        CAS_nWINDOW_A_a = Wire()
-        CAS_nWINDOW_A_a <<= Reg(
+        NR_CAS_logic_0 = NR_CAS_logic & (~two_cycle_nram_access | (state == BusIfStates.non_dram_first) | (state == BusIfStates.non_dram_wait) | (state == BusIfStates.dma_first) | (state == BusIfStates.dma_wait))
+        NR_CAS_logic_1 = NR_CAS_logic & (~two_cycle_nram_access | (state == BusIfStates.non_dram_dual_first) | (state == BusIfStates.non_dram_dual_wait) | (state == BusIfStates.dma_first) | (state == BusIfStates.dma_wait))
+        NR_nCAS_0 = Wire()
+        NR_nCAS_0 <<= Reg(~NR_CAS_logic_0 | ~byte_en[0], reset_value_port = 1) # We re-register the state to remove all glitches
+        NR_nCAS_1 = Wire()
+        NR_nCAS_1 <<= Reg(~NR_CAS_logic_1 | ~byte_en[1], reset_value_port = 1) # We re-register the state to remove all glitches
+        CAS_nWINDOW_A_0 = Wire()
+        CAS_nWINDOW_A_0 <<= Reg(
             ~byte_en[0] |
             (next_state == BusIfStates.idle) |
             (next_state == BusIfStates.precharge) |
@@ -406,8 +406,8 @@ class BusIf(GenericModule):
             (next_state == BusIfStates.dma_wait),
             reset_value_port = 1
         ) # We re-register the state to remove all glitches
-        CAS_nWINDOW_A_b = Wire()
-        CAS_nWINDOW_A_b <<= Reg(
+        CAS_nWINDOW_A_1 = Wire()
+        CAS_nWINDOW_A_1 <<= Reg(
             ~byte_en[1] |
             (next_state == BusIfStates.idle) |
             (next_state == BusIfStates.precharge) |
@@ -420,21 +420,21 @@ class BusIf(GenericModule):
             (next_state == BusIfStates.dma_wait),
             reset_value_port = 1
         ) # We re-register the state to remove all glitches
-        CAS_nWINDOW_C_a = Wire()
-        CAS_nWINDOW_C_a <<= Reg(CAS_nWINDOW_A_a, reset_value_port = 1)
-        CAS_nWINDOW_B_a = Wire()
-        CAS_nWINDOW_B_a <<= NegReg(CAS_nWINDOW_A_a, reset_value_port = 1)
-        CAS_nWINDOW_C_b = Wire()
-        CAS_nWINDOW_C_b <<= Reg(CAS_nWINDOW_A_b, reset_value_port = 1)
-        CAS_nWINDOW_B_b = Wire()
-        CAS_nWINDOW_B_b <<= NegReg(CAS_nWINDOW_A_b, reset_value_port = 1)
+        CAS_nWINDOW_C_0 = Wire()
+        CAS_nWINDOW_C_0 <<= Reg(CAS_nWINDOW_A_0, reset_value_port = 1)
+        CAS_nWINDOW_B_0 = Wire()
+        CAS_nWINDOW_B_0 <<= NegReg(CAS_nWINDOW_A_0, reset_value_port = 1)
+        CAS_nWINDOW_C_1 = Wire()
+        CAS_nWINDOW_C_1 <<= Reg(CAS_nWINDOW_A_1, reset_value_port = 1)
+        CAS_nWINDOW_B_1 = Wire()
+        CAS_nWINDOW_B_1 <<= NegReg(CAS_nWINDOW_A_1, reset_value_port = 1)
 
-        DRAM_nCAS_a = CAS_nWINDOW_A_a | CAS_nWINDOW_B_a |  self.clk
-        DRAM_nCAS_b = CAS_nWINDOW_B_b | CAS_nWINDOW_C_b | ~self.clk
+        DRAM_nCAS_0 = CAS_nWINDOW_A_0 | CAS_nWINDOW_B_0 |  self.clk
+        DRAM_nCAS_1 = CAS_nWINDOW_B_1 | CAS_nWINDOW_C_1 | ~self.clk
 
         self.dram.nRAS       <<= DRAM_nRAS
-        self.dram.nCAS_a     <<= DRAM_nCAS_a & NR_nCAS_a
-        self.dram.nCAS_b     <<= DRAM_nCAS_b & NR_nCAS_b
+        self.dram.nCAS_0     <<= DRAM_nCAS_0 & NR_nCAS_0
+        self.dram.nCAS_1     <<= DRAM_nCAS_1 & NR_nCAS_1
         self.dram.addr       <<= Select(
             (
                 (state == BusIfStates.first) |
@@ -506,14 +506,14 @@ def sim():
             self.bus_if.data_in <<= None
             self.bus_if.nWAIT <<= 1
             while True:
-                yield (self.bus_if.nRAS, self.bus_if.nNREN, self.bus_if.nCAS_a, self.bus_if.nCAS_b)
+                yield (self.bus_if.nRAS, self.bus_if.nNREN, self.bus_if.nCAS_0, self.bus_if.nCAS_1)
                 data_assigned = False
-                for (byte, cas) in (("low", self.bus_if.nCAS_a), ("high", self.bus_if.nCAS_b)):
+                for (byte, cas) in (("low", self.bus_if.nCAS_0), ("high", self.bus_if.nCAS_1)):
                     if (self.bus_if.nRAS.get_sim_edge() == EdgeType.Negative) or (self.bus_if.nNREN.get_sim_edge() == EdgeType.Negative):
-                        #assert self.DRAM_nCAS_l.get_sim_edge() == EdgeType.NoEdge
-                        #assert self.DRAM_nCAS_h.get_sim_edge() == EdgeType.NoEdge
-                        #assert self.DRAM_nCAS_l == 1
-                        #assert self.DRAM_nCAS_h == 1
+                        #assert self.DRAM_nCAS_0.get_sim_edge() == EdgeType.NoEdge
+                        #assert self.DRAM_nCAS_1.get_sim_edge() == EdgeType.NoEdge
+                        #assert self.DRAM_nCAS_0 == 1
+                        #assert self.DRAM_nCAS_1 == 1
                         # Falling edge or nRAS: capture row address
                         if full_addr is None:
                             full_addr = 0

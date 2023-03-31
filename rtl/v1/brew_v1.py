@@ -388,8 +388,8 @@ def sim():
 
     class AddressDecode(Module):
         nNREN         = Input(logic)
-        nCAS_l        = Input(logic)
-        nCAS_h        = Input(logic)
+        nCAS_0        = Input(logic)
+        nCAS_1        = Input(logic)
         addr          = Input(Unsigned(11))
         full_addr     = Output(Unsigned(23))
         rom_en        = Output(logic)
@@ -397,7 +397,7 @@ def sim():
 
         def body(self):
             self.nCAS = Wire(logic)
-            self.nCAS <<= self.nCAS_l & self.nCAS_h
+            self.nCAS <<= self.nCAS_0 & self.nCAS_1
 
         def simulate(self, simulator: Simulator):
             self.rom_base = 0x0000_0000
@@ -420,7 +420,7 @@ def sim():
                         simulator.sim_assert(self.nNREN.get_sim_edge() == EdgeType.NoEdge)
                         if self.nCAS.get_sim_edge() == EdgeType.Negative:
                             col_addr = copy(self.addr.sim_value)
-                            addr = (row_addr << self.addr.get_num_bits() | col_addr) << 1 | self.nCAS_l
+                            addr = (row_addr << self.addr.get_num_bits() | col_addr) << 1 | self.nCAS_0
                             self.full_addr <<= addr
                             if (addr & self.decode_mask) == self.con_base:
                                 self.con_en <<= 1
@@ -563,14 +563,14 @@ def sim():
             self.ldst_leech = LdStLeech()
 
             self.dram_l.nRAS          <<= self.cpu.dram.nRAS
-            self.dram_l.nCAS          <<= self.cpu.dram.nCAS_a
+            self.dram_l.nCAS          <<= self.cpu.dram.nCAS_0
             self.dram_l.addr          <<= self.cpu.dram.addr
             self.dram_l.nWE           <<= self.cpu.dram.nWE
             self.dram_l.data_in       <<= self.cpu.dram.data_out
             self.dram_l.data_in_en    <<= self.cpu.dram.data_out_en
 
             self.dram_h.nRAS          <<= self.cpu.dram.nRAS
-            self.dram_h.nCAS          <<= self.cpu.dram.nCAS_b
+            self.dram_h.nCAS          <<= self.cpu.dram.nCAS_1
             self.dram_h.addr          <<= self.cpu.dram.addr
             self.dram_h.nWE           <<= self.cpu.dram.nWE
             self.dram_h.data_in       <<= self.cpu.dram.data_out
@@ -583,8 +583,8 @@ def sim():
             )
 
             self.addr_decode.nNREN    <<= self.cpu.dram.nNREN
-            self.addr_decode.nCAS_l   <<= self.cpu.dram.nCAS_a
-            self.addr_decode.nCAS_h   <<= self.cpu.dram.nCAS_b
+            self.addr_decode.nCAS_0   <<= self.cpu.dram.nCAS_0
+            self.addr_decode.nCAS_1   <<= self.cpu.dram.nCAS_1
             self.addr_decode.addr     <<= self.cpu.dram.addr
 
             self.rom.enable           <<= self.addr_decode.rom_en

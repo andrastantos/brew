@@ -104,8 +104,8 @@ class BusIfDmaResponseIf(Interface):
 
 class ExternalBusIf(Interface):
     nRAS          = logic
-    nCAS_a        = logic
-    nCAS_b        = logic
+    nCAS_0        = logic
+    nCAS_1        = logic
     addr          = Unsigned(11)
     nWE           = logic
     data_in       = Reverse(BrewByte)
