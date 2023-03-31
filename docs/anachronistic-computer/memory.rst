@@ -39,6 +39,14 @@ There were two memory module formats: 30 pin and 72 pin.
 - `<https://en.wikipedia.org/wiki/SIMM>`_
 - `<https://www.pjrc.com/tech/mp3/simm/datasheet.html>`_
 
+EDO datasheets:
+
+- `4/8MB module <https://www.digchip.com/datasheets/download_datasheet.php?id=687767&part-number=MT2D132>`_
+- `JEDEC standard extract <https://www.ele.uri.edu/iced/protosys/hardware/datasheets/simm/Jedec-Clearpoint-8MB.pdf>`_
+- `16/32MB module <https://www.digchip.com/datasheets/download_datasheet.php?id=987285&part-number=TM893GBK32S>`_
+- `Another 16/32MB Module <https://docs.rs-online.com/1faa/0900766b80027c7f.pdf>`_
+- `Socket ($0.88 apiece) <https://www.peconnectors.com/sockets-pga-cpu-and-memory/hws8182/>`_
+
 
 Interface to DRAM
 -----------------

@@ -387,15 +387,15 @@ Pin Number Pin Name    Description
 27         SYS_CLK     Clock input
 28         nRST        Active low reset input
 29         nINT        Active low interrupt input
-30         nBREQ_A     Active low bus-request input
-31         nBGRANT_A   Active low bus-grant output
-32         nBREQ_B     Active low bus-request input
-33         nBGRANT_B   Active low bus-grant output
-33         nDRQ_A      DMA channel A request input
-34         nDACK_A     DMA channel A acknowledge output
-35         nDRQ_B      DMA channel B request input
-36         nDACK_B     DMA channel B acknowledge output
-37         DMA_TC      DMA terminal count output
+30         DRQ_A       Active high DMA channel A request input
+31         nDACK_A     Active low DMA channel A grant output
+32         DRQ_B       Active high DMA channel B request input
+33         nDACK_B     Active low DMA channel B grant output
+34         DRQ_C       Active high DMA channel C request input
+35         nDACK_C     Active low DMA channel C grant output
+36         DRQ_D       Active high DMA channel D request input
+37         nDACK_D     Active low DMA channel D grant output
+38         DMA_TC      Active high DMA terminal count output
 39         VCC         Power input
 40         GND         Ground input
 ========== =========== ===========
