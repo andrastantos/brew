@@ -46,6 +46,7 @@ class Uart(Module):
     txd = Output(logic)
     cts = Input(logic)
     rts = Output(logic)
+    n_tx_en = Output(logic)
 
     class UartTxPhy(Module):
         clk = ClkPort()
@@ -57,6 +58,7 @@ class Uart(Module):
         stop_cnt = Input(EnumNet(UartStopBits))
         word_size = Input(Unsigned(3))
         hw_flow_ctrl = Input(logic)
+        use_tx_en = Input(logic)
 
         prescaler_select = Input(Unsigned(3))
         divider_limit = Input(Unsigned(8))
@@ -64,18 +66,20 @@ class Uart(Module):
         txd = Output(logic)
         cts = Input(logic)
         cts_out = Output(logic)
+        tx_en = Output(logic)
 
         def body(self):
             fsm = FSM()
 
             class UartTxPhyStates(Enum):
                 idle = 0
-                start = 1
-                data = 2
-                parity = 3
-                stop_half = 4
-                stop = 5
-                stop_two = 6
+                tx_en = 1
+                start = 2
+                data = 3
+                parity = 4
+                stop_half = 5
+                stop = 6
+                stop_two = 7
 
             fsm.reset_value <<= UartTxPhyStates.idle
             fsm.default_state <<= UartTxPhyStates.idle
@@ -105,6 +109,7 @@ class Uart(Module):
                 SelectOne(
                     state == UartTxPhyStates.idle, 0,
                     state == UartTxPhyStates.stop_half, oversampler,
+                    state == UartTxPhyStates.tx_en, oversampler,
                     default_port = ~oversampler
                 ),
                 clock_en=divider_tick
@@ -152,7 +157,12 @@ class Uart(Module):
                 )
             )
 
-            fsm.add_transition(UartTxPhyStates.idle, starting, UartTxPhyStates.start)
+
+            self.tx_en <<= Reg(Select(state == UartTxPhyStates.tx_en, Select(state == UartTxPhyStates.stop, self.tx_en, 0), 1))
+
+            fsm.add_transition(UartTxPhyStates.idle, starting & ~self.use_tx_en, UartTxPhyStates.start)
+            fsm.add_transition(UartTxPhyStates.idle, starting &  self.use_tx_en, UartTxPhyStates.tx_en)
+            fsm.add_transition(UartTxPhyStates.tx_en, baud_half_tick, UartTxPhyStates.start)
             fsm.add_transition(UartTxPhyStates.start, baud_tick, UartTxPhyStates.data)
             fsm.add_transition(UartTxPhyStates.data, (bit_counter == 0) & (self.parity == UartParityType.none) & baud_tick & (self.stop_cnt == UartStopBits.one), UartTxPhyStates.stop)
             fsm.add_transition(UartTxPhyStates.data, (bit_counter == 0) & (self.parity == UartParityType.none) & baud_tick & (self.stop_cnt == UartStopBits.one_and_half), UartTxPhyStates.stop_half)
@@ -384,6 +394,8 @@ class Uart(Module):
         bit 0-2 - pre-scaler
         bit 4   - rts (if SW flow-ctrl) (inverted)
         bit 5   - RX enable
+        bit 6   - use HW tx_en
+        bit 7   - tx_en (1 to enable TX)
     Reg 4: divider
         divider
     """
@@ -402,6 +414,8 @@ class Uart(Module):
         interrupt_en = Wire(logic)
         hw_flow_ctrl = Wire(logic)
         rx_enable = Wire(logic)
+        use_hw_tx_en = Wire(logic)
+        soft_tx_en = Wire(logic)
 
         self.bus_if.pready <<= Reg(
             Select(
@@ -439,7 +453,9 @@ class Uart(Module):
                     prescaler_select,
                     "1'b0",
                     soft_rts,
-                    rx_enable
+                    rx_enable,
+                    use_hw_tx_en,
+                    soft_tx_en,
                 ),
                 # Reg 4: divider 2
                 divider_limit,
@@ -455,6 +471,8 @@ class Uart(Module):
         prescaler_select <<= Reg(self.bus_if.pwdata[2:0], clock_en=config2_reg_wr)
         soft_rts <<= Reg(self.bus_if.pwdata[4], clock_en=config2_reg_wr)
         rx_enable <<= Reg(self.bus_if.pwdata[5], clock_en=config2_reg_wr)
+        use_hw_tx_en <<= Reg(self.bus_if.pwdata[6], clock_en=config2_reg_wr)
+        soft_tx_en <<= Reg(self.bus_if.pwdata[7], clock_en=config2_reg_wr)
 
         divider_limit <<= Reg(self.bus_if.pwdata, clock_en=divider_reg_wr)
         tx_data.data <<= self.bus_if.pwdata
@@ -474,7 +492,7 @@ class Uart(Module):
         word_size = Select(config_reg[5:4], 0, 7, 6, 5)
         tx_phy.word_size <<= word_size
         tx_phy.hw_flow_ctrl <<= hw_flow_ctrl
-
+        tx_phy.use_tx_en <<= use_hw_tx_en
 
         rx_phy.parity <<= (EnumNet(UartParityType))(config_reg[1:0])
         rx_phy.stop_cnt <<= (EnumNet(UartStopBits))(config_reg[3:2])
@@ -492,6 +510,11 @@ class Uart(Module):
             hw_flow_ctrl,
             soft_rts,
             rx_phy.rts
+        )
+        self.n_tx_en <<= ~Select(
+            use_hw_tx_en,
+            soft_tx_en,
+            tx_phy.tx_en
         )
 
 
@@ -589,8 +612,8 @@ def sim():
             # Set up both UARTs to the same config
             yield from write_reg(0, Uart.config1_reg_ofs, (UartParityType.none.value << 0) | (UartStopBits.one_and_half.value << 2) | (UartWordSize.bit8.value << 4) | (1 << 6))
             yield from write_reg(1, Uart.config1_reg_ofs, (UartParityType.none.value << 0) | (UartStopBits.one_and_half.value << 2) | (UartWordSize.bit8.value << 4) | (1 << 6))
-            yield from write_reg(0, Uart.config2_reg_ofs, (0 << 0) | (0 << 5))
-            yield from write_reg(1, Uart.config2_reg_ofs, (0 << 0) | (1 << 5)) # Enable RX on UART2
+            yield from write_reg(0, Uart.config2_reg_ofs, (0 << 0) | (0 << 5) | (1 << 6))
+            yield from write_reg(1, Uart.config2_reg_ofs, (0 << 0) | (1 << 5) | (1 << 6)) # Enable RX on UART2
             yield from write_reg(0, Uart.divider_reg_ofs, 5)
             yield from write_reg(1, Uart.divider_reg_ofs, 5)
             yield from write_reg(0, Uart.status_reg_ofs, 0) # clear any pending status
