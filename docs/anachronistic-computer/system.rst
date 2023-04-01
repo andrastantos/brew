@@ -7,15 +7,15 @@ High level specs
 For the processor:
 
 * Internal data-path: 32-bit
-* External data width: 16-bit
-* Clock speed: 10MHz
+* External data width: 8/16-bit
+* Clock speed: ~10MHz (depends on DRAM speed)
 * Performance: 4MIPS sustained with graphics, 10MIPS peak
 
 Memory:
 
 * Data width: 16-bit
 * Size: 128kB to 4MB
-* Number of banks: 2
+* Number of banks: 2/4
 * Technology: NMOS DRAM
 
 Graphics:
@@ -70,6 +70,69 @@ Start address  End address  Description
 0x8000_0000    0xbfff_ffff  16-bit DRAM space
 0xc000_0000    0xffff_ffff  16-bit CSR space: not decoded externally, but handled by the processor internally
 =============  ===========  ===========
+
+Chipsets and Model lineup
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+All-in-one setup (A500 layout)
+------------------------------
+
+* custom CPU+DMA
+* custom Graphics+sound
+* custom Classic I/O 1 (mouse/joystick/serial/I2C)
+* custom Classic I/O 2 (keyboard scan)
+* FDD
+
+Expandable setup (A1000 layout)
+-------------------------------
+
+* custom CPU+DMA
+* custom Graphics+sound
+* custom Classic I/O (mouse/joystick/serial/external keyboard)
+* ISA-bus interface (maybe custom interface chip)
+* SCSI
+* FDD
+
+All-in-one setup (modern A500 layout)
+-------------------------------------
+
+* custom CPU+DMA
+* custom Graphics+sound
+* custom Nuvou I/O (keyboard/joystick/mouse over USB; SDCard; serial/sysconfig/I2C)
+* custom Classic I/O (keyboard scan, unless done through USB)
+
+Expandable setup (modern A1000 layout)
+--------------------------------------
+
+* custom CPU+DMA
+* custom Graphics+sound
+* custom Nuvou I/O 2 (keyboard/joystick/mouse over USB; SDCard; serial/sysconfig/I2C)
+* ISA-bus interface (maybe custom interface chip)
+
+
+Clocking
+~~~~~~~~
+
+We will stay with the very common NTSC clock rate of 28.63636MHz (double of what Amiga had). On top of that, we'll need 48MHz for USB (on Nuvou I/O of course)
+
+* 28.63636MHz/2 -> Video clock (14.31818MHz)
+* 28.63636MHz/3 -> system clock (~9.54MHz)
+* 28.63636MHz/3 -> Audio clock option l (37.28kHz Fs)
+* 28.63636MHz/4 -> Audio clock option 2 (27.96kHz Fs)
+
+An alternative would be to use an additional clock source for the system clock (which would allow for highest memory bandwidth and CPU perf.)
+We could even add a third (audio) clock, or at least the option to use either clock for audio.
+
+ISA bus notes
+~~~~~~~~~~~~~
+
+*VGA* cards used both memory and I/O, but really nothing beyond the first 1MB address range. They didn't use DMA. They might have used an interrupt
+*Ethernet* cards used memory mapped ring buffers (I think) and I/O of course. Most were 16-bit, but no DMA and a few interrupts.
+*Serial/parallel* cards used I/O and interrupt(s)
+*IDE* interface used only a few I/O registers (16-bits) and (16-bit) DMA. It used a single interrupt line
+*Sound* cards (at least Sound Blasters) used 16-bit I/O and (both 8- and 16-bot) DMA. They used interrupts as well.
+*SCSI* cards are a bit tricky. Some Adaptec cards might even have been bus-masters. Others, such as the SYM20403 seems to have not even used DMAs. Many contained on-board BIOS, which of course is problematic.
+
 
 DRAM interface
 ~~~~~~~~~~~~~~

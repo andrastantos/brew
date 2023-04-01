@@ -3,22 +3,44 @@ Graphics
 
 According to http://tinyvga.com/vga-timing: VGA pixel clock is 25.175MHz for 640x480. For 320x240, it would be half, 12.5875MHz. That's 40 or 80ns respectively.
 
-If we want to support 8bpp mode in 320x240, and have a 16-bit bus, we would need 160ns access time to DRAM. We would also of course need at least 75kB of RAM.
+However, back in the days, we targeted TV timing, which is yet another division by two: the interlaced monitors of the day (TV or otherwise) supported 15.734kHz (NTSC) or 15.625kHz (PAL) horizontal sync rates with 50 or 60 fields per second.
 
-The original NMOS DRAMs could not work at those data-rates, even with 4-beat bursts. So, for the first iteration of our machine we'll have to compromise on 320x240 at 4bpp, which is slightly worse than Amiga, but a result of 320ns between accesses.
+If we wanted to display 320 pixels (at 8bpp) over 63.56us (1/15.734) averages out to about 200ns per access. Of course bursts are going to be higher.
 
-Alternatively, we can chose to support composite (style in terms of timing) output, where the horizontal timing is 15,625Hz and the pixel clock for a 320 pixel horizontal resolution would be 7.14MHz. That of course is about half that of the VGA number above and results in a 280ns access-rate for an 8bpp screen.
+Overall, 320x240 resolution at 50Hz refresh rate (PAL, since NTSC technically doesn't really support 240 visible scan-lines) is 3.84MBps datarate.
+The NTSC version (320x200@60Hz) works out to be the exact same number, interestingly enough.
 
-For a more advanced FPM-based machine, we can bump our access rate up all the way to standard VGA resolution and 160ns access times.
+So, we need to reserve 3.84MBps of memory bandwidth for video.
 
-To conserve memory bandwidth, our DMAs will work with 4-beat bursts, transferring 64 bits at a time. To decouple memory and screen timing, we need a buffer probably twice as large, or 128 bits. The more, the better, we can tolerate more jitter on the memory interface.
+Let's say, we use 8-byte bursts in the video engine. Each burst would take 8/2+2=6 cycles. We need to transfer 3.85MBps, which takes 480,000 bursts a second. Each burst is 10 cycles, so we have 2.88M clock cycles per second taken up by this task. If our clock rate is 8MHz, that should be 36% of our available memory bandwidth.
 
-If we can fit a full scan-line worth of data in an internal FIFO, we could cut the data-rate required in half, due to double-scan: we can repeat the scan-line from internal memory. If we could fit two scan-lines worth of data internally, we could even space out the loads over two scan-lines, reducing not only our average thirst for data, but our peak as well. That however is probably a second-gen feature. The first generation chips would not have that capability.
+Now, the 8-byte bursts come from this calculation: the CPU uses 4-beat bursts to fetch instructions and 2-beat bursts to read/write 32-bit data. Even though the display controller has highest priority, it's possible that a fetch gets in the way. With just the right timing, the video controller will get no more than 50% of the bandwidth. Larger bursts would be slightly more efficient, but would require larger on-chip buffers, that I don't want to pay for.
 
-.. todo::
-    We need to figure out the DMA timing precisely. There's a lot of 'fluff' in our DMA protocol that will slow us down.
+For a more advanced FPM-based machine, we can bump our access rate up all the way to standard VGA resolution, hopefully, but that's in the future.
+
+For the actual implementation, we of course will not drive composite video, instead VGA monitors. However, we're lucky: VGA doubles the horizontal scan-rate, but at the same time introduces double-scan. On an FPGA implementation, we can afford a line-buffer or two, so we don't need to re-read the scan-lines twice; the resulting memory bandwidth requirement remains the same as if a TV was used.
+
+Things change however dramatically if we were to support 640x480 resolution. There, we don't have scan-doubling anymore, so we'll have to deal with full 60Hz, progressive scan displays. That's double the data-rate from refresh perspective and quadruple the number of pixels. In other words, within the same memory bandwidth constraints, we can only support this resolution in 2-color mode.
+
+For the *first generation* graphics controller, the following modes are supported:
+
+320x240@50Hz, 8bpp
+640x240@50Hz, 4bpp
+640x480@50Hz, 1bpp
+
+Sprites
+-------
+
+If we wanted to support sprites, we would need scan-line buffers for them, probably around 64-bits worth each (16x16 and 4bpp). That would be 512 bits total.
 
 The graphics controller uses several DMA channels to convey video-data into itself: one for the main screen buffer and one each for each sprite.
+
+Screen compositing
+------------------
+
+We might want to support several layers of screen data. For instance: overlay of two 320x240, 4bpp planes. This is the same memory bandwidth, but with supporting two independent smooth-scroll settings for each, a game can a foreground/background semi-3D illusion.
+
+With 3 such planes supported (4/2/2bpp each), a score-board, a background and a foreground plane can be implemented. Add the sprites and we have a rather formidable set of capabilities.
 
 Pinout
 ------

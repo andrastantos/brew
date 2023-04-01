@@ -1,8 +1,15 @@
 Memories
 ========
 
+.. _dram::
+
 DRAM
 ~~~~
+
+.. _dram_datasheets:
+
+Datasheets
+----------
 
 DRAM history from:
 http://doctord.dyndns.org/Courses/UNH/CS216/Ram-Timeline.pdf:
@@ -48,12 +55,109 @@ EDO datasheets:
 - `Socket ($0.88 apiece) <https://www.peconnectors.com/sockets-pga-cpu-and-memory/hws8182/>`_
 
 
+.. _dram_interface_intro::
+
 Interface to DRAM
 -----------------
 
-DRAMs are relatively straightforward to interface to in our system. /LCAS and /UCAS act as byte-selects, but they need to be qualified by /RGN2 and /RNG3 to create space for the 4 RAM banks. These 4 banks then can be either implemented in a single 72-pin DIMM or 4 30-pin DIMM modules.
+We are absolutely maximizing DRAM bandwidth that's achievable using an 8-bit bus. We are using burst (page-mode) accesses to amortize nRAS and precharge cycle penalty as well as double-pumping the data (transferring data on both clock-edges).
 
-Due to the loading of all the RAM chips, it's quite likely that /RAS /WE, address and maybe even data needs to be buffered, but that is to be seen.
+We are using the same bus for non-DRAM accesses, that is to reach ROM memories and peripherals.
+
+.. _dram_timing:
+
+Timing diagrams
+---------------
+
+The DRAM bus::
+
+                        <------- 4-beat burst -------------><---- single ----><---- single ----><---------- 4-beat burst ----------><- refresh->
+    CLK             \__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\_
+    DRAM_nRAS       ^^^^^^^^^\_____________________________/^^^^^\___________/^^^^^\___________/^^^^^\_____________________________/^^^^^\_____/^^^^^^^^^^
+    DRAM_nCAS_A     ^^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^^^^^^^^^\__/^^^^^^^^^^^^^^\__/^^^^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    DRAM_nCAS_B     ^^^^^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^^^^^^^^^\__/^^^^^^^^^^^^^^\__/^^^^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^^^^^^^^^^^^^^^^^^^^
+    DRAM_ADDR       ---------<==X=====X=====X=====X=====>--------<==X=====>--------<==X=====>--------<==X=====X=====X=====X=====>--------<==>-------------
+    DRAM_nWE        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    DRAM_DATA       --------------<>-<>-<>-<>-<>-<>-<>-<>-------------<>-<>--------------<>-<>-------------<>-<>-<>-<>-<>-<>-<>-<>------------------------
+    DRAM_nWE        ^^^^^^^^^\_____________________________/^^^^^\___________/^^^^^\___________/^^^^^\_____________________________/^^^^^\-----/^^^^^^^^^^
+    DRAM_DATA       ------------<==X==X==X==X==X==X==X==>-----------<==X==>-----------<==X==>-----------<==X==X==X==X==X==X==X==>-------------------------
+    CLK             \__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\_
+    req_valid       ___/^^^^^^^^^^^^^^^^^^^^^^^\___________/^^^^^\___________/^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\_____________________________/^^^^
+    req_ready       ^^^^^^^^^^^^^^^^^^^^^^^^^^^\___________/^^^^^\___________/^^^^^\___________/^^^^^^^^^^^^^^^^^^^^^^^\_______________________/^^^^^^^^^^
+    req_wr          _________________________________________________________/^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    req_addr        ---<=====X=====X=====X=====>-----------<=====>-----------<=====X=================X=====X=====X=====>----------------------------------
+    req_data        ---------------------------------------------------------------<=================X=====X=====X=====>----------------------------------
+                       |----------------->                 |---------------->|----------------->---------------->
+    rsp_valid       _____________________/^^^^^^^^^^^^^^^^^^^^^^^\___________/^^^^^\___________/^^^^^\____________________________________________________
+    rsp_data        ---------------------<=====X=====X=====X=====>-----------<=====>-----------<=====>----------------------------------------------------
+
+Notes:
+1. `req_ready` goes low for two cycles after req_last (during a transfer) is asserted. This is to allow for the pre-charge cycle to occur
+2. addresses must be consecutive and must not cross page-boundary within a burst. The bus_if doesn't check for this (maybe it should assert???) and blindly puts the address on the DRAM bus. Address incrementing is the responsibility of the requestor (it probably does it anyway).
+3. Burst length is not communicated over the interface: the burst ends when `req_valid` is de-asserted.
+4. write data is captured with the address on every transaction.
+5. Response bus doesn't support a ready signal: responses are always assumed to be accepted
+6. writes don't have any response
+7. Reads and writes are not allowed to be mixed within a burst. This is - again - not checked by the bus_if.
+8. Client arbitration happens only after the idle cycle: i.e. we don't support clients taking over bursts from each other. Also, `req_ready` for any client will normally be low and only gets asserted by the interface, when arbitration is successful. Requestors should not hold back or depend on `req_ready` for generating requests.
+9.  The bus controller can terminate a burst by de-asserting `req_ready`. This doesn't happen for DRAM transactions, but is the case for non-DRAM accesses, as shown later
+10. The above timing only works for page-mode memories. Fast-page-mode memories support much faster access times, but need slightly different timing.
+11. DRAM devices have pretty lengthy hold times on the data after the rising edge of `DRAM_nCAS_x`. So long in fact, that the two banks may fight for the bus in the center of the nCAS cycle. Probably the easiest solution is to have a set of series resistors with the data pins. That impacts rise and fall times though, so one should be careful.
+
+
+Non-DRAM accesses::
+
+                             <-- even read ---><--- odd write ---><- even read w. wait -->
+    CLK             \__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/
+    nNREN           ^^^^^^^^^\___________/^^^^^\___________/^^^^^\_________________/^^^^^^
+    DRAM_nCAS_0     ^^^^^^^^^^^^^^^\_____/^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\___________/^^^^^^
+    DRAM_nCAS_1     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\_____/^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    DRAM_ADDR       ---------<==X========>-----<==X========>-----<==X==============>------
+    DRAM_nWE        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    DRAM_DATA       ---------------------<>----------------<>----------------------<>-----
+    DRAM_nWE        ^^^^^^^^^\___________/^^^^^\___________/^^^^^\_________________/^^^^^^
+    DRAM_DATA       ------------<========>-----------<=====>--------<==============>------
+    nWAIT           ---------------/^^^^^\-----------/^^^^^\-----------\_____/^^^^^\------
+    CLK             \__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/
+    req_valid       ___/^^^^^\_____/^^^^^^^^^^^\___________/^^^^^\________________________
+    req_ready       ^^^^^^^^^\___________/^^^^^\___________/^^^^^\_________________/^^^^^^
+    req_last        ___/^^^^^\___________/^^^^^\___________/^^^^^\________________________
+    req_wr          _______________/^^^^^^^^^^^\__________________________________________
+    req_addr        ---<=====>-----<===========>-----------<=====>------------------------
+    req_data        ---------------<===========>------------------------------------------
+                       |----------------->                 |----------------------->
+    rsp_valid       _____________________/^^^^^\___________________________________/^^^^^\
+    rsp_ready       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    rsp_data        ---------------------<=====>-----------------------------------<=====>
+
+1. Bursts are not allowed; the interface de-asserts `req_ready` after every transfer.
+2. Only 8-bit transfers are allowed - bus_if will break up 16-bit transfers into two individual transfers.
+3. LSB address can be recovered by using DRAM_nCAS_0 as A0
+4. nWAIT is sampled on the rising edge of every cycle, after internal wait-states are accounted for
+5. There is at least one internal wait-state
+6. For writes, the relevant byte of 'req_data' should be valid.
+
+.. note:: These timings don't really support external devices with non-0 data hold-time requirements. Maybe we can delay turning off data-bus drivers by half a cycle?
+
+
+FPM DRAMs support a slightly different timing. The first diagram below shows the simplified diagram for an NMOS memory::
+
+     CLK __/^^^^^\_____/^^^^^\_____/^^^^^\_____/^^^^^\_____/^^^^^\_____/
+    nRAS ^^^^^^^^\_______________________________________________/^^^^^\
+    nCAS ^^^^^^^^^^^^^^\_____/^^^^^\_____/^^^^^\_____/^^^^^\_____/^^^^^^
+    nWE  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    Data -------------------<>----------<>----------<>----------<>------
+
+The second diagram shows the same for an FPM device::
+
+     CLK __/^^\__/^^\__/^^\__/^^\__/^^\__/^^\
+    nRAS ^^^^^\__________________________/^^\
+    nCAS ^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^
+    nWE  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    Data -------------<>----<>----<>----<>---
+
+Notice how we need to delay nCAS by half a cycle because while t_cas is much shorter, t_rcd doesn't change all that much.
+
 
 .. _dram_speeds:
 
@@ -78,7 +182,7 @@ t_cp         30ns  40ns  50ns  45ns  50ns  60ns
 t_rp         70ns  90ns  90ns  90ns 100ns 100ns
 =========== ===== ===== ===== ===== ===== =====
 
-Fast-page-mode devices, such as the one used in late-issue A500 boards have significantly improved timing:
+Fast-page-mode devices, such as the one used in late-issue Amiga A500 boards have significantly improved timing:
 
 =========== ===== ===== ===== ===== ===== =====
 Part number     HYB514256B         MT4C1024
@@ -102,210 +206,72 @@ t_cp         10ns   10ns    9ns    9ns
 t_rp         35ns   40ns   30ns   40ns
 =========== ====== ====== ====== ======
 
-FPM was a later ('90) invention though. EDO, when introduced in '95 was even faster, but I don't think that matters to us.
+EDO, when introduced in '95 was even faster. We are going to concentrate on NMOS devices and their timing characteristics for the first-generation processor to remain true to the times we pretend it was to be released. Newer devices will work with those timings as well, but you can't take advantage of their special modes.
 
-To get the best out of the DRAM, we will want page-mode access. However the number of beats we can support is rather limited both by the need for not hogging the bus too long and our limited ability to store the data from a burst.
+Since we snap timings to half-clock-cycle boundaries, the bus (and thus CPU) clock rates we can support are as follows:
 
-So, let's look at a few burst sizes and the average cycle time per access:
+=========== ========= ========= ========= ========= ========= =========
+Part number           uPD41464                       KM41256
+----------- ----------------------------- -----------------------------
+Speed grade  -80       -10       -12       -10       -12       -15
+=========== ========= ========= ========= ========= ========= =========
+t_rcd        40ns      50ns       60ns     50ns      60ns      75ns
+t_cas        40ns      50ns       60ns     50ns      60ns      75ns
+t_cp         30ns      40ns       50ns     45ns      50ns      60ns
+t_rp         70ns      90ns       90ns     90ns     100ns     100ns
+f_cpu        12.5Mhz   10Mhz      8.3MHz   10Mhz     8.3MHz    6.6MHz
+=========== ========= ========= ========= ========= ========= =========
 
-.. _average_access_times:
+.. _dram_banks::
 
-.. exec::
-    print("====================== ====== ====== ====== ====== ====== ======")
-    print("Part number                  uPD41464             KM41256       ")
-    print("---------------------- -------------------- --------------------")
-    print("Speed grade              -80    -10    -12    -10    -12    -15 ")
-    print("====================== ====== ====== ====== ====== ====== ======")
-    all_t_rcd = (40,50,60,50, 60, 75)
-    all_t_cas = (40,50,60,50, 60, 75)
-    all_t_cp  = (30,40,50,45, 50, 60)
-    all_t_rp  = (70,90,90,90,100,100)
-    all_4b_acc = []
-    all_2b_acc = []
-    all_1b_acc = []
-    for t_rcd, t_cas, t_cp, t_rp in zip(all_t_rcd, all_t_cas, all_t_cp, all_t_rp):
-        all_4b_acc.append((t_rcd + 4*t_cas + 4*t_cp + t_rp)/4)
-        all_2b_acc.append((t_rcd + 2*t_cas + 2*t_cp + t_rp)/2)
-        all_1b_acc.append((t_rcd + 1*t_cas + 1*t_cp + t_rp)/1)
-    for all_acc, beats in zip((all_4b_acc, all_2b_acc, all_1b_acc), (4,2,1)):
-        acc_str = " ".join(f"{acc:4.0f}ns" for acc in all_acc)
-        print(f"{beats}-beat average access  {acc_str}")
-    print("====================== ====== ====== ====== ====== ====== ======")
+Number of address lines and banks needed
+========================================
 
-.. exec::
-    print("====================== ====== ====== ====== ====== ====== ======")
-    print("Part number                  HYB514256B            MT4C1024     ")
-    print("---------------------- -------------------- --------------------")
-    print("Speed grade              -50    -60    -70    -6     -7     -8  ")
-    print("====================== ====== ====== ====== ====== ====== ======")
-    all_t_rcd = (35,45,50,40,50,60)
-    all_t_cas = (15,15,20,20,20,20)
-    all_t_cp  = (10,10,10,10,10,10)
-    all_t_rp  = (35,40,50,40,50,60)
-    all_4b_acc = []
-    all_2b_acc = []
-    all_1b_acc = []
-    for t_rcd, t_cas, t_cp, t_rp in zip(all_t_rcd, all_t_cas, all_t_cp, all_t_rp):
-        all_4b_acc.append((t_rcd + 4*t_cas + 4*t_cp + t_rp)/4)
-        all_2b_acc.append((t_rcd + 2*t_cas + 2*t_cp + t_rp)/2)
-        all_1b_acc.append((t_rcd + 1*t_cas + 1*t_cp + t_rp)/1)
-    for all_acc, beats in zip((all_4b_acc, all_2b_acc, all_1b_acc), (4,2,1)):
-        acc_str = " ".join(f"{acc:4.0f}ns" for acc in all_acc)
-        print(f"{beats}-beat average access  {acc_str}")
-    print("====================== ====== ====== ====== ====== ====== ======")
+Since, I don't think we could either afford or drive more than 32 memory chips on the bus, with up to 4 banks we could support the following memory sizes:
 
-.. exec::
-    print("====================== ====== ====== ====== ======")
-    print("Part number             KM41C16000C  IS41LV16105B ")
-    print("---------------------- ------------- -------------")
-    print("Speed grade              -5     -6     -50    -60 ")
-    print("====================== ====== ====== ====== ======")
-    all_t_rcd = (37,45,37,45)
-    all_t_cas = (13,15, 8,10)
-    all_t_cp  = (10,10, 9, 9)
-    all_t_rp  = (35,40,30,40)
-    all_4b_acc = []
-    all_2b_acc = []
-    all_1b_acc = []
-    for t_rcd, t_cas, t_cp, t_rp in zip(all_t_rcd, all_t_cas, all_t_cp, all_t_rp):
-        all_4b_acc.append((t_rcd + 4*t_cas + 4*t_cp + t_rp)/4)
-        all_2b_acc.append((t_rcd + 2*t_cas + 2*t_cp + t_rp)/2)
-        all_1b_acc.append((t_rcd + 1*t_cas + 1*t_cp + t_rp)/1)
-    for all_acc, beats in zip((all_4b_acc, all_2b_acc, all_1b_acc), (4,2,1)):
-        acc_str = " ".join(f"{acc:4.0f}ns" for acc in all_acc)
-        print(f"{beats}-beat average access  {acc_str}")
-    print("====================== ====== ====== ====== ======")
+1-bit chips:
 
-.. _dram_timing:
+====== ======== ========= ======================= ================= =============== ============ ===================
+Year   Capacity Word size Number of address lines Capacity per bank Number of banks Max capacity Number of RAM chips
+====== ======== ========= ======================= ================= =============== ============ ===================
+1978   64kbit   1         8                       128kByte          1               128kByte     16
+1978   64kbit   1         8                       128kByte          2               256kByte     32*
+1982   256kbit  1         9                       512kByte          1               512kByte     16
+1982   256kbit  1         9                       512kByte          2               1MByte       32*
+1986   1Mbit    1         10                      2MByte            1               2MByte       16
+1986   1Mbit    1         10                      2MByte            2               4MByte       32*
+1988   4Mbit    1         11                      8MByte            1               8MByte       16
+1988   4Mbit    1         11                      8MByte            2               16MByte      32*
+1991   16Mbit   1         12                      32MByte           1               32MByte      16
+====== ======== ========= ======================= ================= =============== ============ ===================
 
-Timing Diagrams
----------------
+4-bit chips:
 
-The timing of DRAM signals will have to be discretized to clock-edges.
+====== ======== ========= ======================= ================= =============== ============ ===================
+Year   Capacity Word size Number of address lines Capacity per bank Number of banks Max capacity Number of RAM chips
+====== ======== ========= ======================= ================= =============== ============ ===================
+1982   256kbit  4         8                       128kByte          1               128kByte     4
+1982   256kbit  4         8                       128kByte          2               256kByte     8
+1982   256kbit  4         8                       128kByte          4               512kByte     16
+1986   1Mbit    4         9                       512kByte          1               512kByte     4
+1986   1Mbit    4         9                       512kByte          2               1MByte       8
+1988   4Mbit    4         10                      2MByte            1               1MByte       4
+1986   1Mbit    4         9                       512kByte          4               2MByte       16
+1988   4Mbit    4         10                      2MByte            2               4MByte       8
+1991   16Mbit   4         11                      8MByte            1               8MByte       4
+1991   16Mbit   4         11                      8MByte            2               16MByte      8
+====== ======== ========= ======================= ================= =============== ============ ===================
 
-For NMOS RAMs, we will use the following timing:
+Here we assume that we can't have 4 banks of the larger chips since we mux the address lines with the bank-selects.
 
-Single-access:
-::
+This shows that at our introduction year ('84) we should have been able to support 0.5M in 4-bit configs and 1M in 1-bit configs.
 
-     CLK __/^^\__/^^\__/^^\__/^^\__/^^\__/^^\
-    nRAS ^^^^^\_____/^^^^^\_____/^^^^^^^^^^^^
-    nCAS ^^^^^^^^\__/^^^^^^^^\__/^^^^^^^^^^^^
-    nWE  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    Data ----------<>----------<>------------
+For modern systems though, (where we have access to all the DRAM sizes) we should probably go with only supporting 4-bit variants as those can also span the full supported ranges.
 
-::
-
-     CLK __/^^\__/^^\__/^^\__/^^\__/^^\__/^^\
-    nRAS ^^^^^\_____/^^^^^\_____/^^^^^^^^^^^^
-    nCAS ^^^^^^^^\__/^^^^^^^^\__/^^^^^^^^^^^^
-    nWE  ^^^^^^^^\__/^^^^^^^^\__/^^^^^^^^^^^^
-    Data --------<====>------<====>----------
-
-And a 4-beat burst would have this waveform:
-
-::
-
-     CLK __/^^\__/^^\__/^^\__/^^\__/^^\__/^^\
-    nRAS ^^^^^\_______________________/^^^^^\
-    nCAS ^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^
-    nWE  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    Data ----------<>----<>----<>----<>------
-
-::
-
-     CLK __/^^\__/^^\__/^^\__/^^\__/^^\__/^^\
-    nRAS ^^^^^\_______________________/^^^^^\
-    nCAS ^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^
-    nWE  ^^^^^^^^\__/**\__/**\__/**\__/^^^^^^
-    Data --------<=====X=====X=====X=====>---
-
-For FPM DRAMs, we can afford significantly higher clock-rates, but the timing will have to change slightly. We need to delay nCAS by half a cycle because while t_cas is much shorted, t_rcd doesn't change all that much.
-
-::
-
-     CLK __/^^\__/^^\__/^^\__/^^\__/^^\__/^^\
-    nRAS ^^^^^\________/^^\________/^^^^^^^^^
-    nCAS ^^^^^^^^^^^\__/^^^^^^^^\__/^^^^^^^^^
-    nWE  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    Data -------------<>----------<>---------
-
-::
-
-     CLK __/^^\__/^^\__/^^\__/^^\__/^^\__/^^\
-    nRAS ^^^^^\________/^^\________/^^^^^^^^^
-    nCAS ^^^^^^^^^^^\__/^^^^^^^^\__/^^^^^^^^^
-    nWE  ^^^^^^^^^^^\__/^^^^^^^^\__/^^^^^^^^^
-    Data -----------<====>------<====>-------
-
-::
-
-     CLK __/^^\__/^^\__/^^\__/^^\__/^^\__/^^\
-    nRAS ^^^^^\__________________________/^^\
-    nCAS ^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^
-    nWE  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    Data -------------<>----<>----<>----<>---
-
-::
-
-     CLK __/^^\__/^^\__/^^\__/^^\__/^^\__/^^\
-    nRAS ^^^^^\__________________________/^^\
-    nCAS ^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^
-    nWE  ^^^^^^^^^^^\__/**\__/**\__/**\__/^^^
-    Data -----------<=====X=====X=====X=====>
-
-.. note:: For write operations, data is held for an extra half-cycle on the bus. This is not strictly necessary for DRAMs but becomes useful when dealing with peripherals or FLASH ROMs, that have a non-0 hold-time requirement.
-
-I suppose there should be a third, compatibility mode as well, at least for the CPU, that works with anything albeit slowly:
-
-::
-
-     CLK __/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\
-    nRAS ^^^^^\___________/^^^^^\___________/^^^^^^
-    nCAS ^^^^^^^^^^^\_____/^^^^^^^^^^^\_____/^^^^^^
-    nWE  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    Data ----------------<>----------------<>------
-
-Here's the rub though: if I were designing the access cycles in the early '80s, I would not have known about FPM timings. I would have designed for the first set of timing diagrams and would get surprised when FPM memories came out and would need a different timing. At the same time, FPM memories do work with the old timing, provided I don't increase the clock rate. And going to an almost 2x increase in clock frequency certainly means a new chip revision anyway. So, I would say, the bus-masters support either of the first two timing, but not the compatible one.
-
-Double-pumped interface
------------------------
-
-This is an interesting idea: since DRAMs only really care about data while nCAS is low, we could double-pump the data-bus and drive two banks of memory over the same wires:
+4-banks work especially well with EDO-style 72-pin SIMM memories. The 2-bank versions would only be able to use one side of the SIMM, so dual-sided SIMMs would only work at half capacity. We should only need a single memory socket, where a 32MByte double-sided module would get us the full 16MByte capacity.
 
 
-::
-
-     CLK  __/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\
-    nRAS  ^^^^^\__________________________/^^^^^^^^\
-    nCASa ^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^^^^^^^
-    nCASb ^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^^^^
-    nWE   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    DataA ----------<>----<>----<>----<>------------
-    DataB -------------<>----<>----<>----<>---------
-    Data  ----------<>-<>-<>-<>-<>-<>-<>-<>---------
-
-::
-
-     CLK  __/^^\__/^^\__/^^\__/^^\__/^^\__/^^\__/^^\
-    nRAS  ^^^^^\__________________________/^^^^^^^^\
-    nCASa ^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^^^^^^^
-    nCASb ^^^^^^^^^^^\__/^^\__/^^\__/^^\__/^^^^^^^^^
-    nWE   ^^^^^^^^\_______________________/^^^^^^^^^
-    Data  --------<==X==X==X==X==X==X==X==>---------
-
-There are a few (not insurmountable) problems with this technique:
-
-#. First a non-problem: writes are actually OK as the RAM captures data on the falling edge of nCAS and the hold-time requirements are less stringent then the minimum width of nCAS.
-#. The DRAM has a pretty lengthy hold time on the data after the rising edge of nCAS. In fact, the hold and setup times are such that the two banks may fight for the bus in the center of the nCAS cycle. Not a problem if our setup/hold time requirements are narrow enough, but still stresses the I/O drivers. Probably the easiest solution is to have a set of series resistors with the data pins. That impacts rise and fall times though, so one should be careful.
-#. The burst is one cycle longer. Even though technically only a half cycle is needed, that would make the start of the subsequent cycle fall on the wrong edge of the clock. So, either we double the (internal) clock-rate, or we wait an extra half clock cycle in pre-charge.
-
-For FPM memories, the usual change applies: nCASx is delayed by half a cycle, trading it for a half-cycle shorter pre-charge. The overall cycle-length (in clock cycles) remains the same, but the bandwidth roughly doubles.
-
-Even with all that, it's intriguing that we can double the DRAM bandwidth for such a small cost.
-
-To make use of this, though we would need 2 extra pins to gain a 32-bit bus, or we can lose 8 data-bits and stay at 16-bits.
-
+.. _eeprom::
 
 EPROM
 ~~~~~
@@ -345,45 +311,3 @@ By '91, CMOS EPROMs were available with access times roughly half of that: 120ns
 At that time same-capacity (and speed) FLASH parts started to appear too - not 5V programmable parts though. They required ~10ns hold-times on data (relative to the rising edge of nWE), which is something that DRAMs didn't have.
 
 To work with these slow devices, several wait-states need to be inserted (3 minimum). Below are single-beat accesses, but bursts work just as well since timing is solely derived from nCAS.
-
-::
-
-                    <-- wait states -->
-     CLK __/^^\__/^^\__/^^\__/^^\__/^^\__/^^\
-    nRAS ^^^^^\_______________________/^^^^^\
-    nCAS ^^^^^^^^\____________________/^^^^^^
-    nWE  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    nCE  ^^^^^^^^\____________________/^^^^^^
-    Data ----------------------------<>------
-
-::
-
-                    <-- wait states -->
-     CLK __/^^\__/^^\__/^^\__/^^\__/^^\__/^^\
-    nRAS ^^^^^\_______________________/^^^^^\
-    nCAS ^^^^^^^^\____________________/^^^^^^
-    nWE  ^^^^^^^^\____________________/^^^^^^
-    nCE  ^^^^^^^^\____________________/^^^^^^
-    Data --------<=======================>---
-
-For later, FPM-style operation, the same signals look like this:
-
-::
-
-                    <-- wait states -->
-     CLK __/^^\__/^^\__/^^\__/^^\__/^^\__/^^\
-    nRAS ^^^^^\_______________________/^^^^^\
-    nCAS ^^^^^^^^^^^\____________________/^^^
-    nWE  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-    nCE  ^^^^^^^^^^^\____________________/^^^
-    Data -------------------------------<>---
-
-::
-
-                    <-- wait states -->
-     CLK __/^^\__/^^\__/^^\__/^^\__/^^\__/^^\
-    nRAS ^^^^^\__________________________/^^\
-    nCAS ^^^^^^^^^^^\____________________/^^^
-    nWE  ^^^^^^^^^^^\____________________/^^^
-    nCE  ^^^^^^^^^^^\____________________/^^^
-    Data -----------<=======================>

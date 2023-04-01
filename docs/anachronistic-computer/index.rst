@@ -24,6 +24,7 @@ Anachronistic Computer
    sound
    peripherals
    competitors
+   pinouts
    build-notes
 
 Todos
