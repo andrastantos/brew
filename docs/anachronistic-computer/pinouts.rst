@@ -87,8 +87,8 @@ Pin Number Pin Name    Description
 26         SD_D3       SD card connector
 27         SD_CMD      SD card connector
 28         SD_CLK      SD card connector
-29         XTAL_IN     48MHz crytal oscillator pins
-30         XTAL_OUT    48MHz crytal oscillator pins
+29         XTAL_IN     48MHz crystal oscillator pins
+30         XTAL_OUT    48MHz crystal oscillator pins
 31         PA_0_TXD    Port A bit 0; serial RX
 32         PA_1_RXD    Port A bit 1; serial TX
 33         PA_2_RST    Port A bit 2; serial RST

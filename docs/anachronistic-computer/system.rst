@@ -115,13 +115,23 @@ Clocking
 
 We will stay with the very common NTSC clock rate of 28.63636MHz (double of what Amiga had). On top of that, we'll need 48MHz for USB (on Nuvou I/O of course)
 
-* 28.63636MHz/2 -> Video clock (14.31818MHz)
-* 28.63636MHz/3 -> system clock (~9.54MHz)
-* 28.63636MHz/3 -> Audio clock option l (37.28kHz Fs)
-* 28.63636MHz/4 -> Audio clock option 2 (27.96kHz Fs)
+* 28.63636MHz/2   -> Video clock (14.31818MHz)
+* 28.63636MHz/3   -> system clock (~9.54MHz) <-- supports -10 DRAM
+* 28.63636MHz/4   -> alternate system clock (~7.16MHz) <-- supports -12 DRAM
+* 28.63636MHz/3.5 -> alternate system clock (~8.18MHz) <-- supports -12 DRAM, but needs a PLL, which wasn't really a thing back then, not at these frequencies at least.
+* 28.63636MHz/3   -> Audio clock option l (37.28kHz Fs)
+* 28.63636MHz/4   -> Audio clock option 2 (27.96kHz Fs)
 
 An alternative would be to use an additional clock source for the system clock (which would allow for highest memory bandwidth and CPU perf.)
 We could even add a third (audio) clock, or at least the option to use either clock for audio.
+
+This is getting mad. I think the right answer is the following:
+
+14.31818MHz clock source for video and audio (27.96kHz sampling rate)
+6.6/8.3/10/12.5MHz clock source for system
+48MHz clock source for USB
+
+These would be three different clocks, provided by three different crystals/oscillators.
 
 ISA bus notes
 ~~~~~~~~~~~~~
