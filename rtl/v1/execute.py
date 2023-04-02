@@ -459,6 +459,7 @@ class ExecuteStage(GenericModule):
         multi_cycle_exec_lockout = Reg(self.input_port.ready & self.input_port.valid & (self.input_port.exec_unit == op_class.mult) & ~self.input_port.fetch_av)
 
         stage_1_fsm = ForwardBufLogic()
+        stage_1_fsm.clear <<= self.do_branch
         stage_1_fsm.input_valid <<= ~multi_cycle_exec_lockout & ~s1_was_branch & self.input_port.valid
         # we 'bite out' a cycle for two-cycle units, such as multiply
         self.input_port.ready <<= ~multi_cycle_exec_lockout & ~s1_was_branch  & stage_1_fsm.input_ready
@@ -562,6 +563,7 @@ class ExecuteStage(GenericModule):
         #       is if there's a pending bus operation.
         stage_2_fsm = ForwardBufLogic()
         stage_2_fsm.input_valid <<= stage_1_valid
+        stage_2_fsm.clear <<= self.do_branch
         block_mem = s1_ldst_output.mem_av | s1_ldst_output.mem_unaligned | s1_fetch_av
         mem_input.valid <<= stage_1_valid & ~block_mem & (s1_exec_unit == op_class.ld_st)
         stage_2_ready <<= Select((s1_exec_unit == op_class.ld_st) & ~block_mem, stage_2_fsm.input_ready,  mem_input.ready)
