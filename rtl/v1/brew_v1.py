@@ -862,7 +862,62 @@ def sim():
             prog(a.pc_eq_I(loop))
             prog(a.r_eq_r_plus_t(13,13,13))
 
-        test_5()
+        def pc_rel(location):
+            # Return a pc-relative address, based on munging for conditional branch instruction rules:
+            #    replicate LSB to bit positions [31:16], replace LSB with 0.
+            # To munge an address, we'll take the sign bit (bit 16) and stuff it in the location of bit-0.
+            # We assert that bit-0 is 0 and that the relative location is within 64kWords
+            #
+            #  +---+---+---+---!---+---+---+---|---+---+---+---!---+---+---+---|---+---+---+---!---+---+---+---|---+---+---+---!---+---+---+---+
+            #  |                                                               |                                                           |   |
+            #  +---+---+---+---!---+---+---+---|---+---+---+---!---+---+---+---|---+---+---+---!---+---+---+---|---+---+---+---!---+---+---+---+
+            nonlocal pc
+            linear = location-pc
+            assert(abs(linear) < 0xffff)
+            assert(linear & 1 == 0)
+            bit_16 = (linear >> 16) & 1
+            return (linear & 0xffff) | bit_16
+
+        def test_6():
+            """
+            Test conditional branches.
+            """
+            nonlocal pc
+            nonlocal top_inst
+            pc = 0
+            task_start = 0x8000_1000
+            prog(a.pc_eq_I(0x8000_0000)) # Jumping to DRAM
+            pc = 0x8000_0000
+            prog(a.r_eq_t(0,0))
+            prog(a.r_eq_r_plus_t(1,0,1))
+            prog(a.r_eq_r_plus_t(2,0,2))
+            prog(a.r_eq_r_plus_t(3,0,3))
+            prog(a.r_eq_r_plus_t(4,0,4))
+            prog(a.r_eq_r_plus_t(5,0,5))
+            prog(a.r_eq_r_plus_r(6,5,1))
+            prog(a.r_eq_r_plus_r(7,5,2))
+            prog(a.r_eq_r_plus_r(8,5,3))
+            prog(a.r_eq_r_plus_r(9,5,4))
+            prog(a.r_eq_r_plus_r(10,5,5))
+            prog(a.r_eq_r_plus_r(11,6,5))
+            prog(a.r_eq_I(12,12))
+            prog(a.r_eq_r_plus_r(11,6,5))
+            prog(a.r_eq_r_plus_r(12,6,6))
+            prog(a.r_eq_r_plus_r(13,7,6))
+            prog(a.r_eq_r_plus_r(14,7,7))
+            prog(a.r_eq_mem32_I(0,0x8000_0000))
+            prog(a.mem32_I_eq_r(0x8000_0800,14))
+            loop = pc
+            prog(a.r_eq_r_minus_r(4,4,1))
+            prog(a.if_r_ne_z(4,pc_rel(loop)))
+            loop = pc
+            prog(a.r_eq_r_plus_t(4,4,1))
+            prog(a.if_r_ne_r(4,5,pc_rel(loop)))
+
+            loop = pc
+            prog(a.pc_eq_I(loop))
+
+        test_6()
     top_class = top
     vcd_filename = "brew_v1.vcd"
     if vcd_filename is None:
