@@ -99,8 +99,23 @@ Non-DRAM accesses:
 4. nWAIT is sampled on the rising edge of every cycle, after internal wait-states are accounted for
 5. There is at least one internal wait-state
 6. For writes, the relevant byte of 'req_data' should be valid.
-"""
 
+DRAM banks:
+
+We allow 1, 2 or 4 DRAM banks (configured through a CSR, default to 1-bank)
+We map banks on 64k page boundary.
+    1. This means we'll need to shift the higher address lines around
+       depending on the number of DRAM banks used
+    2. This also means that NRAM accesses need to use yet another
+       address muxing; we end up re-using the 1-bank setup.
+
+This setup requires us muxing the top 3 address lines in different ways,
+but allows us to view memory as one contiguous region, independent of how many
+DRAM banks are configured. It is still the responsibility of the system SW
+to somehow auto-detect the number of DRAM banks installed and set up the
+CSRs accordingly. I think there is a way to auto-detect this as unused banks
+will not work in read/write tests.
+"""
 class BusIf(GenericModule):
     clk = ClkPort()
     rst = RstPort()
@@ -125,10 +140,10 @@ class BusIf(GenericModule):
     """
     Address map:
 
-        0x00000000 ... 0x3fffffff: NRAM space
-        0x40000000 ... 0x7fffffff: CSR space (not of concern for the bus interface)
-        0x80000000 ... 0xbfffffff: DRAM space 0
-        0xc0000000 ... 0xffffffff: DRAM space 1
+        0x00000000 ... 0x03ffffff: NRAM space
+        0x40000000 ... 0x43ffffff: CSR space (not of concern for the bus interface)
+        0x80000000 ... 0x83ffffff: DRAM space 0
+        0xc0000000 ... 0xc3ffffff: DRAM space 1 (aliased to DRAM space 0)
 
         In each space, bits 29:26 determine the number of wait-states.
         In each space, bits 25:0 determine the location to address, leaving 64MB of addressable space.
@@ -138,7 +153,7 @@ class BusIf(GenericModule):
               can be addressed in each of the spaces
         NOTE: addressing more than 64MB of DRAM is a bit problematic because they can't be contiguous. This isn't
               a big deal for this controller as there aren't enough external banks to get to that high of memory
-              configurations anyway.
+              configurations anyway. The maximum addressable memory is 8MB in a 2-bank setup.
         NOTE: NRAM space base address is controlled through the `nram_base` parameter. Anything that's not NRAM
               is treated as DRAM by the bus interface (CSR space is expected to not generate requests).
         NOTE: since addresses are in 16-bit quantities inside here, we're counting bits 30 downwards
@@ -148,7 +163,7 @@ class BusIf(GenericModule):
     # Register setup:
     # bits 7-0: refresh divider
     # bit 8: refresh disable (if set)
-    # bit 9: DRAM bank count: 0 - 2 banks, 1 - 4 banks
+    # bit 10-9: DRAM bank count: 0 - 1 banks, 1 - 2 banks, 2 - 4 banks, 3 - reserved
     refresh_counter_size = 8
 
     def body(self):
@@ -161,7 +176,7 @@ class BusIf(GenericModule):
 
         refresh_divider = Reg(self.reg_if.pwdata[self.refresh_counter_size-1:0], clock_en=(reg_addr == self.reg_dram_config_ofs) & reg_write_strobe)
         refresh_disable = ~Reg(self.reg_if.pwdata[self.refresh_counter_size], clock_en=(reg_addr == self.reg_dram_config_ofs) & reg_write_strobe)
-        dram_bank_count = Reg(self.reg_if.pwdata[self.refresh_counter_size+1], clock_en=(reg_addr == self.reg_dram_config_ofs) & reg_write_strobe)
+        dram_bank_count = Reg(self.reg_if.pwdata[self.refresh_counter_size+2:self.refresh_counter_size+1], clock_en=(reg_addr == self.reg_dram_config_ofs) & reg_write_strobe)
         self.reg_if.prdata <<= concat(
             dram_bank_count,
             refresh_disable,
@@ -258,7 +273,7 @@ class BusIf(GenericModule):
         req_advance = req_valid & req_ready
 
         req_dram = (req_addr[30:29] != self.nram_base) & ((arb_port_select == Ports.mem_port) | (arb_port_select == Ports.fetch_port))
-        req_dram_bank = concat(req_addr[23], req_addr[29])
+        req_dram_bank = req_addr[17:16]
         req_nram = (req_addr[30:29] == self.nram_base) & ((arb_port_select == Ports.mem_port) | (arb_port_select == Ports.fetch_port))
         req_dma  = (arb_port_select == Ports.dma_port) & ~self.dma_request.is_master
         req_ext  = (arb_port_select == Ports.dma_port) &  self.dma_request.is_master
@@ -314,22 +329,41 @@ class BusIf(GenericModule):
         self.fsm.add_transition(BusIfStates.dma_wait, ~waiting,                                                                 BusIfStates.idle)
         self.fsm.add_transition(BusIfStates.refresh, 1,                                                                         BusIfStates.idle)
 
+        address_mux_sel = Select(req_nram, dram_bank_count, 3)
+
+        dram_bank = Wire()
+        dram_bank <<= Reg(
+            Select(
+                dram_bank_count,
+                0,                   # 1-bank DRAM
+                req_dram_bank & 1,   # 2-bank DRAM
+                req_dram_bank        # 4-bank DRAM
+            )
+            , clock_en=start
+        ) # masking out the top bit in the bank selector if only 2 banks are enabled
+
         input_row_addr = Wire()
         input_row_addr <<= concat(
-            req_addr[21],
-            req_addr[19],
-            req_addr[17],
+            Select(
+                address_mux_sel,
+                concat(req_addr[21], req_addr[19], req_addr[17]), # 1-bank DRAM
+                concat(req_addr[22], req_addr[20], req_addr[18]), # 2-bank DRAM
+                concat(req_addr[23], req_addr[21], req_addr[19]), # 4-bank DRAM
+                concat(req_addr[21], req_addr[19], req_addr[17]), # nRAM
+            ),
             req_addr[15:8]
         )
         row_addr = Wire()
         row_addr <<= Reg(Select(req_rfsh, input_row_addr, refresh_addr), clock_en=start)
-        dram_bank = Wire()
-        dram_bank <<= Reg(req_dram_bank & (dram_bank_count << 1), clock_en=start) # masking out the top bit in the bank selector if only 2 banks are enabled
         col_addr = Wire()
         col_addr <<= Reg(concat(
-            req_addr[20],
-            req_addr[18],
-            req_addr[16],
+            Select(
+                address_mux_sel,
+                concat(req_addr[20], req_addr[18], req_addr[16]), # 1-bank DRAM
+                concat(req_addr[21], req_addr[19], req_addr[17]), # 2-bank DRAM
+                concat(req_addr[22], req_addr[20], req_addr[18]), # 4-bank DRAM
+                concat(req_addr[20], req_addr[18], req_addr[16]), # nRAM
+            ),
             req_addr[7:0]
         ), clock_en=req_advance)
         read_not_write = Wire()
