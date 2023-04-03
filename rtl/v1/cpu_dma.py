@@ -87,17 +87,20 @@ class CpuDma(Module):
         int_reg_ofs = self.ch_count*2+0
         #stat_reg_ofs = self.ch_count*2+1 # read-only, thus not directly used as a constant
         config_reg_ofs = self.ch_count*2+2
+        config2_reg_ofs = self.ch_count*2+3
         ch_bit_shift = 4
         # status register bits (each channel is shifted by 4 bits)
         stat_active_bit = 0
         stat_req_pending_bit = 1
         # config register bits (each channel is shifted by 4 bits)
-        cfg_single_bit = 0
+        cfg_single_bit         = 0
         cfg_read_not_write_bit = 1
-        cfg_is_master_bit = 2
-        cfg_high_priority_bit = 3
+        cfg_is_master_bit      = 2
+        cfg_high_priority_bit  = 3
+        # config2 register bits (each channel is shifted by 4 bits)
+        cfg2_req_polarity_bit = 0 # 0 for active low, 1 for active high request
+        cfg2_req_no_cdc_bit   = 1 # 0 for async requestors (that need CDC), 1 for synchronous requestors (no CDC needed)
 
-        prev_drq = Reg(self.drq)
         next_addr = Wire(BrewAddr)
         tc = Wire(logic)
         tc_reg = Reg(tc, clock_en=self.bus_req_if.ready & self.bus_req_if.valid)
@@ -112,6 +115,8 @@ class CpuDma(Module):
                 self.read_not_write = Wire(logic)
                 self.is_master = Wire(logic)
                 self.high_priority = Wire(logic)
+                self.req_polarity = Wire(logic)
+                self.req_no_cdc = Wire(logic)
                 # Status bits
                 self.active = Wire(logic)
                 self.int_pending = Wire(logic)
@@ -128,6 +133,12 @@ class CpuDma(Module):
         selected_dma_channel = Wire(Unsigned(self.ch_count)) # one-hot encoded channel selector, based on arbitration
 
         served_dma_channel = Reg(selected_dma_channel, clock_en=self.bus_req_if.ready & self.bus_req_if.valid)
+
+        drq = Wire(Unsigned(self.ch_count))
+        for idx in range(self.ch_count):
+            drq[idx] <<= ch_infos[idx].req_polarity ^ Select(ch_infos[idx].req_no_cdc, Reg(Reg(self.drq[idx])), self.drq[idx])
+        prev_drq = Reg(drq)
+
         for idx, ch_info in enumerate(ch_infos):
             ch_base = idx*2
             ch_served = served_dma_channel[idx] & self.bus_rsp_if.valid
@@ -149,6 +160,9 @@ class CpuDma(Module):
             ch_info.read_not_write <<= Reg(self.reg_if.pwdata[idx*ch_bit_shift+cfg_read_not_write_bit], clock_en = (reg_addr == config_reg_ofs) & reg_write_strobe)
             ch_info.is_master      <<= Reg(self.reg_if.pwdata[idx*ch_bit_shift+cfg_is_master_bit     ], clock_en = (reg_addr == config_reg_ofs) & reg_write_strobe)
             ch_info.high_priority  <<= Reg(self.reg_if.pwdata[idx*ch_bit_shift+cfg_high_priority_bit ], clock_en = (reg_addr == config_reg_ofs) & reg_write_strobe)
+
+            ch_info.req_polarity   <<= Reg(self.reg_if.pwdata[idx*ch_bit_shift+cfg2_req_polarity_bit ], clock_en = (reg_addr == config2_reg_ofs) & reg_write_strobe)
+            ch_info.req_no_cdc     <<= Reg(self.reg_if.pwdata[idx*ch_bit_shift+cfg2_req_no_cdc_bit   ], clock_en = (reg_addr == config2_reg_ofs) & reg_write_strobe)
 
             ch_info.active <<= Reg(
                 Select(
@@ -176,7 +190,7 @@ class CpuDma(Module):
                 ch_info.single & ~ch_info.is_master,
                 # Single mode: create edge-sensitive requests (with an extra cycle latency)
                 Reg(
-                    Select(self.drq[idx] & ~prev_drq[idx],
+                    Select(drq[idx] & ~prev_drq[idx],
                         Select(
                             ch_served,
                             ch_info.req_pending,
@@ -186,7 +200,7 @@ class CpuDma(Module):
                     )
                 ),
                 # Burst mode: level-sensitive requests
-                self.drq[idx]
+                drq[idx]
             )
 
             # Export all ch_info members into a wire that can be dumped into a VCD file
@@ -215,6 +229,10 @@ class CpuDma(Module):
             #    cfg_high_priority_bit = 3
             concat(
                 *(itertools.chain.from_iterable((ch_info.is_master, ch_info.high_priority, ch_info.read_not_write, ch_info.single) for ch_info in reversed(ch_infos)))
+            ),
+            # config2_reg_ofs
+            concat(
+                *(itertools.chain.from_iterable((ch_info.req_polarity, ch_info.req_no_cdc, "1'b0", "1'b0") for ch_info in reversed(ch_infos)))
             ),
         ))
 
