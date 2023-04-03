@@ -43,7 +43,7 @@ Pin Number Pin Name    Description
 30         PB_7        Port B bit 7;
 31         PC_0_TXD    Port C bit 0; serial RX
 32         PC_1_RXD    Port C bit 1; serial TX
-33         PC_2_RST    Port C bit 2; serial RST
+33         PC_2_RST    Port C bit 2; serial RST/TX_EN
 34         PC_3_CTS    Port C bit 3; serial CST
 35         PC_4_KB_C   Port C but 4; PS/2 keyboard port clock pin
 36         PC_5_KB_D   Port C but 5; PS/2 keyboard port data pin
@@ -91,7 +91,7 @@ Pin Number Pin Name    Description
 30         XTAL_OUT    48MHz crystal oscillator pins
 31         PA_0_TXD    Port A bit 0; serial RX
 32         PA_1_RXD    Port A bit 1; serial TX
-33         PA_2_RST    Port A bit 2; serial RST
+33         PA_2_RST    Port A bit 2; serial RST/TX_EN
 34         PA_3_CTS    Port A bit 3; serial CST
 35         PA_4_KB_C   Port A but 4; PS/2 keyboard port clock pin
 36         PA_5_KB_D   Port A but 5; PS/2 keyboard port data pin
@@ -148,7 +148,7 @@ Pin Number Pin Name      Description
 38         CLK_IN        28.63636MHz crystal oscillator pins
 39         VCC           Power input
 40         GND           Ground input
-========== =========== ===========
+========== ============= ===========
 
 CPU
 ---

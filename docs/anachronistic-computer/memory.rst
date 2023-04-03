@@ -242,7 +242,6 @@ Year   Capacity Word size Number of address lines Capacity per bank Number of ba
 1986   1Mbit    1         10                      2MByte            2               4MByte       32*
 1988   4Mbit    1         11                      8MByte            1               8MByte       16
 1988   4Mbit    1         11                      8MByte            2               16MByte      32*
-1991   16Mbit   1         12                      32MByte           1               32MByte      16
 ====== ======== ========= ======================= ================= =============== ============ ===================
 
 4-bit chips:

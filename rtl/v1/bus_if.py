@@ -153,10 +153,18 @@ class BusIf(GenericModule):
               can be addressed in each of the spaces
         NOTE: addressing more than 64MB of DRAM is a bit problematic because they can't be contiguous. This isn't
               a big deal for this controller as there aren't enough external banks to get to that high of memory
-              configurations anyway. The maximum addressable memory is 8MB in a 2-bank setup.
+              configurations anyway. The maximum addressable memory is 16MB in a 2-bank setup.
         NOTE: NRAM space base address is controlled through the `nram_base` parameter. Anything that's not NRAM
               is treated as DRAM by the bus interface (CSR space is expected to not generate requests).
         NOTE: since addresses are in 16-bit quantities inside here, we're counting bits 30 downwards
+
+        TODO: I'm not sure 4-bank support is all that interesting. Really, the only thing it enables
+              (unless we're willing to drive 64 DRAM chips, which sounds ... ambitious) is to support
+              larger memory sizes in 4-bit configurations. And that's only interesting if we're thinking
+              in terms of on-board, soldered memory, which of course is the cheapest, but probably not the
+              best idea. If we 'invent' the 30-pin SIMM from the get-go, we get to choose the memory we
+              we want to drive (1-bit or 4-bit) at installation time, and 2 banks is sufficient.
+              For now, I'll leave the 4-bank setup in place, but ... food for thought.
     """
 
     reg_dram_config_ofs = 0
