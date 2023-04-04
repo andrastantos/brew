@@ -9,13 +9,13 @@ For the processor:
 * Internal data-path: 32-bit
 * External data width: 8/16-bit
 * Clock speed: ~10MHz (depends on DRAM speed)
-* Performance: 4MIPS sustained with graphics, 10MIPS peak
+* IPC: 0.4 sustained with graphics, 1 peak
 
 Memory:
 
 * Data width: 16-bit
-* Size: 128kB to 4MB
-* Number of banks: 2/4
+* Size: 128kB to 16MB
+* Number of banks: 2
 * Technology: NMOS DRAM
 
 Graphics:
@@ -62,21 +62,18 @@ Memory map
 =============  ===========  ===========
 Start address  End address  Description
 =============  ===========  ===========
-0x0000_0000    0x0000_ffff  EEPROM space 1 (and boot code from address 0)
-0x0001_0000    0x0001_ffff  reserved (alias of EEPROM space 1)
-0x0002_0000    0x0002_ffff  EEPROM space 2
-0x0003_0000    0x0003_ffff  reserved (alias of EEPROM space 2)
-0x0004_0000    0x0004_ffff  internal I/O space
-0x0005_0000    0x0005_ffff  reserved (alias of internal I/O space)
-0x0006_0000    0x0006_ffff  ISA extension bus I/O address space
-0x0007_0000    0x0007_ffff  ISA extension bus memory address space
+0x0000_0000    0x001f_ffff  EEPROM space 1 (and boot code from address 0)
+0x0020_0000    0x003f_ffff  EEPROM space 2
+0x0040_0000    0x005f_ffff  internal I/O space
+0x0060_0000    0x006f_ffff  ISA extension bus I/O address space
+0x0070_0000    0x007f_ffff  ISA extension bus memory address space
 0x4000_0000    0x43ff_ffff  CSR space: not decoded externally, but handled by the processor internally
 0x8000_0000    0x80ff_ffff  DRAM space (up to 16MByte)
 =============  ===========  ===========
 
 .. note::
     Address bits 29...26 select number of wait-states for every address. That is to say, each region has 16 aliases.
-    DRAM and CSR space ignores the wait-state setting, but still aliases the addresses 16 times.
+    DRAM and CSR space ignores the wait-state setting, but still alias the addresses 16 times.
 
 Chipsets and Model lineup
 ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -87,7 +84,7 @@ All-in-one setup (A500 layout)
 * custom CPU+DMA
 * custom Graphics+sound
 * custom Classic I/O 1 (mouse/joystick/serial/I2C)
-* custom Classic I/O 2 (keyboard scan)
+* custom Classic I/O 2 (keyboard scan/centronics/RS422)
 * FDD
 
 Expandable setup (A1000 layout)
@@ -95,8 +92,9 @@ Expandable setup (A1000 layout)
 
 * custom CPU+DMA
 * custom Graphics+sound
-* custom Classic I/O (mouse/joystick/serial/external keyboard)
-* ISA-bus interface (maybe custom interface chip, maybe custom Classic I/O)
+* custom Classic I/O 1 (mouse/joystick/serial/external keyboard)
+* custom Classic I/O 2 (keyboard scan/centronics/RS422)
+* ISA-bus interface
 * SCSI
 * FDD
 
@@ -167,18 +165,22 @@ Non-DRAM accesses go through a buffer stage to relieve the bus-masters from exce
     nBWE     <<= nWE
     nBNREN   <<= nNREN
 
-    BA9_1    <<= A8_0
-    BA10_2   <<= A9_1
-    BA11_3   <<= A10_2
-    BA12_4   <<= A11_3
+    BA12_1   <<= A11_0
+    BA13_2   <<= A12_1
+    BA14_3   <<= A13_2
+    BA15_4   <<= A14_3
 
-    BA13_5   <<= A12_4
-    BA14_6   <<= A13_5
-    BA15_7   <<= A14_6
-    BA16_8   <<= A15_7
+    BA16_5   <<= A15_4
+    BA17_6   <<= A16_5
+    BA18_7   <<= A17_6
+    BA19_8   <<= A18_7
 
-    BA18_17  <<= A17_16
+    BA20_9   <<= A19_8
+    BA21_10  <<= A20_9
+    BA22_11  <<= A21_10
     BDMA_TC  <<= DMA_TC
+
+These buffers could be many things really, but most likely are going to be a pair of 74LS245 devices just to reduce part diversity.
 
 .. note::
     nNREN does not have extensive loading on it, but it is still buffered to equalize delay between that and the address lines which it qualifies.
@@ -186,15 +188,12 @@ Non-DRAM accesses go through a buffer stage to relieve the bus-masters from exce
 .. note::
     We are renaming buffered addresses: they are 16-bit addresses as they come out of the CPU, but we need byte-addresses on the buffered bus. We're also renaming the top three address bits to match what the actually do during non-DRAM accesses.
 
-.. note::
-    We're not buffering the top two multiplexed address lines as they could be extra DRAM bank-selects.
-
 The data bus buffer is a bi-directional 74LS245 device. It is controlled by the following signals:
 
 ::
-    nDACK     <<=   nDACK_A & nDACK_B & nDACK_C & nDACK_D
+    ~nDACK    <<=   ~(nDACK_A & nDACK_B & nDACK_C & nDACK_D)
     DIR       <<=   nBWE ^ ~nDACK
-    nOE       <<=   (nBNREN & nDACK)
+    nOE       <<=   (nBNREN & nDACK) = ~(~nBNREN & ~nDACK)
     B0..B7    <<=>> D0..D7
     BD0..BD7  <<=>> A0..A7
 
@@ -212,24 +211,24 @@ We need to identify the two address cycles (nBAC_1 and nBAC_2):
     nBAC_1 <<= nBNREN | ~nBCAS = ~(~nBNREN & nBCAS)
     nBAC_2 <<= nBNREN | nBCAS  = ~(~nBNREN & ~nBCAS)
 
-Next, we'll need to latch the high-order address bits, using the first address cycle:
+Next, we'll need to latch the high-order address bits, using the first address cycle.
 
 ::
 
-    BLA9   <<= latch(BA9_1,   nBAC_1)
-    BLA10  <<= latch(BA10_2,  nBAC_1)
-    BLA11  <<= latch(BA11_3,  nBAC_1)
-    BLA12  <<= latch(BA12_4,  nBAC_1)
-    BLA13  <<= latch(BA13_5,  nBAC_1)
-    BLA14  <<= latch(BA14_6,  nBAC_1)
-    BLA15  <<= latch(BA15_7,  nBAC_1)
-    BLA16  <<= latch(BA16_8,  nBAC_1)
+    BLA12 <<= latch(BA12_1,  nBAC_1)
+    BLA13 <<= latch(BA13_2,  nBAC_1)
+    BLA14 <<= latch(BA14_3,  nBAC_1)
+    BLA15 <<= latch(BA15_4,  nBAC_1)
+    BLA16 <<= latch(BA16_5,  nBAC_1)
+    BLA17 <<= latch(BA17_6,  nBAC_1)
+    BLA18 <<= latch(BA18_7,  nBAC_1)
+    BLA19 <<= latch(BA19_8,  nBAC_1)
 
-This can be done by an 74LS373.
+    BLA20 <<= latch(BA20_9,  nBAC_1)
+    BLA21 <<= latch(BA21_10, nBAC_1)
+    BLA22 <<= latch(BA22_11, nBAC_1)
 
-    BLA18 <<= latch(BA18_17, nBAC_1)
-
-.. note:: This needs an extra latch. The top 2 address lines could be used as extra DRAM bank-selects, so let's not depend on them.
+This can be done by an 74LS373 and three quarters of a 74LS75.
 
 We can also rename the renaming signals to create the bottom address bits:
 
@@ -246,30 +245,33 @@ We can also rename the renaming signals to create the bottom address bits:
 
 This is just wires, no magic here. But it does help with further explanations.
 
-We can now decode 4 address regions:
+We can now decode 4 address regions, 2MB each:
 
 ::
 
-    nBROM1_SEL   <<= ~((BLA18 == 0) & (BLA16 == 0)) | nBNREN
-    nBROM2_SEL   <<= ~((BLA18 == 0) & (BLA16 == 1)) | nBNREN
-    nBIO_SEL     <<= ~((BLA18 == 1) & (BLA16 == 0)) | nBNREN
-    nBISA_SEL    <<= ~((BLA18 == 1) & (BLA16 == 1)) | nBNREN
+    nBROM1_SEL   <<= ~((BLA22 == 0) & (BLA21 == 0)) | nBNREN
+    nBROM2_SEL   <<= ~((BLA22 == 0) & (BLA21 == 1)) | nBNREN
+    nBIO_SEL     <<= ~((BLA22 == 1) & (BLA21 == 0)) | nBNREN
+    nBISA_SEL    <<= ~((BLA22 == 1) & (BLA21 == 1)) | nBNREN
 
 This can be done by one half of a 74LS139.
 
-.. note:: By paying the price of the extra latch, we can decode fully based on addresses available in nBAC_1, so we can qualify the decode simply with nBNREN. This is important as it buys us about 100ns of decode time.
-
-.. note:: The address mapping is a bit strange: each 64k region is aliased twice. That's the other price we pay for the extra decode time. We will take advantage of that in the ISA-bus decoder below
+.. note:: We can qualify the decode simply with nBNREN. This is important as it buys us about 100ns of decode time.
 
 I/O region can be further decoded:
 
 ::
-    nBIO0_SEL <<= ~((BLA15 == 0) & (BLA14 == 0)) | nBAC_2
-    nBIO1_SEL <<= ~((BLA15 == 0) & (BLA14 == 1)) | nBAC_2
-    nBIO2_SEL <<= ~((BLA15 == 1) & (BLA14 == 0)) | nBAC_2
-    nBIO3_SEL <<= ~((BLA15 == 1) & (BLA14 == 1)) | nBAC_2
+    nGPIO0_SEL       <<= ~((BLS14 == 0) & (BLA13 == 0) & (BLA12 == 0)) | nBAC_2
+    nGPIO1_SEL       <<= ~((BLS14 == 0) & (BLA13 == 0) & (BLA12 == 1)) | nBAC_2
+    nGFX_SND_SEL     <<= ~((BLS14 == 0) & (BLA13 == 1) & (BLA12 == 0)) | nBAC_2
+    nFDD_SEL         <<= ~((BLS14 == 0) & (BLA13 == 1) & (BLA12 == 1)) | nBAC_2
+    nSCSI_SEL        <<= ~((BLS14 == 1) & (BLA13 == 0) & (BLA12 == 0)) | nBAC_2
+    nCENT_DATA_SEL   <<= ~((BLS14 == 1) & (BLA13 == 0) & (BLA12 == 1)) | nBAC_2
+    nKBD_SCAN_SEL    <<= ~((BLS14 == 1) & (BLA13 == 1) & (BLA12 == 0)) | nBAC_2
+    nRTC_SEL         <<= ~((BLS14 == 1) & (BLA13 == 1) & (BLA12 == 1)) | nBAC_2
 
-This is the second half of the same 74LS139. If more address regions are needed (unlikely), we could use a 74LS138 instead.
+This is a 74LS138. Each section is 4k large to prepare for later MMUs. There are several aliases, but that's unadvised to be used: those spaces
+are going to be populated by more peripherals in future generations.
 
 ISA bus
 ~~~~~~~
@@ -278,16 +280,16 @@ Spec: http://www.ee.nmt.edu/~rison/ee352_spr12/PC104timing.pdf and http://www.bi
 
 On the ISA bus, we support only I/O (IOR/IOW) transactions and memory transactions in a windowed fashion:
 
-First, we need to decode the IO and MEM read/write signals:
+First, we need to decode the IO and MEM read/write signals::
 
-ISA_nIOR     <<= ((BA17 == 0) & (nBWE == 1)) | nBAC_2 | nBISA_SEL
-ISA_nIOW     <<= ((BA17 == 0) & (nBWE == 0)) | nBAC_2 | nBISA_SEL
-ISA_nMEMR    <<= ((BA17 == 1) & (nBWE == 1)) | nBAC_2 | nBISA_SEL
-ISA_nMEMR    <<= ((BA17 == 1) & (nBWE == 0)) | nBAC_2 | nBISA_SEL
+    ISA_nIOR     <<= ((BLA20 == 0) & (nBWE == 1)) | nBAC_2 | nBISA_SEL
+    ISA_nIOW     <<= ((BLA20 == 0) & (nBWE == 0)) | nBAC_2 | nBISA_SEL
+    ISA_nMEMR    <<= ((BLA20 == 1) & (nBWE == 1)) | nBAC_2 | nBISA_SEL
+    ISA_nMEMR    <<= ((BLA20 == 1) & (nBWE == 0)) | nBAC_2 | nBISA_SEL
 
-This can be done by a single 74LS138, or half of a 74LS139, plus an OR gate, if we have some left.
+This can be done by a single 74LS138, or the second half of a 74LS139, plus an OR gate, if we have some left.
 
-The ISA address bits are going as follows:
+The ISA address and data bits are going as follows::
 
     ISA_A0 <<= BA0
     ISA_A1 <<= BA1
@@ -298,44 +300,37 @@ The ISA address bits are going as follows:
     ISA_A6 <<= BA6
     ISA_A7 <<= BA7
     ISA_A8 <<= BA8
-    ISA_A9 <<= BLA9
-    ISA_A10 <<= BLA10
-    ISA_A11 <<= BLA11
+    ISA_A9 <<= BA9
+    ISA_A10 <<= BA10
+    ISA_A11 <<= BA11
     ISA_A12 <<= BLA12
     ISA_A13 <<= BLA13
     ISA_A14 <<= BLA14
     ISA_A15 <<= BLA15
-
-These could be wires, but probably best if they are buffered again.
-
-Somehow we would need to re-create the top 4 bits of the address-bus:
-
-    ISA_A16
-    ISA_A17
-    ISA_A18
-    ISA_A19
-
-.. todo:: This must come from either a GPIO group or some other user-programmable window register.
-
-The following signals would need to be re-created:
+    ISA_A16 <<= BLA16
+    ISA_A17 <<= BLA17
+    ISA_A18 <<= BLA18
+    ISA_A19 <<= BLA19
 
     ISA_D0-7 <<=>> B0-7
 
-.. todo:: do we need to re-buffer it with another bi-directional buffer??
+These most likely could be wires as long as we don't intend to support a huge number of ISA slots.
 
-    ISA_AEN       <<= ~nDACK // active high address enable for DMA cycles
+The rest of the ISA signals::
+
+    ISA_AEN       <<= ~nDACK # active high address enable for DMA cycles
     nWAIT         <<= open_collector(ISA_IO_CH_RDY)
     ISA_ALE       <<= ~nBISA_SEL
     ISA_TC        <<= BDMA_TC
     ISA_nDACK1    <<= nDACK_B
     ISA_nDACK2    <<= nDACK_C
     ISA_nDACK3    <<= nDACK_D
-    nDRQ_B        <<= ~ISA_DRQ1
-    nDRQ_C        <<= ~ISA_DRQ2
-    nDRQ_D        <<= ~ISA_DRQ3
+    nDRQ_B        <<= ISA_DRQ1
+    nDRQ_C        <<= ISA_DRQ2
+    nDRQ_D        <<= ISA_DRQ3
     ISA_RST       <<= ~nRST
 
-There are 7 inverters and 4 OR gates needed here. We also need an open-collector driver for nWAIT.
+There are 2 inverters needed here. We also need an open-collector driver for nWAIT.
 
 This leaves with interrupt signals. These need to go ... somewhere. I'm starting to think that a simple I/O controller chip would do the job. It would be an overkill, but would support both the address page generation above and the interrupt routing.
 
@@ -346,63 +341,85 @@ This leaves with interrupt signals. These need to go ... somewhere. I'm starting
     ISA_IRQ6      =>>
     ISA_IRQ7      =>>
 
+DMA
+---
+
+There is a little problem in the number of DMA channels: in a system, where we have:
+- graphics
+- FDD
+- SCSI
+We've already used up 3 DMA channels, so only one is available for the ISA bus. That's much, not enough to get a decent sound-card working. Then again, in a PC there weren't a whole lot of DMA channels available either, after adding a floppy and an MFM or similar controller (both used up DMA channels).
+
+Internal keyboard
+~~~~~~~~~~~~~~~~~
+
+The idea is that row-select is done by a shift-register. It could be a pair of 74LS164, which is an 8-bit parallel output register. Very old device...
+For row read we use a 74LS374 as the input buffer. So that's three extra small devices, allowing for 16x8 matrices... plenty.
+
+Centronics
+~~~~~~~~~~
+
+Centronics is a PITA, to be honest. It has 4 ctrl outputs, 5 ctrl inputs and 8 data lines. If we want to be something like IEEE1284, we want the data pins to be bi-directional.
+
+http://www.efplus.com/techref/io/parallel/1284/ecpmode.htm
+http://www.efplus.com/techref/io/parallel/1284/eppmode.htm
+http://www.efplus.com/techref/io/parallel/1284/bytemode.htm
+
+I decided that bi-directional printer port is not interesting. I'll simply use a 74LS374 as the data-buffer. If needed, an extra GPIO cold be used for direction control and a reverse-connected 74LS374 for input data capture.
+
 Total chip-count tally
 ~~~~~~~~~~~~~~~~~~~~~~
 
 74LS244 - address buffer
 74LS244 - address buffer
 74LS245 - data buffer
-74LS13  - dual 4-input AND gate: nDACK and data-buffer nOE generation. Could be 74LS11 triple 3-input AND gate as well.
-74LS86  - XOR 1 gate used to generate data-buffer DIR
-74LS00  - quad NAND gate; 2 used to generate nBCAS and ~nBCAS, one used to invert nDACK for data-buffer DIR generation, one used to invert nBNREN
-74LS00  - quad NAND gate; 2 used to generate nBAC_1 and nBAC_2
+74LS20  - dual 4-input NAND gate: one to generate ~nDACK
+74LS86  - XOR 1 gate used to generate data-buffer DIR, invert nBNREN, generate ISA_ALE and ISA_RST
+74LS00  - quad NAND gate; 2 used to generate nBCAS and ~nBCAS, 2 used to generate nBAC_1 and nBAC_2
 74LS373 - address latch
-74LS75  - quad latch, one bit used for BLA18.
-74LS139 - address decode
-
-For ISA interface, we need:
-
-- ~nDACK (already available)
-- 3 inverters for DRQ signals (the three remaining XOR gates)
-- 2 inverters for ISA_ALE and ISA_RST: the two remaining NAND gates
-74LS138 - control signal decode
-74LS244 - ISA address buffer
-74LS244 - ISA address buffer
-74LS245 - ISA data buffer
-74LS09  - quad open-collector AND gate; one used to generate the DIR signal for the ISA data buffer; one used to buffer ISA_IO_CH_RDY
+74LS75  - quad latch, three bit used for top BLA bits.
+74LS139 - address decode; ISA control decode
+74LS138 - I/O address decode
+74LS07  - hex open-collector buffer; one used to buffer ISA_IO_CH_RDY; a pair used to implement an OR2 gate for ISA control decode
+74LS164 - internal keyboard row-select
+74LS164 - internal keyboard row-select
+74LS374 - internal keyboard row-read
+74LS374 - centronics data port
 
 We're left with:
 
-3 transparent latches
-2 open-collector AND2 gates
+1 transparent latch
+3 open-collector buffers
+1 NAND4 gate
 
 We can probably consolidate quite a few of this into a couple of PLAs, but I won't do it, I don't think as it's much harder to build at home.
-This is a total of 16 jelly-bean chips.
+This is a total of 17 jelly-bean chips.
 
-An entry-level system would be (single ISA card slot as an expansion slot in the back, no ISA buffers):
+An old-style system would be:
 
-4  custom chips
-1  FDD ctrl
-2  EPROMs
-16 DRAM chips
-13 jelly-bean chips
-2  crystal oscillators
-1  RTC chip, if I can find one (I2C something something)
-1  SRAM chip (I2C again, if I can find one)
+1     custom CPU
+1     custom graphics/sound
+2     custom GPIO chips
+1     FDD ctrl
+1     SCSI ctrl
+2     EPROMs
+16/32 DRAM chips
+17    jelly-bean chips (3 less if no internal keyboard)
+2     crystal oscillators
+1     RTC/SRAM chip, right now the one from the original PC
 
-A high-end system would be like
+A modern system would be like:
 
-3  custom chips
-1  FDD ctrl
-1  SCSI ctrl
-2  EPROMs
-32 DRAM chips
-16 jelly-bean chips
-2  crystal oscillators
-1  RTC chip, if I can find one (I2C something something)
-1  SRAM chip (I2C again, if I can find one)
+1     custom CPU
+1     custom graphics/sound
+1     custom GPIO chips
+1     custom Nouveau I/O chip
+2     EPROMs
+16/32 DRAM chips
+17    jelly-bean chips (3 less if no internal keyboard)
+2     crystal oscillators
+1     RTC/SRAM chip, I2C-based (PCF8583 is still active it seems) or Dallas DS12885 or similar (parallel-bus)
 
-Turns out the delta is not that large, especially because one doesn't have to populate the SCSI chip or the 16 extra DRAMs. Really it boils down to the extra I/O chip for keyboard-scanning. So, if one is smart, a single PCB could be used for both chassis.
 
 RTC
 ~~~
@@ -416,6 +433,9 @@ The early MACs used a different RTC chip. There is a project to replace them wit
 
 The early PCs used a Motorola MC146818 part. This was a parallel-bus device with a multiplexed data/address interface (a'la 8085). Though even the datasheet shows how to interface to non-multiplexed devices (essentially use 'AS' pin as A0). https://www.nxp.com/docs/en/data-sheet/MC146818.pdf
 
+A modern replacement for these Motorola chips can be had from ADI (Dallas): https://www.jameco.com/Jameco/Products/ProdDS/25101.pdf
+Probably this one: https://www.analog.com/media/en/technical-documentation/data-sheets/DS12885-DS12C887A.pdf. There are different variants, with super-caps and what not.
+
 Logic families
 ~~~~~~~~~~~~~~
 
@@ -427,8 +447,64 @@ External connectors
 Normal connectors of the time:
 - Cartridge/expansion connector (for us it would be a single ISA8 connector)
 - Centronics printer port
-- RS232 serial port
++ RS232 serial port
 - Audio/Video
 - External disk drive connector
-- Keyboard/mouse/joystick connector
++ Keyboard/mouse/joystick connector
 - SCSI (or other HDD) as of 1986 on the MAC plus, Atari ST at 1985.
+
+GPIO usage
+~~~~~~~~~~
+
+For classic models, we have (up to) two I/O chips. These each have 24 GPIO pins.
+
+15         PA_0_EN1_A  Joystick port 1
+16         PA_1_EN1_B  Joystick port 1
+17         PA_2_EN2_A  Joystick port 1
+18         PA_3_EN2_B  Joystick port 1
+19         PA_4_TMR1   Joystick port 1
+20         PA_5_TMR2   Joystick port 1
+21         PA_6_SDA    RS-232
+22         PA_7_SCL    RS-232
+23         PB_0_EN2_A  Joystick port 2
+24         PB_1_EN2_B  Joystick port 2
+25         PB_2_EN3_A  Joystick port 2
+26         PB_3_EN3_B  Joystick port 2
+27         PB_4_TMR2   Joystick port 2
+28         PB_5_TMR3   Joystick port 2
+29         PB_6        RS-232
+30         PB_7        RS-232
+31         PC_0_TXD    RS-232
+32         PC_1_RXD    RS-232
+33         PC_2_RST    RS-232
+34         PC_3_CTS    RS-232
+35         PC_4_KB_C   PS/2 keyboard port clock pin
+36         PC_5_KB_D   PS/2 keyboard port data pin
+37         PC_6_MS_C   PS/2 mouse port clock pin
+38         PC_7_MS_D   PS/2 mouse port data pin
+
+15         PA_0_EN1_A  ISA_IRQ2
+16         PA_1_EN1_B  ISA_IRQ3
+17         PA_2_EN2_A  ISA_IRQ4
+18         PA_3_EN2_B  ISA_IRQ5
+19         PA_4_TMR1   ISA_IRQ6
+20         PA_5_TMR2   ISA_IRQ7
+21         PA_6_SDA    Internal keyboard scan CLK
+22         PA_7_SCL    Internal keyboard scan DATA
+23         PB_0_EN2_A  Centronics control
+24         PB_1_EN2_B  Centronics control
+25         PB_2_EN3_A  Centronics control
+26         PB_3_EN3_B  Centronics control
+27         PB_4_TMR2   Centronics control
+28         PB_5_TMR3   Centronics control
+29         PB_6        Centronics control
+30         PB_7        Centronics control
+31         PC_0_TXD    RS-422 networking
+32         PC_1_RXD    RS-422 networking
+33         PC_2_RST    RS-422 networking
+34         PC_3_CTS    RS-422 networking
+35         PC_4_KB_C
+36         PC_5_KB_D
+37         PC_6_MS_C
+38         PC_7_MS_D   Centronics control
+
