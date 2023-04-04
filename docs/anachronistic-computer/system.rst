@@ -508,3 +508,14 @@ For classic models, we have (up to) two I/O chips. These each have 24 GPIO pins.
 37         PC_6_MS_C
 38         PC_7_MS_D   Centronics control
 
+SCSI
+~~~~
+
+Unfortunately, there aren't any reasonable SCSI controllers on the market anymore. The protocol is documented here: https://www.staff.uni-mainz.de/tacke/scsi/SCSI2-07.html
+
+While rather narly, there's really nothing there that could not be implemented in an FPGA. So, it should be possible to re-create a SCSI controller, maybe even a pin-compatible one with the thingy in the Apple machines.
+
+Another nicely formatted document is this: https://www.seagate.com/files/staticfiles/support/docs/manual/Interface%20manuals/100293068j.pdf
+
+FDD
+~~~
