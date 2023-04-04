@@ -171,7 +171,8 @@ class BusIf(GenericModule):
     # Register setup:
     # bits 7-0: refresh divider
     # bit 8: refresh disable (if set)
-    # bit 10-9: DRAM bank count: 0 - 1 banks, 1 - 2 banks, 2 - 4 banks, 3 - reserved
+    # bit 10-9: DRAM bank size: 0 - 22 bits, 1 - 20 bits, 2 - 18 bits, 3 - 16 bits
+    # bit 11: DRAM bank swap: 0 - no swap, 1 - swap
     refresh_counter_size = 8
 
     def body(self):
@@ -184,9 +185,11 @@ class BusIf(GenericModule):
 
         refresh_divider = Reg(self.reg_if.pwdata[self.refresh_counter_size-1:0], clock_en=(reg_addr == self.reg_dram_config_ofs) & reg_write_strobe)
         refresh_disable = ~Reg(self.reg_if.pwdata[self.refresh_counter_size], clock_en=(reg_addr == self.reg_dram_config_ofs) & reg_write_strobe)
-        dram_bank_count = Reg(self.reg_if.pwdata[self.refresh_counter_size+2:self.refresh_counter_size+1], clock_en=(reg_addr == self.reg_dram_config_ofs) & reg_write_strobe)
+        dram_bank_size = Reg(self.reg_if.pwdata[self.refresh_counter_size+2:self.refresh_counter_size+1], clock_en=(reg_addr == self.reg_dram_config_ofs) & reg_write_strobe)
+        dram_bank_swap = Reg(self.reg_if.pwdata[self.refresh_counter_size+3], clock_en=(reg_addr == self.reg_dram_config_ofs) & reg_write_strobe)
         self.reg_if.prdata <<= concat(
-            dram_bank_count,
+            dram_bank_swap,
+            dram_bank_size,
             refresh_disable,
             refresh_counter
         )
@@ -281,7 +284,6 @@ class BusIf(GenericModule):
         req_advance = req_valid & req_ready
 
         req_dram = (req_addr[30:29] != self.nram_base) & ((arb_port_select == Ports.mem_port) | (arb_port_select == Ports.fetch_port))
-        req_dram_bank = req_addr[17:16]
         req_nram = (req_addr[30:29] == self.nram_base) & ((arb_port_select == Ports.mem_port) | (arb_port_select == Ports.fetch_port))
         req_dma  = (arb_port_select == Ports.dma_port) & ~self.dma_request.is_master
         req_ext  = (arb_port_select == Ports.dma_port) &  self.dma_request.is_master
@@ -337,43 +339,24 @@ class BusIf(GenericModule):
         self.fsm.add_transition(BusIfStates.dma_wait, ~waiting,                                                                 BusIfStates.idle)
         self.fsm.add_transition(BusIfStates.refresh, 1,                                                                         BusIfStates.idle)
 
-        address_mux_sel = Select(req_nram, dram_bank_count, 3)
-
         dram_bank = Wire()
         dram_bank <<= Reg(
             Select(
-                dram_bank_count,
-                0,                   # 1-bank DRAM
-                req_dram_bank & 1,   # 2-bank DRAM
-                req_dram_bank        # 4-bank DRAM
+                dram_bank_size,
+                req_addr[22],
+                req_addr[20],
+                req_addr[18],
+                req_addr[16],
             )
             , clock_en=start
         ) # masking out the top bit in the bank selector if only 2 banks are enabled
 
         input_row_addr = Wire()
-        input_row_addr <<= concat(
-            Select(
-                address_mux_sel,
-                concat(req_addr[21], req_addr[19], req_addr[17]), # 1-bank DRAM
-                concat(req_addr[22], req_addr[20], req_addr[18]), # 2-bank DRAM
-                concat(req_addr[23], req_addr[21], req_addr[19]), # 4-bank DRAM
-                concat(req_addr[21], req_addr[19], req_addr[17]), # nRAM
-            ),
-            req_addr[15:8]
-        )
+        input_row_addr <<= req_addr[21:11]
         row_addr = Wire()
         row_addr <<= Reg(Select(req_rfsh, input_row_addr, refresh_addr), clock_en=start)
         col_addr = Wire()
-        col_addr <<= Reg(concat(
-            Select(
-                address_mux_sel,
-                concat(req_addr[20], req_addr[18], req_addr[16]), # 1-bank DRAM
-                concat(req_addr[21], req_addr[19], req_addr[17]), # 2-bank DRAM
-                concat(req_addr[22], req_addr[20], req_addr[18]), # 4-bank DRAM
-                concat(req_addr[20], req_addr[18], req_addr[16]), # nRAM
-            ),
-            req_addr[7:0]
-        ), clock_en=req_advance)
+        col_addr <<= Reg(req_addr[10:0], clock_en=req_advance)
         read_not_write = Wire()
         read_not_write <<= Reg(req_read_not_write, clock_en=start, reset_value_port=1) # reads and writes can't mix within a burst
         data_out_en = Wire()
@@ -418,10 +401,8 @@ class BusIf(GenericModule):
             (next_state == BusIfStates.dma_first) |
             (next_state == BusIfStates.dma_wait)
         )
-        DRAM_nRAS_A = ~Reg((dram_ras_active & (dram_bank == 0)) | (next_state == BusIfStates.refresh)) # We re-register the state to remove all glitches
-        DRAM_nRAS_B = ~Reg((dram_ras_active & (dram_bank == 1)) | (next_state == BusIfStates.refresh)) # We re-register the state to remove all glitches
-        DRAM_nRAS_C = ~Reg((dram_ras_active & (dram_bank == 2)) | (next_state == BusIfStates.refresh)) # We re-register the state to remove all glitches
-        DRAM_nRAS_D = ~Reg((dram_ras_active & (dram_bank == 3)) | (next_state == BusIfStates.refresh)) # We re-register the state to remove all glitches
+        DRAM_nRAS_A = ~Reg((dram_ras_active & (dram_bank == dram_bank_swap)) | (next_state == BusIfStates.refresh)) # We re-register the state to remove all glitches
+        DRAM_nRAS_B = ~Reg((dram_ras_active & (dram_bank != dram_bank_swap)) | (next_state == BusIfStates.refresh)) # We re-register the state to remove all glitches
         nNREN = Wire()
         nNREN <<= Reg(
             (next_state != BusIfStates.non_dram_first) & (next_state != BusIfStates.non_dram_wait) & (next_state != BusIfStates.non_dram_dual_first) & (next_state != BusIfStates.non_dram_dual_wait),
@@ -500,9 +481,7 @@ class BusIf(GenericModule):
             NegReg(col_addr),
             row_addr
         )
-        self.dram.addr[8:0]   <<= dram_addr[8:0]
-        self.dram.addr[9]     <<= Select(dram_bank_count, dram_addr[9],  DRAM_nRAS_C)
-        self.dram.addr[10]    <<= Select(dram_bank_count, dram_addr[10], DRAM_nRAS_D)
+        self.dram.addr        <<= dram_addr
         self.dram.nWE         <<= read_not_write
         self.dram.data_out_en <<= data_out_en
         data_out_low = Wire()

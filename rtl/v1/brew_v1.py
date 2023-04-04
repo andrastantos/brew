@@ -637,24 +637,11 @@ def sim():
                 self.rom.set_mem(addr & 0x03ff_ffff, data)
             elif section == self.dram_base:
                 for idx, byte in enumerate(data):
-                    lin_addr = (addr & 0x03ff_ffff) + idx
-                    # re-arrange address bits to the way DRAM sees it.
-                    dram_addr = (
-                        # col addr
-                        (((lin_addr >>  0) & 0xff) <<  0) |
-                        (((lin_addr >> 16) & 0x01) <<  8) |
-                        (((lin_addr >> 18) & 0x01) <<  9) |
-                        (((lin_addr >> 20) & 0x01) << 10) |
-                        # row addr
-                        (((lin_addr >>  8) & 0xff) << 11) |
-                        (((lin_addr >> 17) & 0x01) << 19) |
-                        (((lin_addr >> 19) & 0x01) << 20) |
-                        (((lin_addr >> 21) & 0x01) << 21)
-                    )
+                    dram_addr = (addr & 0x03ff_ffff) + idx
                     if (dram_addr & 1) == 0:
-                        self.dram_l.set_mem(dram_addr >> 1, byte.to_bytes())
+                        self.dram_l.set_mem(dram_addr >> 1, byte.to_bytes(1,"little"))
                     else:
-                        self.dram_h.set_mem(dram_addr >> 1, byte.to_bytes())
+                        self.dram_h.set_mem(dram_addr >> 1, byte.to_bytes(1,"little"))
             else:
                 raise SimulationException(f"Address {addr:08x} doesn't fall into any mapped memory region")
 
