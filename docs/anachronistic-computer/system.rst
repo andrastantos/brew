@@ -511,11 +511,41 @@ For classic models, we have (up to) two I/O chips. These each have 24 GPIO pins.
 SCSI
 ~~~~
 
-Unfortunately, there aren't any reasonable SCSI controllers on the market anymore. The protocol is documented here: https://www.staff.uni-mainz.de/tacke/scsi/SCSI2-07.html
+The original controller would have been an AM5380, something that later was cloned by all manners of people. The zilog version (Z53c80) https://www.zilog.com/docs/serial/ps0108.pdf still seems to be in production. It's 'not recommended for new designs', but still available from Digikey and others.
+
+The protocol is documented here: https://www.staff.uni-mainz.de/tacke/scsi/SCSI2-07.html
 
 While rather narly, there's really nothing there that could not be implemented in an FPGA. So, it should be possible to re-create a SCSI controller, maybe even a pin-compatible one with the thingy in the Apple machines.
 
 Another nicely formatted document is this: https://www.seagate.com/files/staticfiles/support/docs/manual/Interface%20manuals/100293068j.pdf
 
+All in all, no custom chips for SCSI, just use what's available.
+
 FDD
 ~~~
+
+I'm going to use the FDC37C78 from Microchip. It's still available, though 'not recommended for new designs'. I don't care, it's such a niche, and I'm not in the mood of developing and debugging my own floppy controller.
+
+Connector layout
+~~~~~~~~~~~~~~~~
+
+On the front:
+- Joystick1       (DB9)
+- Joystick2       (DB9)
+- Mouse           (DIN-6 or something)
+- Keyboard        (DIN-6 or something)
+
+On the back:
+- Audio out       (3.5mm jack)
+- Video out       (DBhd15)
+- Audio in (if)   (3.5mm jack)
+- External Floppy (DB25)
+- External SCSI   (DB25)
+- Centronics      (DB25)
+- RS232           (DB9)
+- RS422           (2x phone jack or RJ45)
+
+Networking
+~~~~~~~~~~
+
+We are base-lining a simple RS422, shared bus based network. Or, a better idea: I2C over CAN!
