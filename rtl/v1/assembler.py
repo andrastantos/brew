@@ -231,9 +231,9 @@ class BrewAssembler(object):
     def r_eq_i_and_r(self,   rD = None, imm = None, rA = None): return (_inst(_r(rD), 0x3, 0xf, _r(rA)), *_i(imm),)
     def r_eq_i_plus_r(self,  rD = None, imm = None, rA = None): return (_inst(_r(rD), 0x4, 0xf, _r(rA)), *_i(imm),)
     def r_eq_i_minus_r(self, rD = None, imm = None, rA = None): return (_inst(_r(rD), 0x5, 0xf, _r(rA)), *_i(imm),)
-    def r_eq_i_shl_r(self,   rD = None, imm = None, rA = None): return (_inst(_r(rD), 0x6, 0xf, _r(rA)), *_i(imm),)
-    def r_eq_i_shr_r(self,   rD = None, imm = None, rA = None): return (_inst(_r(rD), 0x7, 0xf, _r(rA)), *_i(imm),)
-    def r_eq_i_sar_r(self,   rD = None, imm = None, rA = None): return (_inst(_r(rD), 0x8, 0xf, _r(rA)), *_i(imm),)
+    def r_eq_r_shl_i(self,   rD = None, rA = None, imm = None): return (_inst(_r(rD), 0x6, 0xf, _r(rA)), *_i(imm),)
+    def r_eq_r_shr_i(self,   rD = None, rA = None, imm = None): return (_inst(_r(rD), 0x7, 0xf, _r(rA)), *_i(imm),)
+    def r_eq_r_sar_i(self,   rD = None, rA = None, imm = None): return (_inst(_r(rD), 0x8, 0xf, _r(rA)), *_i(imm),)
     def r_eq_i_mul_r(self,   rD = None, imm = None, rA = None): return (_inst(_r(rD), 0x9, 0xf, _r(rA)), *_i(imm),)
 
     def fence(self): return (0x0001,)

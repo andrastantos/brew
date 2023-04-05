@@ -463,9 +463,11 @@ Instruction code           Assembly                             Operation
 0x.3f. 0x****              $rD <- FIELD_E & $rA                 Bit-wise 'and' [#note_logical]_
 0x.4f. 0x****              $rD <- FIELD_E + $rA                 Type-dependent add
 0x.5f. 0x****              $rD <- FIELD_E - $rA                 Type-dependent subtract
-0x.6f. 0x****              $rD <- FIELD_E << $rA                Binary left-shift [#note_binary_shift]_
-0x.7f. 0x****              $rD <- FIELD_E >> $rA                Binary right-shift [#note_binary_shift]_
-0x.8f. 0x****              $rD <- FIELD_E >>> $rA               Arithmetic right-shift [#note_binary_shift]_
+vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv NOTE NOTE NOTE THESE ARE CHANGED!!!!! TO BE CHECKED WITH COMPILER/ASSEMBLER!!!!!!!
+0x.6f. 0x****              $rD <- $rA << FIELD_E                Binary left-shift [#note_binary_shift]_
+0x.7f. 0x****              $rD <- $rA >> FIELD_E                Binary right-shift [#note_binary_shift]_
+0x.8f. 0x****              $rD <- $rA >>> FIELD_E               Arithmetic right-shift [#note_binary_shift]_
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ NOTE NOTE NOTE THESE ARE CHANGED!!!!! TO BE CHECKED WITH COMPILER/ASSEMBLER!!!!!!!
 0x.9f. 0x****              $rD <- FIELD_E * $rA                 Type-dependent multiply
 0x.af. 0x****              $rD <- lane_swizzle $rA, VALUE       [#note_lane_swizzle]_
 0x.bf. 0x****              SII                                  Reserved for future ISA expansion

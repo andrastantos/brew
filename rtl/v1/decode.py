@@ -159,9 +159,9 @@ class DecodeStage(GenericModule):
                 ( "  .6.f: $rD <- FIELD_E << $rB",        oc.shift,    None,         so.shll,     None,        None,      None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
                 ( "  .7.f: $rD <- FIELD_E >> $rB",        oc.shift,    None,         so.shlr,     None,        None,      None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
                 ( "  .8.f: $rD <- FIELD_E >>> $rB",       oc.shift,    None,         so.shar,     None,        None,      None,       field_b,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
-                ( "  .6f.: $rD <- FIELD_E << $rA",        oc.shift,    None,         so.shll,     None,        None,      None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
-                ( "  .7f.: $rD <- FIELD_E >> $rA",        oc.shift,    None,         so.shlr,     None,        None,      None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
-                ( "  .8f.: $rD <- FIELD_E >>> $rA",       oc.shift,    None,         so.shar,     None,        None,      None,       field_a,        field_d,   field_e,         "REG",        None,       None,   0,  0,  0,  0 ),
+                ( "  .6f.: $rD <- $rA << FIELD_E",        oc.shift,    None,         so.shll,     None,        None,      field_a,    None,           field_d,   "REG",           field_e,      None,       None,   0,  0,  0,  0 ),
+                ( "  .7f.: $rD <- $rA >> FIELD_E",        oc.shift,    None,         so.shlr,     None,        None,      field_a,    None,           field_d,   "REG",           field_e,      None,       None,   0,  0,  0,  0 ),
+                ( "  .8f.: $rD <- $rA >>> FIELD_E",       oc.shift,    None,         so.shar,     None,        None,      field_a,    None,           field_d,   "REG",           field_e,      None,       None,   0,  0,  0,  0 ),
             )
         else:
             shift_ops = (
