@@ -295,13 +295,13 @@ def sim():
                 if (self.bus_req_if.valid & self.bus_req_if.ready) == 1:
                     simulator.sim_assert(self.bus_req_if.byte_en != 0)
                     if self.bus_req_if.byte_en == 1:
-                        addr = self.bus_req_if.addr
+                        addr = self.bus_req_if.addr*2
                         access_size = 8
                     if self.bus_req_if.byte_en == 2:
-                        addr = self.bus_req_if.addr + 1
+                        addr = self.bus_req_if.addr*2 + 1
                         access_size = 8
                     if self.bus_req_if.byte_en == 3:
-                        addr = self.bus_req_if.addr
+                        addr = self.bus_req_if.addr*2
                         access_size = 16
                     if self.bus_req_if.read_not_write == 1:
                         mode = "reading"
@@ -311,7 +311,7 @@ def sim():
                         value = f" with value {self.bus_req_if.data:04x} ({self.bus_req_if.data})"
                     else:
                         mode = "NONE"
-                    simulator.log(f"                          ---------- {mode} memory addr {addr:08x}{value}")
+                    simulator.log(f"                          ---------- {mode} {access_size}-bit memory addr {addr:08x}{value}")
 
     from copy import copy
     class Dram(GenericModule):
@@ -386,6 +386,7 @@ def sim():
                         else:
                             simulator.sim_assert(f"Unexpected nCAS edge: {self.nCAS.get_sim_edge()}")
 
+    con_base = 0x0001_0000
     class AddressDecode(Module):
         nNREN         = Input(logic)
         nCAS_0        = Input(logic)
@@ -400,8 +401,9 @@ def sim():
             self.nCAS <<= self.nCAS_0 & self.nCAS_1
 
         def simulate(self, simulator: Simulator):
+            nonlocal con_base
             self.rom_base = 0x0000_0000
-            self.con_base = 0x0001_0000
+            self.con_base = con_base
             self.decode_mask = 0xffff_0000
             self.rom_en <<= 0
             self.con_en <<= 0
@@ -497,15 +499,26 @@ def sim():
         nWE           = Input(logic)
         data_in       = Input(BrewByte)
         data_in_en    = Input(logic)
+        terminate     = Output(logic)
 
         def simulate(self, simulator: Simulator) -> TSimEvent:
+            self.terminate <<= 0
             while True:
                 yield self.enable
                 if self.enable.get_sim_edge() == EdgeType.Positive:
-                    if self.nWE == 1:
+                    if self.nWE == 0:
                         value = None if self.data_in_en != 1 else self.data_in
                         val_str = "--" if value is None else f"{value:02x}"
-                        simulator.log(f"CONSOLE got value {val_str}")
+                        addr = self.addr & 0xff
+                        if addr == 0:
+                            simulator.log(f"CONSOLE got value {val_str}")
+                        if addr == 4:
+                            simulator.log(f"SUCCESS")
+                            self.terminate <<= 1
+                        if addr == 8:
+                            simulator.log(f"FAIL")
+                            assert(False)
+                            self.terminate <<= 1
                 elif self.enable.get_sim_edge() == EdgeType.Negative:
                     pass
                 else:
@@ -591,6 +604,7 @@ def sim():
             self.rom.addr             <<= self.addr_decode.full_addr
             self.con.enable           <<= self.addr_decode.con_en
             self.con.addr             <<= self.addr_decode.full_addr
+            self.con.nWE              <<= self.cpu.dram.nWE
 
             self.cpu.dram.nWAIT       <<= 1
             self.cpu.DRQ              <<= 0
@@ -627,8 +641,11 @@ def sim():
             self.rst <<= 0
 
             for i in range(1500):
+                if self.con.terminate == 1:
+                    break
                 yield from clk()
             yield 10
+            assert(self.con.terminate == 1)
             simulator.log("Done")
 
         def set_mem(self, addr: int, data: ByteString):
@@ -658,6 +675,33 @@ def sim():
             nonlocal pc
             top_inst.set_mem(pc, i2b(inst))
             pc += len(inst)*2
+
+        def fail():
+            nonlocal con_base
+            prog(a.mem32_I_eq_r(con_base+8, 0))
+
+        def check_reg(reg, value):
+            nonlocal con_base
+            nonlocal pc
+            prog(a.r_eq_I_xor_r(reg, value, reg))
+            prog(a.if_r_eq_z(reg, pc_rel(pc+10))) # 10 bytes equals a 4-byte test and a 6-byte write instructions
+            fail()
+            prog(a.r_eq_I_xor_r(reg, value, reg))
+
+        def terminate():
+            nonlocal con_base
+            prog(a.mem32_I_eq_r(con_base+4, 0))
+
+        #def con_wr(reg, tmp_reg=14):
+        #    nonlocal con_base
+        #    prog(a.r_eq_r_or_r(tmp_reg, reg, reg))
+        #    prog(a.r_eq_r_shl_i(tmp_reg, tmp_reg, 28))
+        #    prog(a.r_eq_r_and_i(tmp_reg, tmp_reg, 16))
+        #    prog(a.if_r_)
+        def con_wr(reg):
+            nonlocal con_base
+            prog(a.mem32_I_eq_r(con_base, reg))
+
 
         def test_1():
             """
@@ -892,6 +936,7 @@ def sim():
             prog(a.r_eq_r_plus_r(12,6,6))
             prog(a.r_eq_r_plus_r(13,7,6))
             prog(a.r_eq_r_plus_r(14,7,7))
+            check_reg(10,10)
             prog(a.r_eq_mem32_I(0,0x8000_0000))
             prog(a.mem32_I_eq_r(0x8000_0800,14))
             loop = pc
@@ -900,7 +945,7 @@ def sim():
             loop = pc
             prog(a.r_eq_r_plus_t(4,4,1))
             prog(a.if_r_ne_r(4,5,pc_rel(loop)))
-
+            terminate()
             loop = pc
             prog(a.pc_eq_I(loop))
 
