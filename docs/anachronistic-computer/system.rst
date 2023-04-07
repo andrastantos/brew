@@ -46,7 +46,7 @@ Storage:
 
 Communication and networking:
 
-* LAN through RS-422
+* LAN through RS-485
 * WAN through modem over RS-232
 
 Human interface:
@@ -84,7 +84,7 @@ All-in-one setup (A500 layout)
 * custom CPU+DMA
 * custom Graphics+sound
 * custom Classic I/O 1 (mouse/joystick/serial/I2C)
-* custom Classic I/O 2 (keyboard scan/centronics/RS422)
+* custom Classic I/O 2 (keyboard scan/centronics/RS-485)
 * FDD
 
 Expandable setup (A1000 layout)
@@ -93,7 +93,7 @@ Expandable setup (A1000 layout)
 * custom CPU+DMA
 * custom Graphics+sound
 * custom Classic I/O 1 (mouse/joystick/serial/external keyboard)
-* custom Classic I/O 2 (keyboard scan/centronics/RS422)
+* custom Classic I/O 2 (keyboard scan/centronics/RS-485)
 * ISA-bus interface
 * SCSI
 * FDD
@@ -447,11 +447,12 @@ External connectors
 Normal connectors of the time:
 - Cartridge/expansion connector (for us it would be a single ISA8 connector)
 - Centronics printer port
-+ RS232 serial port
++ RS-232 serial port
 - Audio/Video
 - External disk drive connector
 + Keyboard/mouse/joystick connector
 - SCSI (or other HDD) as of 1986 on the MAC plus, Atari ST at 1985.
+- MIDI
 
 GPIO usage
 ~~~~~~~~~~
@@ -499,10 +500,10 @@ For classic models, we have (up to) two I/O chips. These each have 24 GPIO pins.
 28         PB_5_TMR3   Centronics control
 29         PB_6        Centronics control
 30         PB_7        Centronics control
-31         PC_0_TXD    RS-422 networking
-32         PC_1_RXD    RS-422 networking
-33         PC_2_RST    RS-422 networking
-34         PC_3_CTS    RS-422 networking
+31         PC_0_TXD    RS-485 networking
+32         PC_1_RXD    RS-485 networking
+33         PC_2_RST    RS-485 networking
+34         PC_3_CTS    RS-485 networking
 35         PC_4_KB_C
 36         PC_5_KB_D
 37         PC_6_MS_C
@@ -542,10 +543,18 @@ On the back:
 - External Floppy (DB25)
 - External SCSI   (DB25)
 - Centronics      (DB25)
-- RS232           (DB9)
-- RS422           (2x phone jack or RJ45)
+- RS-232          (DB9)
+- RS-485          (2x phone jack or RJ45)
 
 Networking
 ~~~~~~~~~~
 
-We are base-lining a simple RS422, shared bus based network. Or, a better idea: I2C over CAN!
+We are base-lining a simple RS-485, shared bus based network. Or, a better idea: I2C over CAN!
+
+So twisted pair propagation delay appears to be around 500ns for 100m. For I2C to be reliable in terms of arbitration, one would need to keep the round-trip latency below the bit-time. So, with 100m cable lengths, even 1Mbps is out of question, 400kbps is border-line, and 100kbps is doable.
+
+To reach any reasonable distance, we need a protocol that doesn't depend on bit-level synchronization for arbitration. Symbol-level techniques must be used, combined with some slotted ALOHA mechanism, a'la Ethernet. The physical layer is almost irrelevant at that point, RS-485 is just fine, I guess.
+
+ModBus is one such example, but that doesn't seem to be symmetrical, and is master-slave oriented.
+
+I'm starting to think, that maybe I should just punt on networking and use the second serial port for MIDI. This is a home-computer after all, so RS-232 is probably sufficient.

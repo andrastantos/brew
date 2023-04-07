@@ -87,9 +87,9 @@ Nowadays, there are still some alternatives: `LAN91C113 <https://media.digikey.c
 
 This is all later though it seems, fine for the second generation machine, but not for the first gen.
 
-For the first generation machines, I would say I would have developed some sort of home-grown, serial (probably `RS422 <https://en.wikipedia.org/wiki/RS-422>`_-based) protocol.
+For the first generation machines, I would say I would have developed some sort of home-grown, serial (probably `RS-485 <https://en.wikipedia.org/wiki/RS-485>`_-based) protocol.
 
-There is something interesting, called HDLC/SDLC. These are L2 protocols that are developed by IBM, worked probably through RS232 or RS422 or similar physical layers, but had controllers, such as the Motorola `mc6854 <https://heyrick.eu/econet/mc6854fixed.pdf>`_. This device could reach about 1Mbps, so not shabby for the time. It was used in the `Acorn Archimedes Econet poddle <http://chrisacorns.computinghistory.org.uk/docs/Acorn/Manuals/Acorn_A300_SMCLSup.pdf>`_, from which I got the idea.
+There is something interesting, called HDLC/SDLC. These are L2 protocols that are developed by IBM, worked probably through RS-232 or RS-485 or similar physical layers, but had controllers, such as the Motorola `mc6854 <https://heyrick.eu/econet/mc6854fixed.pdf>`_. This device could reach about 1Mbps, so not shabby for the time. It was used in the `Acorn Archimedes Econet poddle <http://chrisacorns.computinghistory.org.uk/docs/Acorn/Manuals/Acorn_A300_SMCLSup.pdf>`_, from which I got the idea.
 
 Printers
 --------
