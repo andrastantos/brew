@@ -1,6 +1,9 @@
 from typing import *
 from silicon import *
-from brew_types import *
+try:
+    from .brew_types import *
+except ImportError:
+    from brew_types import *
 
 @module(1)
 def field_d(inst_word):
