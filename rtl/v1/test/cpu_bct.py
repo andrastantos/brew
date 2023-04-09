@@ -641,7 +641,7 @@ def test_4(top):
     check_reg("$r14", 14)
     terminate()
 
-    set_active_segment("code_dram")
+    set_active_segment("code_task")
     r_eq_r_plus_t("$r2","$r2",1)
     pc_eq_I("_task_start")
 
@@ -650,57 +650,78 @@ def test_5(top):
     """
     Test jumping back and forth between task and system mode, no exceptions thrown
     """
-    #nonlocal pc
-    #nonlocal top_inst
-    pc = 0
-    task_start = 0x8000_1000
-    prog(a.pc_eq_I(0x8000_0000)) # Jumping to DRAM
-    pc = 0x8000_0000
-    prog(a.r_eq_t(0,0))
-    prog(a.r_eq_r_plus_t(1,0,1))
-    prog(a.r_eq_r_plus_t(2,0,2))
-    prog(a.r_eq_r_plus_t(3,0,3))
-    prog(a.r_eq_r_plus_t(4,0,4))
-    prog(a.r_eq_r_plus_t(5,0,5))
-    prog(a.r_eq_r_plus_r(6,5,1))
-    prog(a.r_eq_r_plus_r(7,5,2))
-    prog(a.r_eq_r_plus_r(8,5,3))
-    prog(a.r_eq_r_plus_r(9,5,4))
-    prog(a.r_eq_r_plus_r(10,5,5))
-    prog(a.r_eq_r_plus_r(11,6,5))
-    prog(a.r_eq_I(12,12))
-    prog(a.r_eq_r_plus_r(11,6,5))
-    prog(a.r_eq_r_plus_r(12,6,6))
-    prog(a.r_eq_r_plus_r(13,7,6))
-    prog(a.r_eq_r_plus_r(14,7,7))
-    prog(a.r_eq_mem32_I(0,0x8000_0000))
-    prog(a.mem32_I_eq_r(0x8000_0800,14))
-    prog(a.r_eq_I(0,0xffffffff))
-    prog(a.mem32_I_eq_r(top_inst.cpu.csr_mem_limit_reg,0))
-    prog(a.r_eq_t(0,0))
-    prog(a.mem32_I_eq_r(top_inst.cpu.csr_mem_base_reg,0))
 
-    # Scheduler mode loop: incrementing $r1
-    prog(a.tpc_eq_I(task_start))
-    loop = pc
-    prog(a.r_eq_r_plus_t(1,1,1))
-    print(f"******* STM $pc: {pc:08x} ({pc//2:08x})")
-    prog(a.stm())
+    top.set_timeout(3000)
 
-    prog(a.r_eq_tpc(10)) # Adjust $tpc to be over the SWI instruction
-    prog(a.r_eq_r_plus_t(10,10,2))
-    prog(a.tpc_eq_r(10))
+    create_segment("code", 0)
+    create_segment("code_dram", 0x8000_0000)
+    create_segment("code_task", 0x8000_1000)
+    set_active_segment("code_dram")
+    place_symbol("_start")
+    set_active_segment("code_task")
+    place_symbol("_task_start")
+    set_active_segment("code")
 
-    prog(a.pc_eq_I(loop)) # Endless loop.
-    prog(a.r_eq_r_plus_t(14,14,14))
+    pc_eq_I("_start")
 
-    # Task mode loop: incrementing $r2
-    pc = task_start
-    loop = pc
-    prog(a.r_eq_r_plus_t(2,2,1))
-    prog(a.swi(3))
-    prog(a.pc_eq_I(loop))
-    prog(a.r_eq_r_plus_t(13,13,13))
+    set_active_segment("code_dram")
+    r_eq_t("$r0",0)
+    r_eq_r_plus_t("$r1","$r0",1)
+    r_eq_r_plus_t("$r2","$r0",2)
+    r_eq_r_plus_t("$r3","$r0",3)
+    r_eq_r_plus_t("$r4","$r0",4)
+    r_eq_r_plus_t("$r5","$r0",5)
+    r_eq_r_plus_r("$r6","$r5","$r1")
+    r_eq_r_plus_r("$r7","$r5","$r2")
+    r_eq_r_plus_r("$r8","$r5","$r3")
+    r_eq_r_plus_r("$r9","$r5","$r4")
+    r_eq_r_plus_r("$r10","$r5","$r5")
+    r_eq_r_plus_r("$r11","$r6","$r5")
+    r_eq_I("$r12",12)
+    r_eq_r_plus_r("$r13","$r7","$r6")
+    r_eq_r_plus_r("$r14","$r7","$r7")
+
+    r_eq_I("$r0",0xffffffff)
+    mem32_I_eq_r(top.cpu.csr_mem_limit_reg,"$r0")
+    r_eq_t("$r0",0)
+    mem32_I_eq_r(top.cpu.csr_mem_base_reg,"$r0")
+    tpc_eq_I("_task_start")
+
+    # Scheduler mode loop: decrementing $r5
+    place_symbol("spc_loop")
+    r_eq_r_plus_t("$r5","$r5",-1)
+    stm()
+    r_eq_tpc("$r10") # Adjust $tpc to be over the SWI instruction
+    r_eq_r_plus_t("$r10","$r10",2)
+    tpc_eq_r("$r10")
+    if_r_ne_z("$r5", "spc_loop")
+    r_eq_r_plus_t("$r0","$r0",1)
+
+    check_reg("$r0",   1)
+    check_reg("$r1",   1)
+    check_reg("$r2",   2)
+    check_reg("$r3",   3)
+    check_reg("$r4",   4)
+    check_reg("$r5",   0)
+    check_reg("$r6",   1)
+    check_reg("$r7",   3)
+    check_reg("$r8",   8)
+    check_reg("$r9",   9)
+    #check_reg("$r10", 10)
+    check_reg("$r11", 11)
+    check_reg("$r12", 12)
+    check_reg("$r13", 13)
+    check_reg("$r14", 14)
+    terminate()
+
+
+    # Task mode loop: decrementing $r6 and $r7
+    set_active_segment("code_task")
+    r_eq_r_plus_t("$r6","$r6",-1)
+    swi(3)
+    r_eq_r_plus_t("$r7","$r7",-1)
+    pc_eq_I("_task_start")
+    r_eq_r_plus_t("$r1","$r1",1)
 
 def pc_rel(location):
     # Return a pc-relative address, based on munging for conditional branch instruction rules:
@@ -767,6 +788,6 @@ def run_test(programmer: callable, test_name: str = None):
     netlist.simulate(vcd_filename, add_unnamed_scopes=False)
 
 if __name__ == "__main__":
-    run_test(test_4)
+    run_test(test_5)
 
 
