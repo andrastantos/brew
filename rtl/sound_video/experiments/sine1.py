@@ -145,6 +145,30 @@ instead of a multiply?
 
 I don't think multiplies are avoidable for amplitude controls. In fact, another multiply is needed
 for the application of the linearized value.
+
+============================================
+
+A great source for VST plugins: https://github.com/webprofusion/OpenAudio
+
+Looking more at what other FM synthesizers do:
+- Number of modulators vary from 2 (OPL2) to 6 (DX7), to 8 (Oxe FM synth).
+- All have the same features within a modulator: a wave-form generator, followed by an envelope generator.
+  The waveforms are the usual suspects (in SW synths, not in the Yamaha ones) plus noise.
+  The envelope generator is the delayed ADSR type, maybe with a timeout on 'S'
+- The frequency of the operator can be set through the following means:
+  - MIDI input, transposed (coarse and fine)
+  - Modulator input (linear!!)
+- The amplitude of the operator can be set through the following means:
+  - Envelope generator (logarithmic scale)
+  - MIDI velocity input
+  - Modulator input (LFO mostly)
+- Most don't have filters at all
+- All have ring-modulation, some have support for independent modulation depth for each target
+
+Analog synths have the following:
+- No FM modulation, instead:
+- Filters
+- Effects
 """
 
 volume = 0.5  # range [0.0, 1.0]
