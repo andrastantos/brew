@@ -48,6 +48,8 @@ class SegAddr(object):
         return SegAddr(self.offset+value, self.segment)
     def __sub__(self, value: int):
         return SegAddr(self.offset-value, self.segment)
+    def __rsub__(self, value: int):
+        return SegAddr(value-self.offset, self.segment)
 
 @dataclass
 class RelocEntry(object):
@@ -61,7 +63,7 @@ _reloc_table: Sequence[RelocEntry] = []
 _segments: Dict[str, Segment] = {}
 _dot = None
 
-def get_dot():
+def get_dot() -> SegAddr:
     return _dot
 
 def set_dot(new_dot):
@@ -121,7 +123,7 @@ def reloc():
         else:
             abs_value = value.abs_addr()
         if entry.reloc_type == RelocTypes.I:
-            assert abs(abs_value) <= ((1 << 32-1)-1) or abs_value == -(1 << 32-1)
+            #assert abs(abs_value) <= ((1 << 32)-1) and abs_value >= 0
             content = get_segment(entry.addr.segment).content
             for i in range(4):
                 content[entry.addr.offset+i] = (abs_value >> (i*8)) & 0xff
@@ -183,8 +185,10 @@ def _pc_rel(imm):
     if isinstance(imm, str):
         use_symbol(imm, _dot+2, RelocTypes.pc_rel)
         return 0
-
-    rel_addr = imm-_dot
+    if isinstance(imm,SegAddr):
+        assert imm.segment == _dot.segment
+        imm = imm.offset
+    rel_addr = imm-_dot.offset
     assert(abs(rel_addr) < 0xffff)
     assert(rel_addr & 1 == 0)
     bit_16 = (rel_addr >> 16) & 1
