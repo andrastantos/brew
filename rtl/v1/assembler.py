@@ -5,6 +5,7 @@ Not a full-fledged assembler, but something that makes it slightly more convenie
 from typing import Sequence, Dict
 from enum import Enum
 from dataclasses import dataclass
+from copy import copy
 
 try:
     from .assembler_int import BrewAssembler
@@ -64,11 +65,11 @@ _segments: Dict[str, Segment] = {}
 _dot = None
 
 def get_dot() -> SegAddr:
-    return _dot
+    return copy(_dot)
 
 def set_dot(new_dot):
     global _dot
-    _dot = new_dot
+    _dot = copy(new_dot)
 
 def get_all_segments():
     return _segments.values()
@@ -109,7 +110,7 @@ def set_symbol(name: str, value):
 
 def place_symbol(name):
     create_symbol(name)
-    set_symbol(name, _dot)
+    set_symbol(name, get_dot())
 
 def use_symbol(name: str, for_addr: SegAddr, ref_type: RelocTypes):
     assert name in _sym_table
