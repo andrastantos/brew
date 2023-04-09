@@ -555,6 +555,7 @@ class ExecuteStage(GenericModule):
         s2_pc = Select(s1_task_mode, s1_spc, s1_tpc)
 
         stage_2_valid = Wire(logic)
+        s2_exec_unit = Wire()
 
         # NOTE: The use of s1_exec_unit here is not exactly nice: we depend on it being static independent of stage_2_ready.
         # It's correct, but it's not nice.
@@ -567,7 +568,7 @@ class ExecuteStage(GenericModule):
         block_mem = s1_ldst_output.mem_av | s1_ldst_output.mem_unaligned | s1_fetch_av
         mem_input.valid <<= stage_1_valid & ~block_mem & (s1_exec_unit == op_class.ld_st)
         stage_2_ready <<= Select((s1_exec_unit == op_class.ld_st) & ~block_mem, stage_2_fsm.input_ready,  mem_input.ready)
-        stage_2_valid <<= Select((s1_exec_unit == op_class.ld_st) & ~block_mem, stage_2_fsm.output_valid, s2_mem_output.valid) & ~s2_was_branch
+        stage_2_valid <<= Select((s2_exec_unit == op_class.ld_st) & ~block_mem, stage_2_fsm.output_valid, s2_mem_output.valid) & ~s2_was_branch
         stage_2_fsm.output_ready <<= Select((s1_exec_unit == op_class.ld_st) & ~block_mem, 1, s2_mem_output.valid)
 
         stage_2_reg_en = Wire(logic)
@@ -645,7 +646,7 @@ class ExecuteStage(GenericModule):
         s2_result_reg_addr_valid = Reg(s1_result_reg_addr_valid, clock_en = stage_2_reg_en)
         self.output_port.valid <<= stage_2_valid & s2_result_reg_addr_valid
 
-        s2_exec_unit = Reg(s1_exec_unit, clock_en = stage_2_reg_en)
+        s2_exec_unit <<= Reg(s1_exec_unit, clock_en = stage_2_reg_en)
 
         self.output_port.data_l <<= Select(s2_exec_unit == op_class.ld_st, Reg(result[15: 0], clock_en = stage_2_reg_en), s2_mem_output.data_l)
         self.output_port.data_h <<= Select(s2_exec_unit == op_class.ld_st, Reg(result[31:16], clock_en = stage_2_reg_en), s2_mem_output.data_h)
@@ -669,7 +670,7 @@ class ExecuteStage(GenericModule):
             ),
             self.tpc_in
         )
-        straight_spc_out = Select(stage_1_reg_en, self.spc_in, Select(~self.task_mode_out, self.spc_in, branch_target_output.straight_addr))
+        straight_spc_out = Select(stage_1_reg_en, self.spc_in, Select(~(self.task_mode_out | self.task_mode_in), self.spc_in, branch_target_output.straight_addr))
         self.spc_out <<= Select(
             s1_was_branch,
             Select(
