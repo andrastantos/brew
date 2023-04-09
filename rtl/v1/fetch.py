@@ -223,7 +223,11 @@ class InstBuffer(GenericModule):
         )
         outstanding_request <<= Reg(next_outstanding_request)
 
-        start_new_request = ((self.queue_free_cnt >= fetch_threshold) | branch_req) & (state == InstBufferStates.idle)
+        start_new_request = (
+            ((((self.queue_free_cnt >= fetch_threshold) & ~branch_req) | (branch_req & (next_outstanding_request == 0))) & (state == InstBufferStates.idle)) |
+            ((state == InstBufferStates.flushing) & (next_outstanding_request == 0)) |
+            ((state == InstBufferStates.request) & branch_req & (next_outstanding_request == 0))
+        )
 
         req_len = Wire(QueuePointerType)
         req_len <<= Reg(
@@ -252,10 +256,11 @@ class InstBuffer(GenericModule):
         self.bus_if_request.data            <<= None
 
         self.fsm.add_transition(InstBufferStates.idle,         start_new_request,              InstBufferStates.request)
+        self.fsm.add_transition(InstBufferStates.idle,         branch_req & (next_outstanding_request != 0),  InstBufferStates.flushing)
         self.fsm.add_transition(InstBufferStates.request,     ~branch_req & (~self.bus_if_request.valid | (req_len == 0)),  InstBufferStates.idle)
         self.fsm.add_transition(InstBufferStates.request,      branch_req & (next_outstanding_request != 0),  InstBufferStates.flushing)
-        self.fsm.add_transition(InstBufferStates.request,      branch_req & (next_outstanding_request == 0),  InstBufferStates.idle)
-        self.fsm.add_transition(InstBufferStates.flushing,     (next_outstanding_request == 0),  InstBufferStates.idle)
+        self.fsm.add_transition(InstBufferStates.request,      branch_req & (next_outstanding_request == 0),  InstBufferStates.request)
+        self.fsm.add_transition(InstBufferStates.flushing,     (next_outstanding_request == 0),  InstBufferStates.request)
 
 
         # The response interface is almost completely a pass-through. All we need to do is to handle the AV flag.
