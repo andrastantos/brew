@@ -358,6 +358,7 @@ class top(Module):
     def construct(self):
         self.pc = 0
         self.asm = BrewAssembler()
+        self.timeout = 1500
 
     def body(self):
         self.cpu = BrewV1Top(csr_base=self.csr_base >> 30, nram_base=self.nram_base >> 30, has_multiply=True, has_shift=True, page_bits=7)
@@ -405,6 +406,9 @@ class top(Module):
         self.cpu.DRQ              <<= 0
         self.cpu.nINT             <<= 1
 
+    def set_timeout(self, timeout):
+        self.timeout = timeout
+
     def simulate(self, simulator: Simulator) -> TSimEvent:
         def get_reg_file():
             reg_file = first(first(self.cpu.get_inner_objects("pipeline")).get_inner_objects("reg_file"))
@@ -435,7 +439,7 @@ class top(Module):
             yield from clk()
         self.rst <<= 0
 
-        for i in range(1500):
+        for i in range(self.timeout):
             if self.con.terminate == 1:
                 break
             yield from clk()
@@ -468,7 +472,7 @@ def fail():
 def check_reg(reg, value):
     global con_base
     r_eq_I_xor_r(reg, value, reg)
-    if_r_eq_z(reg, 10) # 10 bytes equals a 4-byte test and a 6-byte write instructions
+    if_r_eq_z(reg, get_dot()+10) # 10 bytes equals a 4-byte test and a 6-byte write instructions
     fail()
     r_eq_I_xor_r(reg, value, reg)
 
@@ -486,7 +490,7 @@ def terminate():
 #    nonlocal con_base
 #    self.prog(self.asm.mem32_I_eq_r(con_base, reg))
 
-def test_1():
+def test_1(top):
     """
     This test loads a few registers, then jumps to a zero-wait-state ROM address, but continues executing from the same physical location.
     It then loads a few more registers before terminating. This test is not self-checking, the log should be diffed for catching regressions.
@@ -517,33 +521,40 @@ def test_1():
     terminate()
 
 
-def test_2():
+def test_2(top):
     """
-    This test jumps to DRAM right out of reset, then loads a few registers, and enters an endless loop.
+    This test jumps to DRAM right out of reset, loads the registers, tests them and terminates
     """
-    pc = 0
-    prog(a.pc_eq_I(0x8000_0000)) # Jumping to DRAM
-    pc = 0x8000_0000
-    prog(a.r_eq_t(0,0))
-    prog(a.r_eq_r_plus_t(1,0,1))
-    prog(a.r_eq_r_plus_t(2,0,2))
-    prog(a.r_eq_r_plus_t(3,0,3))
-    prog(a.r_eq_r_plus_t(4,0,4))
-    prog(a.r_eq_r_plus_t(5,0,5))
-    prog(a.r_eq_r_plus_r(6,5,1))
-    prog(a.r_eq_r_plus_r(7,5,2))
-    prog(a.r_eq_r_plus_r(8,5,3))
-    prog(a.r_eq_r_plus_r(9,5,4))
-    prog(a.r_eq_r_plus_r(10,5,5))
-    prog(a.r_eq_r_plus_r(11,6,5))
-    prog(a.r_eq_I(12,12))
-    prog(a.r_eq_r_plus_r(11,6,5))
-    prog(a.r_eq_r_plus_r(12,6,6))
-    prog(a.r_eq_r_plus_r(13,7,6))
-    prog(a.r_eq_r_plus_r(14,7,7))
-    prog(a.r_eq_r_plus_t(1,1,1))
-    prog(a.pc_eq_I(pc-2)) # Endless loop.
-    prog(a.r_eq_r_plus_t(14,14,14))
+
+    top.set_timeout(3000)
+
+    create_segment("code", 0)
+    create_segment("code_dram", 0x8000_0000)
+    set_active_segment("code_dram")
+    place_symbol("_start")
+    set_active_segment("code")
+
+    pc_eq_I("_start")
+
+    set_active_segment("code_dram")
+    r_eq_t("$r0",0)
+    r_eq_r_plus_t("$r1","$r0",1)
+    r_eq_r_plus_t("$r2","$r0",2)
+    r_eq_r_plus_t("$r3","$r0",3)
+    r_eq_r_plus_t("$r4","$r0",4)
+    r_eq_r_plus_t("$r5","$r0",5)
+    r_eq_r_plus_r("$r6","$r5","$r1")
+    r_eq_r_plus_r("$r7","$r5","$r2")
+    r_eq_r_plus_r("$r8","$r5","$r3")
+    r_eq_r_plus_r("$r9","$r5","$r4")
+    r_eq_r_plus_r("$r10","$r5","$r5")
+    r_eq_r_plus_r("$r11","$r6","$r5")
+    r_eq_I("$r12",12)
+    r_eq_r_plus_r("$r13","$r7","$r6")
+    r_eq_r_plus_r("$r14","$r7","$r7")
+    for i in range(14):
+        check_reg(f"$r{i}", i)
+    terminate()
 
 
 def test_3():
@@ -730,11 +741,12 @@ def run_test(programmer: callable, test_name: str = None):
     vcd_filename = f"brew_v1_{test_name}.vcd"
     with Netlist().elaborate() as netlist:
         top_inst = top()
-    programmer()
+    programmer(top_inst)
+    reloc()
     top_inst.program(get_all_segments())
     netlist.simulate(vcd_filename, add_unnamed_scopes=False)
 
 if __name__ == "__main__":
-    run_test(test_1)
+    run_test(test_2)
 
 
