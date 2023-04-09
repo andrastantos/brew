@@ -115,7 +115,7 @@ For joysticks, the common interface was similar to what the C64 used: some GPIOs
 
 I probably should have gone down a similar road: a serial interface, probably PC-style for the keyboard, an analog/digital joystick port for ... well, joysticks and mice. The main reason would have been that these were existing standards with many compatible products available and I really would not have enjoyed developing them all from scratch.
 
-So, PS/2 port for Keyboard.
+So, PS/2 port for Keyboard: `good info on the protocol <http://www.burtonsys.com/ps2_chapweske.htm>`_
 
 The Amiga had a very `simple <http://pavouk.org/hw/en_amigamouse.html>`_ mouse, not much more than the optical encoders. While I don't have the schematic, but the Macintosh mouse was very similar judging from the `pinout <https://old.pinouts.ru/InputCables/MacMouse_pinout.shtml>`_. The Amiga had integrated encoder counters in Denise. The Mac apparently counted the cycles in SW as the pins go to a 6522. I don't quite know how the Atari ST did it, but the mouse itself was very much similar to the Amiga one.
 
