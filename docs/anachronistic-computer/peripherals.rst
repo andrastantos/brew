@@ -182,3 +182,125 @@ Pin Number Pin Name    Description
 ========== =========== ===========
 
 But in reality, this is not the way I'm going to go. This is where I'm going to draw the line and use USB.
+
+Cores needed
+~~~~~~~~~~~~
+
+- UART (done)
+- PS/2 interface
+- I2C interface (maybe, maybe just GPIO)
+- GPIO
+  - programmable input/output
+  - programmable interrupt capability (edge/level/which edge/level)
+- SD-card (maybe just SPI)
+- USB host (high-speed)
+
+Networking
+~~~~~~~~~~
+
+I'm interested in this, so let's think a little more:
+
+We will use single-pair CAN-style interconnect, but a different protocol (because CAN was somewhat later and because I want longer cables).
+
+Due to the dominant-recessive signalling, AC-coupling is out of question, and probably 1Mbps is the upper limit.
+
+To minimize clock accuracy requirements, we'll ensure that there are regular transitions and require that any transition re-syncs the receiver.
+We will do this by inserting a start bit (dominant) and a parity bit (odd parity) to every byte.
+
+Collision detection works by realizing that the bus is in dominant state while I'm trying
+to drive it recessive. The behavior under collision detection is to drive a dominant state for 10 bit-times on the bus. This will cause an
+edge-detect timeout on every device on the bus (transmitter or receiver). The response is to release the bus immediately (for transmitters)
+and to drop the incoming packet (for receivers). Then a slotted ALOHA-style retry takes place.
+
+Transmissions can only start when the bus has been in recessive state for 10 bit-times.
+
+The MAC packet format is something like this:
+
+0: destination PHY address (0xff is broadcast)
+1: source PHY address (0xff is special)
+2: packet length (including first two bytes, maximum is 255)
+3: packet type
+4...n: payload
+
+Each device has a 128-bit unique ID, but no address. Communication starts with a DHCP-like process:
+
+DHCP request packet:
+--------------------
+0: 0xff
+1: 0xff
+2: length
+3: packet type (DHCP request)
+4...20: requestor unique ID
+
+DHCP response packet:
+---------------------
+0: 0xff
+1: <address of DHCP server>
+2: length
+3: packet type (DHCP response)
+4...20: requestor unique ID
+21: assigned PHY address
+22...n: additional fields in the following format:
+   0: field type
+   1: field length
+   2...m: field content
+
+We could theoretically use a different setup, where length and packet type share the same 16-bit, but in a 12/4 division. Still allows for what we need, but also for 4096-byte packets, enough to pretend to be Ethernet.
+
+We would need to be a DMA client and implement a ring-buffer in memory. We would generate about 100kBps traffic, really nothing, on the bus and if we had an internal FIFO of a few words, we could tolerate quite a lot of request-response latency. During transmission, a buffer-under-flow would be treated as a collision and handled the same way.
+
+So, this is not going to work: on a network, it's paramount that we don't need a common ground, which means AC coupling.
+
+Long-term DC balance is relatively easy to achieve: we could send either the symbol or its inverted version to make sure that the imbalance gets
+minimized. This, combined with the fact that odd parity ensures that there aren't equal number of 0-s and 1-s in a symbol (what about the start-bit???)
+makes it possible to control DC imbalance to within 5 bits. Beyond that, we could regularly inject balancing symbols that bring that number down to 0 or +/-1.
+
+A little bit of DC balance of course is not a big deal, it still allows for proper detection of 0-s and 1-s.
+
+Ethernet uses 120ohm, with 50pf/m capacitance, so we obviously want to terminate with 120 ohms.
+
+At 300m limit we get ~1us propagation delay, a load capacitance of 15nf and a load resistance of 120 ohms. These later things might not be all that interesting, but at 1Mbps, the propagation delay is on the same order as the bit-time. This is to say that reflections can easily cause *huge* ISI.
+
+That is, both ends of the cable must be terminated.
+
+The amount of DC imbalance a single bit of mismatch causes should depend on the time-constant of the RC filter. If that time constant is two orders of magnitude higher then the maximum imbalance, we're OK.
+
+So, the maximum imbalance could be 8 bits in our primitive system. That's 8us. So the time-constant should be 800us, make it 1ms.
+
+If the 'R' in that constant is 60 ohms (both ends are terminated, remember), the C must be 16uF. However, we have 4 of these caps in series (two on TX, two on RX), so really, C should be 64uF. Quite large, but not problematic if can be polarized. That is hard to do though. At the same time, thought more rare, unipolar capacitors of that size existed, see all the TV circuitry of the age. The voltage rating is not all that interesting, I might not want to drive more than 5V into the cable.
+
+I have the whole PHY modelled up in LTSpice (phy_ac.asc). It appears to work rather nicely, even with 2Mbps transfer rates. No droop all the way to 10us
+consecutive 0-s or 1-s, AC coupled, 5V supply, all the goodies.
+
+Will have to find components  that were actually available at the time, but damn, this seems to work!
+
+**NEW IDEA:**
+What if the PHY layer is based on either a floppy or a HDD controller? Those devices needed to deal with CDR from the very beginning...
+
+According to <WikiPedia `https://en.wikipedia.org/wiki/Floppy_disk`>_ the raw datarate of a 2.88Mbps floppy was 1Mbps, so earlier ones are clearly much slower.
+
+Other stuff: WD2501/11 - for CCITT X.25 (1.6Mbps)
+
+Even in 1981, the WD1000 board could do 5Mbps on a hard drive
+
+Page 394 onward of http://www.bitsavers.org/components/westernDigital/_dataBooks/1981_Western_Digital_Product_Handbook.pdf provides what appears to be a complete schematic for an early Shugart SA400 FDD, including CDR.
+
+The WD1691 (page 406) uses a 74LS629 VCO for it's PLL. This VCO supports clocks of up to 20MHz apparently!
+The WD2143-01 could generate four (non-overlapping) clock phases at 3MHz.
+
+With that 4-phase clock, one can cobble together a CDR, though rather part-consuming.
+
+The WD1100-12 can be used to generate an MFM data-stream at 5Mbps rates.
+
+The WD1010 is a (mostly) single-chip implementation of the WD1000 board. It uses the WD1011 data separator.
+
+The WD9216-01 could be used as a CDR albeit only up to 0.5Mbps datarates. It uses an 8.3MHz clock input and a (nominally) 16x oversampled internal clock. (http://www.bitsavers.org/components/westernDigital/_dataBooks/wd1984storageProducts_01.pdf)
+
+
+
+
+
+Routing:
+--------
+
+Beyond the MAC, maybe TCP-IP is the best thing, though the relatively limited packet length (compared to Ethernet) is limiting, especially since it was introduced in 1982, just in time for us to adopt it.

@@ -558,3 +558,11 @@ To reach any reasonable distance, we need a protocol that doesn't depend on bit-
 ModBus is one such example, but that doesn't seem to be symmetrical, and is master-slave oriented.
 
 I'm starting to think, that maybe I should just punt on networking and use the second serial port for MIDI. This is a home-computer after all, so RS-232 is probably sufficient.
+
+Logic families
+~~~~~~~~~~~~~~
+
+According to http://www.bitsavers.org/components/national/_dataBooks/1983_National_74HC_Databook.pdf, the HC family was around in '83 and out-performed LS
+for power, and on par for speed.
+
+ALS was also around and was still twice as fast as either LS or HC.

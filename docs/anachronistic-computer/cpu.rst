@@ -198,3 +198,16 @@ Re-order queues at the back-end, creation of independent execution units.
 Target frequency is ~150MHz core, 33MHz front-end bus.
 
 Virtual market introduction ~'93
+
+Comparison
+~~~~~~~~~~
+
+A bit old, but a good idea for pricing of processors in the era:
+
+http://www.bitsavers.org/components/edn/EDN-4th-annual-microprocessor-directory-Nov20-1977.pdf
+
+8080: $10, 8085: $20
+6502: $10
+6800: $20
+PIC1650/1655/1670: $20 (2500) $4 (100k)
+Z80: $20
