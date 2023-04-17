@@ -775,6 +775,98 @@ def test_6(top):
     loop = pc
     prog(a.pc_eq_I(loop))
 
+
+
+r = [None]*15
+
+def startup():
+    """
+    Setting up initial segments, jump to DRAM and load all registers
+    """
+    global r
+
+    create_segment("code", 0)
+    create_segment("code_dram", 0x8000_0000)
+    set_active_segment("code_dram")
+    place_symbol("_start")
+    set_active_segment("code")
+
+    pc_eq_I("_start")
+
+    set_active_segment("code_dram")
+    for i in range(15):
+        if i <= 7:
+            r_eq_t(f"$r{i}",i)
+        else:
+            r_eq_r_plus_t(f"$r{i}",f"$r{i-7}",7)
+        r[i] = i
+
+def check(start=0, stop=14):
+    """
+    Test that all HW registers match the expectations
+    """
+    global r
+    for idx in range(start, stop+1):
+        check_reg(f"$r{idx}",   r[idx])
+
+
+def test_framework(top):
+    """
+    Test register-to-register ALU operations
+    """
+
+    top.set_timeout(3000)
+
+    startup()
+    check()
+    terminate()
+
+def load_reg(reg, value):
+    idx = int(reg[-1])
+    r[idx] = value
+    if value < 0xffff and value > 0:
+        r_eq_i(reg, value)
+    elif value < 0x7fff and value > -0x8000:
+        r_eq_i(reg, value & 0xffff)
+    else:
+        r_eq_I(reg, value)
+
+def test_alu_rr(top):
+    """
+    Test register-to-register ALU operations
+    """
+
+    top.set_timeout(6000)
+
+    startup()
+    load_reg("$r3", 0xff00f0f0)
+    load_reg("$r4", 0x0f0f00ff)
+    r[5] = (r[3] ^ r[4]) & 0xffffffff
+    r[6] = (r[3] | r[4]) & 0xffffffff
+    r[7] = (r[3] & r[4]) & 0xffffffff
+    r[8] = (r[3] + r[4]) & 0xffffffff
+    r[9] = (r[3] - r[4]) & 0xffffffff
+    r[10] = (r[3] << r[2]) & 0xffffffff
+    r[11] = (r[3] >> r[2]) & 0xffffffff
+    #r[12] = (r[3] >>> r[2]) & 0xffffffff
+    r[13] = (r[3] * r[4]) & 0xffffffff
+    r[14] = (~r[3] & r[4]) & 0xffffffff
+    r_eq_r_xor_r("$r5", "$r3", "$r4")
+    r_eq_r_or_r("$r6", "$r3", "$r4")
+    r_eq_r_and_r("$r7", "$r3", "$r4")
+    r_eq_r_plus_r("$r8", "$r3", "$r4")
+    r_eq_r_minus_r("$r9", "$r3", "$r4")
+    r_eq_r_shl_r("$r10", "$r3", "$r2")
+    r_eq_r_shr_r("$r11", "$r3", "$r2")
+    #r_eq_r_sar_r("$r12", "$r3", "$r4")
+    r_eq_r_mul_r("$r13", "$r3", "$r4")
+    r_eq_not_r_and_r("$r14", "$r3", "$r4")
+
+    check()
+    terminate()
+
+
+
 def run_test(programmer: callable, test_name: str = None):
     if test_name is None:
         test_name = programmer.__name__
@@ -788,6 +880,6 @@ def run_test(programmer: callable, test_name: str = None):
     netlist.simulate(vcd_filename, add_unnamed_scopes=False)
 
 if __name__ == "__main__":
-    run_test(test_5)
+    run_test(test_alu_rr)
 
 
