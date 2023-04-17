@@ -850,7 +850,7 @@ def test_alu_rr(top):
     r[11] = (r[3] >> r[2]) & 0xffffffff
     #r[12] = (r[3] >>> r[2]) & 0xffffffff
     r[13] = (r[3] * r[4]) & 0xffffffff
-    r[14] = (~r[3] & r[4]) & 0xffffffff
+    r[14] = (r[3] & ~r[4]) & 0xffffffff
     r_eq_r_xor_r("$r5", "$r3", "$r4")
     r_eq_r_or_r("$r6", "$r3", "$r4")
     r_eq_r_and_r("$r7", "$r3", "$r4")
