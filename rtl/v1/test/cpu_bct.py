@@ -843,8 +843,8 @@ def sar(a,b):
         top_bits = (lsb << (b & 31)) - 1
     else:
         top_bits = 0
-    top_bits <<= (31-(b & 31))
-    return shr(a,b) | top_bits
+    top_bits <<= (32-(b & 31))
+    return shr(a,b) | (top_bits & 0xffffffff)
 
 def test_alu_rr(top):
     """
@@ -927,12 +927,11 @@ def test_alu_ir(top):
     r[6] = (r[4] | i1) & 0xffffffff
     r[7] = (r[4] & i1) & 0xffffffff
     r[8] = (r[4] + i1) & 0xffffffff
-    r[9] = (r[4] - i1) & 0xffffffff
-    r[10] = (r[4] << (i1 & 63)) & 0xffffffff
-    r[11] = (r[4] >> (i1 & 63)) & 0xffffffff
-    #r[12] = (r[4] >>> (i1 & 63)) & 0xffffffff
+    r[9] = (i1 - r[4]) & 0xffffffff
+    r[10] = shl(r[4], i1)
+    r[11] = shr(r[4], i1)
+    r[12] = sar(r[4], i1)
     r[13] = (r[4] * i1) & 0xffffffff
-    r[14] = (r[4] & ~i1) & 0xffffffff
     r_eq_i_xor_r("$r5", i1, "$r4")
     r_eq_i_or_r("$r6", i1, "$r4")
     r_eq_i_and_r("$r7", i1, "$r4")
@@ -940,7 +939,7 @@ def test_alu_ir(top):
     r_eq_i_minus_r("$r9", i1, "$r4")
     r_eq_r_shl_i("$r10", "$r4", i1)
     r_eq_r_shr_i("$r11", "$r4", i1)
-    #r_eq_r_sar_i("$r12", "$r4", i1)
+    r_eq_r_sar_i("$r12", "$r4", i1)
     r_eq_i_mul_r("$r13", i1, "$r4")
 
     check()
@@ -962,6 +961,6 @@ def run_test(programmer: callable, test_name: str = None):
     netlist.simulate(vcd_filename, add_unnamed_scopes=False)
 
 if __name__ == "__main__":
-    run_test(test_alu_Ir)
+    run_test(test_alu_ir)
 
 
