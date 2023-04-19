@@ -831,6 +831,21 @@ def load_reg(reg, value):
     else:
         r_eq_I(reg, value)
 
+def shl(a,b):
+    return (a << (b & 31)) & 0xffffffff
+
+def shr(a,b):
+    return ((a & 0xffffffff) >> (b & 31)) & 0xffffffff
+
+def sar(a,b):
+    lsb = (a >> 31) & 1
+    if lsb != 0:
+        top_bits = (lsb << (b & 31)) - 1
+    else:
+        top_bits = 0
+    top_bits <<= (31-(b & 31))
+    return shr(a,b) | top_bits
+
 def test_alu_rr(top):
     """
     Test register-to-register ALU operations
@@ -846,9 +861,9 @@ def test_alu_rr(top):
     r[7] = (r[3] & r[4]) & 0xffffffff
     r[8] = (r[3] + r[4]) & 0xffffffff
     r[9] = (r[3] - r[4]) & 0xffffffff
-    r[10] = (r[3] << r[2]) & 0xffffffff
-    r[11] = (r[3] >> r[2]) & 0xffffffff
-    #r[12] = (r[3] >>> r[2]) & 0xffffffff
+    r[10] = shl(r[3], r[2])
+    r[11] = shr(r[3], r[2])
+    #r[12] = (r[3] >>> (r[2] & 63)) & 0xffffffff
     r[13] = (r[3] * r[4]) & 0xffffffff
     r[14] = (r[3] & ~r[4]) & 0xffffffff
     r_eq_r_xor_r("$r5", "$r3", "$r4")
@@ -865,6 +880,73 @@ def test_alu_rr(top):
     check()
     terminate()
 
+def test_alu_Ir(top):
+    """
+    Test long immediate-to-register ALU operations
+    """
+
+    top.set_timeout(6000)
+
+    startup()
+    load_reg("$r4", 0xff00f0f0)
+    i1 = 0x0f0f00ff
+    r[5] = (r[4] ^ i1) & 0xffffffff
+    r[6] = (r[4] | i1) & 0xffffffff
+    r[7] = (r[4] & i1) & 0xffffffff
+    r[8] = (r[4] + i1) & 0xffffffff
+    r[9] = (i1 - r[4]) & 0xffffffff
+    r[10] = shl(i1, r[4])
+    r[11] = shr(i1, r[4])
+    r[12] = sar(i1, r[4])
+    r[13] = (r[4] * i1) & 0xffffffff
+
+    r_eq_I_xor_r("$r5", i1, "$r4")
+    r_eq_I_or_r("$r6", i1, "$r4")
+    r_eq_I_and_r("$r7", i1, "$r4")
+    r_eq_I_plus_r("$r8", i1, "$r4")
+    r_eq_I_minus_r("$r9", i1, "$r4")
+    r_eq_I_shl_r("$r10", i1, "$r4")
+    r_eq_I_shr_r("$r11", i1, "$r4")
+    r_eq_I_sar_r("$r12", i1, "$r4")
+    r_eq_I_mul_r("$r13", i1, "$r4")
+
+    check()
+    terminate()
+
+def test_alu_ir(top):
+    """
+    Test short immediate-to-register ALU operations
+    """
+
+    top.set_timeout(6000)
+
+    startup()
+    load_reg("$r4", 0xff00f0f0)
+    i1 = 0x0f0f
+    r[5] = (r[4] ^ i1) & 0xffffffff
+    r[6] = (r[4] | i1) & 0xffffffff
+    r[7] = (r[4] & i1) & 0xffffffff
+    r[8] = (r[4] + i1) & 0xffffffff
+    r[9] = (r[4] - i1) & 0xffffffff
+    r[10] = (r[4] << (i1 & 63)) & 0xffffffff
+    r[11] = (r[4] >> (i1 & 63)) & 0xffffffff
+    #r[12] = (r[4] >>> (i1 & 63)) & 0xffffffff
+    r[13] = (r[4] * i1) & 0xffffffff
+    r[14] = (r[4] & ~i1) & 0xffffffff
+    r_eq_i_xor_r("$r5", i1, "$r4")
+    r_eq_i_or_r("$r6", i1, "$r4")
+    r_eq_i_and_r("$r7", i1, "$r4")
+    r_eq_i_plus_r("$r8", i1, "$r4")
+    r_eq_i_minus_r("$r9", i1, "$r4")
+    r_eq_r_shl_i("$r10", "$r4", i1)
+    r_eq_r_shr_i("$r11", "$r4", i1)
+    #r_eq_r_sar_i("$r12", "$r4", i1)
+    r_eq_i_mul_r("$r13", i1, "$r4")
+
+    check()
+    terminate()
+
+
 
 
 def run_test(programmer: callable, test_name: str = None):
@@ -880,6 +962,6 @@ def run_test(programmer: callable, test_name: str = None):
     netlist.simulate(vcd_filename, add_unnamed_scopes=False)
 
 if __name__ == "__main__":
-    run_test(test_alu_rr)
+    run_test(test_alu_Ir)
 
 

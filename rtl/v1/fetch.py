@@ -175,23 +175,28 @@ class InstBuffer(GenericModule):
                 branch_target
             )
         )
-        fetch_page_limit = Wire(logic)
-        fetch_page_limit <<= Reg((~fetch_addr[self.page_bits-1:0]) == 0)
-
-        fetch_av = task_mode_fetch & (fetch_addr[BrewInstAddr.get_length()-1:BrewMemShift] > self.mem_limit)
-
-        self.fsm = FSM()
 
         class InstBufferStates(Enum):
             idle = 0
             request = 1
             flushing = 2
 
+        state = Wire()
+        next_state = Wire()
+        fetch_page_limit = Wire(logic)
+        fetch_page_limit <<= Reg(Select(
+            state == InstBufferStates.idle,
+            (~fetch_addr[self.page_bits-1:0]) == 0,
+            0
+        ))
+
+        fetch_av = task_mode_fetch & (fetch_addr[BrewInstAddr.get_length()-1:BrewMemShift] > self.mem_limit)
+
+        self.fsm = FSM()
+
         self.fsm.reset_value <<= InstBufferStates.idle
         self.fsm.default_state <<= InstBufferStates.idle
 
-        state = Wire()
-        next_state = Wire()
         state <<= self.fsm.state
         next_state <<= self.fsm.next_state
 
