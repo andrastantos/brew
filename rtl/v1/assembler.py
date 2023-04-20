@@ -109,11 +109,11 @@ def set_symbol(name: str, value):
     _sym_table[name] = value
 
 def place_symbol(name):
-    create_symbol(name)
+    if name not in _sym_table: create_symbol(name)
     set_symbol(name, get_dot())
 
 def use_symbol(name: str, for_addr: SegAddr, ref_type: RelocTypes):
-    assert name in _sym_table
+    if name not in _sym_table: create_symbol(name)
     _reloc_table.append(RelocEntry(name, for_addr, ref_type))
 
 def reloc():

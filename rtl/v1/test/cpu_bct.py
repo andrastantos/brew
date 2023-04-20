@@ -822,7 +822,7 @@ def test_framework(top):
     terminate()
 
 def load_reg(reg, value):
-    idx = int(reg[-1])
+    idx = int(reg[2:])
     r[idx] = value
     if value < 0xffff and value > 0:
         r_eq_i(reg, value)
@@ -846,6 +846,22 @@ def sar(a,b):
     top_bits <<= (32-(b & 31))
     return shr(a,b) | (top_bits & 0xffffffff)
 
+def bse(a):
+    lsb = (a >> 7) & 1
+    if lsb != 0:
+        top_bits = 0xffffff00
+    else:
+        top_bits = 0
+    return (a & 0x000000ff) | top_bits
+
+def wse(a):
+    lsb = (a >> 15) & 1
+    if lsb != 0:
+        top_bits = 0xffff0000
+    else:
+        top_bits = 0
+    return (a & 0x0000ffff) | top_bits
+
 def test_alu_rr(top):
     """
     Test register-to-register ALU operations
@@ -863,7 +879,7 @@ def test_alu_rr(top):
     r[9] = (r[3] - r[4]) & 0xffffffff
     r[10] = shl(r[3], r[2])
     r[11] = shr(r[3], r[2])
-    #r[12] = (r[3] >>> (r[2] & 63)) & 0xffffffff
+    r[12] = sar(r[3], r[2])
     r[13] = (r[3] * r[4]) & 0xffffffff
     r[14] = (r[3] & ~r[4]) & 0xffffffff
     r_eq_r_xor_r("$r5", "$r3", "$r4")
@@ -873,7 +889,7 @@ def test_alu_rr(top):
     r_eq_r_minus_r("$r9", "$r3", "$r4")
     r_eq_r_shl_r("$r10", "$r3", "$r2")
     r_eq_r_shr_r("$r11", "$r3", "$r2")
-    #r_eq_r_sar_r("$r12", "$r3", "$r4")
+    r_eq_r_sar_r("$r12", "$r3", "$r2")
     r_eq_r_mul_r("$r13", "$r3", "$r4")
     r_eq_not_r_and_r("$r14", "$r3", "$r4")
 
@@ -946,7 +962,127 @@ def test_alu_ir(top):
     terminate()
 
 
+def test_alu_r(top):
+    """
+    Test unary ALU operations
+    """
 
+    top.set_timeout(6000)
+
+    startup()
+    load_reg("$r4", 0xff00f0f0)
+    i1 = 0x0f0f
+    r[5] = (-r[4]) & 0xffffffff
+    r[6] = (~r[4]) & 0xffffffff
+    r[7] = bse(r[4])
+    r[8] = wse(r[4])
+
+    r_eq_neg_r("$r5", "$r4")
+    r_eq_not_r("$r6", "$r4")
+    r_eq_bse_r("$r7", "$r4")
+    r_eq_wse_r("$r8", "$r4")
+
+    check()
+    terminate()
+
+
+def test_branch_zc(top):
+    """
+    Test zero-compare conditional branches
+    """
+
+    top.set_timeout(6000)
+
+    startup()
+    load_reg("$r1", 0xffffffff)
+    load_reg("$r14", 0)
+
+    if_r_eq_z(  "$r0", "r_eq_z1")
+    fail()
+    place_symbol("r_eq_z1")
+    if_r_eq_z(  "$r1", "r_eq_z2")
+    pc_eq_I("r_eq_z3")
+    place_symbol("r_eq_z2")
+    fail()
+    place_symbol("r_eq_z3")
+
+    r_eq_r_plus_t("$r14", "$r14", 1)
+    r[14] += 1
+
+    if_r_ne_z(  "$r1", "r_ne_z1")
+    fail()
+    place_symbol("r_ne_z1")
+    if_r_ne_z(  "$r0", "r_ne_z2")
+    pc_eq_I("r_ne_z3")
+    place_symbol("r_ne_z2")
+    fail()
+    place_symbol("r_ne_z3")
+
+    r_eq_r_plus_t("$r14", "$r14", 1)
+    r[14] += 1
+
+    if_r_lts_z(  "$r1", "r_lts_z1")
+    fail()
+    place_symbol("r_lts_z1")
+    if_r_lts_z(  "$r0", "r_lts_z2")
+    if_r_lts_z(  "$r2", "r_lts_z2")
+    pc_eq_I("r_lts_z3")
+    place_symbol("r_lts_z2")
+    fail()
+    place_symbol("r_lts_z3")
+
+    r_eq_r_plus_t("$r14", "$r14", 1)
+    r[14] += 1
+
+    if_r_ges_z(  "$r0", "r_ges_z1")
+    fail()
+    place_symbol("r_ges_z1")
+    if_r_ges_z(  "$r2", "r_ges_z1b")
+    fail()
+    place_symbol("r_ges_z1b")
+    if_r_ges_z(  "$r1", "r_ges_z2")
+    pc_eq_I("r_ges_z3")
+    place_symbol("r_ges_z2")
+    fail()
+    place_symbol("r_ges_z3")
+
+    r_eq_r_plus_t("$r14", "$r14", 1)
+    r[14] += 1
+
+    if_r_gts_z(  "$r2", "r_gts_z1")
+    fail()
+    place_symbol("r_gts_z1")
+    if_r_gts_z(  "$r0", "r_gts_z2")
+    if_r_gts_z(  "$r1", "r_gts_z2")
+    pc_eq_I("r_gts_z3")
+    place_symbol("r_gts_z2")
+    fail()
+    place_symbol("r_gts_z3")
+
+    r_eq_r_plus_t("$r14", "$r14", 1)
+    r[14] += 1
+
+    if_r_les_z(  "$r1", "r_les_z1")
+    fail()
+    place_symbol("r_les_z1")
+    if_r_les_z(  "$r0", "r_les_z1b")
+    fail()
+    place_symbol("r_les_z1b")
+    if_r_les_z(  "$r2", "r_les_z2")
+    pc_eq_I("r_les_z3")
+    place_symbol("r_les_z2")
+    fail()
+    place_symbol("r_les_z3")
+
+    r_eq_r_plus_t("$r14", "$r14", 1)
+    r[14] += 1
+
+    check()
+    terminate()
+
+# TODO: zero-compare branches; compare branches; bit-test branches
+#       stack operations
+#       load-stores
 
 def run_test(programmer: callable, test_name: str = None):
     if test_name is None:
@@ -961,6 +1097,6 @@ def run_test(programmer: callable, test_name: str = None):
     netlist.simulate(vcd_filename, add_unnamed_scopes=False)
 
 if __name__ == "__main__":
-    run_test(test_alu_ir)
+    run_test(test_branch_zc)
 
 
