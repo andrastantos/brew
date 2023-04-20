@@ -148,14 +148,17 @@ class MemoryStage(GenericModule):
         multi_cycle <<= Reg((self.input_port.access_len == access_len_32) & ~is_csr, clock_en = input_advance)
         # Active is set for 32-bit transfers, until all requests are sent
         active = Wire(logic)
-        active <<= Reg(Select((self.input_port.access_len == access_len_32) & ~is_csr & input_advance, Select(bus_request_advance, active, 0), 1))
+        next_active = Wire(logic)
+        next_active <<= Select((self.input_port.access_len == access_len_32) & ~is_csr & input_advance, Select(bus_request_advance, active, 0), 1)
+        active <<= Reg(next_active)
         # Pending is set for 32-bit transfers, until the first response is back
         pending = Wire(logic)
         pending <<= Reg(Select((self.input_port.access_len == access_len_32) & ~is_csr & input_advance & self.input_port.read_not_write, Select(bus_response_advance, pending, 0), 1))
+        # Gap goes active for one cycle after all requests are sent to ensure proper burst termination between back-to-back requests
         gap = Wire(logic)
         gap <<= Reg(
             Select(
-                ((self.input_port.access_len != access_len_32) & ~is_csr & input_advance) | active,
+                ((self.input_port.access_len != access_len_32) & ~is_csr & input_advance) | (active & ~next_active),
                 0,
                 1
             )
@@ -187,7 +190,17 @@ class MemoryStage(GenericModule):
         byte_en[1] <<= (self.input_port.access_len != 0) |  self.input_port.addr[0]
 
         data_store = Wire(Unsigned(16)) # Stores high-word for writes, low-word reads
-        data_store = Reg(Select(input_advance, Select(bus_response_advance & pending, data_store, self.bus_rsp_if.data), self.input_port.data[31:16]))
+        data_store <<= Reg(
+            Select(
+                input_advance,
+                Select(
+                    bus_response_advance & pending,
+                    data_store,
+                    self.bus_rsp_if.data
+                ),
+                self.input_port.data[31:16]
+            )
+        )
 
         self.bus_req_if.read_not_write  <<= remember(self.input_port, self.input_port.read_not_write)
         self.bus_req_if.byte_en         <<= remember(self.input_port, byte_en)

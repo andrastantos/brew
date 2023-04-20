@@ -779,7 +779,7 @@ def test_6(top):
 
 r = [None]*15
 
-def startup():
+def startup(init_regs = True):
     """
     Setting up initial segments, jump to DRAM and load all registers
     """
@@ -794,12 +794,13 @@ def startup():
     pc_eq_I("_start")
 
     set_active_segment("code_dram")
-    for i in range(15):
-        if i <= 7:
-            r_eq_t(f"$r{i}",i)
-        else:
-            r_eq_r_plus_t(f"$r{i}",f"$r{i-7}",7)
-        r[i] = i
+    if init_regs:
+        for i in range(15):
+            if i <= 7:
+                r_eq_t(f"$r{i}",i)
+            else:
+                r_eq_r_plus_t(f"$r{i}",f"$r{i-7}",7)
+            r[i] = i
 
 def check(start=0, stop=14):
     """
@@ -824,9 +825,7 @@ def test_framework(top):
 def load_reg(reg, value):
     idx = int(reg[2:])
     r[idx] = value
-    if value < 0xffff and value > 0:
-        r_eq_i(reg, value)
-    elif value < 0x7fff and value > -0x8000:
+    if value < 0x7fff and value > -0x8000:
         r_eq_i(reg, value & 0xffff)
     else:
         r_eq_I(reg, value)
@@ -1080,6 +1079,188 @@ def test_branch_zc(top):
     check()
     terminate()
 
+
+def test_branch_rc(top):
+    """
+    Test register-compare conditional branches
+    """
+
+    top.set_timeout(6000)
+
+    startup()
+    load_reg("$r1", 0xffffffff)
+    load_reg("$r14", 0)
+
+    if_r_eq_r(  "$r5", "$r5", "r_eq_r1")
+    fail()
+    place_symbol("r_eq_r1")
+    if_r_eq_r(  "$r1", "$r5", "r_eq_r2")
+    pc_eq_I("r_eq_r3")
+    place_symbol("r_eq_r2")
+    fail()
+    place_symbol("r_eq_r3")
+
+    r_eq_r_plus_t("$r14", "$r14", 1)
+    r[14] += 1
+
+    if_r_ne_r(  "$r1", "$r5", "r_ne_r1")
+    fail()
+    place_symbol("r_ne_r1")
+    if_r_ne_r(  "$r5", "$r5", "r_ne_r2")
+    pc_eq_I("r_ne_r3")
+    place_symbol("r_ne_r2")
+    fail()
+    place_symbol("r_ne_r3")
+
+    r_eq_r_plus_t("$r14", "$r14", 1)
+    r[14] += 1
+
+    if_r_lts_r(  "$r1", "$r5", "r_lts_r1")
+    fail()
+    place_symbol("r_lts_r1")
+    if_r_lts_r(  "$r2", "$r5", "r_lts_r1b")
+    fail()
+    place_symbol("r_lts_r1b")
+    if_r_lts_r(  "$r8", "$r5", "r_lts_r2")
+    if_r_lts_r(  "$r5", "$r1", "r_lts_r2")
+    if_r_lts_r(  "$r5", "$r5", "r_lts_r2")
+    pc_eq_I("r_lts_r3")
+    place_symbol("r_lts_r2")
+    fail()
+    place_symbol("r_lts_r3")
+
+    r_eq_r_plus_t("$r14", "$r14", 1)
+    r[14] += 1
+
+    if_r_ges_r(  "$r8", "$r5", "r_ges_r1")
+    fail()
+    place_symbol("r_ges_r1")
+    if_r_ges_r(  "$r5", "$r1", "r_ges_r1b")
+    fail()
+    place_symbol("r_ges_r1b")
+    if_r_ges_r(  "$r5", "$r5", "r_ges_r1c")
+    fail()
+    place_symbol("r_ges_r1c")
+    if_r_ges_r(  "$r1", "$r5", "r_ges_r2")
+    if_r_ges_r(  "$r2", "$r5", "r_ges_r2")
+    pc_eq_I("r_ges_r3")
+    place_symbol("r_ges_r2")
+    fail()
+    place_symbol("r_ges_r3")
+
+    r_eq_r_plus_t("$r14", "$r14", 1)
+    r[14] += 1
+
+    if_r_lt_r(  "$r5", "$r1", "r_lt_r1")
+    fail()
+    place_symbol("r_lt_r1")
+    if_r_lt_r(  "$r2", "$r5", "r_lt_r1b")
+    fail()
+    place_symbol("r_lt_r1b")
+    if_r_lt_r(  "$r1", "$r5", "r_lt_r2")
+    if_r_lt_r(  "$r8", "$r5", "r_lt_r2")
+    if_r_lt_r(  "$r5", "$r5", "r_lt_r2")
+    pc_eq_I("r_lt_r3")
+    place_symbol("r_lt_r2")
+    fail()
+    place_symbol("r_lt_r3")
+
+    r_eq_r_plus_t("$r14", "$r14", 1)
+    r[14] += 1
+
+    if_r_ge_r(  "$r8", "$r5", "r_ge_r1")
+    fail()
+    place_symbol("r_ge_r1")
+    if_r_ge_r(  "$r1", "$r5", "r_ge_r1b")
+    fail()
+    place_symbol("r_ge_r1b")
+    if_r_ge_r(  "$r5", "$r5", "r_ge_r1c")
+    fail()
+    place_symbol("r_ge_r1c")
+    if_r_ge_r(  "$r5", "$r1", "r_ge_r2")
+    if_r_ge_r(  "$r2", "$r5", "r_ge_r2")
+    pc_eq_I("r_ge_r3")
+    place_symbol("r_ge_r2")
+    fail()
+    place_symbol("r_ge_r3")
+
+    r_eq_r_plus_t("$r14", "$r14", 1)
+    r[14] += 1
+
+
+    check()
+    terminate()
+
+
+def test_branch_bit(top):
+    """
+    Test register-compare conditional branches
+    """
+
+    top.set_timeout(6000)
+
+    startup(init_regs=False)
+    load_reg("$r0",  0x00000001)
+    load_reg("$r1",  0x00000002)
+    load_reg("$r2",  0x00000004)
+    load_reg("$r3",  0x00000008)
+    load_reg("$r4",  0x00000010)
+    load_reg("$r5",  0x00000020)
+    load_reg("$r6",  0x00000040)
+    load_reg("$r7",  0x00000080)
+    load_reg("$r8",  0x00000100)
+    load_reg("$r9",  0x00000200)
+    load_reg("$r10", 0x00004000)
+    load_reg("$r11", 0x00008000)
+    load_reg("$r12", 0x00010000)
+    load_reg("$r13", 0x40000000)
+    load_reg("$r14", 0x80000000)
+
+    def bit(idx):
+        b = (0,1,2,3,4,5,6,7,8,9,14,15,16,30,31)
+        return b[idx]
+
+    for i in range(15):
+        if_r_setb(f"$r{i}", bit(i), f"r_setb{i}_j")
+        fail()
+        place_symbol(f"r_setb{i}_j")
+
+    mem32_I_eq_r(con_base+0, "$r0")
+
+    for i in range(15):
+        if_r_clrb(f"$r{i}", bit(i), f"r_clrb_nj_error")
+    pc_eq_I("r_clrb_nj_ok")
+    place_symbol("r_clrb_nj_error")
+    fail()
+    place_symbol("r_clrb_nj_ok")
+
+    mem32_I_eq_r(con_base+0, "$r1")
+
+    for i in range(15):
+        r_eq_not_r(f"$r{i}", f"$r{i}")
+        r[i] = ~r[i]
+
+    mem32_I_eq_r(con_base+0, "$r2")
+
+    for i in range(15):
+        if_r_clrb(f"$r{i}", bit(i), f"r_clrb{i}_j")
+        fail()
+        place_symbol(f"r_clrb{i}_j")
+
+    mem32_I_eq_r(con_base+0, "$r3")
+
+    for i in range(15):
+        if_r_setb(f"$r{i}", bit(i), f"r_setb_nj_error")
+    pc_eq_I("r_setb_nj_ok")
+    place_symbol("r_setb_nj_error")
+    fail()
+    place_symbol("r_setb_nj_ok")
+
+    mem32_I_eq_r(con_base+0, "$r4")
+
+    check()
+    terminate()
+
 # TODO: zero-compare branches; compare branches; bit-test branches
 #       stack operations
 #       load-stores
@@ -1097,6 +1278,6 @@ def run_test(programmer: callable, test_name: str = None):
     netlist.simulate(vcd_filename, add_unnamed_scopes=False)
 
 if __name__ == "__main__":
-    run_test(test_branch_zc)
+    run_test(test_branch_bit)
 
 

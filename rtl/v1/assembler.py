@@ -145,9 +145,9 @@ def reloc():
         elif entry.reloc_type == RelocTypes.pc_rel:
             if not isinstance(value, int):
                 value.segment == entry.addr.segment, "We don't support pc-relative relocations across segments"
-                abs_value = value.offset - entry.addr.offset
+                abs_value = value.offset - entry.addr.offset + 2
             else:
-                abs_value -= entry.addr.offset
+                abs_value -= entry.addr.offset + 2
             assert (abs(abs_value) <= ((1 << 17-1)-1) or abs_value == -(1 << 17-1)) and ((abs_value & 1) == 0)
             abs_value = abs_value & 0x1ffff
             # Move bit 17 to bit 0

@@ -644,7 +644,7 @@ class ExecuteStage(GenericModule):
             result = s1_alu_output.result
 
         s2_result_reg_addr_valid = Reg(s1_result_reg_addr_valid, clock_en = stage_2_reg_en)
-        self.output_port.valid <<= stage_2_valid & s2_result_reg_addr_valid
+        self.output_port.valid <<= stage_2_valid & s2_result_reg_addr_valid & Reg(stage_2_reg_en)
 
         s2_exec_unit <<= Reg(s1_exec_unit, clock_en = stage_2_reg_en)
 
