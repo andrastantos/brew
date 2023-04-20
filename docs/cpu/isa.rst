@@ -762,8 +762,10 @@ Instruction code    Assembly                                  Operation
 ==================  ======================================    ==================
 0x.f0. 0x****       type $r0...$r7  <- MEM[$rD, FIELD_A*4]    with FIELD_E as mask
 0x.f1. 0x****       type $r8...$r14 <- MEM[$rD, FIELD_A*4]    with FIELD_E as mask
-0x.f2. 0x****       SII
-0x.f3. 0x****       SII
+vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv NOTE NOTE NOTE THESE ARE CHANGED!!!!! TO BE CHECKED WITH COMPILER/ASSEMBLER!!!!!!!
+0x*f2* 0x****       Store multiple offset: {FIELD_D[3:1], FIELD_A} * 4, destination is FIELD_D[0], FIELD_E[15]: include types; FIELD_E[14:0]: register mask
+0x*f3* 0x****       Load multiple  offset: {FIELD_D[3:1], FIELD_A} * 4, destination is FIELD_D[0], FIELD_E[15]: include types; FIELD_E[14:0]: register mask
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ NOTE NOTE NOTE THESE ARE CHANGED!!!!! TO BE CHECKED WITH COMPILER/ASSEMBLER!!!!!!!
 ==================  ======================================    ==================
 
 .. note::
@@ -850,6 +852,10 @@ Absolute load/store group
 =========================  ==========================  ==================
 Instruction code           Assembly                    Operation
 =========================  ==========================  ==================
+vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv NOTE NOTE NOTE THESE ARE CHANGED!!!!! TO BE CHECKED WITH COMPILER/ASSEMBLER!!!!!!!
+0x.f2f 0x****              see store multiple
+0x.f3f 0x****              see load multiple
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ NOTE NOTE NOTE THESE ARE CHANGED!!!!! TO BE CHECKED WITH COMPILER/ASSEMBLER!!!!!!!
 0x.f4f 0x**** 0x****       $rD <- MEM8[FIELD_E]        8-bit unsigned load from MEM[FIELD_E] into $rD
 0x.f5f 0x**** 0x****       $rD <- MEM16[FIELD_E]       16-bit unsigned load from MEM[FIELD_E] into $rD
 0x.f6f 0x**** 0x****       $rD <- MEM[32][FIELD_E]     32-bit load from MEM[FIELD_E] into $rD
