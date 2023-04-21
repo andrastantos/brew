@@ -1,0 +1,49 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Fri Apr 21 18:31:39 2023
+[*]
+[dumpfile] "/home/tantos/brew/rtl/v1/test/brew_v1_test_3.vcd"
+[dumpfile_mtime] "Fri Apr 21 18:30:01 2023"
+[dumpfile_size] 1038770
+[savefile] "/home/tantos/brew/rtl/v1/test/brew_v1_test_3.gtkw"
+[timestart] 0
+[size] 1920 990
+[pos] -1 -1
+*-13.629128 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.cpu.
+[treeopen] top.cpu.pipeline.
+[sst_width] 308
+[signals_width] 286
+[sst_expanded] 1
+[sst_vpaned_height] 269
+@800201
+-EXEC_IN
+@29
+top.cpu.pipeline.execute_stage.input_port_alu_op
+top.cpu.pipeline.execute_stage.input_port_branch_op
+top.cpu.pipeline.execute_stage.input_port_do_bse
+top.cpu.pipeline.execute_stage.input_port_do_bze
+top.cpu.pipeline.execute_stage.input_port_do_wse
+top.cpu.pipeline.execute_stage.input_port_do_wze
+top.cpu.pipeline.execute_stage.input_port_exec_unit
+top.cpu.pipeline.execute_stage.input_port_fetch_av
+top.cpu.pipeline.execute_stage.input_port_inst_len[1:0]
+top.cpu.pipeline.execute_stage.input_port_ldst_op
+top.cpu.pipeline.execute_stage.input_port_mem_access_len[1:0]
+@23
+top.cpu.pipeline.execute_stage.input_port_op_a[31:0]
+top.cpu.pipeline.execute_stage.input_port_op_b[31:0]
+top.cpu.pipeline.execute_stage.input_port_op_c[31:0]
+@29
+top.cpu.pipeline.execute_stage.input_port_ready
+@23
+top.cpu.pipeline.execute_stage.input_port_result_reg_addr[3:0]
+@29
+top.cpu.pipeline.execute_stage.input_port_result_reg_addr_valid
+top.cpu.pipeline.execute_stage.input_port_shifter_op
+top.cpu.pipeline.execute_stage.input_port_valid
+@1000201
+-EXEC_IN
+[pattern_trace] 1
+[pattern_trace] 0
