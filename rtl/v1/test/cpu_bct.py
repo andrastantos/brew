@@ -122,6 +122,9 @@ class Dram(GenericModule):
         self.content = {}
         self.name = name
 
+    def clear(self):
+        self.content = {}
+
     def set_mem(self, addr: int, data: ByteString):
         for ofs, byte in enumerate(data):
             print(f"-------- programming DRAM {self.name} at address {addr+ofs:08x} with {byte:02x}")
@@ -261,6 +264,9 @@ class Rom(GenericModule):
         self.hold_time = hold_time
         self.content = []
 
+    def clear(self):
+        self.content = []
+
     def simulate(self, simulator: Simulator) -> TSimEvent:
         self.data_out <<= None
         self.data_out_en <<= 0
@@ -358,7 +364,8 @@ class top(Module):
     def construct(self):
         self.pc = 0
         self.asm = BrewAssembler()
-        self.timeout = 1500
+        self.default_timeout = 1500
+        self.timeout = self.default_timeout
 
     def body(self):
         self.cpu = BrewV1Top(csr_base=self.csr_base >> 30, nram_base=self.nram_base >> 30, has_multiply=True, has_shift=True, page_bits=7)
@@ -461,6 +468,12 @@ class top(Module):
         else:
             raise SimulationException(f"Address {addr:08x} doesn't fall into any mapped memory region")
 
+    def clear(self):
+        self.dram_h.clear()
+        self.dram_l.clear()
+        self.rom.clear()
+        self.timeout = self.default_timeout
+
     def program(self, segments):
         for segment in segments:
             self.set_mem(segment.base_addr, segment.content)
@@ -490,6 +503,34 @@ def terminate():
 #    nonlocal con_base
 #    self.prog(self.asm.mem32_I_eq_r(con_base, reg))
 
+def prep_test() -> Netlist:
+    with Netlist().elaborate() as netlist:
+        top()
+    return netlist
+
+def run_test(netlist: Netlist, programmer: callable, test_name: str = None):
+    clear_asm()
+    if netlist is None:
+        netlist = globals()["netlist"]
+    top_inst = netlist.top_level
+
+    if test_name is None:
+        test_name = programmer.__name__
+
+    vcd_filename = f"brew_v1_{test_name}.vcd"
+
+    top_inst.clear()
+    programmer(top_inst)
+    reloc()
+    top_inst.program(get_all_segments())
+    netlist.simulate(vcd_filename, add_unnamed_scopes=False)
+
+def prog_wrapper(func):
+    def wrapper():
+        run_test(None, func)
+    return wrapper
+
+@prog_wrapper
 def test_1(top):
     """
     This test loads a few registers, then jumps to a zero-wait-state ROM address, but continues executing from the same physical location.
@@ -521,6 +562,7 @@ def test_1(top):
     terminate()
 
 
+@prog_wrapper
 def test_2(top):
     """
     This test jumps to DRAM right out of reset, loads the registers, tests them and terminates
@@ -557,6 +599,7 @@ def test_2(top):
     terminate()
 
 
+@prog_wrapper
 def test_3(top):
     """
     This test jumps to DRAM right out of reset, then loads a few registers, and a few loads and stores before entering an endless loop.
@@ -582,6 +625,7 @@ def test_3(top):
     terminate()
 
 
+@prog_wrapper
 def test_4(top):
     """
     Test jumping to task mode, then back to scheduler mode due to a fetch AV
@@ -646,6 +690,7 @@ def test_4(top):
     pc_eq_I("_task_start")
 
 
+@prog_wrapper
 def test_5(top):
     """
     Test jumping back and forth between task and system mode, no exceptions thrown
@@ -723,6 +768,7 @@ def test_5(top):
     pc_eq_I("_task_start")
     r_eq_r_plus_t("$r1","$r1",1)
 
+@prog_wrapper
 def pc_rel(location):
     # Return a pc-relative address, based on munging for conditional branch instruction rules:
     #    replicate LSB to bit positions [31:16], replace LSB with 0.
@@ -735,45 +781,46 @@ def pc_rel(location):
     bit_16 = (linear >> 16) & 1
     return (linear & 0xffff) | bit_16
 
-def test_6(top):
-    """
-    Test conditional branches.
-    """
-    #nonlocal pc
-    #nonlocal top_inst
-    pc = 0
-    task_start = 0x8000_1000
-    prog(a.pc_eq_I(0x8000_0000)) # Jumping to DRAM
-    pc = 0x8000_0000
-    prog(a.r_eq_t(0,0))
-    prog(a.r_eq_r_plus_t(1,0,1))
-    prog(a.r_eq_r_plus_t(2,0,2))
-    prog(a.r_eq_r_plus_t(3,0,3))
-    prog(a.r_eq_r_plus_t(4,0,4))
-    prog(a.r_eq_r_plus_t(5,0,5))
-    prog(a.r_eq_r_plus_r(6,5,1))
-    prog(a.r_eq_r_plus_r(7,5,2))
-    prog(a.r_eq_r_plus_r(8,5,3))
-    prog(a.r_eq_r_plus_r(9,5,4))
-    prog(a.r_eq_r_plus_r(10,5,5))
-    prog(a.r_eq_r_plus_r(11,6,5))
-    prog(a.r_eq_I(12,12))
-    prog(a.r_eq_r_plus_r(11,6,5))
-    prog(a.r_eq_r_plus_r(12,6,6))
-    prog(a.r_eq_r_plus_r(13,7,6))
-    prog(a.r_eq_r_plus_r(14,7,7))
-    check_reg(10,10)
-    prog(a.r_eq_mem32_I(0,0x8000_0000))
-    prog(a.mem32_I_eq_r(0x8000_0800,14))
-    loop = pc
-    prog(a.r_eq_r_minus_r(4,4,1))
-    prog(a.if_r_ne_z(4,pc_rel(loop)))
-    loop = pc
-    prog(a.r_eq_r_plus_t(4,4,1))
-    prog(a.if_r_ne_r(4,5,pc_rel(loop)))
-    terminate()
-    loop = pc
-    prog(a.pc_eq_I(loop))
+#@prog_wrapper
+#def test_6(top):
+#    """
+#    Test conditional branches.
+#    """
+#    #nonlocal pc
+#    #nonlocal top_inst
+#    pc = 0
+#    task_start = 0x8000_1000
+#    prog(a.pc_eq_I(0x8000_0000)) # Jumping to DRAM
+#    pc = 0x8000_0000
+#    prog(a.r_eq_t(0,0))
+#    prog(a.r_eq_r_plus_t(1,0,1))
+#    prog(a.r_eq_r_plus_t(2,0,2))
+#    prog(a.r_eq_r_plus_t(3,0,3))
+#    prog(a.r_eq_r_plus_t(4,0,4))
+#    prog(a.r_eq_r_plus_t(5,0,5))
+#    prog(a.r_eq_r_plus_r(6,5,1))
+#    prog(a.r_eq_r_plus_r(7,5,2))
+#    prog(a.r_eq_r_plus_r(8,5,3))
+#    prog(a.r_eq_r_plus_r(9,5,4))
+#    prog(a.r_eq_r_plus_r(10,5,5))
+#    prog(a.r_eq_r_plus_r(11,6,5))
+#    prog(a.r_eq_I(12,12))
+#    prog(a.r_eq_r_plus_r(11,6,5))
+#    prog(a.r_eq_r_plus_r(12,6,6))
+#    prog(a.r_eq_r_plus_r(13,7,6))
+#    prog(a.r_eq_r_plus_r(14,7,7))
+#    check_reg(10,10)
+#    prog(a.r_eq_mem32_I(0,0x8000_0000))
+#    prog(a.mem32_I_eq_r(0x8000_0800,14))
+#    loop = pc
+#    prog(a.r_eq_r_minus_r(4,4,1))
+#    prog(a.if_r_ne_z(4,pc_rel(loop)))
+#    loop = pc
+#    prog(a.r_eq_r_plus_t(4,4,1))
+#    prog(a.if_r_ne_r(4,5,pc_rel(loop)))
+#    terminate()
+#    loop = pc
+#    prog(a.pc_eq_I(loop))
 
 
 
@@ -811,6 +858,7 @@ def check(start=0, stop=14):
         check_reg(f"$r{idx}",   r[idx])
 
 
+@prog_wrapper
 def test_framework(top):
     """
     Test register-to-register ALU operations
@@ -861,6 +909,7 @@ def wse(a):
         top_bits = 0
     return (a & 0x0000ffff) | top_bits
 
+@prog_wrapper
 def test_alu_rr(top):
     """
     Test register-to-register ALU operations
@@ -895,6 +944,7 @@ def test_alu_rr(top):
     check()
     terminate()
 
+@prog_wrapper
 def test_alu_Ir(top):
     """
     Test long immediate-to-register ALU operations
@@ -928,6 +978,7 @@ def test_alu_Ir(top):
     check()
     terminate()
 
+@prog_wrapper
 def test_alu_ir(top):
     """
     Test short immediate-to-register ALU operations
@@ -961,6 +1012,7 @@ def test_alu_ir(top):
     terminate()
 
 
+@prog_wrapper
 def test_alu_r(top):
     """
     Test unary ALU operations
@@ -985,6 +1037,7 @@ def test_alu_r(top):
     terminate()
 
 
+@prog_wrapper
 def test_branch_zc(top):
     """
     Test zero-compare conditional branches
@@ -1080,6 +1133,7 @@ def test_branch_zc(top):
     terminate()
 
 
+@prog_wrapper
 def test_branch_rc(top):
     """
     Test register-compare conditional branches
@@ -1192,6 +1246,7 @@ def test_branch_rc(top):
     terminate()
 
 
+@prog_wrapper
 def test_branch_bit(top):
     """
     Test register-compare conditional branches
@@ -1265,19 +1320,11 @@ def test_branch_bit(top):
 #       stack operations
 #       load-stores
 
-def run_test(programmer: callable, test_name: str = None):
-    if test_name is None:
-        test_name = programmer.__name__
-
-    vcd_filename = f"brew_v1_{test_name}.vcd"
-    with Netlist().elaborate() as netlist:
-        top_inst = top()
-    programmer(top_inst)
-    reloc()
-    top_inst.program(get_all_segments())
-    netlist.simulate(vcd_filename, add_unnamed_scopes=False)
-
 if __name__ == "__main__":
-    run_test(test_branch_bit)
+    netlist = prep_test()
+    #test_3()
+    test_branch_bit()
 
 
+if "pytest" in sys.modules:
+    netlist = prep_test()

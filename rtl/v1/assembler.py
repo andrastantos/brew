@@ -64,6 +64,15 @@ _reloc_table: Sequence[RelocEntry] = []
 _segments: Dict[str, Segment] = {}
 _dot = None
 
+def clear_asm():
+    global _asm, _sym_table, _reloc_table, _segments, _dot
+    _asm = BrewAssembler()
+    _sym_table = {}
+    _reloc_table = []
+    _segments = {}
+    _dot = None
+
+
 def get_dot() -> SegAddr:
     return copy(_dot)
 

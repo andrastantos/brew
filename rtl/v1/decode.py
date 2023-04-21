@@ -675,7 +675,7 @@ def sim():
 
         fetch = Output(FetchDecodeIf)
 
-        def construct(self, exp_queue: List[DecodeExpectations], set_exec_wait_range: Callable, set_reg_file_wait_range: Callable):
+        def construct(self, exp_queue: List['DecodeExpectations'], set_exec_wait_range: Callable, set_reg_file_wait_range: Callable):
             self.exp_queue = exp_queue
             self.set_exec_wait_range = set_exec_wait_range
             self.set_reg_file_wait_range = set_reg_file_wait_range
