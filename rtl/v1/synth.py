@@ -6,7 +6,7 @@ class QuartusException(Exception):
     pass
 
 class QuartusFlow(object):
-    def __init__(self, top_level: str, source_files: Sequence[str], clocks: Sequence[Tuple[str, int]], *, target_dir="quartus", project_name=None, no_timing_report_clocks: Sequence[str] = None):
+    def __init__(self, top_level: str, source_files: Sequence[str], clocks: Sequence[Tuple[str, int]], *, device, target_dir="quartus", project_name=None, no_timing_report_clocks: Sequence[str] = None):
         from pathlib import Path
 
         self.source_files = source_files
@@ -16,7 +16,7 @@ class QuartusFlow(object):
         self.top_level: str = top_level
         self.project_file_name = self.target_dir / f"{self.project_name}.qpf"
         self.no_timing_report_clocks = (no_timing_report_clocks, ) if isinstance(no_timing_report_clocks, str) else no_timing_report_clocks
-        self.device = "10M04SAE144C7G"
+        self.device = device
 
     def generate(self):
         from datetime import datetime
