@@ -230,6 +230,7 @@ def gen():
 
     back_end = SystemVerilog()
     back_end.yosys_fix = True
+    back_end.support_cast = False
     netlist = Build.generate_rtl(top, "brew_v1_top.sv", back_end)
     top_level_name = netlist.get_module_class_name(netlist.top_level)
     flow = QuartusFlow(target_dir="q_brew_v1_top", top_level=top_level_name, source_files=("brew_v1.sv", "brew_v1_top.sv"), clocks=(("clk", 100),), project_name="BREW_V1")

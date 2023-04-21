@@ -2966,15 +2966,19 @@ module Fifo (
 	logic [15:0] output_data_data;
 	logic buffer_mem_port2_data_out_av;
 	logic [15:0] buffer_mem_port2_data_out_data;
+	logic [3:0] u14_output_port;
+	logic [3:0] u20_output_port;
 
 	assign input_port_ready =  ~ full;
 	assign output_port_valid =  ~ empty;
 	assign push_will_wrap = push_addr == 4'hf;
 	assign push =  ~ full & input_port_valid;
-	assign next_push_addr = push ? 4'(push_will_wrap ? 1'h0 : push_addr + 1'h1 + 5'b0) : push_addr;
+	assign u14_output_port = push_will_wrap ? 1'h0 : push_addr + 1'h1 + 5'b0;
+	assign next_push_addr = push ? u14_output_port : push_addr;
 	assign pop_will_wrap = pop_addr == 4'hf;
 	assign pop =  ~ empty & output_port_ready;
-	assign next_pop_addr = pop ? 4'(pop_will_wrap ? 1'h0 : pop_addr + 1'h1 + 5'b0) : pop_addr;
+	assign u20_output_port = pop_will_wrap ? 1'h0 : pop_addr + 1'h1 + 5'b0;
+	assign next_pop_addr = pop ? u20_output_port : pop_addr;
 	assign next_looped = 
 		((push != 1'h1) & (pop != 1'h1) ? looped : 1'b0) | 
 		((push == 1'h1) & (pop != 1'h1) ? push_will_wrap ? 1'h1 : looped : 1'b0) | 
@@ -3634,6 +3638,7 @@ module BusIf (
 	logic [15:0] resp_data;
 	logic u451_output_port;
 	logic u456_output_port;
+	logic [10:0] u42_output_port;
 	logic [10:0] input_row_addr;
 	logic [3:0] state;
 	logic [3:0] next_state;
@@ -3647,7 +3652,8 @@ module BusIf (
 	always_ff @(posedge clk) refresh_req <= rst ? 1'h0 : refresh_tc &  ~ refresh_disable ? 1'h1 : refresh_rsp ? 1'h0 : refresh_req;
 	always_ff @(posedge clk) refresh_divider <= rst ? 8'h0 : (reg_if_paddr == 1'h0) & reg_write_strobe ? reg_if_pwdata[7:0] : refresh_divider;
 	always_ff @(posedge clk) refresh_counter <= rst ? 8'h0 : refresh_tc ? refresh_divider : refresh_req ? refresh_counter : u34_output_port[7:0];
-	always_ff @(posedge clk) refresh_addr <= rst ? 11'h0 : refresh_rsp ? 11'(refresh_addr + 1'h1 + 12'b0) : refresh_addr;
+	assign u42_output_port = refresh_addr + 1'h1 + 12'b0;
+	always_ff @(posedge clk) refresh_addr <= rst ? 11'h0 : refresh_rsp ? u42_output_port : refresh_addr;
 	assign arb_port_comb = refresh_req ? `Ports__refresh_port : dma_request_valid ? `Ports__dma_port : mem_request_valid ? `Ports__mem_port : `Ports__fetch_port;
 	always_ff @(posedge clk) u54_output_port <= rst ? 2'h0 : (state == `BusIfStates__idle) ? arb_port_comb : u54_output_port;
 	assign arb_port_select = state == `BusIfStates__idle ? arb_port_comb : u54_output_port;
