@@ -64,7 +64,7 @@
 
 `define InstBufferStates__idle 2'h0
 `define InstBufferStates__request 2'h1
-`define InstBufferStates__flush_start 2'h2
+`define InstBufferStates__flushing 2'h2
 
 
 `define InstAssembleStates__have_0_fragments 2'h0
@@ -88,11 +88,12 @@ module BrewV1Top (
 	input logic [7:0] dram_data_in,
 	output logic [7:0] dram_data_out,
 	output logic dram_data_out_en,
-	output logic dram_nCAS_a,
-	output logic dram_nCAS_b,
+	output logic dram_nCAS_0,
+	output logic dram_nCAS_1,
 	output logic [3:0] dram_nDACK,
 	output logic dram_nNREN,
-	output logic dram_nRAS,
+	output logic dram_nRAS_A,
+	output logic dram_nRAS_B,
 	input logic dram_nWAIT,
 	output logic dram_nWE,
 
@@ -100,7 +101,6 @@ module BrewV1Top (
 	input logic nINT
 );
 
-	logic [31:0] bus_if_reg_if_prdata;
 	logic u_output_port;
 	logic csr_top_level_psel;
 	logic csr_bus_if_psel;
@@ -183,6 +183,7 @@ module BrewV1Top (
 	logic bus_to_fetch_valid;
 	logic bus_to_dma_valid;
 	logic bus_if_reg_if_pready;
+	logic [31:0] bus_if_reg_if_prdata;
 	logic [15:0] bus_to_fetch_data;
 
 	assign csr_dma_psel = csr_if_psel & (csr_if_paddr[5:4] == 2'h2);
@@ -321,11 +322,12 @@ module BrewV1Top (
 		.dram_data_in(dram_data_in),
 		.dram_data_out(dram_data_out),
 		.dram_data_out_en(dram_data_out_en),
-		.dram_nCAS_a(dram_nCAS_a),
-		.dram_nCAS_b(dram_nCAS_b),
+		.dram_nCAS_0(dram_nCAS_0),
+		.dram_nCAS_1(dram_nCAS_1),
 		.dram_nDACK(dram_nDACK),
 		.dram_nNREN(dram_nNREN),
-		.dram_nRAS(dram_nRAS),
+		.dram_nRAS_A(dram_nRAS_A),
+		.dram_nRAS_B(dram_nRAS_B),
 		.dram_nWAIT(dram_nWAIT),
 		.dram_nWE(dram_nWE)
 	);
@@ -477,10 +479,10 @@ module Pipeline (
 	logic [15:0] fetch_to_decode_inst_1;
 	logic [15:0] fetch_to_decode_inst_2;
 	logic [1:0] fetch_to_decode_inst_len;
+	logic rf_req_valid;
 	logic rf_req_read1_valid;
 	logic rf_req_read2_valid;
 	logic rf_req_rsv_valid;
-	logic rf_req_valid;
 	logic [2:0] decode_to_exec_exec_unit;
 	logic [2:0] decode_to_exec_alu_op;
 	logic [1:0] decode_to_exec_shifter_op;
@@ -524,10 +526,10 @@ module Pipeline (
 	logic [3:0] rf_write_addr;
 	logic rf_write_data_en;
 	logic rf_write_valid;
-	logic rf_req_ready;
-	logic rf_rsp_valid;
 	logic [31:0] rf_rsp_read1_data;
 	logic [31:0] rf_rsp_read2_data;
+	logic rf_req_ready;
+	logic rf_rsp_valid;
 
 	assign fetch_wait_on_bus = fetch_to_bus_valid &  ~ fetch_to_bus_ready;
 	assign decode_wait_on_rf = rf_req_valid &  ~ rf_req_ready;
@@ -723,7 +725,9 @@ module Pipeline (
 		.write_addr(rf_write_addr),
 		.write_data(rf_write_data),
 		.write_data_en(rf_write_data_en),
-		.write_valid(rf_write_valid)
+		.write_valid(rf_write_valid),
+
+		.do_branch(do_branch)
 	);
 
 	assign branch_taken = do_branch;
@@ -753,156 +757,170 @@ module RegFile (
 	input logic [3:0] write_addr,
 	input logic [31:0] write_data,
 	input logic write_data_en,
-	input logic write_valid
+	input logic write_valid,
+
+	input logic do_branch
 );
 
 	logic req_advance;
 	logic rsp_advance;
-	logic u2_output_port;
+	logic u7_output_port;
+	logic outstanding_req;
+	logic u13_output_port;
 	logic read1_valid;
-	logic [3:0] u4_output_port;
+	logic [3:0] u15_output_port;
 	logic [3:0] read1_addr;
-	logic u6_output_port;
+	logic u20_output_port;
 	logic read2_valid;
-	logic [3:0] u8_output_port;
+	logic [3:0] u22_output_port;
 	logic [3:0] read2_addr;
-	logic u10_output_port;
+	logic u27_output_port;
 	logic rsv_valid;
-	logic [3:0] u12_output_port;
+	logic [3:0] u29_output_port;
 	logic [3:0] rsv_addr;
 	logic [31:0] write_data_d;
-	logic u17_output_port;
+	logic u37_output_port;
+	logic u42_output_port;
+	logic rsv_registered;
+	logic u50_output_port;
 	logic wait_for_read1;
-	logic u39_output_port;
+	logic u72_output_port;
 	logic wait_for_read2;
-	logic u61_output_port;
+	logic u94_output_port;
 	logic wait_for_rsv;
 	logic wait_for_some;
-	logic u87_output_port;
+	logic u124_output_port;
 	logic wait_for_write;
 	logic rsv_set_valid;
 	logic rsv_clr_valid;
-	logic u104_output_port;
-	logic u116_output_port;
-	logic u128_output_port;
-	logic u140_output_port;
-	logic u152_output_port;
-	logic u164_output_port;
-	logic u176_output_port;
-	logic u188_output_port;
+	logic u144_output_port;
+	logic u158_output_port;
+	logic u172_output_port;
+	logic u186_output_port;
 	logic u200_output_port;
-	logic u212_output_port;
-	logic u224_output_port;
-	logic u236_output_port;
-	logic u248_output_port;
-	logic u260_output_port;
-	logic u272_output_port;
-	logic outstanding_req;
+	logic u214_output_port;
+	logic u228_output_port;
+	logic u242_output_port;
+	logic u256_output_port;
+	logic u270_output_port;
+	logic u284_output_port;
+	logic u298_output_port;
+	logic u312_output_port;
+	logic u326_output_port;
+	logic u340_output_port;
 	logic wait_for_write_d;
 	logic out_buf_full;
+	logic [31:0] mem1_port2_data_out;
+	logic [31:0] mem2_port2_data_out;
 	logic [14:0] rsv_board;
 
+	assign rsp_advance = read_rsp_ready & read_rsp_valid;
 	assign req_advance = read_req_ready & read_req_valid;
-	always_ff @(posedge clk) u2_output_port <= rst ? 1'h0 : req_advance ? read_req_read1_valid : u2_output_port;
-	always_ff @(posedge clk) u4_output_port <= rst ? 4'h0 : req_advance ? read_req_read1_addr : u4_output_port;
-	always_ff @(posedge clk) u6_output_port <= rst ? 1'h0 : req_advance ? read_req_read2_valid : u6_output_port;
-	always_ff @(posedge clk) u8_output_port <= rst ? 4'h0 : req_advance ? read_req_read2_addr : u8_output_port;
-	always_ff @(posedge clk) u10_output_port <= rst ? 1'h0 : req_advance ? read_req_rsv_valid : u10_output_port;
-	always_ff @(posedge clk) u12_output_port <= rst ? 4'h0 : req_advance ? read_req_rsv_addr : u12_output_port;
+	always_ff @(posedge clk) u7_output_port <= rst ? 1'h0 : req_advance ? 1'h1 : rsp_advance ? 1'h0 : outstanding_req;
+	assign outstanding_req = req_advance |  ~ rsp_advance & u7_output_port;
+	always_ff @(posedge clk) u13_output_port <= rst ? 1'h0 : do_branch ? 1'h0 : req_advance ? read_req_read1_valid : read1_valid;
+	assign read1_valid = req_advance ? read_req_read1_valid : u13_output_port;
+	always_ff @(posedge clk) u15_output_port <= rst ? 4'h0 : req_advance ? read_req_read1_addr : u15_output_port;
+	always_ff @(posedge clk) u20_output_port <= rst ? 1'h0 : do_branch ? 1'h0 : req_advance ? read_req_read2_valid : read2_valid;
+	assign read2_valid = req_advance ? read_req_read2_valid : u20_output_port;
+	always_ff @(posedge clk) u22_output_port <= rst ? 4'h0 : req_advance ? read_req_read2_addr : u22_output_port;
+	always_ff @(posedge clk) u27_output_port <= rst ? 1'h0 : do_branch ? 1'h0 : req_advance ? read_req_rsv_valid : rsv_valid;
+	assign rsv_valid = req_advance ? read_req_rsv_valid : u27_output_port;
+	always_ff @(posedge clk) u29_output_port <= rst ? 4'h0 : req_advance ? read_req_rsv_addr : u29_output_port;
 	always_ff @(posedge clk) write_data_d <= rst ? 32'h0 : write_data;
-	assign read1_addr = req_advance ? read_req_read1_addr : u4_output_port;
-	assign read2_addr = req_advance ? read_req_read2_addr : u8_output_port;
-	assign read1_valid = req_advance ? read_req_read1_valid : u2_output_port;
+	assign read1_addr = req_advance ? read_req_read1_addr : u15_output_port;
+	always_ff @(posedge clk) u37_output_port <= rst ? 1'h0 : (write_addr == read1_addr) & write_valid & write_data_en;
+	assign read_rsp_read1_data = u37_output_port ? write_data_d : mem1_port2_data_out;
+	assign read2_addr = req_advance ? read_req_read2_addr : u22_output_port;
+	always_ff @(posedge clk) u42_output_port <= rst ? 1'h0 : (write_addr == read2_addr) & write_valid & write_data_en;
+	assign read_rsp_read2_data = u42_output_port ? write_data_d : mem2_port2_data_out;
+	always_ff @(posedge clk) rsv_registered <= rst ? 1'h0 : rsv_set_valid ? 1'h1 : req_advance ? 1'h0 : rsv_registered;
 	always @(*) begin
 		unique case (read1_addr)
-			4'd0: u17_output_port = rsv_board[0];
-			4'd1: u17_output_port = rsv_board[1];
-			4'd2: u17_output_port = rsv_board[2];
-			4'd3: u17_output_port = rsv_board[3];
-			4'd4: u17_output_port = rsv_board[4];
-			4'd5: u17_output_port = rsv_board[5];
-			4'd6: u17_output_port = rsv_board[6];
-			4'd7: u17_output_port = rsv_board[7];
-			4'd8: u17_output_port = rsv_board[8];
-			4'd9: u17_output_port = rsv_board[9];
-			4'd10: u17_output_port = rsv_board[10];
-			4'd11: u17_output_port = rsv_board[11];
-			4'd12: u17_output_port = rsv_board[12];
-			4'd13: u17_output_port = rsv_board[13];
-			4'd14: u17_output_port = rsv_board[14];
+			4'd0: u50_output_port = rsv_board[0];
+			4'd1: u50_output_port = rsv_board[1];
+			4'd2: u50_output_port = rsv_board[2];
+			4'd3: u50_output_port = rsv_board[3];
+			4'd4: u50_output_port = rsv_board[4];
+			4'd5: u50_output_port = rsv_board[5];
+			4'd6: u50_output_port = rsv_board[6];
+			4'd7: u50_output_port = rsv_board[7];
+			4'd8: u50_output_port = rsv_board[8];
+			4'd9: u50_output_port = rsv_board[9];
+			4'd10: u50_output_port = rsv_board[10];
+			4'd11: u50_output_port = rsv_board[11];
+			4'd12: u50_output_port = rsv_board[12];
+			4'd13: u50_output_port = rsv_board[13];
+			4'd14: u50_output_port = rsv_board[14];
 		endcase
 	end
-	assign read2_valid = req_advance ? read_req_read2_valid : u6_output_port;
 	always @(*) begin
 		unique case (read2_addr)
-			4'd0: u39_output_port = rsv_board[0];
-			4'd1: u39_output_port = rsv_board[1];
-			4'd2: u39_output_port = rsv_board[2];
-			4'd3: u39_output_port = rsv_board[3];
-			4'd4: u39_output_port = rsv_board[4];
-			4'd5: u39_output_port = rsv_board[5];
-			4'd6: u39_output_port = rsv_board[6];
-			4'd7: u39_output_port = rsv_board[7];
-			4'd8: u39_output_port = rsv_board[8];
-			4'd9: u39_output_port = rsv_board[9];
-			4'd10: u39_output_port = rsv_board[10];
-			4'd11: u39_output_port = rsv_board[11];
-			4'd12: u39_output_port = rsv_board[12];
-			4'd13: u39_output_port = rsv_board[13];
-			4'd14: u39_output_port = rsv_board[14];
+			4'd0: u72_output_port = rsv_board[0];
+			4'd1: u72_output_port = rsv_board[1];
+			4'd2: u72_output_port = rsv_board[2];
+			4'd3: u72_output_port = rsv_board[3];
+			4'd4: u72_output_port = rsv_board[4];
+			4'd5: u72_output_port = rsv_board[5];
+			4'd6: u72_output_port = rsv_board[6];
+			4'd7: u72_output_port = rsv_board[7];
+			4'd8: u72_output_port = rsv_board[8];
+			4'd9: u72_output_port = rsv_board[9];
+			4'd10: u72_output_port = rsv_board[10];
+			4'd11: u72_output_port = rsv_board[11];
+			4'd12: u72_output_port = rsv_board[12];
+			4'd13: u72_output_port = rsv_board[13];
+			4'd14: u72_output_port = rsv_board[14];
 		endcase
 	end
-	assign rsv_addr = req_advance ? read_req_rsv_addr : u12_output_port;
-	assign rsv_valid = req_advance ? read_req_rsv_valid : u10_output_port;
+	assign rsv_addr = req_advance ? read_req_rsv_addr : u29_output_port;
 	always @(*) begin
 		unique case (rsv_addr)
-			4'd0: u61_output_port = rsv_board[0];
-			4'd1: u61_output_port = rsv_board[1];
-			4'd2: u61_output_port = rsv_board[2];
-			4'd3: u61_output_port = rsv_board[3];
-			4'd4: u61_output_port = rsv_board[4];
-			4'd5: u61_output_port = rsv_board[5];
-			4'd6: u61_output_port = rsv_board[6];
-			4'd7: u61_output_port = rsv_board[7];
-			4'd8: u61_output_port = rsv_board[8];
-			4'd9: u61_output_port = rsv_board[9];
-			4'd10: u61_output_port = rsv_board[10];
-			4'd11: u61_output_port = rsv_board[11];
-			4'd12: u61_output_port = rsv_board[12];
-			4'd13: u61_output_port = rsv_board[13];
-			4'd14: u61_output_port = rsv_board[14];
+			4'd0: u94_output_port = rsv_board[0];
+			4'd1: u94_output_port = rsv_board[1];
+			4'd2: u94_output_port = rsv_board[2];
+			4'd3: u94_output_port = rsv_board[3];
+			4'd4: u94_output_port = rsv_board[4];
+			4'd5: u94_output_port = rsv_board[5];
+			4'd6: u94_output_port = rsv_board[6];
+			4'd7: u94_output_port = rsv_board[7];
+			4'd8: u94_output_port = rsv_board[8];
+			4'd9: u94_output_port = rsv_board[9];
+			4'd10: u94_output_port = rsv_board[10];
+			4'd11: u94_output_port = rsv_board[11];
+			4'd12: u94_output_port = rsv_board[12];
+			4'd13: u94_output_port = rsv_board[13];
+			4'd14: u94_output_port = rsv_board[14];
 		endcase
 	end
-	always_ff @(posedge clk) wait_for_read1 <= rst ? 1'h0 : read1_valid & u17_output_port &  ~ ((write_addr == read1_addr) & write_valid);
-	always_ff @(posedge clk) wait_for_read2 <= rst ? 1'h0 : read2_valid & u39_output_port &  ~ ((write_addr == read2_addr) & write_valid);
-	always_ff @(posedge clk) wait_for_rsv <= rst ? 1'h0 : rsv_valid & u61_output_port &  ~ ((write_addr == rsv_addr) & write_valid);
+	assign wait_for_read1 = outstanding_req & read1_valid & u50_output_port &  ~ ((write_addr == read1_addr) & write_valid);
+	assign wait_for_read2 = outstanding_req & read2_valid & u72_output_port &  ~ ((write_addr == read2_addr) & write_valid);
+	assign wait_for_rsv = outstanding_req & rsv_valid & u94_output_port &  ~ ((write_addr == rsv_addr) & write_valid) &  ~ rsv_registered;
 	assign wait_for_some = wait_for_read1 | wait_for_read2 | wait_for_rsv;
-	always_ff @(posedge clk) u87_output_port <= rst ? 1'h0 : req_advance | write_valid ? wait_for_some : u87_output_port;
-	assign wait_for_write = req_advance | write_valid ? wait_for_some : u87_output_port;
-	assign rsv_set_valid = rsv_valid &  ~ wait_for_write;
+	always_ff @(posedge clk) u124_output_port <= rst ? 1'h0 : do_branch ? 1'h0 : req_advance | write_valid ? wait_for_some : wait_for_write;
+	assign wait_for_write = req_advance | write_valid ? wait_for_some : u124_output_port;
+	assign rsv_set_valid = rsv_valid &  ~ wait_for_write & outstanding_req;
 	assign rsv_clr_valid = write_valid &  ~ wait_for_rsv;
-	always_ff @(posedge clk) u104_output_port <= rst ? 1'h0 : rsv_set_valid & (rsv_addr == 1'h0) ? 1'h1 : rsv_clr_valid & (write_addr == 1'h0) ? 1'h0 : rsv_board[0];
-	always_ff @(posedge clk) u116_output_port <= rst ? 1'h0 : rsv_set_valid & (rsv_addr == 1'h1) ? 1'h1 : rsv_clr_valid & (write_addr == 1'h1) ? 1'h0 : rsv_board[1];
-	always_ff @(posedge clk) u128_output_port <= rst ? 1'h0 : rsv_set_valid & (rsv_addr == 2'h2) ? 1'h1 : rsv_clr_valid & (write_addr == 2'h2) ? 1'h0 : rsv_board[2];
-	always_ff @(posedge clk) u140_output_port <= rst ? 1'h0 : rsv_set_valid & (rsv_addr == 2'h3) ? 1'h1 : rsv_clr_valid & (write_addr == 2'h3) ? 1'h0 : rsv_board[3];
-	always_ff @(posedge clk) u152_output_port <= rst ? 1'h0 : rsv_set_valid & (rsv_addr == 3'h4) ? 1'h1 : rsv_clr_valid & (write_addr == 3'h4) ? 1'h0 : rsv_board[4];
-	always_ff @(posedge clk) u164_output_port <= rst ? 1'h0 : rsv_set_valid & (rsv_addr == 3'h5) ? 1'h1 : rsv_clr_valid & (write_addr == 3'h5) ? 1'h0 : rsv_board[5];
-	always_ff @(posedge clk) u176_output_port <= rst ? 1'h0 : rsv_set_valid & (rsv_addr == 3'h6) ? 1'h1 : rsv_clr_valid & (write_addr == 3'h6) ? 1'h0 : rsv_board[6];
-	always_ff @(posedge clk) u188_output_port <= rst ? 1'h0 : rsv_set_valid & (rsv_addr == 3'h7) ? 1'h1 : rsv_clr_valid & (write_addr == 3'h7) ? 1'h0 : rsv_board[7];
-	always_ff @(posedge clk) u200_output_port <= rst ? 1'h0 : rsv_set_valid & (rsv_addr == 4'h8) ? 1'h1 : rsv_clr_valid & (write_addr == 4'h8) ? 1'h0 : rsv_board[8];
-	always_ff @(posedge clk) u212_output_port <= rst ? 1'h0 : rsv_set_valid & (rsv_addr == 4'h9) ? 1'h1 : rsv_clr_valid & (write_addr == 4'h9) ? 1'h0 : rsv_board[9];
-	always_ff @(posedge clk) u224_output_port <= rst ? 1'h0 : rsv_set_valid & (rsv_addr == 4'ha) ? 1'h1 : rsv_clr_valid & (write_addr == 4'ha) ? 1'h0 : rsv_board[10];
-	always_ff @(posedge clk) u236_output_port <= rst ? 1'h0 : rsv_set_valid & (rsv_addr == 4'hb) ? 1'h1 : rsv_clr_valid & (write_addr == 4'hb) ? 1'h0 : rsv_board[11];
-	always_ff @(posedge clk) u248_output_port <= rst ? 1'h0 : rsv_set_valid & (rsv_addr == 4'hc) ? 1'h1 : rsv_clr_valid & (write_addr == 4'hc) ? 1'h0 : rsv_board[12];
-	always_ff @(posedge clk) u260_output_port <= rst ? 1'h0 : rsv_set_valid & (rsv_addr == 4'hd) ? 1'h1 : rsv_clr_valid & (write_addr == 4'hd) ? 1'h0 : rsv_board[13];
-	always_ff @(posedge clk) u272_output_port <= rst ? 1'h0 : rsv_set_valid & (rsv_addr == 4'he) ? 1'h1 : rsv_clr_valid & (write_addr == 4'he) ? 1'h0 : rsv_board[14];
-	assign rsp_advance = read_rsp_ready & read_rsp_valid;
-	always_ff @(posedge clk) outstanding_req <= rst ? 1'h0 : req_advance ? 1'h1 : rsp_advance ? 1'h0 : outstanding_req;
-	always_ff @(posedge clk) out_buf_full <= rst ? 1'h0 : req_advance ? 1'h1 : rsp_advance ? 1'h0 : out_buf_full;
-	always_ff @(posedge clk) wait_for_write_d <= rst ? 1'h0 : wait_for_write;
+	always_ff @(posedge clk) u144_output_port <= rst ? 1'h0 : do_branch ? 1'h0 : rsv_set_valid & (rsv_addr == 1'h0) ? 1'h1 : rsv_clr_valid & (write_addr == 1'h0) ? 1'h0 : rsv_board[0];
+	always_ff @(posedge clk) u158_output_port <= rst ? 1'h0 : do_branch ? 1'h0 : rsv_set_valid & (rsv_addr == 1'h1) ? 1'h1 : rsv_clr_valid & (write_addr == 1'h1) ? 1'h0 : rsv_board[1];
+	always_ff @(posedge clk) u172_output_port <= rst ? 1'h0 : do_branch ? 1'h0 : rsv_set_valid & (rsv_addr == 2'h2) ? 1'h1 : rsv_clr_valid & (write_addr == 2'h2) ? 1'h0 : rsv_board[2];
+	always_ff @(posedge clk) u186_output_port <= rst ? 1'h0 : do_branch ? 1'h0 : rsv_set_valid & (rsv_addr == 2'h3) ? 1'h1 : rsv_clr_valid & (write_addr == 2'h3) ? 1'h0 : rsv_board[3];
+	always_ff @(posedge clk) u200_output_port <= rst ? 1'h0 : do_branch ? 1'h0 : rsv_set_valid & (rsv_addr == 3'h4) ? 1'h1 : rsv_clr_valid & (write_addr == 3'h4) ? 1'h0 : rsv_board[4];
+	always_ff @(posedge clk) u214_output_port <= rst ? 1'h0 : do_branch ? 1'h0 : rsv_set_valid & (rsv_addr == 3'h5) ? 1'h1 : rsv_clr_valid & (write_addr == 3'h5) ? 1'h0 : rsv_board[5];
+	always_ff @(posedge clk) u228_output_port <= rst ? 1'h0 : do_branch ? 1'h0 : rsv_set_valid & (rsv_addr == 3'h6) ? 1'h1 : rsv_clr_valid & (write_addr == 3'h6) ? 1'h0 : rsv_board[6];
+	always_ff @(posedge clk) u242_output_port <= rst ? 1'h0 : do_branch ? 1'h0 : rsv_set_valid & (rsv_addr == 3'h7) ? 1'h1 : rsv_clr_valid & (write_addr == 3'h7) ? 1'h0 : rsv_board[7];
+	always_ff @(posedge clk) u256_output_port <= rst ? 1'h0 : do_branch ? 1'h0 : rsv_set_valid & (rsv_addr == 4'h8) ? 1'h1 : rsv_clr_valid & (write_addr == 4'h8) ? 1'h0 : rsv_board[8];
+	always_ff @(posedge clk) u270_output_port <= rst ? 1'h0 : do_branch ? 1'h0 : rsv_set_valid & (rsv_addr == 4'h9) ? 1'h1 : rsv_clr_valid & (write_addr == 4'h9) ? 1'h0 : rsv_board[9];
+	always_ff @(posedge clk) u284_output_port <= rst ? 1'h0 : do_branch ? 1'h0 : rsv_set_valid & (rsv_addr == 4'ha) ? 1'h1 : rsv_clr_valid & (write_addr == 4'ha) ? 1'h0 : rsv_board[10];
+	always_ff @(posedge clk) u298_output_port <= rst ? 1'h0 : do_branch ? 1'h0 : rsv_set_valid & (rsv_addr == 4'hb) ? 1'h1 : rsv_clr_valid & (write_addr == 4'hb) ? 1'h0 : rsv_board[11];
+	always_ff @(posedge clk) u312_output_port <= rst ? 1'h0 : do_branch ? 1'h0 : rsv_set_valid & (rsv_addr == 4'hc) ? 1'h1 : rsv_clr_valid & (write_addr == 4'hc) ? 1'h0 : rsv_board[12];
+	always_ff @(posedge clk) u326_output_port <= rst ? 1'h0 : do_branch ? 1'h0 : rsv_set_valid & (rsv_addr == 4'hd) ? 1'h1 : rsv_clr_valid & (write_addr == 4'hd) ? 1'h0 : rsv_board[13];
+	always_ff @(posedge clk) u340_output_port <= rst ? 1'h0 : do_branch ? 1'h0 : rsv_set_valid & (rsv_addr == 4'he) ? 1'h1 : rsv_clr_valid & (write_addr == 4'he) ? 1'h0 : rsv_board[14];
+	always_ff @(posedge clk) out_buf_full <= rst ? 1'h0 : do_branch ? 1'h0 : req_advance ? 1'h1 : rsp_advance ? 1'h0 : out_buf_full;
+	always_ff @(posedge clk) wait_for_write_d <= rst ? 1'h0 : do_branch ? 1'h0 : wait_for_write;
 	assign read_req_ready =  ~ wait_for_write_d & (read_rsp_ready |  ~ out_buf_full);
 	assign read_rsp_valid =  ~ wait_for_write_d & out_buf_full;
-	assign rsv_board = {u272_output_port, u260_output_port, u248_output_port, u236_output_port, u224_output_port, u212_output_port, u200_output_port, u188_output_port, u176_output_port, u164_output_port, u152_output_port, u140_output_port, u128_output_port, u116_output_port, u104_output_port};
+	assign rsv_board = {u340_output_port, u326_output_port, u312_output_port, u298_output_port, u284_output_port, u270_output_port, u256_output_port, u242_output_port, u228_output_port, u214_output_port, u200_output_port, u186_output_port, u172_output_port, u158_output_port, u144_output_port};
 
 	SimpleDualPortMemory mem1 (
 		.port1_addr(write_addr),
@@ -911,7 +929,7 @@ module RegFile (
 		.port2_clk(clk),
 		.port1_write_en(write_valid & write_data_en),
 		.port1_data_in(write_data),
-		.port2_data_out(read_rsp_read1_data)
+		.port2_data_out(mem1_port2_data_out)
 	);
 
 	SimpleDualPortMemory_2 mem2 (
@@ -921,7 +939,7 @@ module RegFile (
 		.port2_clk(clk),
 		.port1_write_en(write_valid & write_data_en),
 		.port1_data_in(write_data),
-		.port2_data_out(read_rsp_read2_data)
+		.port2_data_out(mem2_port2_data_out)
 	);
 
 endmodule
@@ -948,9 +966,11 @@ module SimpleDualPortMemory_2 (
 		end
 	end
 
+	logic [3:0] port2_addr_reg;
 	always @(posedge port1_clk) begin
-		port2_data_out <= mem[port2_addr];
+		port2_addr_reg <= port2_addr;
 	end
+	assign port2_data_out = mem[port2_addr_reg];
 
 
 endmodule
@@ -977,9 +997,11 @@ module SimpleDualPortMemory (
 		end
 	end
 
+	logic [3:0] port2_addr_reg;
 	always @(posedge port1_clk) begin
-		port2_data_out <= mem[port2_addr];
+		port2_addr_reg <= port2_addr;
 	end
+	assign port2_data_out = mem[port2_addr_reg];
 
 
 endmodule
@@ -1146,16 +1168,19 @@ module ExecuteStage (
 	logic mem_input_valid;
 	logic stage_2_ready;
 	logic stage_2_valid;
+	logic u69_output_port;
+	logic u72_output_port;
 	logic stage_2_reg_en;
 	logic branch_input_is_branch_insn;
 	logic mem_input_read_not_write;
 	logic [31:0] result;
 	logic s2_result_reg_addr_valid;
-	logic [15:0] u80_output_port;
-	logic [15:0] u85_output_port;
+	logic u91_output_port;
+	logic [2:0] s2_exec_unit;
+	logic [15:0] u96_output_port;
+	logic [15:0] u101_output_port;
 	logic [30:0] straight_tpc_out;
 	logic [30:0] straight_spc_out;
-	logic u124_output_port;
 	logic stage_1_fsm_out_reg_en;
 	logic stage_1_valid;
 	logic stage_1_fsm_input_ready;
@@ -1189,7 +1214,7 @@ module ExecuteStage (
 	logic [15:0] s2_mem_output_data_h;
 
 	always_ff @(posedge clk) s1_was_branch <= rst ? 1'h0 : do_branch;
-	always_ff @(posedge clk) multi_cycle_exec_lockout <= rst ? 1'h0 : input_port_ready & input_port_valid & (input_port_exec_unit == `op_class__mult);
+	always_ff @(posedge clk) multi_cycle_exec_lockout <= rst ? 1'h0 : input_port_ready & input_port_valid & (input_port_exec_unit == `op_class__mult) &  ~ input_port_fetch_av;
 	assign input_port_ready =  ~ multi_cycle_exec_lockout &  ~ s1_was_branch & stage_1_fsm_input_ready;
 	assign stage_1_reg_en =  ~ multi_cycle_exec_lockout &  ~ s1_was_branch & stage_1_fsm_out_reg_en;
 	assign pc = task_mode_in ? tpc_in : spc_in;
@@ -1209,12 +1234,13 @@ module ExecuteStage (
 	always_ff @(posedge clk) s1_tpc <= rst ? 31'h0 : stage_1_reg_en ? tpc_in : s1_tpc;
 	always_ff @(posedge clk) s1_fetch_av <= rst ? 1'h0 : stage_1_reg_en ? input_port_fetch_av : s1_fetch_av;
 	assign block_mem = branch_input_mem_av | branch_input_mem_unaligned | s1_fetch_av;
-	assign mem_input_valid = stage_1_valid &  ~ block_mem;
 	always_ff @(posedge clk) s1_exec_unit <= rst ? 3'h0 : stage_1_reg_en ? input_port_exec_unit : s1_exec_unit;
+	assign mem_input_valid = stage_1_valid &  ~ block_mem & (s1_exec_unit == `op_class__ld_st);
 	assign stage_2_ready = (s1_exec_unit == `op_class__ld_st) &  ~ block_mem ? mem_input_ready : stage_2_fsm_input_ready;
 	always_ff @(posedge clk) s2_was_branch <= rst ? 1'h0 : s1_was_branch;
-	assign stage_2_valid = ((s1_exec_unit == `op_class__ld_st) &  ~ block_mem ? s2_mem_output_valid : stage_2_fsm_output_valid) &  ~ s2_was_branch;
-	assign stage_2_reg_en = stage_1_valid & stage_2_ready;
+	assign stage_2_valid = ((s2_exec_unit == `op_class__ld_st) &  ~ block_mem ? s2_mem_output_valid : stage_2_fsm_output_valid) &  ~ s2_was_branch;
+	always_ff @(posedge clk) u72_output_port <= rst ? 1'h0 : do_branch;
+	assign stage_2_reg_en = stage_1_valid & stage_2_ready &  ~ u72_output_port;
 	always_ff @(posedge clk) s1_branch_op <= rst ? 4'h0 : stage_1_reg_en ? input_port_branch_op : s1_branch_op;
 	assign s2_pc = s1_task_mode ? s1_tpc : s1_spc;
 	always_ff @(posedge clk) s1_op_a <= rst ? 32'h0 : stage_1_reg_en ? input_port_op_a : s1_op_a;
@@ -1226,12 +1252,14 @@ module ExecuteStage (
 	always_ff @(posedge clk) s1_mem_access_len <= rst ? 2'h0 : stage_1_reg_en ? input_port_mem_access_len : s1_mem_access_len;
 	always_ff @(posedge clk) s1_result_reg_addr_valid <= rst ? 1'h0 : stage_1_reg_en ? input_port_result_reg_addr_valid : s1_result_reg_addr_valid;
 	always_ff @(posedge clk) s2_result_reg_addr_valid <= rst ? 1'h0 : stage_2_reg_en ? s1_result_reg_addr_valid : s2_result_reg_addr_valid;
-	assign output_port_valid = stage_2_valid & s2_result_reg_addr_valid;
+	always_ff @(posedge clk) u91_output_port <= rst ? 1'h0 : stage_2_reg_en;
+	assign output_port_valid = stage_2_valid & s2_result_reg_addr_valid & u91_output_port;
+	always_ff @(posedge clk) s2_exec_unit <= rst ? 3'h0 : stage_2_reg_en ? s1_exec_unit : s2_exec_unit;
 	assign result = ((s1_exec_unit == `op_class__alu) ? s1_alu_output_result : 32'b0) | ((s1_exec_unit == `op_class__mult) ? mult_output_result : 32'b0) | ((s1_exec_unit == `op_class__shift) ? s1_shifter_output_result : 32'b0) ;
-	always_ff @(posedge clk) u80_output_port <= rst ? 16'h0 : stage_2_reg_en ? result[15:0] : u80_output_port;
-	assign output_port_data_l = s1_exec_unit == `op_class__ld_st ? s2_mem_output_data_l : u80_output_port;
-	always_ff @(posedge clk) u85_output_port <= rst ? 16'h0 : stage_2_reg_en ? result[31:16] : u85_output_port;
-	assign output_port_data_h = s1_exec_unit == `op_class__ld_st ? s2_mem_output_data_h : u85_output_port;
+	always_ff @(posedge clk) u96_output_port <= rst ? 16'h0 : stage_2_reg_en ? result[15:0] : u96_output_port;
+	assign output_port_data_l = s2_exec_unit == `op_class__ld_st ? s2_mem_output_data_l : u96_output_port;
+	always_ff @(posedge clk) u101_output_port <= rst ? 16'h0 : stage_2_reg_en ? result[31:16] : u101_output_port;
+	assign output_port_data_h = s2_exec_unit == `op_class__ld_st ? s2_mem_output_data_h : u101_output_port;
 	always_ff @(posedge clk) output_port_data_en <= rst ? 1'h0 : stage_2_reg_en ?  ~ branch_output_do_branch : output_port_data_en;
 	always_ff @(posedge clk) s1_result_reg_addr <= rst ? 4'h0 : stage_1_reg_en ? input_port_result_reg_addr : s1_result_reg_addr;
 	always_ff @(posedge clk) output_port_addr <= rst ? 4'h0 : stage_2_reg_en ? s1_result_reg_addr : output_port_addr;
@@ -1246,7 +1274,7 @@ module ExecuteStage (
 	assign do_branch = branch_output_do_branch & stage_2_reg_en;
 	assign straight_tpc_out = stage_1_reg_en ? task_mode_in ? branch_target_output_straight_addr : tpc_in : tpc_in;
 	assign tpc_out = s1_was_branch ? tpc_in : stage_2_reg_en & branch_output_tpc_changed ? branch_output_tpc : straight_tpc_out;
-	assign straight_spc_out = stage_1_reg_en ?  ~ task_mode_in ? branch_target_output_straight_addr : spc_in : spc_in;
+	assign straight_spc_out = stage_1_reg_en ?  ~ (task_mode_out | task_mode_in) ? branch_target_output_straight_addr : spc_in : spc_in;
 	assign spc_out = s1_was_branch ? spc_in : stage_2_reg_en & branch_output_spc_changed ? branch_output_spc : straight_spc_out;
 	assign task_mode_out = s1_was_branch ? task_mode_in : stage_2_reg_en & branch_output_task_mode_changed ? branch_output_task_mode : task_mode_in;
 	assign ecause_out = stage_2_reg_en &  ~ s1_was_branch ? ecause_in | branch_output_ecause : ecause_in;
@@ -1259,7 +1287,8 @@ module ExecuteStage (
 		.input_ready(stage_1_fsm_input_ready),
 		.output_valid(stage_1_valid),
 		.output_ready(stage_2_ready),
-		.out_reg_en(stage_1_fsm_out_reg_en)
+		.out_reg_en(stage_1_fsm_out_reg_en),
+		.clear(do_branch)
 	);
 
 	AluUnit alu_unit (
@@ -1329,8 +1358,9 @@ module ExecuteStage (
 		.input_valid(stage_1_valid),
 		.input_ready(stage_2_fsm_input_ready),
 		.output_valid(stage_2_fsm_output_valid),
-		.output_ready(u124_output_port),
-		.out_reg_en(stage_2_fsm_out_reg_en)
+		.output_ready(u69_output_port),
+		.out_reg_en(stage_2_fsm_out_reg_en),
+		.clear(do_branch)
 	);
 
 	BranchUnit branch_unit (
@@ -1418,7 +1448,7 @@ module ExecuteStage (
 	assign mem_input_access_len = s1_mem_access_len;
 	assign branch_input_pc = s2_pc;
 	assign complete = stage_2_valid;
-	assign u124_output_port = 1'h1;
+	assign u69_output_port = (s1_exec_unit == `op_class__ld_st) &  ~ block_mem ? s2_mem_output_valid : 1'h1;
 endmodule
 
 
@@ -1461,52 +1491,56 @@ module MemoryStage (
 	logic input_advance;
 	logic bus_request_advance;
 	logic multi_cycle;
+	logic next_active;
 	logic active;
 	logic pending;
 	logic gap;
 	logic csr_select;
-	logic u44_output_port;
+	logic u46_output_port;
 	logic is_csr;
 	logic [30:0] next_addr;
 	logic [15:0] data_store;
-	logic u79_output_port;
-	logic [1:0] u83_output_port;
+	logic u87_output_port;
+	logic [1:0] u91_output_port;
 	logic csr_pen;
-	logic u103_output_port;
-	logic [9:0] u107_output_port;
-	logic [31:0] u112_output_port;
+	logic csr_active;
+	logic u112_output_port;
+	logic [9:0] u116_output_port;
+	logic [31:0] u121_output_port;
 	logic [1:0] byte_en;
 
 	assign input_advance = input_port_ready & input_port_valid;
 	always_ff @(posedge clk) multi_cycle <= rst ? 1'h0 : input_advance ? (input_port_access_len == 2'h2) &  ~ is_csr : multi_cycle;
 	assign bus_request_advance = bus_req_if_ready & bus_req_if_valid;
-	always_ff @(posedge clk) active <= rst ? 1'h0 : (input_port_access_len == 2'h2) &  ~ is_csr & input_advance ? 1'h1 : bus_request_advance ? 1'h0 : active;
+	assign next_active = (input_port_access_len == 2'h2) &  ~ is_csr & input_advance ? 1'h1 : bus_request_advance ? 1'h0 : active;
+	always_ff @(posedge clk) active <= rst ? 1'h0 : next_active;
 	always_ff @(posedge clk) pending <= rst ? 1'h0 : (input_port_access_len == 2'h2) &  ~ is_csr & input_advance & input_port_read_not_write ? 1'h1 : bus_rsp_if_valid ? 1'h0 : pending;
-	always_ff @(posedge clk) gap <= rst ? 1'h0 : (input_port_access_len != 2'h2) &  ~ is_csr & input_advance | active ? 1'h1 : 1'h0;
+	always_ff @(posedge clk) gap <= rst ? 1'h0 : (input_port_access_len != 2'h2) &  ~ is_csr & input_advance | active &  ~ next_active ? 1'h1 : 1'h0;
 	assign csr_select = input_port_addr[31:30] == 1'h1;
-	always_ff @(posedge clk) u44_output_port <= rst ? 1'h0 : input_advance ? csr_select : output_port_valid ? 1'h0 : is_csr;
-	assign is_csr = input_advance ? csr_select : u44_output_port;
-	assign input_port_ready = bus_req_if_ready &  ~ active;
+	always_ff @(posedge clk) u46_output_port <= rst ? 1'h0 : input_advance ? csr_select : output_port_valid ? 1'h0 : is_csr;
+	assign is_csr = input_advance ? csr_select : u46_output_port;
+	assign input_port_ready = bus_req_if_ready &  ~ active &  ~ gap | csr_select & input_port_valid &  ~ csr_active;
 	assign bus_req_if_valid = (input_port_valid &  ~ csr_select | active) &  ~ gap;
 	assign output_port_valid = bus_rsp_if_valid &  ~ pending | csr_pen & csr_if_pready &  ~ csr_if_pwrite;
-	always_ff @(posedge clk) u79_output_port <= rst ? 1'h0 : input_port_ready & input_port_valid ? input_port_read_not_write : u79_output_port;
-	assign bus_req_if_read_not_write = input_port_ready & input_port_valid ? input_port_read_not_write : u79_output_port;
-	always_ff @(posedge clk) u83_output_port <= rst ? 2'h0 : input_port_ready & input_port_valid ? byte_en : u83_output_port;
-	assign bus_req_if_byte_en = input_port_ready & input_port_valid ? byte_en : u83_output_port;
+	always_ff @(posedge clk) data_store <= rst ? 16'h0 : input_advance ? input_port_data[31:16] : bus_rsp_if_valid & pending ? bus_rsp_if_data : data_store;
+	always_ff @(posedge clk) u87_output_port <= rst ? 1'h0 : input_port_ready & input_port_valid ? input_port_read_not_write : u87_output_port;
+	assign bus_req_if_read_not_write = input_port_ready & input_port_valid ? input_port_read_not_write : u87_output_port;
+	always_ff @(posedge clk) u91_output_port <= rst ? 2'h0 : input_port_ready & input_port_valid ? byte_en : u91_output_port;
+	assign bus_req_if_byte_en = input_port_ready & input_port_valid ? byte_en : u91_output_port;
 	always_ff @(posedge clk) next_addr <= rst ? 31'h0 : input_advance ? input_port_addr[31:1] | 1'h1 : next_addr;
 	assign bus_req_if_addr = input_advance ? input_port_addr[31:1] : next_addr;
-	always_ff @(posedge clk) data_store <= rst ? 16'h0 : input_advance ? input_port_data[31:16] : bus_rsp_if_valid & pending ? bus_rsp_if_data : 16'hx;
 	assign bus_req_if_data = input_advance ? input_port_data[15:0] : data_store;
 	assign output_port_data_l = csr_pen ? csr_if_prdata[15:0] : multi_cycle ? data_store : bus_rsp_if_data;
 	assign output_port_data_h = csr_pen ? csr_if_prdata[31:16] : bus_rsp_if_data;
 	always_ff @(posedge clk) csr_pen <= rst ? 1'h0 : input_advance ? is_csr : csr_if_pready & is_csr ? 1'h0 : csr_pen;
+	always_ff @(posedge clk) csr_active <= rst ? 1'h0 : csr_if_psel;
 	assign csr_if_psel = input_advance & is_csr | csr_pen;
-	always_ff @(posedge clk) u103_output_port <= rst ? 1'h0 : input_port_ready & input_port_valid ?  ~ input_port_read_not_write : u103_output_port;
-	assign csr_if_pwrite = input_port_ready & input_port_valid ?  ~ input_port_read_not_write : u103_output_port;
-	always_ff @(posedge clk) u107_output_port <= rst ? 10'h0 : input_port_ready & input_port_valid ? input_port_addr[11:2] : u107_output_port;
-	assign csr_if_paddr = input_port_ready & input_port_valid ? input_port_addr[11:2] : u107_output_port;
-	always_ff @(posedge clk) u112_output_port <= rst ? 32'h0 : input_port_ready & input_port_valid ? input_port_data : u112_output_port;
-	assign csr_if_pwdata = input_port_ready & input_port_valid ? input_port_data : u112_output_port;
+	always_ff @(posedge clk) u112_output_port <= rst ? 1'h0 : input_port_ready & input_port_valid ?  ~ input_port_read_not_write : u112_output_port;
+	assign csr_if_pwrite = input_port_ready & input_port_valid ?  ~ input_port_read_not_write : u112_output_port;
+	always_ff @(posedge clk) u116_output_port <= rst ? 10'h0 : input_port_ready & input_port_valid ? input_port_addr[11:2] : u116_output_port;
+	assign csr_if_paddr = input_port_ready & input_port_valid ? input_port_addr[11:2] : u116_output_port;
+	always_ff @(posedge clk) u121_output_port <= rst ? 32'h0 : input_port_ready & input_port_valid ? input_port_data : u121_output_port;
+	assign csr_if_pwdata = input_port_ready & input_port_valid ? input_port_data : u121_output_port;
 	assign byte_en = {(input_port_access_len != 1'h0) | input_port_addr[0], (input_port_access_len != 1'h0) |  ~ input_port_addr[0]};
 
 	assign csr_if_penable = csr_pen;
@@ -1703,21 +1737,21 @@ module LoadStoreUnit (
 	logic [32:0] u_output_port;
 	logic [32:0] u5_output_port;
 	logic mem_av;
-	logic u13_output_port;
+	logic u14_output_port;
 	logic mem_unaligned;
 	logic [31:0] u6_output_port;
 
 	always @(*) begin
 		unique case (input_port_mem_access_len)
-			2'd0: u13_output_port = 1'h0;
-			2'd1: u13_output_port = u6_output_port[0];
-			2'd2: u13_output_port = u6_output_port[0] | u6_output_port[1];
-			2'd3: u13_output_port = 1'h1;
+			2'd0: u14_output_port = 1'h0;
+			2'd1: u14_output_port = u6_output_port[0];
+			2'd2: u14_output_port = u6_output_port[0] | u6_output_port[1];
+			2'd3: u14_output_port = 1'h1;
 		endcase
 	end
 	assign output_port_phy_addr = u5_output_port[31:0];
-	assign mem_av = input_port_is_ldst & u6_output_port[31:10] > input_port_mem_limit;
-	assign mem_unaligned = input_port_is_ldst & u13_output_port;
+	assign mem_av = input_port_task_mode & input_port_is_ldst & u6_output_port[31:10] > input_port_mem_limit;
+	assign mem_unaligned = input_port_is_ldst & u14_output_port;
 
 	assign u_output_port = input_port_op_b + input_port_op_c + 33'b0;
 	assign u5_output_port = u_output_port[31:0] + (input_port_task_mode ? (input_port_mem_base << 4'ha) + 32'b0 : 1'h0) + 33'b0;
@@ -1792,13 +1826,14 @@ module ForwardBufLogic_2 (
 	output logic input_ready,
 	output logic output_valid,
 	input logic output_ready,
-	output logic out_reg_en
+	output logic out_reg_en,
+	input logic clear
 );
 
 	logic buf_valid;
 
 	assign out_reg_en = input_valid & input_ready;
-	always_ff @(posedge clock_port) buf_valid <= reset_port ? 1'h0 : input_valid & input_ready ? 1'h1 : output_ready & buf_valid ? 1'h0 : buf_valid;
+	always_ff @(posedge clock_port) buf_valid <= reset_port ? 1'h0 : clear ? 1'h0 : input_valid & input_ready ? 1'h1 : output_ready & buf_valid ? 1'h0 : buf_valid;
 	assign input_ready =  ~ buf_valid | output_ready;
 
 	assign output_valid = buf_valid;
@@ -1815,13 +1850,14 @@ module ForwardBufLogic (
 	output logic input_ready,
 	output logic output_valid,
 	input logic output_ready,
-	output logic out_reg_en
+	output logic out_reg_en,
+	input logic clear
 );
 
 	logic buf_valid;
 
 	assign out_reg_en = input_valid & input_ready;
-	always_ff @(posedge clock_port) buf_valid <= reset_port ? 1'h0 : input_valid & input_ready ? 1'h1 : output_ready & buf_valid ? 1'h0 : buf_valid;
+	always_ff @(posedge clock_port) buf_valid <= reset_port ? 1'h0 : clear ? 1'h0 : input_valid & input_ready ? 1'h1 : output_ready & buf_valid ? 1'h0 : buf_valid;
 	assign input_ready =  ~ buf_valid | output_ready;
 
 	assign output_valid = buf_valid;
@@ -1893,9 +1929,9 @@ module DecodeStage (
 	logic mask_for_rd_eq_field_e_lsl_rb;
 	logic mask_for_rd_eq_field_e_lsr_rb;
 	logic mask_for_rd_eq_field_e_asr_rb;
-	logic mask_for_rd_eq_field_e_lsl_ra;
-	logic mask_for_rd_eq_field_e_lsr_ra;
-	logic mask_for_rd_eq_field_e_asr_ra;
+	logic mask_for_rd_eq_ra_lsl_field_e;
+	logic mask_for_rd_eq_ra_lsr_field_e;
+	logic mask_for_rd_eq_ra_asr_field_e;
 	logic mask_for_rd_eq_ra_times_rb;
 	logic mask_for_rd_eq_field_e_times_rb;
 	logic mask_for_rd_eq_field_e_times_ra;
@@ -2056,6 +2092,7 @@ module DecodeStage (
 	logic group_9_for_branch_op;
 	logic group_10_for_branch_op;
 	logic group_11_for_branch_op;
+	logic group_12_for_branch_op;
 	logic [3:0] branch_op;
 	logic group_1_for_ldst_op;
 	logic group_2_for_ldst_op;
@@ -2083,6 +2120,7 @@ module DecodeStage (
 	logic group_1_for_op_b;
 	logic group_2_for_op_b;
 	logic group_3_for_op_b;
+	logic group_4_for_op_b;
 	logic [31:0] op_b;
 	logic group_1_for_op_c;
 	logic group_2_for_op_c;
@@ -2107,11 +2145,11 @@ module DecodeStage (
 	logic group_1_for_rsv_needed;
 	logic rsv_needed;
 	logic register_outputs;
-	logic u1777_output_port;
-	logic [31:0] u1778_output_port;
-	logic u1780_output_port;
-	logic [31:0] u1781_output_port;
-	logic [1:0] u1784_output_port;
+	logic u1792_output_port;
+	logic [31:0] u1793_output_port;
+	logic u1795_output_port;
+	logic [31:0] u1796_output_port;
+	logic [1:0] u1799_output_port;
 	logic [3:0] u22_output_port;
 	logic [3:0] field_a_plus_one;
 
@@ -2126,20 +2164,20 @@ module DecodeStage (
 	assign mask_for_rd_eq_field_e_lsl_rb = 1'h1 &  ~ field_d_is_f & (fetch_inst_0[11:8] == 3'h6) &  ~ field_b_is_f & (fetch_inst_0[3:0] == 4'hf);
 	assign mask_for_rd_eq_field_e_lsr_rb = 1'h1 &  ~ field_d_is_f & (fetch_inst_0[11:8] == 3'h7) &  ~ field_b_is_f & (fetch_inst_0[3:0] == 4'hf);
 	assign mask_for_rd_eq_field_e_asr_rb = 1'h1 &  ~ field_d_is_f & (fetch_inst_0[11:8] == 4'h8) &  ~ field_b_is_f & (fetch_inst_0[3:0] == 4'hf);
-	assign mask_for_rd_eq_field_e_lsl_ra = 1'h1 &  ~ field_d_is_f & (fetch_inst_0[11:8] == 3'h6) & (fetch_inst_0[7:4] == 4'hf) &  ~ field_a_is_f;
-	assign mask_for_rd_eq_field_e_lsr_ra = 1'h1 &  ~ field_d_is_f & (fetch_inst_0[11:8] == 3'h7) & (fetch_inst_0[7:4] == 4'hf) &  ~ field_a_is_f;
-	assign mask_for_rd_eq_field_e_asr_ra = 1'h1 &  ~ field_d_is_f & (fetch_inst_0[11:8] == 4'h8) & (fetch_inst_0[7:4] == 4'hf) &  ~ field_a_is_f;
+	assign mask_for_rd_eq_ra_lsl_field_e = 1'h1 &  ~ field_d_is_f & (fetch_inst_0[11:8] == 3'h6) & (fetch_inst_0[7:4] == 4'hf) &  ~ field_a_is_f;
+	assign mask_for_rd_eq_ra_lsr_field_e = 1'h1 &  ~ field_d_is_f & (fetch_inst_0[11:8] == 3'h7) & (fetch_inst_0[7:4] == 4'hf) &  ~ field_a_is_f;
+	assign mask_for_rd_eq_ra_asr_field_e = 1'h1 &  ~ field_d_is_f & (fetch_inst_0[11:8] == 4'h8) & (fetch_inst_0[7:4] == 4'hf) &  ~ field_a_is_f;
 	assign mask_for_rd_eq_ra_times_rb = 1'h1 &  ~ field_d_is_f & (fetch_inst_0[11:8] == 4'h9) &  ~ field_b_is_f &  ~ field_a_is_f;
 	assign mask_for_rd_eq_field_e_times_rb = 1'h1 &  ~ field_d_is_f & (fetch_inst_0[11:8] == 4'h9) &  ~ field_b_is_f & (fetch_inst_0[3:0] == 4'hf);
 	assign mask_for_rd_eq_field_e_times_ra = 1'h1 &  ~ field_d_is_f & (fetch_inst_0[11:8] == 4'h9) & (fetch_inst_0[7:4] == 4'hf) &  ~ field_a_is_f;
 	assign mask_for_swi = 1'h1 & fetch_inst_0[15:12] < 4'h8 & (fetch_inst_0[11:8] == 1'h0) & (fetch_inst_0[7:4] == 1'h0) & (fetch_inst_0[3:0] == 1'h0);
 	assign mask_for_stm = 1'h1 & (fetch_inst_0[15:12] == 4'h8) & (fetch_inst_0[11:8] == 1'h0) & (fetch_inst_0[7:4] == 1'h0) & (fetch_inst_0[3:0] == 1'h0);
 	assign mask_for_woi = 1'h1 & (fetch_inst_0[15:12] == 4'h9) & (fetch_inst_0[11:8] == 1'h0) & (fetch_inst_0[7:4] == 1'h0) & (fetch_inst_0[3:0] == 1'h0);
-	assign mask_for_sii = 1'h1 & fetch_inst_0[15:12] > 4'h9 & (fetch_inst_0[11:8] == 1'h0) & (fetch_inst_0[7:4] == 1'h0) & (fetch_inst_0[3:0] == 1'h0);
+	assign mask_for_sii = 1'h1 & fetch_inst_0[15:12] > 4'h9 &  ~ field_d_is_f & (fetch_inst_0[11:8] == 1'h0) & (fetch_inst_0[7:4] == 1'h0) & (fetch_inst_0[3:0] == 1'h0);
 	assign mask_for_pc_eq_rd = 1'h1 &  ~ field_d_is_f & (fetch_inst_0[11:8] == 1'h0) & (fetch_inst_0[7:4] == 1'h0) & (fetch_inst_0[3:0] == 2'h2);
 	assign mask_for_tpc_eq_rd = 1'h1 &  ~ field_d_is_f & (fetch_inst_0[11:8] == 1'h0) & (fetch_inst_0[7:4] == 1'h0) & (fetch_inst_0[3:0] == 2'h3);
-	assign mask_for_sii_1 = 1'h1 &  ~ field_d_is_f & (fetch_inst_0[11:8] == 1'h0) & (fetch_inst_0[7:4] == 1'h0) & fetch_inst_0[3:0] > 3'h5;
-	assign mask_for_sii_2 = 1'h1 &  ~ field_d_is_f & (fetch_inst_0[11:8] == 1'h0) & fetch_inst_0[7:4] > 3'h6 &  ~ field_a_is_f;
+	assign mask_for_sii_1 = 1'h1 &  ~ field_d_is_f & (fetch_inst_0[11:8] == 1'h0) & (fetch_inst_0[7:4] == 1'h0) & fetch_inst_0[3:0] > 3'h5 &  ~ field_a_is_f;
+	assign mask_for_sii_2 = 1'h1 &  ~ field_d_is_f & (fetch_inst_0[11:8] == 1'h0) & fetch_inst_0[7:4] > 3'h6 &  ~ field_b_is_f &  ~ field_a_is_f;
 	assign mask_for_pc_eq_value = 1'h1 & (fetch_inst_0[15:12] == 2'h2) & (fetch_inst_0[11:8] == 1'h0) & (fetch_inst_0[7:4] == 4'he) & (fetch_inst_0[3:0] == 4'hf);
 	assign mask_for_tpc_eq_value = 1'h1 & (fetch_inst_0[15:12] == 2'h3) & (fetch_inst_0[11:8] == 1'h0) & (fetch_inst_0[7:4] == 4'he) & (fetch_inst_0[3:0] == 4'hf);
 	assign mask_for_sii_3 = 1'h1 & (fetch_inst_0[15:12] == 4'h8) & (fetch_inst_0[11:8] == 1'h0) & (fetch_inst_0[7:4] == 4'he) & (fetch_inst_0[3:0] == 4'hf);
@@ -2257,12 +2295,12 @@ module DecodeStage (
 	assign mask_for_memsr32_field_e_eq_rd = 1'h1 &  ~ field_d_is_f & (fetch_inst_0[11:8] == 4'hf) & (fetch_inst_0[7:4] == 4'hb) & (fetch_inst_0[3:0] == 4'hf);
 	assign mask_for_rd_eq_smem8_field_e = 1'h1 &  ~ field_d_is_f & (fetch_inst_0[11:8] == 4'hf) & (fetch_inst_0[7:4] == 4'hc) & (fetch_inst_0[3:0] == 4'hf);
 	assign mask_for_rd_eq_smem16_field_e = 1'h1 &  ~ field_d_is_f & (fetch_inst_0[11:8] == 4'hf) & (fetch_inst_0[7:4] == 4'hd) & (fetch_inst_0[3:0] == 4'hf);
-	assign group_1_for_exec_unit = mask_for_rd_eq_ra_lsl_rb | mask_for_rd_eq_ra_lsr_rb | mask_for_rd_eq_ra_asr_rb | mask_for_rd_eq_field_e_lsl_rb | mask_for_rd_eq_field_e_lsr_rb | mask_for_rd_eq_field_e_asr_rb | mask_for_rd_eq_field_e_lsl_ra | mask_for_rd_eq_field_e_lsr_ra | mask_for_rd_eq_field_e_asr_ra;
+	assign group_1_for_exec_unit = mask_for_rd_eq_ra_lsl_rb | mask_for_rd_eq_ra_lsr_rb | mask_for_rd_eq_ra_asr_rb | mask_for_rd_eq_field_e_lsl_rb | mask_for_rd_eq_field_e_lsr_rb | mask_for_rd_eq_field_e_asr_rb | mask_for_rd_eq_ra_lsl_field_e | mask_for_rd_eq_ra_lsr_field_e | mask_for_rd_eq_ra_asr_field_e;
 	assign group_2_for_exec_unit = mask_for_rd_eq_ra_times_rb | mask_for_rd_eq_field_e_times_rb | mask_for_rd_eq_field_e_times_ra;
 	assign group_3_for_exec_unit = mask_for_swi | mask_for_stm | mask_for_woi | mask_for_sii | mask_for_pc_eq_rd | mask_for_tpc_eq_rd | mask_for_sii_1 | mask_for_sii_2 | mask_for_pc_eq_value | mask_for_tpc_eq_value | mask_for_sii_3 | mask_for_sii_4 | mask_for_sii_5 | mask_for_sii_6 | mask_for_pc_eq_short_value | mask_for_tpc_eq_short_value | mask_for_sii_7 | mask_for_sii_8 | mask_for_if_ra_eq_0 | mask_for_if_ra_ne_0 | mask_for_if_ra_lt_0 | mask_for_if_ra_ge_0 | mask_for_if_ra_gt_0 | mask_for_if_ra_le_0 | mask_for_sii_9 | mask_for_sii_10 | mask_for_if_ra_eq_0_1 | mask_for_if_ra_ne_0_1 | mask_for_if_ra_lt_0_1 | mask_for_if_ra_ge_0_1 | mask_for_if_ra_gt_0_1 | mask_for_if_ra_le_0_1 | mask_for_sii_11 | mask_for_if_rb_eq_ra | mask_for_if_rb_ne_ra | mask_for_if_signed_rb_lt_ra | mask_for_if_signed_rb_ge_ra | mask_for_if_rb_lt_ra | mask_for_if_rb_ge_ra | mask_for_sii_12 | mask_for_sii_13 | mask_for_if_rb_eq_ra_1 | mask_for_if_rb_ne_ra_1 | mask_for_if_signed_rb_lt_ra_1 | mask_for_if_signed_rb_ge_ra_1 | mask_for_if_rb_lt_ra_1 | mask_for_if_rb_ge_ra_1 | mask_for_if_ra_bit__eq_1 | mask_for_if_rb_bit__eq_0 | mask_for_sii_14 | mask_for_sii_15 | mask_for_sii_16 | mask_for_sii_17 | mask_for_sii_18 | mask_for_sii_19 | mask_for_sii_20 | mask_for_sii_21 | mask_for_sii_22 | mask_for_sii_23 | mask_for_sii_24 | mask_for_sii_25 | mask_for_sii_26 | mask_for_sii_27 | mask_for_sii_28 | mask_expr;
 	assign group_4_for_exec_unit = mask_for_fence | mask_for_rd_eq_pc | mask_for_rd_eq_tpc | mask_for_rd_eq_tiny_field_a | mask_for_rd_eq_pc_plus_field_atimes2 | mask_for_rd_eq_minus_ra | mask_for_rd_eq_notra | mask_for_rd_eq_bse_ra | mask_for_rd_eq_wse_ra | mask_for_rd_eq_ra_xor_rb | mask_for_rd_eq_ra_or_rb | mask_for_rd_eq_ra_and_rb | mask_for_rd_eq_ra_plus_rb | mask_for_rd_eq_ra_minus_rb | mask_for_rd_eq_notra_and_rb | mask_for_rd_eq_tiny_rb_plus_field_a | mask_for_rd_eq_value | mask_for_rd_eq_field_e_xor_rb | mask_for_rd_eq_field_e_or_rb | mask_for_rd_eq_field_e_and_rb | mask_for_rd_eq_field_e_plus_rb | mask_for_rd_eq_field_e_minus_rb | mask_for_rd_eq_short_value | mask_for_rd_eq_field_e_xor_ra | mask_for_rd_eq_field_e_or_ra | mask_for_rd_eq_field_e_and_ra | mask_for_rd_eq_field_e_plus_ra | mask_for_rd_eq_field_e_minus_ra;
 	assign group_5_for_exec_unit = mask_for_mem_raplustiny_ofstimes4_eq_rd | mask_for_rd_eq_mem_raplustiny_ofstimes4 | mask_for_rd_eq_mem8_ra | mask_for_rd_eq_mem16_ra | mask_for_rd_eq_mem32_ra | mask_for_rd_eq_memll32_ra | mask_for_mem8_ra_eq_rd | mask_for_mem16_ra_eq_rd | mask_for_mem32_ra_eq_rd | mask_for_memsr32_ra_eq_rd | mask_for_rd_eq_smem8_ra | mask_for_rd_eq_smem16_ra | mask_for_rd_eq_mem8_raplusfield_e | mask_for_rd_eq_mem16_raplusfield_e | mask_for_rd_eq_mem32_raplusfield_e | mask_for_rd_eq_memll32_raplusfield_e | mask_for_mem8_raplusfield_e_eq_rd | mask_for_mem16_raplusfield_e_eq_rd | mask_for_mem32_raplusfield_e_eq_rd | mask_for_memsr32_raplusfield_e_eq_rd | mask_for_rd_eq_smem8_raplusfield_e | mask_for_rd_eq_smem16_raplusfield_e | mask_for_rd_eq_mem8_field_e | mask_for_rd_eq_mem16_field_e | mask_for_rd_eq_mem32_field_e | mask_for_rd_eq_memll32_field_e | mask_for_mem8_field_e_eq_rd | mask_for_mem16_field_e_eq_rd | mask_for_mem32_field_e_eq_rd | mask_for_memsr32_field_e_eq_rd | mask_for_rd_eq_smem8_field_e | mask_for_rd_eq_smem16_field_e;
-	assign group_1_for_alu_op = mask_for_woi | mask_for_rd_eq_minus_ra | mask_for_rd_eq_ra_minus_rb | mask_for_rd_eq_field_e_minus_rb | mask_for_rd_eq_field_e_minus_ra;
+	assign group_1_for_alu_op = mask_for_woi | mask_for_rd_eq_minus_ra | mask_for_rd_eq_ra_minus_rb | mask_for_rd_eq_field_e_minus_rb | mask_for_rd_eq_field_e_minus_ra | mask_for_if_ra_eq_0 | mask_for_if_ra_ne_0 | mask_for_if_ra_lt_0 | mask_for_if_ra_ge_0 | mask_for_if_ra_gt_0 | mask_for_if_ra_le_0 | mask_for_if_ra_eq_0_1 | mask_for_if_ra_ne_0_1 | mask_for_if_ra_lt_0_1 | mask_for_if_ra_ge_0_1 | mask_for_if_ra_gt_0_1 | mask_for_if_ra_le_0_1 | mask_for_if_rb_eq_ra | mask_for_if_rb_ne_ra | mask_for_if_signed_rb_lt_ra | mask_for_if_signed_rb_ge_ra | mask_for_if_rb_lt_ra | mask_for_if_rb_ge_ra | mask_for_if_rb_eq_ra_1 | mask_for_if_rb_ne_ra_1 | mask_for_if_signed_rb_lt_ra_1 | mask_for_if_signed_rb_ge_ra_1 | mask_for_if_rb_lt_ra_1 | mask_for_if_rb_ge_ra_1;
 	assign group_2_for_alu_op = mask_for_rd_eq_pc | mask_for_rd_eq_pc_plus_field_atimes2;
 	assign group_3_for_alu_op = mask_for_rd_eq_tpc;
 	assign group_4_for_alu_op = mask_for_rd_eq_tiny_field_a | mask_for_rd_eq_bse_ra | mask_for_rd_eq_wse_ra | mask_for_rd_eq_ra_or_rb | mask_for_rd_eq_value | mask_for_rd_eq_field_e_or_rb | mask_for_rd_eq_short_value | mask_for_rd_eq_field_e_or_ra;
@@ -2270,9 +2308,9 @@ module DecodeStage (
 	assign group_6_for_alu_op = mask_for_rd_eq_ra_and_rb | mask_for_rd_eq_field_e_and_rb | mask_for_rd_eq_field_e_and_ra;
 	assign group_7_for_alu_op = mask_for_rd_eq_ra_plus_rb | mask_for_rd_eq_tiny_rb_plus_field_a | mask_for_rd_eq_field_e_plus_rb | mask_for_rd_eq_field_e_plus_ra;
 	assign group_8_for_alu_op = mask_for_rd_eq_notra_and_rb;
-	assign group_1_for_shifter_op = mask_for_rd_eq_ra_lsl_rb | mask_for_rd_eq_field_e_lsl_rb | mask_for_rd_eq_field_e_lsl_ra;
-	assign group_2_for_shifter_op = mask_for_rd_eq_ra_lsr_rb | mask_for_rd_eq_field_e_lsr_rb | mask_for_rd_eq_field_e_lsr_ra;
-	assign group_3_for_shifter_op = mask_for_rd_eq_ra_asr_rb | mask_for_rd_eq_field_e_asr_rb | mask_for_rd_eq_field_e_asr_ra;
+	assign group_1_for_shifter_op = mask_for_rd_eq_ra_lsl_rb | mask_for_rd_eq_field_e_lsl_rb | mask_for_rd_eq_ra_lsl_field_e;
+	assign group_2_for_shifter_op = mask_for_rd_eq_ra_lsr_rb | mask_for_rd_eq_field_e_lsr_rb | mask_for_rd_eq_ra_lsr_field_e;
+	assign group_3_for_shifter_op = mask_for_rd_eq_ra_asr_rb | mask_for_rd_eq_field_e_asr_rb | mask_for_rd_eq_ra_asr_field_e;
 	assign group_1_for_branch_op = mask_for_swi | mask_for_sii | mask_for_sii_1 | mask_for_sii_2 | mask_for_sii_3 | mask_for_sii_4 | mask_for_sii_5 | mask_for_sii_6 | mask_for_sii_7 | mask_for_sii_8 | mask_for_sii_9 | mask_for_sii_10 | mask_for_sii_11 | mask_for_sii_12 | mask_for_sii_13 | mask_for_sii_14 | mask_for_sii_15 | mask_for_sii_16 | mask_for_sii_17 | mask_for_sii_18 | mask_for_sii_19 | mask_for_sii_20 | mask_for_sii_21 | mask_for_sii_22 | mask_for_sii_23 | mask_for_sii_24 | mask_for_sii_25 | mask_for_sii_26 | mask_for_sii_27 | mask_for_sii_28 | mask_expr;
 	assign group_2_for_branch_op = mask_for_stm;
 	assign group_3_for_branch_op = mask_for_woi | mask_for_if_ra_eq_0 | mask_for_if_ra_eq_0_1 | mask_for_if_rb_eq_ra | mask_for_if_rb_eq_ra_1;
@@ -2283,28 +2321,30 @@ module DecodeStage (
 	assign group_8_for_branch_op = mask_for_if_ra_ge_0 | mask_for_if_ra_le_0 | mask_for_if_ra_ge_0_1 | mask_for_if_ra_le_0_1 | mask_for_if_signed_rb_ge_ra | mask_for_if_signed_rb_ge_ra_1;
 	assign group_9_for_branch_op = mask_for_if_rb_lt_ra | mask_for_if_rb_lt_ra_1;
 	assign group_10_for_branch_op = mask_for_if_rb_ge_ra | mask_for_if_rb_ge_ra_1;
-	assign group_11_for_branch_op = mask_for_if_ra_bit__eq_1 | mask_for_if_rb_bit__eq_0;
+	assign group_11_for_branch_op = mask_for_if_ra_bit__eq_1;
+	assign group_12_for_branch_op = mask_for_if_rb_bit__eq_0;
 	assign group_1_for_ldst_op = mask_for_mem_raplustiny_ofstimes4_eq_rd | mask_for_mem8_ra_eq_rd | mask_for_mem16_ra_eq_rd | mask_for_mem32_ra_eq_rd | mask_for_memsr32_ra_eq_rd | mask_for_mem8_raplusfield_e_eq_rd | mask_for_mem16_raplusfield_e_eq_rd | mask_for_mem32_raplusfield_e_eq_rd | mask_for_memsr32_raplusfield_e_eq_rd | mask_for_mem8_field_e_eq_rd | mask_for_mem16_field_e_eq_rd | mask_for_mem32_field_e_eq_rd | mask_for_memsr32_field_e_eq_rd;
 	assign group_2_for_ldst_op = mask_for_rd_eq_mem_raplustiny_ofstimes4 | mask_for_rd_eq_mem8_ra | mask_for_rd_eq_mem16_ra | mask_for_rd_eq_mem32_ra | mask_for_rd_eq_memll32_ra | mask_for_rd_eq_smem8_ra | mask_for_rd_eq_smem16_ra | mask_for_rd_eq_mem8_raplusfield_e | mask_for_rd_eq_mem16_raplusfield_e | mask_for_rd_eq_mem32_raplusfield_e | mask_for_rd_eq_memll32_raplusfield_e | mask_for_rd_eq_smem8_raplusfield_e | mask_for_rd_eq_smem16_raplusfield_e | mask_for_rd_eq_mem8_field_e | mask_for_rd_eq_mem16_field_e | mask_for_rd_eq_mem32_field_e | mask_for_rd_eq_memll32_field_e | mask_for_rd_eq_smem8_field_e | mask_for_rd_eq_smem16_field_e;
-	assign group_1_for_rd1_addr = mask_for_rd_eq_ra_lsl_rb | mask_for_rd_eq_ra_lsr_rb | mask_for_rd_eq_ra_asr_rb | mask_for_rd_eq_ra_times_rb | mask_for_woi | mask_for_rd_eq_ra_xor_rb | mask_for_rd_eq_ra_or_rb | mask_for_rd_eq_ra_and_rb | mask_for_rd_eq_ra_plus_rb | mask_for_rd_eq_ra_minus_rb | mask_for_rd_eq_notra_and_rb | mask_for_if_ra_eq_0 | mask_for_if_ra_ne_0 | mask_for_if_ra_lt_0 | mask_for_if_ra_ge_0 | mask_for_if_ra_eq_0_1 | mask_for_if_ra_ne_0_1 | mask_for_if_ra_lt_0_1 | mask_for_if_ra_ge_0_1 | mask_for_if_ra_bit__eq_1;
+	assign group_1_for_rd1_addr = mask_for_rd_eq_ra_lsl_rb | mask_for_rd_eq_ra_lsr_rb | mask_for_rd_eq_ra_asr_rb | mask_for_rd_eq_ra_lsl_field_e | mask_for_rd_eq_ra_lsr_field_e | mask_for_rd_eq_ra_asr_field_e | mask_for_rd_eq_ra_times_rb | mask_for_woi | mask_for_rd_eq_ra_xor_rb | mask_for_rd_eq_ra_or_rb | mask_for_rd_eq_ra_and_rb | mask_for_rd_eq_ra_plus_rb | mask_for_rd_eq_ra_minus_rb | mask_for_rd_eq_notra_and_rb | mask_for_if_ra_eq_0 | mask_for_if_ra_ne_0 | mask_for_if_ra_lt_0 | mask_for_if_ra_ge_0 | mask_for_if_ra_eq_0_1 | mask_for_if_ra_ne_0_1 | mask_for_if_ra_lt_0_1 | mask_for_if_ra_ge_0_1 | mask_for_if_ra_bit__eq_1;
 	assign group_2_for_rd1_addr = mask_for_pc_eq_rd | mask_for_tpc_eq_rd | mask_for_mem_raplustiny_ofstimes4_eq_rd | mask_for_mem8_ra_eq_rd | mask_for_mem16_ra_eq_rd | mask_for_mem32_ra_eq_rd | mask_for_memsr32_ra_eq_rd | mask_for_mem8_raplusfield_e_eq_rd | mask_for_mem16_raplusfield_e_eq_rd | mask_for_mem32_raplusfield_e_eq_rd | mask_for_memsr32_raplusfield_e_eq_rd | mask_for_mem8_field_e_eq_rd | mask_for_mem16_field_e_eq_rd | mask_for_mem32_field_e_eq_rd | mask_for_memsr32_field_e_eq_rd;
 	assign group_3_for_rd1_addr = mask_for_rd_eq_tiny_rb_plus_field_a | mask_for_if_rb_eq_ra | mask_for_if_rb_ne_ra | mask_for_if_signed_rb_lt_ra | mask_for_if_signed_rb_ge_ra | mask_for_if_rb_lt_ra | mask_for_if_rb_ge_ra | mask_for_if_rb_eq_ra_1 | mask_for_if_rb_ne_ra_1 | mask_for_if_signed_rb_lt_ra_1 | mask_for_if_signed_rb_ge_ra_1 | mask_for_if_rb_lt_ra_1 | mask_for_if_rb_ge_ra_1 | mask_for_if_rb_bit__eq_0;
-	assign group_1_for_res_addr = mask_for_rd_eq_ra_lsl_rb | mask_for_rd_eq_ra_lsr_rb | mask_for_rd_eq_ra_asr_rb | mask_for_rd_eq_field_e_lsl_rb | mask_for_rd_eq_field_e_lsr_rb | mask_for_rd_eq_field_e_asr_rb | mask_for_rd_eq_field_e_lsl_ra | mask_for_rd_eq_field_e_lsr_ra | mask_for_rd_eq_field_e_asr_ra | mask_for_rd_eq_ra_times_rb | mask_for_rd_eq_field_e_times_rb | mask_for_rd_eq_field_e_times_ra | mask_for_rd_eq_pc | mask_for_rd_eq_tpc | mask_for_rd_eq_tiny_field_a | mask_for_rd_eq_pc_plus_field_atimes2 | mask_for_rd_eq_minus_ra | mask_for_rd_eq_notra | mask_for_rd_eq_bse_ra | mask_for_rd_eq_wse_ra | mask_for_rd_eq_ra_xor_rb | mask_for_rd_eq_ra_or_rb | mask_for_rd_eq_ra_and_rb | mask_for_rd_eq_ra_plus_rb | mask_for_rd_eq_ra_minus_rb | mask_for_rd_eq_notra_and_rb | mask_for_rd_eq_tiny_rb_plus_field_a | mask_for_rd_eq_value | mask_for_rd_eq_field_e_xor_rb | mask_for_rd_eq_field_e_or_rb | mask_for_rd_eq_field_e_and_rb | mask_for_rd_eq_field_e_plus_rb | mask_for_rd_eq_field_e_minus_rb | mask_for_rd_eq_short_value | mask_for_rd_eq_field_e_xor_ra | mask_for_rd_eq_field_e_or_ra | mask_for_rd_eq_field_e_and_ra | mask_for_rd_eq_field_e_plus_ra | mask_for_rd_eq_field_e_minus_ra | mask_for_rd_eq_mem_raplustiny_ofstimes4 | mask_for_rd_eq_mem8_ra | mask_for_rd_eq_mem16_ra | mask_for_rd_eq_mem32_ra | mask_for_rd_eq_memll32_ra | mask_for_rd_eq_smem8_ra | mask_for_rd_eq_smem16_ra | mask_for_rd_eq_mem8_raplusfield_e | mask_for_rd_eq_mem16_raplusfield_e | mask_for_rd_eq_mem32_raplusfield_e | mask_for_rd_eq_memll32_raplusfield_e | mask_for_rd_eq_smem8_raplusfield_e | mask_for_rd_eq_smem16_raplusfield_e | mask_for_rd_eq_mem8_field_e | mask_for_rd_eq_mem16_field_e | mask_for_rd_eq_mem32_field_e | mask_for_rd_eq_memll32_field_e | mask_for_rd_eq_smem8_field_e | mask_for_rd_eq_smem16_field_e;
+	assign group_1_for_res_addr = mask_for_rd_eq_ra_lsl_rb | mask_for_rd_eq_ra_lsr_rb | mask_for_rd_eq_ra_asr_rb | mask_for_rd_eq_field_e_lsl_rb | mask_for_rd_eq_field_e_lsr_rb | mask_for_rd_eq_field_e_asr_rb | mask_for_rd_eq_ra_lsl_field_e | mask_for_rd_eq_ra_lsr_field_e | mask_for_rd_eq_ra_asr_field_e | mask_for_rd_eq_ra_times_rb | mask_for_rd_eq_field_e_times_rb | mask_for_rd_eq_field_e_times_ra | mask_for_rd_eq_pc | mask_for_rd_eq_tpc | mask_for_rd_eq_tiny_field_a | mask_for_rd_eq_pc_plus_field_atimes2 | mask_for_rd_eq_minus_ra | mask_for_rd_eq_notra | mask_for_rd_eq_bse_ra | mask_for_rd_eq_wse_ra | mask_for_rd_eq_ra_xor_rb | mask_for_rd_eq_ra_or_rb | mask_for_rd_eq_ra_and_rb | mask_for_rd_eq_ra_plus_rb | mask_for_rd_eq_ra_minus_rb | mask_for_rd_eq_notra_and_rb | mask_for_rd_eq_tiny_rb_plus_field_a | mask_for_rd_eq_value | mask_for_rd_eq_field_e_xor_rb | mask_for_rd_eq_field_e_or_rb | mask_for_rd_eq_field_e_and_rb | mask_for_rd_eq_field_e_plus_rb | mask_for_rd_eq_field_e_minus_rb | mask_for_rd_eq_short_value | mask_for_rd_eq_field_e_xor_ra | mask_for_rd_eq_field_e_or_ra | mask_for_rd_eq_field_e_and_ra | mask_for_rd_eq_field_e_plus_ra | mask_for_rd_eq_field_e_minus_ra | mask_for_rd_eq_mem_raplustiny_ofstimes4 | mask_for_rd_eq_mem8_ra | mask_for_rd_eq_mem16_ra | mask_for_rd_eq_mem32_ra | mask_for_rd_eq_memll32_ra | mask_for_rd_eq_smem8_ra | mask_for_rd_eq_smem16_ra | mask_for_rd_eq_mem8_raplusfield_e | mask_for_rd_eq_mem16_raplusfield_e | mask_for_rd_eq_mem32_raplusfield_e | mask_for_rd_eq_memll32_raplusfield_e | mask_for_rd_eq_smem8_raplusfield_e | mask_for_rd_eq_smem16_raplusfield_e | mask_for_rd_eq_mem8_field_e | mask_for_rd_eq_mem16_field_e | mask_for_rd_eq_mem32_field_e | mask_for_rd_eq_memll32_field_e | mask_for_rd_eq_smem8_field_e | mask_for_rd_eq_smem16_field_e;
 	assign group_1_for_rd2_addr = mask_for_rd_eq_ra_lsl_rb | mask_for_rd_eq_ra_lsr_rb | mask_for_rd_eq_ra_asr_rb | mask_for_rd_eq_field_e_lsl_rb | mask_for_rd_eq_field_e_lsr_rb | mask_for_rd_eq_field_e_asr_rb | mask_for_rd_eq_ra_times_rb | mask_for_rd_eq_field_e_times_rb | mask_for_woi | mask_for_rd_eq_ra_xor_rb | mask_for_rd_eq_ra_or_rb | mask_for_rd_eq_ra_and_rb | mask_for_rd_eq_ra_plus_rb | mask_for_rd_eq_ra_minus_rb | mask_for_rd_eq_notra_and_rb | mask_for_rd_eq_field_e_xor_rb | mask_for_rd_eq_field_e_or_rb | mask_for_rd_eq_field_e_and_rb | mask_for_rd_eq_field_e_plus_rb | mask_for_rd_eq_field_e_minus_rb;
-	assign group_2_for_rd2_addr = mask_for_rd_eq_field_e_lsl_ra | mask_for_rd_eq_field_e_lsr_ra | mask_for_rd_eq_field_e_asr_ra | mask_for_rd_eq_field_e_times_ra | mask_for_rd_eq_minus_ra | mask_for_rd_eq_notra | mask_for_rd_eq_bse_ra | mask_for_rd_eq_wse_ra | mask_for_rd_eq_field_e_xor_ra | mask_for_rd_eq_field_e_or_ra | mask_for_rd_eq_field_e_and_ra | mask_for_rd_eq_field_e_plus_ra | mask_for_rd_eq_field_e_minus_ra | mask_for_if_ra_gt_0 | mask_for_if_ra_le_0 | mask_for_if_ra_gt_0_1 | mask_for_if_ra_le_0_1 | mask_for_if_rb_eq_ra | mask_for_if_rb_ne_ra | mask_for_if_signed_rb_lt_ra | mask_for_if_signed_rb_ge_ra | mask_for_if_rb_lt_ra | mask_for_if_rb_ge_ra | mask_for_if_rb_eq_ra_1 | mask_for_if_rb_ne_ra_1 | mask_for_if_signed_rb_lt_ra_1 | mask_for_if_signed_rb_ge_ra_1 | mask_for_if_rb_lt_ra_1 | mask_for_if_rb_ge_ra_1 | mask_for_rd_eq_mem8_ra | mask_for_rd_eq_mem16_ra | mask_for_rd_eq_mem32_ra | mask_for_rd_eq_memll32_ra | mask_for_mem8_ra_eq_rd | mask_for_mem16_ra_eq_rd | mask_for_mem32_ra_eq_rd | mask_for_memsr32_ra_eq_rd | mask_for_rd_eq_smem8_ra | mask_for_rd_eq_smem16_ra | mask_for_rd_eq_mem8_raplusfield_e | mask_for_rd_eq_mem16_raplusfield_e | mask_for_rd_eq_mem32_raplusfield_e | mask_for_rd_eq_memll32_raplusfield_e | mask_for_mem8_raplusfield_e_eq_rd | mask_for_mem16_raplusfield_e_eq_rd | mask_for_mem32_raplusfield_e_eq_rd | mask_for_memsr32_raplusfield_e_eq_rd | mask_for_rd_eq_smem8_raplusfield_e | mask_for_rd_eq_smem16_raplusfield_e;
+	assign group_2_for_rd2_addr = mask_for_rd_eq_field_e_times_ra | mask_for_rd_eq_minus_ra | mask_for_rd_eq_notra | mask_for_rd_eq_bse_ra | mask_for_rd_eq_wse_ra | mask_for_rd_eq_field_e_xor_ra | mask_for_rd_eq_field_e_or_ra | mask_for_rd_eq_field_e_and_ra | mask_for_rd_eq_field_e_plus_ra | mask_for_rd_eq_field_e_minus_ra | mask_for_if_ra_gt_0 | mask_for_if_ra_le_0 | mask_for_if_ra_gt_0_1 | mask_for_if_ra_le_0_1 | mask_for_if_rb_eq_ra | mask_for_if_rb_ne_ra | mask_for_if_signed_rb_lt_ra | mask_for_if_signed_rb_ge_ra | mask_for_if_rb_lt_ra | mask_for_if_rb_ge_ra | mask_for_if_rb_eq_ra_1 | mask_for_if_rb_ne_ra_1 | mask_for_if_signed_rb_lt_ra_1 | mask_for_if_signed_rb_ge_ra_1 | mask_for_if_rb_lt_ra_1 | mask_for_if_rb_ge_ra_1 | mask_for_rd_eq_mem8_ra | mask_for_rd_eq_mem16_ra | mask_for_rd_eq_mem32_ra | mask_for_rd_eq_memll32_ra | mask_for_mem8_ra_eq_rd | mask_for_mem16_ra_eq_rd | mask_for_mem32_ra_eq_rd | mask_for_memsr32_ra_eq_rd | mask_for_rd_eq_smem8_ra | mask_for_rd_eq_smem16_ra | mask_for_rd_eq_mem8_raplusfield_e | mask_for_rd_eq_mem16_raplusfield_e | mask_for_rd_eq_mem32_raplusfield_e | mask_for_rd_eq_memll32_raplusfield_e | mask_for_mem8_raplusfield_e_eq_rd | mask_for_mem16_raplusfield_e_eq_rd | mask_for_mem32_raplusfield_e_eq_rd | mask_for_memsr32_raplusfield_e_eq_rd | mask_for_rd_eq_smem8_raplusfield_e | mask_for_rd_eq_smem16_raplusfield_e;
 	assign group_3_for_rd2_addr = mask_for_mem_raplustiny_ofstimes4_eq_rd | mask_for_rd_eq_mem_raplustiny_ofstimes4;
-	assign group_1_for_use_reg_a = mask_for_rd_eq_ra_lsl_rb | mask_for_rd_eq_ra_lsr_rb | mask_for_rd_eq_ra_asr_rb | mask_for_rd_eq_ra_times_rb | mask_for_woi | mask_for_pc_eq_rd | mask_for_tpc_eq_rd | mask_for_rd_eq_ra_xor_rb | mask_for_rd_eq_ra_or_rb | mask_for_rd_eq_ra_and_rb | mask_for_rd_eq_ra_plus_rb | mask_for_rd_eq_ra_minus_rb | mask_for_rd_eq_notra_and_rb | mask_for_rd_eq_tiny_rb_plus_field_a | mask_for_if_ra_eq_0 | mask_for_if_ra_ne_0 | mask_for_if_ra_lt_0 | mask_for_if_ra_ge_0 | mask_for_if_ra_eq_0_1 | mask_for_if_ra_ne_0_1 | mask_for_if_ra_lt_0_1 | mask_for_if_ra_ge_0_1 | mask_for_if_rb_eq_ra | mask_for_if_rb_ne_ra | mask_for_if_signed_rb_lt_ra | mask_for_if_signed_rb_ge_ra | mask_for_if_rb_lt_ra | mask_for_if_rb_ge_ra | mask_for_if_rb_eq_ra_1 | mask_for_if_rb_ne_ra_1 | mask_for_if_signed_rb_lt_ra_1 | mask_for_if_signed_rb_ge_ra_1 | mask_for_if_rb_lt_ra_1 | mask_for_if_rb_ge_ra_1 | mask_for_if_ra_bit__eq_1 | mask_for_if_rb_bit__eq_0 | mask_for_mem_raplustiny_ofstimes4_eq_rd | mask_for_mem8_ra_eq_rd | mask_for_mem16_ra_eq_rd | mask_for_mem32_ra_eq_rd | mask_for_memsr32_ra_eq_rd | mask_for_mem8_raplusfield_e_eq_rd | mask_for_mem16_raplusfield_e_eq_rd | mask_for_mem32_raplusfield_e_eq_rd | mask_for_memsr32_raplusfield_e_eq_rd | mask_for_mem8_field_e_eq_rd | mask_for_mem16_field_e_eq_rd | mask_for_mem32_field_e_eq_rd | mask_for_memsr32_field_e_eq_rd;
-	assign group_1_for_use_reg_b = mask_for_rd_eq_ra_lsl_rb | mask_for_rd_eq_ra_lsr_rb | mask_for_rd_eq_ra_asr_rb | mask_for_rd_eq_field_e_lsl_rb | mask_for_rd_eq_field_e_lsr_rb | mask_for_rd_eq_field_e_asr_rb | mask_for_rd_eq_field_e_lsl_ra | mask_for_rd_eq_field_e_lsr_ra | mask_for_rd_eq_field_e_asr_ra | mask_for_rd_eq_ra_times_rb | mask_for_rd_eq_field_e_times_rb | mask_for_rd_eq_field_e_times_ra | mask_for_woi | mask_for_rd_eq_minus_ra | mask_for_rd_eq_notra | mask_for_rd_eq_bse_ra | mask_for_rd_eq_wse_ra | mask_for_rd_eq_ra_xor_rb | mask_for_rd_eq_ra_or_rb | mask_for_rd_eq_ra_and_rb | mask_for_rd_eq_ra_plus_rb | mask_for_rd_eq_ra_minus_rb | mask_for_rd_eq_notra_and_rb | mask_for_rd_eq_field_e_xor_rb | mask_for_rd_eq_field_e_or_rb | mask_for_rd_eq_field_e_and_rb | mask_for_rd_eq_field_e_plus_rb | mask_for_rd_eq_field_e_minus_rb | mask_for_rd_eq_field_e_xor_ra | mask_for_rd_eq_field_e_or_ra | mask_for_rd_eq_field_e_and_ra | mask_for_rd_eq_field_e_plus_ra | mask_for_rd_eq_field_e_minus_ra | mask_for_if_ra_gt_0 | mask_for_if_ra_le_0 | mask_for_if_ra_gt_0_1 | mask_for_if_ra_le_0_1 | mask_for_if_rb_eq_ra | mask_for_if_rb_ne_ra | mask_for_if_signed_rb_lt_ra | mask_for_if_signed_rb_ge_ra | mask_for_if_rb_lt_ra | mask_for_if_rb_ge_ra | mask_for_if_rb_eq_ra_1 | mask_for_if_rb_ne_ra_1 | mask_for_if_signed_rb_lt_ra_1 | mask_for_if_signed_rb_ge_ra_1 | mask_for_if_rb_lt_ra_1 | mask_for_if_rb_ge_ra_1 | mask_for_mem_raplustiny_ofstimes4_eq_rd | mask_for_rd_eq_mem_raplustiny_ofstimes4 | mask_for_rd_eq_mem8_ra | mask_for_rd_eq_mem16_ra | mask_for_rd_eq_mem32_ra | mask_for_rd_eq_memll32_ra | mask_for_mem8_ra_eq_rd | mask_for_mem16_ra_eq_rd | mask_for_mem32_ra_eq_rd | mask_for_memsr32_ra_eq_rd | mask_for_rd_eq_smem8_ra | mask_for_rd_eq_smem16_ra | mask_for_rd_eq_mem8_raplusfield_e | mask_for_rd_eq_mem16_raplusfield_e | mask_for_rd_eq_mem32_raplusfield_e | mask_for_rd_eq_memll32_raplusfield_e | mask_for_mem8_raplusfield_e_eq_rd | mask_for_mem16_raplusfield_e_eq_rd | mask_for_mem32_raplusfield_e_eq_rd | mask_for_memsr32_raplusfield_e_eq_rd | mask_for_rd_eq_smem8_raplusfield_e | mask_for_rd_eq_smem16_raplusfield_e;
-	assign group_1_for_op_a = mask_for_rd_eq_field_e_lsl_rb | mask_for_rd_eq_field_e_lsr_rb | mask_for_rd_eq_field_e_asr_rb | mask_for_rd_eq_field_e_lsl_ra | mask_for_rd_eq_field_e_lsr_ra | mask_for_rd_eq_field_e_asr_ra | mask_for_rd_eq_field_e_times_rb | mask_for_rd_eq_field_e_times_ra | mask_for_rd_eq_value | mask_for_pc_eq_value | mask_for_tpc_eq_value | mask_for_rd_eq_field_e_xor_rb | mask_for_rd_eq_field_e_or_rb | mask_for_rd_eq_field_e_and_rb | mask_for_rd_eq_field_e_plus_rb | mask_for_rd_eq_field_e_minus_rb | mask_for_rd_eq_short_value | mask_for_pc_eq_short_value | mask_for_tpc_eq_short_value | mask_for_rd_eq_field_e_xor_ra | mask_for_rd_eq_field_e_or_ra | mask_for_rd_eq_field_e_and_ra | mask_for_rd_eq_field_e_plus_ra | mask_for_rd_eq_field_e_minus_ra;
+	assign group_1_for_use_reg_a = mask_for_rd_eq_ra_lsl_rb | mask_for_rd_eq_ra_lsr_rb | mask_for_rd_eq_ra_asr_rb | mask_for_rd_eq_ra_lsl_field_e | mask_for_rd_eq_ra_lsr_field_e | mask_for_rd_eq_ra_asr_field_e | mask_for_rd_eq_ra_times_rb | mask_for_woi | mask_for_pc_eq_rd | mask_for_tpc_eq_rd | mask_for_rd_eq_ra_xor_rb | mask_for_rd_eq_ra_or_rb | mask_for_rd_eq_ra_and_rb | mask_for_rd_eq_ra_plus_rb | mask_for_rd_eq_ra_minus_rb | mask_for_rd_eq_notra_and_rb | mask_for_rd_eq_tiny_rb_plus_field_a | mask_for_if_ra_eq_0 | mask_for_if_ra_ne_0 | mask_for_if_ra_lt_0 | mask_for_if_ra_ge_0 | mask_for_if_ra_eq_0_1 | mask_for_if_ra_ne_0_1 | mask_for_if_ra_lt_0_1 | mask_for_if_ra_ge_0_1 | mask_for_if_rb_eq_ra | mask_for_if_rb_ne_ra | mask_for_if_signed_rb_lt_ra | mask_for_if_signed_rb_ge_ra | mask_for_if_rb_lt_ra | mask_for_if_rb_ge_ra | mask_for_if_rb_eq_ra_1 | mask_for_if_rb_ne_ra_1 | mask_for_if_signed_rb_lt_ra_1 | mask_for_if_signed_rb_ge_ra_1 | mask_for_if_rb_lt_ra_1 | mask_for_if_rb_ge_ra_1 | mask_for_if_ra_bit__eq_1 | mask_for_if_rb_bit__eq_0 | mask_for_mem_raplustiny_ofstimes4_eq_rd | mask_for_mem8_ra_eq_rd | mask_for_mem16_ra_eq_rd | mask_for_mem32_ra_eq_rd | mask_for_memsr32_ra_eq_rd | mask_for_mem8_raplusfield_e_eq_rd | mask_for_mem16_raplusfield_e_eq_rd | mask_for_mem32_raplusfield_e_eq_rd | mask_for_memsr32_raplusfield_e_eq_rd | mask_for_mem8_field_e_eq_rd | mask_for_mem16_field_e_eq_rd | mask_for_mem32_field_e_eq_rd | mask_for_memsr32_field_e_eq_rd;
+	assign group_1_for_use_reg_b = mask_for_rd_eq_ra_lsl_rb | mask_for_rd_eq_ra_lsr_rb | mask_for_rd_eq_ra_asr_rb | mask_for_rd_eq_field_e_lsl_rb | mask_for_rd_eq_field_e_lsr_rb | mask_for_rd_eq_field_e_asr_rb | mask_for_rd_eq_ra_times_rb | mask_for_rd_eq_field_e_times_rb | mask_for_rd_eq_field_e_times_ra | mask_for_woi | mask_for_rd_eq_minus_ra | mask_for_rd_eq_notra | mask_for_rd_eq_bse_ra | mask_for_rd_eq_wse_ra | mask_for_rd_eq_ra_xor_rb | mask_for_rd_eq_ra_or_rb | mask_for_rd_eq_ra_and_rb | mask_for_rd_eq_ra_plus_rb | mask_for_rd_eq_ra_minus_rb | mask_for_rd_eq_notra_and_rb | mask_for_rd_eq_field_e_xor_rb | mask_for_rd_eq_field_e_or_rb | mask_for_rd_eq_field_e_and_rb | mask_for_rd_eq_field_e_plus_rb | mask_for_rd_eq_field_e_minus_rb | mask_for_rd_eq_field_e_xor_ra | mask_for_rd_eq_field_e_or_ra | mask_for_rd_eq_field_e_and_ra | mask_for_rd_eq_field_e_plus_ra | mask_for_rd_eq_field_e_minus_ra | mask_for_if_ra_gt_0 | mask_for_if_ra_le_0 | mask_for_if_ra_gt_0_1 | mask_for_if_ra_le_0_1 | mask_for_if_rb_eq_ra | mask_for_if_rb_ne_ra | mask_for_if_signed_rb_lt_ra | mask_for_if_signed_rb_ge_ra | mask_for_if_rb_lt_ra | mask_for_if_rb_ge_ra | mask_for_if_rb_eq_ra_1 | mask_for_if_rb_ne_ra_1 | mask_for_if_signed_rb_lt_ra_1 | mask_for_if_signed_rb_ge_ra_1 | mask_for_if_rb_lt_ra_1 | mask_for_if_rb_ge_ra_1 | mask_for_mem_raplustiny_ofstimes4_eq_rd | mask_for_rd_eq_mem_raplustiny_ofstimes4 | mask_for_rd_eq_mem8_ra | mask_for_rd_eq_mem16_ra | mask_for_rd_eq_mem32_ra | mask_for_rd_eq_memll32_ra | mask_for_mem8_ra_eq_rd | mask_for_mem16_ra_eq_rd | mask_for_mem32_ra_eq_rd | mask_for_memsr32_ra_eq_rd | mask_for_rd_eq_smem8_ra | mask_for_rd_eq_smem16_ra | mask_for_rd_eq_mem8_raplusfield_e | mask_for_rd_eq_mem16_raplusfield_e | mask_for_rd_eq_mem32_raplusfield_e | mask_for_rd_eq_memll32_raplusfield_e | mask_for_mem8_raplusfield_e_eq_rd | mask_for_mem16_raplusfield_e_eq_rd | mask_for_mem32_raplusfield_e_eq_rd | mask_for_memsr32_raplusfield_e_eq_rd | mask_for_rd_eq_smem8_raplusfield_e | mask_for_rd_eq_smem16_raplusfield_e;
+	assign group_1_for_op_a = mask_for_rd_eq_field_e_lsl_rb | mask_for_rd_eq_field_e_lsr_rb | mask_for_rd_eq_field_e_asr_rb | mask_for_rd_eq_field_e_times_rb | mask_for_rd_eq_field_e_times_ra | mask_for_rd_eq_value | mask_for_pc_eq_value | mask_for_tpc_eq_value | mask_for_rd_eq_field_e_xor_rb | mask_for_rd_eq_field_e_or_rb | mask_for_rd_eq_field_e_and_rb | mask_for_rd_eq_field_e_plus_rb | mask_for_rd_eq_field_e_minus_rb | mask_for_rd_eq_short_value | mask_for_pc_eq_short_value | mask_for_tpc_eq_short_value | mask_for_rd_eq_field_e_xor_ra | mask_for_rd_eq_field_e_or_ra | mask_for_rd_eq_field_e_and_ra | mask_for_rd_eq_field_e_plus_ra | mask_for_rd_eq_field_e_minus_ra;
 	assign field_e = fetch_inst_len == 2'h2 ? ({fetch_inst_2, fetch_inst_1}) : ({fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1[15], fetch_inst_1});
 	assign group_2_for_op_a = mask_for_swi;
 	assign group_3_for_op_a = mask_for_sii | mask_for_sii_1 | mask_for_sii_2 | mask_for_sii_3 | mask_for_sii_4 | mask_for_sii_5 | mask_for_sii_6 | mask_for_sii_7 | mask_for_sii_8 | mask_for_sii_9 | mask_for_sii_10 | mask_for_sii_11 | mask_for_sii_12 | mask_for_sii_13 | mask_for_sii_14 | mask_for_sii_15 | mask_for_sii_16 | mask_for_sii_17 | mask_for_sii_18 | mask_for_sii_19 | mask_for_sii_20 | mask_for_sii_21 | mask_for_sii_22 | mask_for_sii_23 | mask_for_sii_24 | mask_for_sii_25 | mask_for_sii_26 | mask_for_sii_27 | mask_for_sii_28 | mask_expr;
 	assign group_4_for_op_a = mask_for_rd_eq_tiny_field_a | mask_for_rd_eq_minus_ra | mask_for_rd_eq_bse_ra | mask_for_rd_eq_wse_ra | mask_for_if_ra_gt_0 | mask_for_if_ra_le_0 | mask_for_if_ra_gt_0_1 | mask_for_if_ra_le_0_1;
 	assign group_5_for_op_a = mask_for_rd_eq_notra;
-	assign group_1_for_op_b = mask_for_rd_eq_pc | mask_for_rd_eq_value | mask_for_rd_eq_short_value | mask_for_if_ra_eq_0 | mask_for_if_ra_ne_0 | mask_for_if_ra_lt_0 | mask_for_if_ra_ge_0 | mask_for_if_ra_eq_0_1 | mask_for_if_ra_ne_0_1 | mask_for_if_ra_lt_0_1 | mask_for_if_ra_ge_0_1 | mask_for_rd_eq_mem8_field_e | mask_for_rd_eq_mem16_field_e | mask_for_rd_eq_mem32_field_e | mask_for_rd_eq_memll32_field_e | mask_for_mem8_field_e_eq_rd | mask_for_mem16_field_e_eq_rd | mask_for_mem32_field_e_eq_rd | mask_for_memsr32_field_e_eq_rd | mask_for_rd_eq_smem8_field_e | mask_for_rd_eq_smem16_field_e;
-	assign group_2_for_op_b = mask_for_rd_eq_tiny_field_a | mask_for_rd_eq_pc_plus_field_atimes2 | mask_for_rd_eq_tiny_rb_plus_field_a;
+	assign group_1_for_op_b = mask_for_rd_eq_ra_lsl_field_e | mask_for_rd_eq_ra_lsr_field_e | mask_for_rd_eq_ra_asr_field_e;
+	assign group_2_for_op_b = mask_for_rd_eq_pc | mask_for_rd_eq_value | mask_for_rd_eq_short_value | mask_for_if_ra_eq_0 | mask_for_if_ra_ne_0 | mask_for_if_ra_lt_0 | mask_for_if_ra_ge_0 | mask_for_if_ra_eq_0_1 | mask_for_if_ra_ne_0_1 | mask_for_if_ra_lt_0_1 | mask_for_if_ra_ge_0_1 | mask_for_rd_eq_mem8_field_e | mask_for_rd_eq_mem16_field_e | mask_for_rd_eq_mem32_field_e | mask_for_rd_eq_memll32_field_e | mask_for_mem8_field_e_eq_rd | mask_for_mem16_field_e_eq_rd | mask_for_mem32_field_e_eq_rd | mask_for_memsr32_field_e_eq_rd | mask_for_rd_eq_smem8_field_e | mask_for_rd_eq_smem16_field_e;
+	assign group_3_for_op_b = mask_for_rd_eq_tiny_field_a | mask_for_rd_eq_pc_plus_field_atimes2 | mask_for_rd_eq_tiny_rb_plus_field_a;
 	assign ones_field_a = u22_output_port[3] ? ({field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one[3], field_a_plus_one}) : fetch_inst_0[3:0];
-	assign group_3_for_op_b = mask_for_if_ra_bit__eq_1 | mask_for_if_rb_bit__eq_0;
+	assign group_4_for_op_b = mask_for_if_ra_bit__eq_1 | mask_for_if_rb_bit__eq_0;
 	assign group_1_for_op_c = mask_for_woi | mask_for_rd_eq_mem8_ra | mask_for_rd_eq_mem16_ra | mask_for_rd_eq_mem32_ra | mask_for_rd_eq_memll32_ra | mask_for_mem8_ra_eq_rd | mask_for_mem16_ra_eq_rd | mask_for_mem32_ra_eq_rd | mask_for_memsr32_ra_eq_rd | mask_for_rd_eq_smem8_ra | mask_for_rd_eq_smem16_ra;
 	assign group_2_for_op_c = mask_for_if_ra_eq_0 | mask_for_if_ra_ne_0 | mask_for_if_ra_lt_0 | mask_for_if_ra_ge_0 | mask_for_if_ra_gt_0 | mask_for_if_ra_le_0 | mask_for_if_ra_eq_0_1 | mask_for_if_ra_ne_0_1 | mask_for_if_ra_lt_0_1 | mask_for_if_ra_ge_0_1 | mask_for_if_ra_gt_0_1 | mask_for_if_ra_le_0_1 | mask_for_if_rb_eq_ra | mask_for_if_rb_ne_ra | mask_for_if_signed_rb_lt_ra | mask_for_if_signed_rb_ge_ra | mask_for_if_rb_lt_ra | mask_for_if_rb_ge_ra | mask_for_if_rb_eq_ra_1 | mask_for_if_rb_ne_ra_1 | mask_for_if_signed_rb_lt_ra_1 | mask_for_if_signed_rb_ge_ra_1 | mask_for_if_rb_lt_ra_1 | mask_for_if_rb_ge_ra_1 | mask_for_if_ra_bit__eq_1 | mask_for_if_rb_bit__eq_0 | mask_for_rd_eq_mem8_raplusfield_e | mask_for_rd_eq_mem16_raplusfield_e | mask_for_rd_eq_mem32_raplusfield_e | mask_for_rd_eq_memll32_raplusfield_e | mask_for_mem8_raplusfield_e_eq_rd | mask_for_mem16_raplusfield_e_eq_rd | mask_for_mem32_raplusfield_e_eq_rd | mask_for_memsr32_raplusfield_e_eq_rd | mask_for_rd_eq_smem8_raplusfield_e | mask_for_rd_eq_smem16_raplusfield_e | mask_for_rd_eq_mem8_field_e | mask_for_rd_eq_mem16_field_e | mask_for_rd_eq_mem32_field_e | mask_for_rd_eq_memll32_field_e | mask_for_mem8_field_e_eq_rd | mask_for_mem16_field_e_eq_rd | mask_for_mem32_field_e_eq_rd | mask_for_memsr32_field_e_eq_rd | mask_for_rd_eq_smem8_field_e | mask_for_rd_eq_smem16_field_e;
 	assign group_3_for_op_c = mask_for_mem_raplustiny_ofstimes4_eq_rd | mask_for_rd_eq_mem_raplustiny_ofstimes4;
@@ -2316,19 +2356,22 @@ module DecodeStage (
 	assign group_1_for_wse = mask_for_rd_eq_wse_ra | mask_for_rd_eq_smem16_ra | mask_for_rd_eq_smem16_raplusfield_e | mask_for_rd_eq_smem16_field_e;
 	assign group_1_for_bze = mask_for_rd_eq_mem8_ra | mask_for_rd_eq_mem8_raplusfield_e | mask_for_rd_eq_mem8_field_e;
 	assign group_1_for_wze = mask_for_rd_eq_mem16_ra | mask_for_rd_eq_mem16_raplusfield_e | mask_for_rd_eq_mem16_field_e;
-	assign group_1_for_read1_needed = mask_for_rd_eq_ra_lsl_rb | mask_for_rd_eq_ra_lsr_rb | mask_for_rd_eq_ra_asr_rb | mask_for_rd_eq_ra_times_rb | mask_for_woi | mask_for_pc_eq_rd | mask_for_tpc_eq_rd | mask_for_rd_eq_ra_xor_rb | mask_for_rd_eq_ra_or_rb | mask_for_rd_eq_ra_and_rb | mask_for_rd_eq_ra_plus_rb | mask_for_rd_eq_ra_minus_rb | mask_for_rd_eq_notra_and_rb | mask_for_rd_eq_tiny_rb_plus_field_a | mask_for_if_ra_eq_0 | mask_for_if_ra_ne_0 | mask_for_if_ra_lt_0 | mask_for_if_ra_ge_0 | mask_for_if_ra_eq_0_1 | mask_for_if_ra_ne_0_1 | mask_for_if_ra_lt_0_1 | mask_for_if_ra_ge_0_1 | mask_for_if_rb_eq_ra | mask_for_if_rb_ne_ra | mask_for_if_signed_rb_lt_ra | mask_for_if_signed_rb_ge_ra | mask_for_if_rb_lt_ra | mask_for_if_rb_ge_ra | mask_for_if_rb_eq_ra_1 | mask_for_if_rb_ne_ra_1 | mask_for_if_signed_rb_lt_ra_1 | mask_for_if_signed_rb_ge_ra_1 | mask_for_if_rb_lt_ra_1 | mask_for_if_rb_ge_ra_1 | mask_for_if_ra_bit__eq_1 | mask_for_if_rb_bit__eq_0 | mask_for_mem_raplustiny_ofstimes4_eq_rd | mask_for_mem8_ra_eq_rd | mask_for_mem16_ra_eq_rd | mask_for_mem32_ra_eq_rd | mask_for_memsr32_ra_eq_rd | mask_for_mem8_raplusfield_e_eq_rd | mask_for_mem16_raplusfield_e_eq_rd | mask_for_mem32_raplusfield_e_eq_rd | mask_for_memsr32_raplusfield_e_eq_rd | mask_for_mem8_field_e_eq_rd | mask_for_mem16_field_e_eq_rd | mask_for_mem32_field_e_eq_rd | mask_for_memsr32_field_e_eq_rd;
-	assign group_1_for_read2_needed = mask_for_rd_eq_ra_lsl_rb | mask_for_rd_eq_ra_lsr_rb | mask_for_rd_eq_ra_asr_rb | mask_for_rd_eq_field_e_lsl_rb | mask_for_rd_eq_field_e_lsr_rb | mask_for_rd_eq_field_e_asr_rb | mask_for_rd_eq_field_e_lsl_ra | mask_for_rd_eq_field_e_lsr_ra | mask_for_rd_eq_field_e_asr_ra | mask_for_rd_eq_ra_times_rb | mask_for_rd_eq_field_e_times_rb | mask_for_rd_eq_field_e_times_ra | mask_for_woi | mask_for_rd_eq_minus_ra | mask_for_rd_eq_notra | mask_for_rd_eq_bse_ra | mask_for_rd_eq_wse_ra | mask_for_rd_eq_ra_xor_rb | mask_for_rd_eq_ra_or_rb | mask_for_rd_eq_ra_and_rb | mask_for_rd_eq_ra_plus_rb | mask_for_rd_eq_ra_minus_rb | mask_for_rd_eq_notra_and_rb | mask_for_rd_eq_field_e_xor_rb | mask_for_rd_eq_field_e_or_rb | mask_for_rd_eq_field_e_and_rb | mask_for_rd_eq_field_e_plus_rb | mask_for_rd_eq_field_e_minus_rb | mask_for_rd_eq_field_e_xor_ra | mask_for_rd_eq_field_e_or_ra | mask_for_rd_eq_field_e_and_ra | mask_for_rd_eq_field_e_plus_ra | mask_for_rd_eq_field_e_minus_ra | mask_for_if_ra_gt_0 | mask_for_if_ra_le_0 | mask_for_if_ra_gt_0_1 | mask_for_if_ra_le_0_1 | mask_for_if_rb_eq_ra | mask_for_if_rb_ne_ra | mask_for_if_signed_rb_lt_ra | mask_for_if_signed_rb_ge_ra | mask_for_if_rb_lt_ra | mask_for_if_rb_ge_ra | mask_for_if_rb_eq_ra_1 | mask_for_if_rb_ne_ra_1 | mask_for_if_signed_rb_lt_ra_1 | mask_for_if_signed_rb_ge_ra_1 | mask_for_if_rb_lt_ra_1 | mask_for_if_rb_ge_ra_1 | mask_for_mem_raplustiny_ofstimes4_eq_rd | mask_for_rd_eq_mem_raplustiny_ofstimes4 | mask_for_rd_eq_mem8_ra | mask_for_rd_eq_mem16_ra | mask_for_rd_eq_mem32_ra | mask_for_rd_eq_memll32_ra | mask_for_mem8_ra_eq_rd | mask_for_mem16_ra_eq_rd | mask_for_mem32_ra_eq_rd | mask_for_memsr32_ra_eq_rd | mask_for_rd_eq_smem8_ra | mask_for_rd_eq_smem16_ra | mask_for_rd_eq_mem8_raplusfield_e | mask_for_rd_eq_mem16_raplusfield_e | mask_for_rd_eq_mem32_raplusfield_e | mask_for_rd_eq_memll32_raplusfield_e | mask_for_mem8_raplusfield_e_eq_rd | mask_for_mem16_raplusfield_e_eq_rd | mask_for_mem32_raplusfield_e_eq_rd | mask_for_memsr32_raplusfield_e_eq_rd | mask_for_rd_eq_smem8_raplusfield_e | mask_for_rd_eq_smem16_raplusfield_e;
-	assign group_1_for_rsv_needed = mask_for_rd_eq_ra_lsl_rb | mask_for_rd_eq_ra_lsr_rb | mask_for_rd_eq_ra_asr_rb | mask_for_rd_eq_field_e_lsl_rb | mask_for_rd_eq_field_e_lsr_rb | mask_for_rd_eq_field_e_asr_rb | mask_for_rd_eq_field_e_lsl_ra | mask_for_rd_eq_field_e_lsr_ra | mask_for_rd_eq_field_e_asr_ra | mask_for_rd_eq_ra_times_rb | mask_for_rd_eq_field_e_times_rb | mask_for_rd_eq_field_e_times_ra | mask_for_rd_eq_pc | mask_for_rd_eq_tpc | mask_for_rd_eq_tiny_field_a | mask_for_rd_eq_pc_plus_field_atimes2 | mask_for_rd_eq_minus_ra | mask_for_rd_eq_notra | mask_for_rd_eq_bse_ra | mask_for_rd_eq_wse_ra | mask_for_rd_eq_ra_xor_rb | mask_for_rd_eq_ra_or_rb | mask_for_rd_eq_ra_and_rb | mask_for_rd_eq_ra_plus_rb | mask_for_rd_eq_ra_minus_rb | mask_for_rd_eq_notra_and_rb | mask_for_rd_eq_tiny_rb_plus_field_a | mask_for_rd_eq_value | mask_for_rd_eq_field_e_xor_rb | mask_for_rd_eq_field_e_or_rb | mask_for_rd_eq_field_e_and_rb | mask_for_rd_eq_field_e_plus_rb | mask_for_rd_eq_field_e_minus_rb | mask_for_rd_eq_short_value | mask_for_rd_eq_field_e_xor_ra | mask_for_rd_eq_field_e_or_ra | mask_for_rd_eq_field_e_and_ra | mask_for_rd_eq_field_e_plus_ra | mask_for_rd_eq_field_e_minus_ra | mask_for_rd_eq_mem_raplustiny_ofstimes4 | mask_for_rd_eq_mem8_ra | mask_for_rd_eq_mem16_ra | mask_for_rd_eq_mem32_ra | mask_for_rd_eq_memll32_ra | mask_for_rd_eq_smem8_ra | mask_for_rd_eq_smem16_ra | mask_for_rd_eq_mem8_raplusfield_e | mask_for_rd_eq_mem16_raplusfield_e | mask_for_rd_eq_mem32_raplusfield_e | mask_for_rd_eq_memll32_raplusfield_e | mask_for_rd_eq_smem8_raplusfield_e | mask_for_rd_eq_smem16_raplusfield_e | mask_for_rd_eq_mem8_field_e | mask_for_rd_eq_mem16_field_e | mask_for_rd_eq_mem32_field_e | mask_for_rd_eq_memll32_field_e | mask_for_rd_eq_smem8_field_e | mask_for_rd_eq_smem16_field_e;
+	assign group_1_for_read1_needed = mask_for_rd_eq_ra_lsl_rb | mask_for_rd_eq_ra_lsr_rb | mask_for_rd_eq_ra_asr_rb | mask_for_rd_eq_ra_lsl_field_e | mask_for_rd_eq_ra_lsr_field_e | mask_for_rd_eq_ra_asr_field_e | mask_for_rd_eq_ra_times_rb | mask_for_woi | mask_for_pc_eq_rd | mask_for_tpc_eq_rd | mask_for_rd_eq_ra_xor_rb | mask_for_rd_eq_ra_or_rb | mask_for_rd_eq_ra_and_rb | mask_for_rd_eq_ra_plus_rb | mask_for_rd_eq_ra_minus_rb | mask_for_rd_eq_notra_and_rb | mask_for_rd_eq_tiny_rb_plus_field_a | mask_for_if_ra_eq_0 | mask_for_if_ra_ne_0 | mask_for_if_ra_lt_0 | mask_for_if_ra_ge_0 | mask_for_if_ra_eq_0_1 | mask_for_if_ra_ne_0_1 | mask_for_if_ra_lt_0_1 | mask_for_if_ra_ge_0_1 | mask_for_if_rb_eq_ra | mask_for_if_rb_ne_ra | mask_for_if_signed_rb_lt_ra | mask_for_if_signed_rb_ge_ra | mask_for_if_rb_lt_ra | mask_for_if_rb_ge_ra | mask_for_if_rb_eq_ra_1 | mask_for_if_rb_ne_ra_1 | mask_for_if_signed_rb_lt_ra_1 | mask_for_if_signed_rb_ge_ra_1 | mask_for_if_rb_lt_ra_1 | mask_for_if_rb_ge_ra_1 | mask_for_if_ra_bit__eq_1 | mask_for_if_rb_bit__eq_0 | mask_for_mem_raplustiny_ofstimes4_eq_rd | mask_for_mem8_ra_eq_rd | mask_for_mem16_ra_eq_rd | mask_for_mem32_ra_eq_rd | mask_for_memsr32_ra_eq_rd | mask_for_mem8_raplusfield_e_eq_rd | mask_for_mem16_raplusfield_e_eq_rd | mask_for_mem32_raplusfield_e_eq_rd | mask_for_memsr32_raplusfield_e_eq_rd | mask_for_mem8_field_e_eq_rd | mask_for_mem16_field_e_eq_rd | mask_for_mem32_field_e_eq_rd | mask_for_memsr32_field_e_eq_rd;
+	assign group_1_for_read2_needed = mask_for_rd_eq_ra_lsl_rb | mask_for_rd_eq_ra_lsr_rb | mask_for_rd_eq_ra_asr_rb | mask_for_rd_eq_field_e_lsl_rb | mask_for_rd_eq_field_e_lsr_rb | mask_for_rd_eq_field_e_asr_rb | mask_for_rd_eq_ra_times_rb | mask_for_rd_eq_field_e_times_rb | mask_for_rd_eq_field_e_times_ra | mask_for_woi | mask_for_rd_eq_minus_ra | mask_for_rd_eq_notra | mask_for_rd_eq_bse_ra | mask_for_rd_eq_wse_ra | mask_for_rd_eq_ra_xor_rb | mask_for_rd_eq_ra_or_rb | mask_for_rd_eq_ra_and_rb | mask_for_rd_eq_ra_plus_rb | mask_for_rd_eq_ra_minus_rb | mask_for_rd_eq_notra_and_rb | mask_for_rd_eq_field_e_xor_rb | mask_for_rd_eq_field_e_or_rb | mask_for_rd_eq_field_e_and_rb | mask_for_rd_eq_field_e_plus_rb | mask_for_rd_eq_field_e_minus_rb | mask_for_rd_eq_field_e_xor_ra | mask_for_rd_eq_field_e_or_ra | mask_for_rd_eq_field_e_and_ra | mask_for_rd_eq_field_e_plus_ra | mask_for_rd_eq_field_e_minus_ra | mask_for_if_ra_gt_0 | mask_for_if_ra_le_0 | mask_for_if_ra_gt_0_1 | mask_for_if_ra_le_0_1 | mask_for_if_rb_eq_ra | mask_for_if_rb_ne_ra | mask_for_if_signed_rb_lt_ra | mask_for_if_signed_rb_ge_ra | mask_for_if_rb_lt_ra | mask_for_if_rb_ge_ra | mask_for_if_rb_eq_ra_1 | mask_for_if_rb_ne_ra_1 | mask_for_if_signed_rb_lt_ra_1 | mask_for_if_signed_rb_ge_ra_1 | mask_for_if_rb_lt_ra_1 | mask_for_if_rb_ge_ra_1 | mask_for_mem_raplustiny_ofstimes4_eq_rd | mask_for_rd_eq_mem_raplustiny_ofstimes4 | mask_for_rd_eq_mem8_ra | mask_for_rd_eq_mem16_ra | mask_for_rd_eq_mem32_ra | mask_for_rd_eq_memll32_ra | mask_for_mem8_ra_eq_rd | mask_for_mem16_ra_eq_rd | mask_for_mem32_ra_eq_rd | mask_for_memsr32_ra_eq_rd | mask_for_rd_eq_smem8_ra | mask_for_rd_eq_smem16_ra | mask_for_rd_eq_mem8_raplusfield_e | mask_for_rd_eq_mem16_raplusfield_e | mask_for_rd_eq_mem32_raplusfield_e | mask_for_rd_eq_memll32_raplusfield_e | mask_for_mem8_raplusfield_e_eq_rd | mask_for_mem16_raplusfield_e_eq_rd | mask_for_mem32_raplusfield_e_eq_rd | mask_for_memsr32_raplusfield_e_eq_rd | mask_for_rd_eq_smem8_raplusfield_e | mask_for_rd_eq_smem16_raplusfield_e;
+	assign group_1_for_rsv_needed = mask_for_rd_eq_ra_lsl_rb | mask_for_rd_eq_ra_lsr_rb | mask_for_rd_eq_ra_asr_rb | mask_for_rd_eq_field_e_lsl_rb | mask_for_rd_eq_field_e_lsr_rb | mask_for_rd_eq_field_e_asr_rb | mask_for_rd_eq_ra_lsl_field_e | mask_for_rd_eq_ra_lsr_field_e | mask_for_rd_eq_ra_asr_field_e | mask_for_rd_eq_ra_times_rb | mask_for_rd_eq_field_e_times_rb | mask_for_rd_eq_field_e_times_ra | mask_for_rd_eq_pc | mask_for_rd_eq_tpc | mask_for_rd_eq_tiny_field_a | mask_for_rd_eq_pc_plus_field_atimes2 | mask_for_rd_eq_minus_ra | mask_for_rd_eq_notra | mask_for_rd_eq_bse_ra | mask_for_rd_eq_wse_ra | mask_for_rd_eq_ra_xor_rb | mask_for_rd_eq_ra_or_rb | mask_for_rd_eq_ra_and_rb | mask_for_rd_eq_ra_plus_rb | mask_for_rd_eq_ra_minus_rb | mask_for_rd_eq_notra_and_rb | mask_for_rd_eq_tiny_rb_plus_field_a | mask_for_rd_eq_value | mask_for_rd_eq_field_e_xor_rb | mask_for_rd_eq_field_e_or_rb | mask_for_rd_eq_field_e_and_rb | mask_for_rd_eq_field_e_plus_rb | mask_for_rd_eq_field_e_minus_rb | mask_for_rd_eq_short_value | mask_for_rd_eq_field_e_xor_ra | mask_for_rd_eq_field_e_or_ra | mask_for_rd_eq_field_e_and_ra | mask_for_rd_eq_field_e_plus_ra | mask_for_rd_eq_field_e_minus_ra | mask_for_rd_eq_mem_raplustiny_ofstimes4 | mask_for_rd_eq_mem8_ra | mask_for_rd_eq_mem16_ra | mask_for_rd_eq_mem32_ra | mask_for_rd_eq_memll32_ra | mask_for_rd_eq_smem8_ra | mask_for_rd_eq_smem16_ra | mask_for_rd_eq_mem8_raplusfield_e | mask_for_rd_eq_mem16_raplusfield_e | mask_for_rd_eq_mem32_raplusfield_e | mask_for_rd_eq_memll32_raplusfield_e | mask_for_rd_eq_smem8_raplusfield_e | mask_for_rd_eq_smem16_raplusfield_e | mask_for_rd_eq_mem8_field_e | mask_for_rd_eq_mem16_field_e | mask_for_rd_eq_mem32_field_e | mask_for_rd_eq_memll32_field_e | mask_for_rd_eq_smem8_field_e | mask_for_rd_eq_smem16_field_e;
 	assign reg_file_req_valid = fetch_valid &  ~ do_branch;
 	assign rd1_addr = (group_1_for_rd1_addr ? fetch_inst_0[3:0] : 4'b0) | (group_2_for_rd1_addr ? fetch_inst_0[15:12] : 4'b0) | (group_3_for_rd1_addr ? fetch_inst_0[7:4] : 4'b0) ;
 	assign reg_file_req_read1_addr = rd1_addr;
 	assign read1_needed = fetch_av ? 1'h0 : (group_1_for_read1_needed ? 1'h1 : 1'b0) | 1'h0;
+	assign reg_file_req_read1_valid = read1_needed &  ~ do_branch;
 	assign rd2_addr = (group_1_for_rd2_addr ? fetch_inst_0[7:4] : 4'b0) | (group_2_for_rd2_addr ? fetch_inst_0[3:0] : 4'b0) | (group_3_for_rd2_addr ? fetch_inst_0[0] : 4'b0) ;
 	assign reg_file_req_read2_addr = rd2_addr;
 	assign read2_needed = fetch_av ? 1'h0 : (group_1_for_read2_needed ? 1'h1 : 1'b0) | 1'h0;
+	assign reg_file_req_read2_valid = read2_needed &  ~ do_branch;
 	assign res_addr = (group_1_for_res_addr ? fetch_inst_0[15:12] : 4'b0) ;
 	assign reg_file_req_rsv_addr = res_addr;
 	assign rsv_needed = fetch_av ? 1'h0 : (group_1_for_rsv_needed ? 1'h1 : 1'b0) | 1'h0;
+	assign reg_file_req_rsv_valid = rsv_needed &  ~ do_branch;
 	assign exec_unit = 
 		(group_1_for_exec_unit ? `op_class__shift : 3'b0) | 
 		(group_2_for_exec_unit ? `op_class__mult : 3'b0) | 
@@ -2360,29 +2403,34 @@ module DecodeStage (
 		(group_8_for_branch_op ? `branch_ops__cb_ges : 4'b0) | 
 		(group_9_for_branch_op ? `branch_ops__cb_lt : 4'b0) | 
 		(group_10_for_branch_op ? `branch_ops__cb_ge : 4'b0) | 
-		(group_11_for_branch_op ? `branch_ops__bb_one : 4'b0) ;
+		(group_11_for_branch_op ? `branch_ops__bb_one : 4'b0) | 
+		(group_12_for_branch_op ? `branch_ops__bb_zero : 4'b0) ;
 	always_ff @(posedge clk) output_port_branch_op <= rst ? 4'h0 : register_outputs ? branch_op : output_port_branch_op;
 	assign ldst_op = (group_1_for_ldst_op ? `ldst_ops__store : 1'b0) | (group_2_for_ldst_op ? `ldst_ops__load : 1'b0) ;
 	always_ff @(posedge clk) output_port_ldst_op <= rst ? 1'h0 : register_outputs ? ldst_op : output_port_ldst_op;
 	assign use_reg_a = (group_1_for_use_reg_a ? 1'h1 : 1'b0) | 1'h0;
 	assign op_a = 
 		(group_1_for_op_a ? field_e : 32'b0) | 
-		(group_2_for_op_a ? fetch_inst_0[3:0] : 32'b0) | 
+		(group_2_for_op_a ? fetch_inst_0[15:12] : 32'b0) | 
 		(group_3_for_op_a ? 3'h7 : 32'b0) | 
 		(group_4_for_op_a ? 1'h0 : 32'b0) | 
 		(group_5_for_op_a ? 32'hffffffff : 32'b0) ;
-	always_ff @(posedge clk) u1777_output_port <= rst ? 1'h0 : register_outputs ? use_reg_a : u1777_output_port;
-	always_ff @(posedge clk) u1778_output_port <= rst ? 32'h0 : register_outputs ? op_a : u1778_output_port;
-	assign output_port_op_a = u1777_output_port ? reg_file_rsp_read1_data : u1778_output_port;
+	always_ff @(posedge clk) u1792_output_port <= rst ? 1'h0 : register_outputs ? use_reg_a : u1792_output_port;
+	always_ff @(posedge clk) u1793_output_port <= rst ? 32'h0 : register_outputs ? op_a : u1793_output_port;
+	assign output_port_op_a = u1792_output_port ? reg_file_rsp_read1_data : u1793_output_port;
 	assign use_reg_b = (group_1_for_use_reg_b ? 1'h1 : 1'b0) | 1'h0;
-	assign op_b = (group_1_for_op_b ? 1'h0 : 32'b0) | (group_2_for_op_b ? ones_field_a : 32'b0) | (group_3_for_op_b ? fetch_inst_0[11:8] : 32'b0) ;
-	always_ff @(posedge clk) u1780_output_port <= rst ? 1'h0 : register_outputs ? use_reg_b : u1780_output_port;
-	always_ff @(posedge clk) u1781_output_port <= rst ? 32'h0 : register_outputs ? op_b : u1781_output_port;
-	assign output_port_op_b = u1780_output_port ? reg_file_rsp_read2_data : u1781_output_port;
+	assign op_b = 
+		(group_1_for_op_b ? field_e : 32'b0) | 
+		(group_2_for_op_b ? 1'h0 : 32'b0) | 
+		(group_3_for_op_b ? ones_field_a : 32'b0) | 
+		(group_4_for_op_b ? fetch_inst_0[11:8] : 32'b0) ;
+	always_ff @(posedge clk) u1795_output_port <= rst ? 1'h0 : register_outputs ? use_reg_b : u1795_output_port;
+	always_ff @(posedge clk) u1796_output_port <= rst ? 32'h0 : register_outputs ? op_b : u1796_output_port;
+	assign output_port_op_b = u1795_output_port ? reg_file_rsp_read2_data : u1796_output_port;
 	assign op_c = (group_1_for_op_c ? 1'h0 : 32'b0) | (group_2_for_op_c ? field_e : 32'b0) | (group_3_for_op_c ? tiny_ofs : 32'b0) ;
 	always_ff @(posedge clk) output_port_op_c <= rst ? 32'h0 : register_outputs ? op_c : output_port_op_c;
-	assign mem_len = (group_1_for_mem_len ? 2'h3 : 2'b0) | (group_2_for_mem_len ? 1'h1 : 2'b0) | (group_3_for_mem_len ? 2'h2 : 2'b0) ;
-	always_ff @(posedge clk) u1784_output_port <= rst ? 2'h0 : register_outputs ? mem_len : u1784_output_port;
+	assign mem_len = (group_1_for_mem_len ? 2'h2 : 2'b0) | (group_2_for_mem_len ? 1'h0 : 2'b0) | (group_3_for_mem_len ? 1'h1 : 2'b0) ;
+	always_ff @(posedge clk) u1799_output_port <= rst ? 2'h0 : register_outputs ? mem_len : u1799_output_port;
 	always_ff @(posedge clk) output_port_inst_len <= rst ? 2'h0 : register_outputs ? fetch_inst_len : output_port_inst_len;
 	assign bse = (group_1_for_bse ? 1'h1 : 1'b0) | 1'h0;
 	always_ff @(posedge clk) output_port_do_bse <= rst ? 1'h0 : register_outputs ? bse : output_port_do_bse;
@@ -2398,14 +2446,11 @@ module DecodeStage (
 	assign output_port_valid = reg_file_rsp_valid;
 	assign reg_file_rsp_ready = output_port_ready;
 	assign fetch_ready = reg_file_req_ready;
-	assign output_port_mem_access_len = u1784_output_port;
+	assign output_port_mem_access_len = u1799_output_port;
 
 	assign u36_output_port = fetch_inst_0[3:0] + 1'h1 + 5'b0;
 	assign mask_for_sii_29 = mask_expr;
 	assign expr = mask_expr;
-	assign reg_file_req_read1_valid = read1_needed;
-	assign reg_file_req_read2_valid = read2_needed;
-	assign reg_file_req_rsv_valid = rsv_needed;
 	assign u22_output_port = fetch_inst_0[3:0];
 endmodule
 
@@ -2540,19 +2585,22 @@ module InstAssemble (
 	input logic do_branch
 );
 
-	logic u7_output_port;
+	logic u5_output_port;
 	logic u12_output_port;
-	logic u17_output_port;
-	logic u20_output_port;
-	logic u22_output_port;
-	logic u25_output_port;
-	logic u27_output_port;
-	logic u30_output_port;
-	logic u36_output_port;
-	logic u42_output_port;
+	logic u19_output_port;
+	logic u26_output_port;
+	logic u29_output_port;
+	logic u31_output_port;
+	logic u34_output_port;
+	logic u38_output_port;
+	logic u41_output_port;
+	logic u44_output_port;
 	logic u48_output_port;
-	logic u52_output_port;
-	logic u55_output_port;
+	logic u56_output_port;
+	logic u64_output_port;
+	logic u72_output_port;
+	logic u76_output_port;
+	logic u79_output_port;
 	logic terminal_fsm_state;
 	logic fetch_ready;
 	logic fsm_advance;
@@ -2582,22 +2630,25 @@ module InstAssemble (
 		.state(fsm_state),
 		.next_state(decode_fsm_next_state),
 		.default_state(`InstAssembleStates__have_0_fragments),
-		.input_have_0_fragments_to_have_all_fragments(u7_output_port),
-		.input_have_0_fragments_to_need_1_fragments(u12_output_port),
-		.input_have_0_fragments_to_need_2_fragments(u17_output_port),
-		.input_have_0_fragments_to_have_0_fragments(u20_output_port),
+		.input_have_0_fragments_to_have_all_fragments(u5_output_port),
+		.input_have_0_fragments_to_have_all_fragments_1(u12_output_port),
+		.input_have_0_fragments_to_need_1_fragments(u19_output_port),
+		.input_have_0_fragments_to_need_2_fragments(u26_output_port),
+		.input_have_0_fragments_to_have_0_fragments(u29_output_port),
 		.input_have_0_fragments_to_have_0_fragments_1(do_branch),
-		.input_need_1_fragments_to_have_all_fragments(u22_output_port),
-		.input_need_1_fragments_to_need_1_fragments(u25_output_port),
+		.input_need_1_fragments_to_have_all_fragments(u31_output_port),
+		.input_need_1_fragments_to_need_1_fragments(u34_output_port),
 		.input_need_1_fragments_to_have_0_fragments(do_branch),
-		.input_need_2_fragments_to_need_1_fragments(u27_output_port),
-		.input_need_2_fragments_to_need_2_fragments(u30_output_port),
+		.input_need_2_fragments_to_need_1_fragments(u38_output_port),
+		.input_need_2_fragments_to_have_all_fragments(u41_output_port),
+		.input_need_2_fragments_to_need_2_fragments(u44_output_port),
 		.input_need_2_fragments_to_have_0_fragments(do_branch),
-		.input_have_all_fragments_to_have_all_fragments(u36_output_port),
-		.input_have_all_fragments_to_need_1_fragments(u42_output_port),
-		.input_have_all_fragments_to_need_2_fragments(u48_output_port),
-		.input_have_all_fragments_to_have_0_fragments(u52_output_port),
-		.input_have_all_fragments_to_have_all_fragments_1(u55_output_port),
+		.input_have_all_fragments_to_have_all_fragments(u48_output_port),
+		.input_have_all_fragments_to_have_all_fragments_1(u56_output_port),
+		.input_have_all_fragments_to_need_1_fragments(u64_output_port),
+		.input_have_all_fragments_to_need_2_fragments(u72_output_port),
+		.input_have_all_fragments_to_have_0_fragments(u76_output_port),
+		.input_have_all_fragments_to_have_all_fragments_2(u79_output_port),
 		.input_have_all_fragments_to_have_0_fragments_1(do_branch)
 	);
 
@@ -2606,19 +2657,22 @@ module InstAssemble (
 		.inst_word(inst_buf_data)
 	);
 
-	assign u7_output_port =  ~ do_branch & fsm_advance & (inst_len == 1'h0);
-	assign u12_output_port =  ~ do_branch & fsm_advance & (inst_len == 1'h1);
-	assign u17_output_port =  ~ do_branch & fsm_advance & (inst_len == 2'h2);
-	assign u20_output_port =  ~ do_branch &  ~ fsm_advance;
-	assign u22_output_port =  ~ do_branch & fsm_advance;
-	assign u25_output_port =  ~ do_branch &  ~ fsm_advance;
-	assign u27_output_port =  ~ do_branch & fsm_advance;
-	assign u30_output_port =  ~ do_branch &  ~ fsm_advance;
-	assign u36_output_port =  ~ do_branch & fsm_advance & inst_buf_valid & (inst_len == 1'h0);
-	assign u42_output_port =  ~ do_branch & fsm_advance & inst_buf_valid & (inst_len == 1'h1);
-	assign u48_output_port =  ~ do_branch & fsm_advance & inst_buf_valid & (inst_len == 2'h2);
-	assign u52_output_port =  ~ do_branch & fsm_advance &  ~ inst_buf_valid;
-	assign u55_output_port =  ~ do_branch &  ~ fsm_advance;
+	assign u5_output_port =  ~ do_branch & fsm_advance & inst_buf_av;
+	assign u12_output_port =  ~ do_branch & fsm_advance &  ~ inst_buf_av & (inst_len == 1'h0);
+	assign u19_output_port =  ~ do_branch & fsm_advance &  ~ inst_buf_av & (inst_len == 1'h1);
+	assign u26_output_port =  ~ do_branch & fsm_advance &  ~ inst_buf_av & (inst_len == 2'h2);
+	assign u29_output_port =  ~ do_branch &  ~ fsm_advance;
+	assign u31_output_port =  ~ do_branch & fsm_advance;
+	assign u34_output_port =  ~ do_branch &  ~ fsm_advance;
+	assign u38_output_port =  ~ do_branch & fsm_advance &  ~ inst_buf_av;
+	assign u41_output_port =  ~ do_branch & fsm_advance & inst_buf_av;
+	assign u44_output_port =  ~ do_branch &  ~ fsm_advance;
+	assign u48_output_port =  ~ do_branch & fsm_advance & inst_buf_valid & inst_buf_av;
+	assign u56_output_port =  ~ do_branch & fsm_advance & inst_buf_valid &  ~ inst_buf_av & (inst_len == 1'h0);
+	assign u64_output_port =  ~ do_branch & fsm_advance & inst_buf_valid &  ~ inst_buf_av & (inst_len == 1'h1);
+	assign u72_output_port =  ~ do_branch & fsm_advance & inst_buf_valid &  ~ inst_buf_av & (inst_len == 2'h2);
+	assign u76_output_port =  ~ do_branch & fsm_advance &  ~ inst_buf_valid;
+	assign u79_output_port =  ~ do_branch &  ~ fsm_advance;
 	assign inst_buf_ready = fetch_ready;
 	assign decode_av = fetch_av;
 	assign decode_inst_0 = inst_reg_0;
@@ -2840,14 +2894,14 @@ module InstQueue (
 
 	logic dec;
 	logic inc;
-	logic signed [6:0] u4_output_port;
+	logic signed [6:0] u3_output_port;
 	logic [4:0] empty_cnt;
 
 	assign inc = assemble_ready & assemble_valid;
 	assign dec = inst_ready & inst_valid;
-	always_ff @(posedge clk) empty_cnt <= rst ? 5'h10 : do_branch ? 5'h10 : u4_output_port[4:0];
+	always_ff @(posedge clk) empty_cnt <= rst ? 5'h10 : do_branch ? 5'h10 : u3_output_port[4:0];
 
-	Fifo u (
+	Fifo fifo (
 		.input_port_av(inst_av),
 		.input_port_data(inst_data),
 		.input_port_ready(inst_ready),
@@ -2863,7 +2917,7 @@ module InstQueue (
 		.clear(do_branch)
 	);
 
-	assign u4_output_port = empty_cnt + inc + 6'b0 - dec + 7'b0;
+	assign u3_output_port = empty_cnt + inc + 6'b0 - dec + 7'b0;
 	assign queue_free_cnt = empty_cnt;
 endmodule
 
@@ -2904,8 +2958,10 @@ module Fifo (
 	logic empty;
 	logic full;
 	logic looped;
-	logic u93_output_port_av;
-	logic [15:0] u93_output_port_data;
+	logic u93_output_port;
+	logic out_data_selector;
+	logic u95_output_port_av;
+	logic [15:0] u95_output_port_data;
 	logic output_data_av;
 	logic [15:0] output_data_data;
 	logic buffer_mem_port2_data_out_av;
@@ -2936,10 +2992,12 @@ module Fifo (
 	always_ff @(posedge clock_port) empty <= reset_port ? 1'h1 : clear ? 1'h1 : next_empty;
 	always_ff @(posedge clock_port) full <= reset_port ? 1'h0 : clear ? 1'h0 : next_full;
 	always_ff @(posedge clock_port) looped <= reset_port ? 1'h0 : clear ? 1'h0 : next_looped;
-	always_ff @(posedge clock_port) u93_output_port_av <= reset_port ? 1'h0 : input_port_av;
-	always_ff @(posedge clock_port) u93_output_port_data <= reset_port ? 16'h0 : input_port_data;
-	assign output_data_av = push_addr == next_pop_addr ? u93_output_port_av : buffer_mem_port2_data_out_av;
-	assign output_data_data = push_addr == next_pop_addr ? u93_output_port_data : buffer_mem_port2_data_out_data;
+	always_ff @(posedge clock_port) u93_output_port <= reset_port ? 1'h0 : push;
+	assign out_data_selector = (push_addr == next_pop_addr) & u93_output_port;
+	always_ff @(posedge clock_port) u95_output_port_av <= reset_port ? 1'h0 : input_port_av;
+	always_ff @(posedge clock_port) u95_output_port_data <= reset_port ? 16'h0 : input_port_data;
+	assign output_data_av = out_data_selector ? u95_output_port_av : buffer_mem_port2_data_out_av;
+	assign output_data_data = out_data_selector ? u95_output_port_data : buffer_mem_port2_data_out_data;
 
 	Memory buffer_mem (
 		.port1_addr(push_addr),
@@ -3035,30 +3093,40 @@ module InstBuffer (
 	logic [30:0] fetch_addr;
 	logic fetch_page_limit;
 	logic fetch_av;
+	logic [2:0] u29_output_port;
+	logic signed [2:0] u33_output_port;
+	logic [1:0] next_outstanding_request;
+	logic [1:0] outstanding_request;
 	logic start_new_request;
-	logic signed [5:0] u30_output_port;
+	logic signed [5:0] u68_output_port;
 	logic [4:0] req_len;
 	logic req_av;
-	logic flushing;
-	logic u64_output_port;
-	logic u67_output_port;
-	logic u69_output_port;
+	logic u91_output_port;
+	logic u97_output_port;
+	logic u100_output_port;
+	logic u103_output_port;
+	logic u104_output_port;
 	logic [1:0] state;
-	logic [1:0] fsm_next_state;
+	logic [1:0] next_state;
 
 	assign branch_target = task_mode ? u3_output_port[30:0] : spc;
 	always_ff @(posedge clk) task_mode_fetch <= rst ? 1'h0 : do_branch ? task_mode : task_mode_fetch;
 	assign advance_request = bus_if_request_valid & bus_if_request_ready;
 	always_ff @(posedge clk) fetch_addr <= rst ? 31'h0 : do_branch ? branch_target : u8_output_port[30:0];
-	always_ff @(posedge clk) fetch_page_limit <= rst ? 1'h0 : ( ~ fetch_addr[6:0] == 1'h0);
-	assign start_new_request = (queue_free_cnt >= 4'h8 | do_branch) & (state == `InstBufferStates__idle);
-	always_ff @(posedge clk) req_len <= rst ? 4'h8 : start_new_request ? do_branch ? 4'h8 : queue_free_cnt : advance_request ? req_len > 1'h0 ? u30_output_port[4:0] : 1'h0 : req_len;
+	always_ff @(posedge clk) fetch_page_limit <= rst ? 1'h0 : state == `InstBufferStates__idle ? 1'h0 : ( ~ fetch_addr[6:0] == 1'h0);
+	assign next_outstanding_request = 
+		(advance_request & bus_if_response_valid ? outstanding_request : 2'b0) | 
+		(advance_request &  ~ bus_if_response_valid ? u29_output_port[1:0] : 2'b0) | 
+		( ~ advance_request & bus_if_response_valid ? u33_output_port[1:0] : 2'b0) | 
+		( ~ advance_request &  ~ bus_if_response_valid ? outstanding_request : 2'b0) ;
+	always_ff @(posedge clk) outstanding_request <= rst ? 2'h0 : next_outstanding_request;
+	assign start_new_request = (queue_free_cnt >= 4'h8 &  ~ do_branch | do_branch & (next_outstanding_request == 1'h0)) & (state == `InstBufferStates__idle) | (state == `InstBufferStates__flushing) & (next_outstanding_request == 1'h0) | (state == `InstBufferStates__request) & do_branch & (next_outstanding_request == 1'h0);
+	always_ff @(posedge clk) req_len <= rst ? 4'h8 : start_new_request ? do_branch ? 4'h8 : queue_free_cnt : advance_request ? req_len > 1'h0 ? u68_output_port[4:0] : 1'h0 : req_len;
 	assign fetch_av = task_mode_fetch & fetch_addr[30:10] > mem_limit;
 	always_ff @(posedge clk) req_av <= rst ? 1'h0 : start_new_request ? fetch_av : req_av;
-	always_ff @(posedge clk) flushing <= rst ? 1'h0 : do_branch | (state == `InstBufferStates__flush_start) ? 1'h1 : bus_if_response_valid ? flushing : 1'h0;
 	assign bus_if_request_valid = (state == `InstBufferStates__request) &  ~ fetch_page_limit;
 	assign bus_if_request_addr = fetch_addr[30:0];
-	assign queue_valid = bus_if_response_valid &  ~ flushing;
+	assign queue_valid = bus_if_response_valid & (state != `InstBufferStates__flushing);
 	assign bus_if_request_byte_en = 2'h3;
 	assign bus_if_request_data = 16'hx;
 	assign bus_if_request_read_not_write = 1'h1;
@@ -3069,23 +3137,28 @@ module InstBuffer (
 		.reset_port(rst),
 		.reset_value(`InstBufferStates__idle),
 		.state(state),
-		.next_state(fsm_next_state),
+		.next_state(next_state),
 		.default_state(`InstBufferStates__idle),
 		.input_idle_to_request(start_new_request),
-		.input_request_to_idle(u64_output_port),
-		.input_request_to_flush_start(u67_output_port),
-		.input_request_to_idle_1(u69_output_port),
-		.input_flush_start_to_idle(bus_if_response_valid)
+		.input_idle_to_flushing(u91_output_port),
+		.input_request_to_idle(u97_output_port),
+		.input_request_to_flushing(u100_output_port),
+		.input_request_to_request(u103_output_port),
+		.input_flushing_to_request(u104_output_port)
 	);
 
 	assign branch_req = do_branch;
 	assign u3_output_port = tpc + (mem_base << 4'ha) + 32'b0 + 33'b0;
 	assign u8_output_port = fetch_addr + advance_request + 32'b0;
-	assign u30_output_port = req_len - 1'h1 + 6'b0;
+	assign u29_output_port = outstanding_request + 1'h1 + 3'b0;
+	assign u33_output_port = outstanding_request - 1'h1 + 3'b0;
+	assign u68_output_port = req_len - 1'h1 + 6'b0;
 	assign queue_av = req_av;
-	assign u64_output_port =  ~ do_branch & ( ~ advance_request | (req_len == 1'h0));
-	assign u67_output_port = do_branch & advance_request &  ~ bus_if_response_valid;
-	assign u69_output_port = do_branch & advance_request & bus_if_response_valid;
+	assign u91_output_port = do_branch & (next_outstanding_request != 1'h0);
+	assign u97_output_port =  ~ do_branch & ( ~ bus_if_request_valid | (req_len == 1'h0));
+	assign u100_output_port = do_branch & (next_outstanding_request != 1'h0);
+	assign u103_output_port = do_branch & (next_outstanding_request == 1'h0);
+	assign u104_output_port = next_outstanding_request == 1'h0;
 endmodule
 
 
@@ -3116,10 +3189,18 @@ module CpuDma (
 	input logic [3:0] drq
 );
 
-	logic [3:0] prev_drq;
 	logic tc_reg;
 	logic reg_write_strobe;
 	logic [3:0] served_dma_channel;
+	logic u7_output_port;
+	logic u9_output_port;
+	logic u13_output_port;
+	logic u15_output_port;
+	logic u19_output_port;
+	logic u21_output_port;
+	logic u25_output_port;
+	logic u27_output_port;
+	logic [3:0] prev_drq;
 	logic ch_0_served;
 	logic [31:0] ch_0_addr;
 	logic [31:0] ch_0_limit;
@@ -3127,9 +3208,11 @@ module CpuDma (
 	logic ch_0_read_not_write;
 	logic ch_0_is_master;
 	logic ch_0_high_priority;
+	logic ch_0_req_polarity;
+	logic ch_0_req_no_cdc;
 	logic ch_0_active;
 	logic ch_0_int_pending;
-	logic u69_output_port;
+	logic u103_output_port;
 	logic ch_0_req_pending;
 	logic ch_1_served;
 	logic [31:0] ch_1_addr;
@@ -3138,9 +3221,11 @@ module CpuDma (
 	logic ch_1_read_not_write;
 	logic ch_1_is_master;
 	logic ch_1_high_priority;
+	logic ch_1_req_polarity;
+	logic ch_1_req_no_cdc;
 	logic ch_1_active;
 	logic ch_1_int_pending;
-	logic u134_output_port;
+	logic u178_output_port;
 	logic ch_1_req_pending;
 	logic ch_2_served;
 	logic [31:0] ch_2_addr;
@@ -3149,9 +3234,11 @@ module CpuDma (
 	logic ch_2_read_not_write;
 	logic ch_2_is_master;
 	logic ch_2_high_priority;
+	logic ch_2_req_polarity;
+	logic ch_2_req_no_cdc;
 	logic ch_2_active;
 	logic ch_2_int_pending;
-	logic u199_output_port;
+	logic u253_output_port;
 	logic ch_2_req_pending;
 	logic ch_3_served;
 	logic [31:0] ch_3_addr;
@@ -3160,13 +3247,15 @@ module CpuDma (
 	logic ch_3_read_not_write;
 	logic ch_3_is_master;
 	logic ch_3_high_priority;
+	logic ch_3_req_polarity;
+	logic ch_3_req_no_cdc;
 	logic ch_3_active;
 	logic ch_3_int_pending;
-	logic u264_output_port;
+	logic u328_output_port;
 	logic ch_3_req_pending;
 	logic member;
 	logic [3:0] ch_read_not_writes;
-	logic [31:0] u280_output_port;
+	logic [31:0] u353_output_port;
 	logic req_pendig;
 	logic [3:0] high_pri_req_pending;
 	logic [3:0] low_pri_req_pending;
@@ -3175,15 +3264,24 @@ module CpuDma (
 	logic [31:0] selected_addr;
 	logic [31:0] selected_limit;
 	logic tc;
-	logic [32:0] u315_output_port;
+	logic [32:0] u390_output_port;
 	logic [31:0] next_addr;
 	logic [3:0] read_not_writes;
-	logic u355_output_port;
+	logic u433_output_port;
 	logic [3:0] high_pri_selected_dma_channel;
-	logic u357_output_port;
+	logic u435_output_port;
 	logic [3:0] low_pri_selected_dma_channel;
+	logic [3:0] drq_1;
 	logic priority_change;
 
+	always_ff @(posedge clk) u7_output_port <= rst ? 1'h0 : drq[0];
+	always_ff @(posedge clk) u9_output_port <= rst ? 1'h0 : u7_output_port;
+	always_ff @(posedge clk) u13_output_port <= rst ? 1'h0 : drq[1];
+	always_ff @(posedge clk) u15_output_port <= rst ? 1'h0 : u13_output_port;
+	always_ff @(posedge clk) u19_output_port <= rst ? 1'h0 : drq[2];
+	always_ff @(posedge clk) u21_output_port <= rst ? 1'h0 : u19_output_port;
+	always_ff @(posedge clk) u25_output_port <= rst ? 1'h0 : drq[3];
+	always_ff @(posedge clk) u27_output_port <= rst ? 1'h0 : u25_output_port;
 	always_ff @(posedge clk) served_dma_channel <= rst ? 4'h0 : bus_req_if_ready & req_pendig ? selected_dma_channel : served_dma_channel;
 	assign reg_write_strobe = reg_if_psel & reg_if_pwrite & reg_if_penable;
 	assign ch_0_served = served_dma_channel[0] & bus_rsp_if_valid;
@@ -3193,12 +3291,14 @@ module CpuDma (
 	always_ff @(posedge clk) ch_0_read_not_write <= rst ? 1'h0 : (reg_if_paddr == 4'ha) & reg_write_strobe ? reg_if_pwdata[1] : ch_0_read_not_write;
 	always_ff @(posedge clk) ch_0_is_master <= rst ? 1'h0 : (reg_if_paddr == 4'ha) & reg_write_strobe ? reg_if_pwdata[2] : ch_0_is_master;
 	always_ff @(posedge clk) ch_0_high_priority <= rst ? 1'h0 : (reg_if_paddr == 4'ha) & reg_write_strobe ? reg_if_pwdata[3] : ch_0_high_priority;
+	always_ff @(posedge clk) ch_0_req_polarity <= rst ? 1'h0 : (reg_if_paddr == 4'hb) & reg_write_strobe ? reg_if_pwdata[0] : ch_0_req_polarity;
+	always_ff @(posedge clk) ch_0_req_no_cdc <= rst ? 1'h0 : (reg_if_paddr == 4'hb) & reg_write_strobe ? reg_if_pwdata[1] : ch_0_req_no_cdc;
 	always_ff @(posedge clk) tc_reg <= rst ? 1'h0 : bus_req_if_ready & req_pendig ? tc : tc_reg;
 	always_ff @(posedge clk) ch_0_active <= rst ? 1'h0 : (reg_if_paddr == 1'h0) & reg_write_strobe ? 1'h1 : ch_0_served ?  ~ tc_reg : ch_0_active;
 	always_ff @(posedge clk) ch_0_int_pending <= rst ? 1'h0 : tc_reg & ch_0_served ? 1'h1 : (reg_if_paddr == 4'h8) & reg_write_strobe & reg_if_pwdata[0] ? 1'h0 : ch_0_int_pending;
-	always_ff @(posedge clk) prev_drq <= rst ? 4'h0 : drq;
-	always_ff @(posedge clk) u69_output_port <= rst ? 1'h0 : drq[0] &  ~ prev_drq[0] ? 1'h1 : ch_0_served ? 1'h0 : ch_0_req_pending;
-	assign ch_0_req_pending = ch_0_active & (ch_0_single &  ~ ch_0_is_master ? drq[0] : u69_output_port);
+	always_ff @(posedge clk) prev_drq <= rst ? 4'h0 : drq_1;
+	always_ff @(posedge clk) u103_output_port <= rst ? 1'h0 : drq_1[0] &  ~ prev_drq[0] ? 1'h1 : ch_0_served ? 1'h0 : ch_0_req_pending;
+	assign ch_0_req_pending = ch_0_active & (ch_0_single &  ~ ch_0_is_master ? drq_1[0] : u103_output_port);
 	assign ch_1_served = served_dma_channel[1] & bus_rsp_if_valid;
 	always_ff @(posedge clk) ch_1_addr <= rst ? 32'h0 : (reg_if_paddr == 2'h2) & reg_write_strobe ? reg_if_pwdata : ch_1_served ? next_addr : ch_1_addr;
 	always_ff @(posedge clk) ch_1_limit <= rst ? 32'h0 : (reg_if_paddr == 2'h3) & reg_write_strobe ? reg_if_pwdata : ch_1_limit;
@@ -3206,10 +3306,12 @@ module CpuDma (
 	always_ff @(posedge clk) ch_1_read_not_write <= rst ? 1'h0 : (reg_if_paddr == 4'ha) & reg_write_strobe ? reg_if_pwdata[5] : ch_1_read_not_write;
 	always_ff @(posedge clk) ch_1_is_master <= rst ? 1'h0 : (reg_if_paddr == 4'ha) & reg_write_strobe ? reg_if_pwdata[6] : ch_1_is_master;
 	always_ff @(posedge clk) ch_1_high_priority <= rst ? 1'h0 : (reg_if_paddr == 4'ha) & reg_write_strobe ? reg_if_pwdata[7] : ch_1_high_priority;
+	always_ff @(posedge clk) ch_1_req_polarity <= rst ? 1'h0 : (reg_if_paddr == 4'hb) & reg_write_strobe ? reg_if_pwdata[4] : ch_1_req_polarity;
+	always_ff @(posedge clk) ch_1_req_no_cdc <= rst ? 1'h0 : (reg_if_paddr == 4'hb) & reg_write_strobe ? reg_if_pwdata[5] : ch_1_req_no_cdc;
 	always_ff @(posedge clk) ch_1_active <= rst ? 1'h0 : (reg_if_paddr == 2'h2) & reg_write_strobe ? 1'h1 : ch_1_served ?  ~ tc_reg : ch_1_active;
 	always_ff @(posedge clk) ch_1_int_pending <= rst ? 1'h0 : tc_reg & ch_1_served ? 1'h1 : (reg_if_paddr == 4'h8) & reg_write_strobe & reg_if_pwdata[1] ? 1'h0 : ch_1_int_pending;
-	always_ff @(posedge clk) u134_output_port <= rst ? 1'h0 : drq[1] &  ~ prev_drq[1] ? 1'h1 : ch_1_served ? 1'h0 : ch_1_req_pending;
-	assign ch_1_req_pending = ch_1_active & (ch_1_single &  ~ ch_1_is_master ? drq[1] : u134_output_port);
+	always_ff @(posedge clk) u178_output_port <= rst ? 1'h0 : drq_1[1] &  ~ prev_drq[1] ? 1'h1 : ch_1_served ? 1'h0 : ch_1_req_pending;
+	assign ch_1_req_pending = ch_1_active & (ch_1_single &  ~ ch_1_is_master ? drq_1[1] : u178_output_port);
 	assign ch_2_served = served_dma_channel[2] & bus_rsp_if_valid;
 	always_ff @(posedge clk) ch_2_addr <= rst ? 32'h0 : (reg_if_paddr == 3'h4) & reg_write_strobe ? reg_if_pwdata : ch_2_served ? next_addr : ch_2_addr;
 	always_ff @(posedge clk) ch_2_limit <= rst ? 32'h0 : (reg_if_paddr == 3'h5) & reg_write_strobe ? reg_if_pwdata : ch_2_limit;
@@ -3217,10 +3319,12 @@ module CpuDma (
 	always_ff @(posedge clk) ch_2_read_not_write <= rst ? 1'h0 : (reg_if_paddr == 4'ha) & reg_write_strobe ? reg_if_pwdata[9] : ch_2_read_not_write;
 	always_ff @(posedge clk) ch_2_is_master <= rst ? 1'h0 : (reg_if_paddr == 4'ha) & reg_write_strobe ? reg_if_pwdata[10] : ch_2_is_master;
 	always_ff @(posedge clk) ch_2_high_priority <= rst ? 1'h0 : (reg_if_paddr == 4'ha) & reg_write_strobe ? reg_if_pwdata[11] : ch_2_high_priority;
+	always_ff @(posedge clk) ch_2_req_polarity <= rst ? 1'h0 : (reg_if_paddr == 4'hb) & reg_write_strobe ? reg_if_pwdata[8] : ch_2_req_polarity;
+	always_ff @(posedge clk) ch_2_req_no_cdc <= rst ? 1'h0 : (reg_if_paddr == 4'hb) & reg_write_strobe ? reg_if_pwdata[9] : ch_2_req_no_cdc;
 	always_ff @(posedge clk) ch_2_active <= rst ? 1'h0 : (reg_if_paddr == 3'h4) & reg_write_strobe ? 1'h1 : ch_2_served ?  ~ tc_reg : ch_2_active;
 	always_ff @(posedge clk) ch_2_int_pending <= rst ? 1'h0 : tc_reg & ch_2_served ? 1'h1 : (reg_if_paddr == 4'h8) & reg_write_strobe & reg_if_pwdata[2] ? 1'h0 : ch_2_int_pending;
-	always_ff @(posedge clk) u199_output_port <= rst ? 1'h0 : drq[2] &  ~ prev_drq[2] ? 1'h1 : ch_2_served ? 1'h0 : ch_2_req_pending;
-	assign ch_2_req_pending = ch_2_active & (ch_2_single &  ~ ch_2_is_master ? drq[2] : u199_output_port);
+	always_ff @(posedge clk) u253_output_port <= rst ? 1'h0 : drq_1[2] &  ~ prev_drq[2] ? 1'h1 : ch_2_served ? 1'h0 : ch_2_req_pending;
+	assign ch_2_req_pending = ch_2_active & (ch_2_single &  ~ ch_2_is_master ? drq_1[2] : u253_output_port);
 	assign ch_3_served = served_dma_channel[3] & bus_rsp_if_valid;
 	always_ff @(posedge clk) ch_3_addr <= rst ? 32'h0 : (reg_if_paddr == 3'h6) & reg_write_strobe ? reg_if_pwdata : ch_3_served ? next_addr : ch_3_addr;
 	always_ff @(posedge clk) ch_3_limit <= rst ? 32'h0 : (reg_if_paddr == 3'h7) & reg_write_strobe ? reg_if_pwdata : ch_3_limit;
@@ -3228,26 +3332,29 @@ module CpuDma (
 	always_ff @(posedge clk) ch_3_read_not_write <= rst ? 1'h0 : (reg_if_paddr == 4'ha) & reg_write_strobe ? reg_if_pwdata[13] : ch_3_read_not_write;
 	always_ff @(posedge clk) ch_3_is_master <= rst ? 1'h0 : (reg_if_paddr == 4'ha) & reg_write_strobe ? reg_if_pwdata[14] : ch_3_is_master;
 	always_ff @(posedge clk) ch_3_high_priority <= rst ? 1'h0 : (reg_if_paddr == 4'ha) & reg_write_strobe ? reg_if_pwdata[15] : ch_3_high_priority;
+	always_ff @(posedge clk) ch_3_req_polarity <= rst ? 1'h0 : (reg_if_paddr == 4'hb) & reg_write_strobe ? reg_if_pwdata[12] : ch_3_req_polarity;
+	always_ff @(posedge clk) ch_3_req_no_cdc <= rst ? 1'h0 : (reg_if_paddr == 4'hb) & reg_write_strobe ? reg_if_pwdata[13] : ch_3_req_no_cdc;
 	always_ff @(posedge clk) ch_3_active <= rst ? 1'h0 : (reg_if_paddr == 3'h6) & reg_write_strobe ? 1'h1 : ch_3_served ?  ~ tc_reg : ch_3_active;
 	always_ff @(posedge clk) ch_3_int_pending <= rst ? 1'h0 : tc_reg & ch_3_served ? 1'h1 : (reg_if_paddr == 4'h8) & reg_write_strobe & reg_if_pwdata[3] ? 1'h0 : ch_3_int_pending;
-	always_ff @(posedge clk) u264_output_port <= rst ? 1'h0 : drq[3] &  ~ prev_drq[3] ? 1'h1 : ch_3_served ? 1'h0 : member;
-	assign member = ch_3_active & (ch_3_single &  ~ ch_3_is_master ? drq[3] : u264_output_port);
+	always_ff @(posedge clk) u328_output_port <= rst ? 1'h0 : drq_1[3] &  ~ prev_drq[3] ? 1'h1 : ch_3_served ? 1'h0 : member;
+	assign member = ch_3_active & (ch_3_single &  ~ ch_3_is_master ? drq_1[3] : u328_output_port);
 	always @(*) begin
 		unique case (reg_if_paddr)
-			4'd0: u280_output_port = ch_0_addr;
-			4'd1: u280_output_port = ch_0_limit;
-			4'd2: u280_output_port = ch_1_addr;
-			4'd3: u280_output_port = ch_1_limit;
-			4'd4: u280_output_port = ch_2_addr;
-			4'd5: u280_output_port = ch_2_limit;
-			4'd6: u280_output_port = ch_3_addr;
-			4'd7: u280_output_port = ch_3_limit;
-			4'd8: u280_output_port = {ch_3_int_pending, ch_2_int_pending, ch_1_int_pending, ch_0_int_pending};
-			4'd9: u280_output_port = {1'h0, 1'h0, member, ch_3_active, 1'h0, 1'h0, ch_2_req_pending, ch_2_active, 1'h0, 1'h0, ch_1_req_pending, ch_1_active, 1'h0, 1'h0, ch_0_req_pending, ch_0_active};
-			4'd10: u280_output_port = {ch_3_is_master, ch_3_high_priority, ch_3_read_not_write, ch_3_single, ch_2_is_master, ch_2_high_priority, ch_2_read_not_write, ch_2_single, ch_1_is_master, ch_1_high_priority, ch_1_read_not_write, ch_1_single, ch_0_is_master, ch_0_high_priority, ch_0_read_not_write, ch_0_single};
+			4'd0: u353_output_port = ch_0_addr;
+			4'd1: u353_output_port = ch_0_limit;
+			4'd2: u353_output_port = ch_1_addr;
+			4'd3: u353_output_port = ch_1_limit;
+			4'd4: u353_output_port = ch_2_addr;
+			4'd5: u353_output_port = ch_2_limit;
+			4'd6: u353_output_port = ch_3_addr;
+			4'd7: u353_output_port = ch_3_limit;
+			4'd8: u353_output_port = {ch_3_int_pending, ch_2_int_pending, ch_1_int_pending, ch_0_int_pending};
+			4'd9: u353_output_port = {1'h0, 1'h0, member, ch_3_active, 1'h0, 1'h0, ch_2_req_pending, ch_2_active, 1'h0, 1'h0, ch_1_req_pending, ch_1_active, 1'h0, 1'h0, ch_0_req_pending, ch_0_active};
+			4'd10: u353_output_port = {ch_3_is_master, ch_3_high_priority, ch_3_read_not_write, ch_3_single, ch_2_is_master, ch_2_high_priority, ch_2_read_not_write, ch_2_single, ch_1_is_master, ch_1_high_priority, ch_1_read_not_write, ch_1_single, ch_0_is_master, ch_0_high_priority, ch_0_read_not_write, ch_0_single};
+			4'd11: u353_output_port = {ch_3_req_polarity, ch_3_req_no_cdc, 1'h0, 1'h0, ch_2_req_polarity, ch_2_req_no_cdc, 1'h0, 1'h0, ch_1_req_polarity, ch_1_req_no_cdc, 1'h0, 1'h0, ch_0_req_polarity, ch_0_req_no_cdc, 1'h0, 1'h0};
 		endcase
 	end
-	always_ff @(posedge clk) reg_if_prdata <= rst ? 32'h0 : u280_output_port;
+	always_ff @(posedge clk) reg_if_prdata <= rst ? 32'h0 : u353_output_port;
 	assign high_pri_req_pending = {member & ch_3_high_priority, ch_2_req_pending & ch_2_high_priority, ch_1_req_pending & ch_1_high_priority, ch_0_req_pending & ch_0_high_priority};
 	assign low_pri_req_pending = {member &  ~ ch_3_high_priority, ch_2_req_pending &  ~ ch_2_high_priority, ch_1_req_pending &  ~ ch_1_high_priority, ch_0_req_pending &  ~ ch_0_high_priority};
 	assign high_pri_selected = high_pri_req_pending != 1'h0;
@@ -3256,14 +3363,16 @@ module CpuDma (
 		(selected_dma_channel[0] ? ch_0_addr : 32'b0) | 
 		(selected_dma_channel[1] ? ch_1_addr : 32'b0) | 
 		(selected_dma_channel[2] ? ch_2_addr : 32'b0) | 
-		(selected_dma_channel[3] ? ch_3_addr : 32'b0) ;
+		(selected_dma_channel[3] ? ch_3_addr : 32'b0) | 
+		1'h0;
 	assign selected_limit = 
 		(selected_dma_channel[0] ? ch_0_limit : 32'b0) | 
 		(selected_dma_channel[1] ? ch_1_limit : 32'b0) | 
 		(selected_dma_channel[2] ? ch_2_limit : 32'b0) | 
-		(selected_dma_channel[3] ? ch_3_limit : 32'b0) ;
+		(selected_dma_channel[3] ? ch_3_limit : 32'b0) | 
+		1'h0;
 	assign tc =  ~ (selected_addr < selected_limit);
-	always_ff @(posedge clk) next_addr <= rst ? 32'h0 : bus_req_if_ready & req_pendig ? u315_output_port[31:0] : next_addr;
+	always_ff @(posedge clk) next_addr <= rst ? 32'h0 : bus_req_if_ready & req_pendig ? u390_output_port[31:0] : next_addr;
 	assign req_pendig = ch_0_req_pending | ch_1_req_pending | ch_2_req_pending | member;
 	assign ch_read_not_writes = {ch_3_read_not_write, ch_2_read_not_write, ch_1_read_not_write, ch_0_read_not_write};
 	assign read_not_writes = ch_read_not_writes & selected_dma_channel;
@@ -3272,13 +3381,16 @@ module CpuDma (
 		(selected_dma_channel[0] ? ({ch_0_addr[0],  ~ ch_0_addr[0]}) : 2'b0) | 
 		(selected_dma_channel[1] ? ({ch_1_addr[0],  ~ ch_1_addr[0]}) : 2'b0) | 
 		(selected_dma_channel[2] ? ({ch_2_addr[0],  ~ ch_2_addr[0]}) : 2'b0) | 
-		(selected_dma_channel[3] ? ({ch_3_addr[0],  ~ ch_3_addr[0]}) : 2'b0) ;
+		(selected_dma_channel[3] ? ({ch_3_addr[0],  ~ ch_3_addr[0]}) : 2'b0) | 
+		1'h0;
 	assign bus_req_if_addr = selected_addr[31:1];
 	assign bus_req_if_is_master = 
 		(selected_dma_channel[0] ? ch_0_is_master : 1'b0) | 
 		(selected_dma_channel[1] ? ch_1_is_master : 1'b0) | 
 		(selected_dma_channel[2] ? ch_2_is_master : 1'b0) | 
-		(selected_dma_channel[3] ? ch_3_is_master : 1'b0) ;
+		(selected_dma_channel[3] ? ch_3_is_master : 1'b0) | 
+		1'h0;
+	assign drq_1 = {ch_3_req_polarity ^ (ch_3_req_no_cdc ? drq[3] : u27_output_port), ch_2_req_polarity ^ (ch_2_req_no_cdc ? drq[2] : u21_output_port), ch_1_req_polarity ^ (ch_1_req_no_cdc ? drq[1] : u15_output_port), ch_0_req_polarity ^ (ch_0_req_no_cdc ? drq[0] : u9_output_port)};
 	assign reg_if_pready = 1'h1;
 
 	RoundRobinArbiter high_pri_arbiter (
@@ -3287,7 +3399,7 @@ module CpuDma (
 		.requestors(high_pri_req_pending),
 		.grants(high_pri_selected_dma_channel),
 		.advance(bus_rsp_if_valid & high_pri_selected),
-		.restart(u355_output_port)
+		.restart(u433_output_port)
 	);
 
 	RoundRobinArbiter_2 low_pri_arbiter (
@@ -3296,16 +3408,16 @@ module CpuDma (
 		.requestors(low_pri_req_pending),
 		.grants(low_pri_selected_dma_channel),
 		.advance(bus_rsp_if_valid &  ~ high_pri_selected),
-		.restart(u357_output_port)
+		.restart(u435_output_port)
 	);
 
 	assign ch_3_req_pending = member;
 	assign bus_req_if_valid = req_pendig;
 	assign bus_req_if_one_hot_channel = selected_dma_channel;
 	assign bus_req_if_terminal_count = tc;
-	assign u315_output_port = selected_addr + 1'h1 + 33'b0;
-	assign u355_output_port = 1'h0;
-	assign u357_output_port = 1'h0;
+	assign u390_output_port = selected_addr + 1'h1 + 33'b0;
+	assign u433_output_port = 1'h0;
+	assign u435_output_port = 1'h0;
 	assign priority_change = bus_rsp_if_valid;
 endmodule
 
@@ -3332,7 +3444,7 @@ module RoundRobinArbiter_2 (
 	always_ff @(posedge clk) mask <= rst ? 3'h0 : restart ? 1'h0 : advance ? next_mask : mask;
 	assign masked_requestors = requestors &  ~ ({mask, 1'h0});
 	assign masked_selector = masked_requestors[3] ? 4'h8 : masked_requestors[2] ? 3'h4 : masked_requestors[1] ? 2'h2 : masked_requestors[0] ? 1'h1 : 1'h0;
-	assign unmasked_selector = requestors[3] ? 4'h8 : requestors[2] ? 3'h4 : requestors[1] ? 2'h2 : requestors[0] ? 1'h1 : 4'hx;
+	assign unmasked_selector = requestors[3] ? 4'h8 : requestors[2] ? 3'h4 : requestors[1] ? 2'h2 : requestors[0] ? 1'h1 : 1'h0;
 	assign grants = masked_selector == 1'h0 ? unmasked_selector : masked_selector;
 
 endmodule
@@ -3360,7 +3472,7 @@ module RoundRobinArbiter (
 	always_ff @(posedge clk) mask <= rst ? 3'h0 : restart ? 1'h0 : advance ? next_mask : mask;
 	assign masked_requestors = requestors &  ~ ({mask, 1'h0});
 	assign masked_selector = masked_requestors[3] ? 4'h8 : masked_requestors[2] ? 3'h4 : masked_requestors[1] ? 2'h2 : masked_requestors[0] ? 1'h1 : 1'h0;
-	assign unmasked_selector = requestors[3] ? 4'h8 : requestors[2] ? 3'h4 : requestors[1] ? 2'h2 : requestors[0] ? 1'h1 : 4'hx;
+	assign unmasked_selector = requestors[3] ? 4'h8 : requestors[2] ? 3'h4 : requestors[1] ? 2'h2 : requestors[0] ? 1'h1 : 1'h0;
 	assign grants = masked_selector == 1'h0 ? unmasked_selector : masked_selector;
 
 endmodule
@@ -3416,11 +3528,12 @@ module BusIf (
 	input logic [7:0] dram_data_in,
 	output logic [7:0] dram_data_out,
 	output logic dram_data_out_en,
-	output logic dram_nCAS_a,
-	output logic dram_nCAS_b,
+	output logic dram_nCAS_0,
+	output logic dram_nCAS_1,
 	output logic [3:0] dram_nDACK,
 	output logic dram_nNREN,
-	output logic dram_nRAS,
+	output logic dram_nRAS_A,
+	output logic dram_nRAS_B,
 	input logic dram_nWAIT,
 	output logic dram_nWE
 );
@@ -3429,13 +3542,15 @@ module BusIf (
 	logic [7:0] refresh_divider;
 	logic u11_output_port;
 	logic refresh_disable;
+	logic [1:0] dram_bank_size;
+	logic dram_bank_swap;
 	logic refresh_tc;
 	logic refresh_req;
-	logic signed [8:0] u23_output_port;
+	logic signed [8:0] u34_output_port;
 	logic [7:0] refresh_counter;
 	logic [10:0] refresh_addr;
 	logic [1:0] arb_port_comb;
-	logic [1:0] u43_output_port;
+	logic [1:0] u54_output_port;
 	logic [1:0] arb_port_select;
 	logic req_ready;
 	logic refresh_rsp;
@@ -3453,57 +3568,63 @@ module BusIf (
 	logic req_rfsh;
 	logic [3:0] dma_ch;
 	logic tc;
-	logic signed [4:0] u107_output_port;
+	logic signed [4:0] u118_output_port;
 	logic [3:0] wait_states_store;
-	logic signed [4:0] u122_output_port;
+	logic signed [4:0] u133_output_port;
 	logic [3:0] wait_states;
 	logic waiting;
 	logic two_cycle_nram_access;
-	logic u139_output_port;
-	logic u140_output_port;
-	logic u141_output_port;
-	logic u142_output_port;
-	logic u143_output_port;
-	logic u145_output_port;
-	logic u146_output_port;
-	logic u147_output_port;
-	logic u148_output_port;
-	logic u149_output_port;
 	logic u150_output_port;
+	logic u151_output_port;
 	logic u152_output_port;
-	logic u155_output_port;
+	logic u153_output_port;
+	logic u154_output_port;
 	logic u156_output_port;
 	logic u157_output_port;
 	logic u158_output_port;
 	logic u159_output_port;
 	logic u160_output_port;
 	logic u161_output_port;
-	logic [10:0] input_row_addr;
+	logic u163_output_port;
+	logic u166_output_port;
+	logic u167_output_port;
+	logic u168_output_port;
+	logic u169_output_port;
+	logic u170_output_port;
+	logic u171_output_port;
+	logic u172_output_port;
+	logic u173_output_port;
+	logic dram_bank;
 	logic [10:0] row_addr;
 	logic [10:0] col_addr;
 	logic read_not_write;
 	logic data_out_en;
-	logic [1:0] u182_output_port;
+	logic [1:0] u191_output_port;
 	logic [1:0] byte_en;
 	logic [15:0] data_out;
-	logic DRAM_nRAS;
+	logic dram_ras_active;
+	logic u213_output_port;
+	logic DRAM_nRAS_A;
+	logic u220_output_port;
+	logic DRAM_nRAS_B;
 	logic nNREN;
-	logic [3:0] u233_output_port;
+	logic [3:0] u248_output_port;
 	logic [3:0] nDACK;
 	logic NR_CAS_logic;
-	logic NR_CAS_logic_a;
-	logic NR_CAS_logic_b;
-	logic NR_nCAS_a;
-	logic NR_nCAS_b;
-	logic CAS_nWINDOW_A_a;
-	logic CAS_nWINDOW_A_b;
-	logic CAS_nWINDOW_C_a;
-	logic CAS_nWINDOW_B_a;
-	logic CAS_nWINDOW_C_b;
-	logic CAS_nWINDOW_B_b;
-	logic DRAM_nCAS_a;
-	logic DRAM_nCAS_b;
-	logic [10:0] u385_output_port;
+	logic NR_CAS_logic_0;
+	logic NR_CAS_logic_1;
+	logic NR_nCAS_0;
+	logic NR_nCAS_1;
+	logic CAS_nWINDOW_A_0;
+	logic CAS_nWINDOW_A_1;
+	logic CAS_nWINDOW_C_0;
+	logic CAS_nWINDOW_B_0;
+	logic CAS_nWINDOW_C_1;
+	logic CAS_nWINDOW_B_1;
+	logic DRAM_nCAS_0;
+	logic DRAM_nCAS_1;
+	logic [10:0] u400_output_port;
+	logic [10:0] dram_addr_1;
 	logic [7:0] data_out_low;
 	logic [7:0] data_out_high;
 	logic read_active;
@@ -3511,22 +3632,25 @@ module BusIf (
 	logic [7:0] data_in_high;
 	logic [7:0] ndram_data_in_high;
 	logic [15:0] resp_data;
-	logic u436_output_port;
-	logic u441_output_port;
+	logic u451_output_port;
+	logic u456_output_port;
+	logic [10:0] input_row_addr;
 	logic [3:0] state;
 	logic [3:0] next_state;
 
 	assign reg_write_strobe = reg_if_psel & reg_if_pwrite & reg_if_penable;
 	always_ff @(posedge clk) u11_output_port <= rst ? 1'h0 : (reg_if_paddr == 1'h0) & reg_write_strobe ? reg_if_pwdata[8] : u11_output_port;
+	always_ff @(posedge clk) dram_bank_swap <= rst ? 1'h0 : (reg_if_paddr == 1'h0) & reg_write_strobe ? reg_if_pwdata[11] : dram_bank_swap;
+	always_ff @(posedge clk) dram_bank_size <= rst ? 2'h0 : (reg_if_paddr == 1'h0) & reg_write_strobe ? reg_if_pwdata[10:9] : dram_bank_size;
 	assign refresh_disable =  ~ u11_output_port;
 	assign refresh_tc = refresh_counter == 1'h0;
 	always_ff @(posedge clk) refresh_req <= rst ? 1'h0 : refresh_tc &  ~ refresh_disable ? 1'h1 : refresh_rsp ? 1'h0 : refresh_req;
 	always_ff @(posedge clk) refresh_divider <= rst ? 8'h0 : (reg_if_paddr == 1'h0) & reg_write_strobe ? reg_if_pwdata[7:0] : refresh_divider;
-	always_ff @(posedge clk) refresh_counter <= rst ? 8'h0 : refresh_tc ? refresh_divider : refresh_req ? refresh_counter : u23_output_port[7:0];
+	always_ff @(posedge clk) refresh_counter <= rst ? 8'h0 : refresh_tc ? refresh_divider : refresh_req ? refresh_counter : u34_output_port[7:0];
 	always_ff @(posedge clk) refresh_addr <= rst ? 11'h0 : refresh_rsp ? 11'(refresh_addr + 1'h1 + 12'b0) : refresh_addr;
 	assign arb_port_comb = refresh_req ? `Ports__refresh_port : dma_request_valid ? `Ports__dma_port : mem_request_valid ? `Ports__mem_port : `Ports__fetch_port;
-	always_ff @(posedge clk) u43_output_port <= rst ? 2'h0 : (state == `BusIfStates__idle) ? arb_port_comb : u43_output_port;
-	assign arb_port_select = state == `BusIfStates__idle ? arb_port_comb : u43_output_port;
+	always_ff @(posedge clk) u54_output_port <= rst ? 2'h0 : (state == `BusIfStates__idle) ? arb_port_comb : u54_output_port;
+	assign arb_port_select = state == `BusIfStates__idle ? arb_port_comb : u54_output_port;
 	assign req_ready = (state == `BusIfStates__idle) | (state == `BusIfStates__first) | (state == `BusIfStates__middle);
 	assign refresh_rsp = state == `BusIfStates__refresh;
 	assign mem_request_ready = req_ready & (arb_port_select == `Ports__mem_port);
@@ -3545,8 +3669,8 @@ module BusIf (
 	assign req_data = (arb_port_select == 0 ? fetch_request_data : 16'b0) | (arb_port_select == 1 ? mem_request_data : 16'b0) | (arb_port_select == 2 ? $signed(1'bX) : 16'b0);
 	assign req_read_not_write = (arb_port_select == 0 ? fetch_request_read_not_write : 1'b0) | (arb_port_select == 1 ? mem_request_read_not_write : 1'b0) | (arb_port_select == 2 ? dma_request_read_not_write : 1'b0);
 	assign req_byte_en = (arb_port_select == 0 ? fetch_request_byte_en : 2'b0) | (arb_port_select == 1 ? mem_request_byte_en : 2'b0) | (arb_port_select == 2 ? dma_request_byte_en : 2'b0);
-	always_ff @(posedge clk) wait_states_store <= rst ? 4'h0 : start ? u107_output_port[3:0] : wait_states_store;
-	always_ff @(posedge clk) wait_states <= rst ? 4'h0 : start ? u107_output_port[3:0] : wait_states == 1'h0 ? state == `BusIfStates__non_dram_dual ? wait_states_store : 1'h0 : u122_output_port[3:0];
+	always_ff @(posedge clk) wait_states_store <= rst ? 4'h0 : start ? u118_output_port[3:0] : wait_states_store;
+	always_ff @(posedge clk) wait_states <= rst ? 4'h0 : start ? u118_output_port[3:0] : wait_states == 1'h0 ? state == `BusIfStates__non_dram_dual ? wait_states_store : 1'h0 : u133_output_port[3:0];
 	assign req_nram = (req_addr[30:29] == 1'h0) & ((arb_port_select == `Ports__mem_port) | (arb_port_select == `Ports__fetch_port));
 	assign req_ext = (arb_port_select == `Ports__dma_port) & dma_request_is_master;
 	assign req_dma = (arb_port_select == `Ports__dma_port) &  ~ dma_request_is_master;
@@ -3554,37 +3678,50 @@ module BusIf (
 	assign req_rfsh = arb_port_select == `Ports__refresh_port;
 	assign waiting =  ~ dram_nWAIT | (wait_states != 1'h0);
 	always_ff @(posedge clk) two_cycle_nram_access <= rst ? 1'h0 : start ? (req_byte_en == 2'h3) & req_nram : two_cycle_nram_access;
-	assign input_row_addr = {req_addr[21], req_addr[19], req_addr[17], req_addr[15:8]};
+	always @(*) begin
+		unique case (dram_bank_size)
+			2'd0: u173_output_port = req_addr[22];
+			2'd1: u173_output_port = req_addr[20];
+			2'd2: u173_output_port = req_addr[18];
+			2'd3: u173_output_port = req_addr[16];
+		endcase
+	end
+	always_ff @(posedge clk) dram_bank <= rst ? 1'h0 : start ? u173_output_port : dram_bank;
+	assign input_row_addr = req_addr[21:11];
 	always_ff @(posedge clk) row_addr <= rst ? 11'h0 : start ? req_rfsh ? refresh_addr : input_row_addr : row_addr;
 	assign req_advance = req_valid & req_ready;
-	always_ff @(posedge clk) col_addr <= rst ? 11'h0 : req_advance ? ({req_addr[20], req_addr[18], req_addr[16], req_addr[7:0]}) : col_addr;
+	always_ff @(posedge clk) col_addr <= rst ? 11'h0 : req_advance ? req_addr[10:0] : col_addr;
 	always_ff @(posedge clk) read_not_write <= rst ? 1'h1 : start ? req_read_not_write : read_not_write;
 	always_ff @(posedge clk) data_out_en <= rst ? 1'h0 : start ?  ~ req_read_not_write & (arb_port_select != `Ports__dma_port) : data_out_en;
-	always_ff @(posedge clk) u182_output_port <= rst ? 2'h0 : req_advance ? req_byte_en : u182_output_port;
-	assign byte_en = req_advance ? req_byte_en : u182_output_port;
+	always_ff @(posedge clk) u191_output_port <= rst ? 2'h0 : req_advance ? req_byte_en : u191_output_port;
+	assign byte_en = req_advance ? req_byte_en : u191_output_port;
 	always_ff @(posedge clk) data_out <= rst ? 16'h0 : req_advance ? req_data : data_out;
-	always_ff @(posedge clk) DRAM_nRAS <= rst ? 1'h1 : (next_state == `BusIfStates__idle) | (next_state == `BusIfStates__external) | (next_state == `BusIfStates__non_dram_first) | (next_state == `BusIfStates__non_dram_wait) | (next_state == `BusIfStates__non_dram_dual) | (next_state == `BusIfStates__non_dram_dual_first) | (next_state == `BusIfStates__non_dram_dual_wait);
+	assign dram_ras_active = (next_state == `BusIfStates__first) | (next_state == `BusIfStates__middle) | (next_state == `BusIfStates__precharge) | (next_state == `BusIfStates__dma_first) | (next_state == `BusIfStates__dma_wait);
+	always_ff @(posedge clk) u213_output_port <= rst ? 1'h0 : dram_ras_active & (dram_bank == dram_bank_swap) | (next_state == `BusIfStates__refresh);
+	always_ff @(posedge clk) u220_output_port <= rst ? 1'h0 : dram_ras_active & (dram_bank != dram_bank_swap) | (next_state == `BusIfStates__refresh);
 	always_ff @(posedge clk) nNREN <= rst ? 1'h1 : (next_state != `BusIfStates__non_dram_first) & (next_state != `BusIfStates__non_dram_wait) & (next_state != `BusIfStates__non_dram_dual_first) & (next_state != `BusIfStates__non_dram_dual_wait);
 	always_ff @(posedge clk) dma_ch <= rst ? 4'h0 : start ? dma_request_one_hot_channel : dma_ch;
-	always_ff @(posedge clk) u233_output_port <= rst ? 4'h0 : (state == `BusIfStates__dma_first) | (state == `BusIfStates__dma_wait) & waiting | (state == `BusIfStates__external) & req_valid & req_ext ? dma_ch : 1'h0;
-	assign nDACK =  ~ u233_output_port;
+	always_ff @(posedge clk) u248_output_port <= rst ? 4'h0 : (state == `BusIfStates__dma_first) | (state == `BusIfStates__dma_wait) & waiting | (state == `BusIfStates__external) & req_valid & req_ext ? dma_ch : 1'h0;
+	assign nDACK =  ~ u248_output_port;
 	assign NR_CAS_logic = (state == `BusIfStates__non_dram_dual_first) | (state == `BusIfStates__non_dram_first) | (state == `BusIfStates__dma_first) | waiting & ((state == `BusIfStates__non_dram_dual_wait) | (state == `BusIfStates__non_dram_wait) | (state == `BusIfStates__dma_wait));
-	assign NR_CAS_logic_a = NR_CAS_logic & ( ~ two_cycle_nram_access | (state == `BusIfStates__non_dram_first) | (state == `BusIfStates__non_dram_wait) | (state == `BusIfStates__dma_first) | (state == `BusIfStates__dma_wait));
-	always_ff @(posedge clk) NR_nCAS_a <= rst ? 1'h1 :  ~ NR_CAS_logic_a |  ~ byte_en[0];
-	assign NR_CAS_logic_b = NR_CAS_logic & ( ~ two_cycle_nram_access | (state == `BusIfStates__non_dram_dual_first) | (state == `BusIfStates__non_dram_dual_wait) | (state == `BusIfStates__dma_first) | (state == `BusIfStates__dma_wait));
-	always_ff @(posedge clk) NR_nCAS_b <= rst ? 1'h1 :  ~ NR_CAS_logic_b |  ~ byte_en[1];
-	always_ff @(posedge clk) CAS_nWINDOW_A_a <= rst ? 1'h1 :  ~ byte_en[0] | (next_state == `BusIfStates__idle) | (next_state == `BusIfStates__precharge) | (next_state == `BusIfStates__non_dram_first) | (next_state == `BusIfStates__non_dram_wait) | (next_state == `BusIfStates__non_dram_dual) | (next_state == `BusIfStates__non_dram_dual_first) | (next_state == `BusIfStates__non_dram_dual_wait) | (next_state == `BusIfStates__dma_first) | (next_state == `BusIfStates__dma_wait);
-	always_ff @(posedge clk) CAS_nWINDOW_A_b <= rst ? 1'h1 :  ~ byte_en[1] | (next_state == `BusIfStates__idle) | (next_state == `BusIfStates__precharge) | (next_state == `BusIfStates__non_dram_first) | (next_state == `BusIfStates__non_dram_wait) | (next_state == `BusIfStates__non_dram_dual) | (next_state == `BusIfStates__non_dram_dual_first) | (next_state == `BusIfStates__non_dram_dual_wait) | (next_state == `BusIfStates__dma_first) | (next_state == `BusIfStates__dma_wait);
-	always_ff @(posedge clk) CAS_nWINDOW_C_a <= rst ? 1'h1 : CAS_nWINDOW_A_a;
-	always_ff @(negedge clk) CAS_nWINDOW_B_a <= rst ? 1'h1 : CAS_nWINDOW_A_a;
-	always_ff @(posedge clk) CAS_nWINDOW_C_b <= rst ? 1'h1 : CAS_nWINDOW_A_b;
-	always_ff @(negedge clk) CAS_nWINDOW_B_b <= rst ? 1'h1 : CAS_nWINDOW_A_b;
-	assign DRAM_nCAS_a = CAS_nWINDOW_A_a | CAS_nWINDOW_B_a | clk;
-	assign dram_nCAS_a = DRAM_nCAS_a & NR_nCAS_a;
-	assign DRAM_nCAS_b = CAS_nWINDOW_B_b | CAS_nWINDOW_C_b |  ~ clk;
-	assign dram_nCAS_b = DRAM_nCAS_b & NR_nCAS_b;
-	always_ff @(negedge clk) u385_output_port <= rst ? 11'h0 : col_addr;
-	assign dram_addr = ((state == `BusIfStates__first) | (state == `BusIfStates__non_dram_first) | (state == `BusIfStates__non_dram_dual_first) | (state == `BusIfStates__dma_first) | (state == `BusIfStates__refresh)) & clk ? row_addr : u385_output_port;
+	assign NR_CAS_logic_0 = NR_CAS_logic & ( ~ two_cycle_nram_access | (state == `BusIfStates__non_dram_first) | (state == `BusIfStates__non_dram_wait) | (state == `BusIfStates__dma_first) | (state == `BusIfStates__dma_wait));
+	always_ff @(posedge clk) NR_nCAS_0 <= rst ? 1'h1 :  ~ NR_CAS_logic_0 |  ~ byte_en[0];
+	assign NR_CAS_logic_1 = NR_CAS_logic & ( ~ two_cycle_nram_access | (state == `BusIfStates__non_dram_dual_first) | (state == `BusIfStates__non_dram_dual_wait) | (state == `BusIfStates__dma_first) | (state == `BusIfStates__dma_wait));
+	always_ff @(posedge clk) NR_nCAS_1 <= rst ? 1'h1 :  ~ NR_CAS_logic_1 |  ~ byte_en[1];
+	always_ff @(posedge clk) CAS_nWINDOW_A_0 <= rst ? 1'h1 :  ~ byte_en[0] | (next_state == `BusIfStates__idle) | (next_state == `BusIfStates__precharge) | (next_state == `BusIfStates__non_dram_first) | (next_state == `BusIfStates__non_dram_wait) | (next_state == `BusIfStates__non_dram_dual) | (next_state == `BusIfStates__non_dram_dual_first) | (next_state == `BusIfStates__non_dram_dual_wait) | (next_state == `BusIfStates__dma_first) | (next_state == `BusIfStates__dma_wait);
+	always_ff @(posedge clk) CAS_nWINDOW_A_1 <= rst ? 1'h1 :  ~ byte_en[1] | (next_state == `BusIfStates__idle) | (next_state == `BusIfStates__precharge) | (next_state == `BusIfStates__non_dram_first) | (next_state == `BusIfStates__non_dram_wait) | (next_state == `BusIfStates__non_dram_dual) | (next_state == `BusIfStates__non_dram_dual_first) | (next_state == `BusIfStates__non_dram_dual_wait) | (next_state == `BusIfStates__dma_first) | (next_state == `BusIfStates__dma_wait);
+	always_ff @(posedge clk) CAS_nWINDOW_C_0 <= rst ? 1'h1 : CAS_nWINDOW_A_0;
+	always_ff @(negedge clk) CAS_nWINDOW_B_0 <= rst ? 1'h1 : CAS_nWINDOW_A_0;
+	always_ff @(posedge clk) CAS_nWINDOW_C_1 <= rst ? 1'h1 : CAS_nWINDOW_A_1;
+	always_ff @(negedge clk) CAS_nWINDOW_B_1 <= rst ? 1'h1 : CAS_nWINDOW_A_1;
+	assign DRAM_nRAS_A =  ~ u213_output_port;
+	assign DRAM_nRAS_B =  ~ u220_output_port;
+	assign DRAM_nCAS_0 = CAS_nWINDOW_A_0 | CAS_nWINDOW_B_0 | clk;
+	assign dram_nCAS_0 = DRAM_nCAS_0 & NR_nCAS_0;
+	assign DRAM_nCAS_1 = CAS_nWINDOW_B_1 | CAS_nWINDOW_C_1 |  ~ clk;
+	assign dram_nCAS_1 = DRAM_nCAS_1 & NR_nCAS_1;
+	always_ff @(negedge clk) u400_output_port <= rst ? 11'h0 : col_addr;
+	assign dram_addr_1 = ((state == `BusIfStates__first) | (state == `BusIfStates__non_dram_first) | (state == `BusIfStates__non_dram_dual_first) | (state == `BusIfStates__dma_first) | (state == `BusIfStates__refresh)) & clk ? row_addr : u400_output_port;
 	always_ff @(negedge clk) data_out_low <= rst ? 8'h0 : data_out[7:0];
 	always_ff @(posedge clk) data_out_high <= rst ? 8'h0 : data_out[15:8];
 	assign dram_data_out = clk ? data_out_high : data_out_low;
@@ -3595,12 +3732,13 @@ module BusIf (
 	always_ff @(negedge clk) data_in_high <= rst ? 8'h0 : dram_data_in;
 	always_ff @(posedge clk) ndram_data_in_high <= rst ? 8'h0 : (state == `BusIfStates__non_dram_dual_wait) ? dram_data_in : ndram_data_in_high;
 	always_ff @(posedge clk) resp_data <= rst ? 16'h0 : ({two_cycle_nram_access ? ndram_data_in_high : data_in_high, data_in_low});
-	always_ff @(posedge clk) u436_output_port <= rst ? 1'h0 : read_active & (arb_port_select == `Ports__mem_port);
-	always_ff @(posedge clk) mem_response_valid <= rst ? 1'h0 : u436_output_port;
-	always_ff @(posedge clk) u441_output_port <= rst ? 1'h0 : read_active & (arb_port_select == `Ports__fetch_port);
-	always_ff @(posedge clk) fetch_response_valid <= rst ? 1'h0 : u441_output_port;
+	always_ff @(posedge clk) u451_output_port <= rst ? 1'h0 : read_active & (arb_port_select == `Ports__mem_port);
+	always_ff @(posedge clk) mem_response_valid <= rst ? 1'h0 : u451_output_port;
+	always_ff @(posedge clk) u456_output_port <= rst ? 1'h0 : read_active & (arb_port_select == `Ports__fetch_port);
+	always_ff @(posedge clk) fetch_response_valid <= rst ? 1'h0 : u456_output_port;
 	assign dma_response_valid = (state == `BusIfStates__dma_wait) &  ~ waiting;
 	assign reg_if_pready = 1'h1;
+	assign reg_if_prdata = {dram_bank_swap, dram_bank_size, refresh_disable, refresh_counter};
 	assign fetch_response_data = resp_data;
 
 	FSM fsm (
@@ -3610,60 +3748,61 @@ module BusIf (
 		.state(state),
 		.next_state(next_state),
 		.default_state(`BusIfStates__idle),
-		.input_idle_to_external(u139_output_port),
-		.input_idle_to_non_dram_first(u140_output_port),
-		.input_idle_to_dma_first(u141_output_port),
-		.input_idle_to_first(u142_output_port),
-		.input_idle_to_refresh(u143_output_port),
-		.input_external_to_idle(u145_output_port),
-		.input_external_to_idle_1(u146_output_port),
-		.input_first_to_precharge(u147_output_port),
+		.input_idle_to_external(u150_output_port),
+		.input_idle_to_non_dram_first(u151_output_port),
+		.input_idle_to_dma_first(u152_output_port),
+		.input_idle_to_first(u153_output_port),
+		.input_idle_to_refresh(u154_output_port),
+		.input_external_to_idle(u156_output_port),
+		.input_external_to_idle_1(u157_output_port),
+		.input_first_to_precharge(u158_output_port),
 		.input_first_to_middle(req_valid),
-		.input_middle_to_precharge(u148_output_port),
-		.input_precharge_to_idle(u149_output_port),
-		.input_non_dram_first_to_non_dram_wait(u150_output_port),
+		.input_middle_to_precharge(u159_output_port),
+		.input_precharge_to_idle(u160_output_port),
+		.input_non_dram_first_to_non_dram_wait(u161_output_port),
 		.input_non_dram_wait_to_non_dram_wait(waiting),
-		.input_non_dram_wait_to_non_dram_dual(u152_output_port),
-		.input_non_dram_wait_to_idle(u155_output_port),
-		.input_non_dram_dual_to_non_dram_dual_first(u156_output_port),
-		.input_non_dram_dual_first_to_non_dram_dual_wait(u157_output_port),
+		.input_non_dram_wait_to_non_dram_dual(u163_output_port),
+		.input_non_dram_wait_to_idle(u166_output_port),
+		.input_non_dram_dual_to_non_dram_dual_first(u167_output_port),
+		.input_non_dram_dual_first_to_non_dram_dual_wait(u168_output_port),
 		.input_non_dram_dual_wait_to_non_dram_dual_wait(waiting),
-		.input_non_dram_dual_wait_to_idle(u158_output_port),
-		.input_dma_first_to_dma_wait(u159_output_port),
+		.input_non_dram_dual_wait_to_idle(u169_output_port),
+		.input_dma_first_to_dma_wait(u170_output_port),
 		.input_dma_wait_to_dma_wait(waiting),
-		.input_dma_wait_to_idle(u160_output_port),
-		.input_refresh_to_idle(u161_output_port)
+		.input_dma_wait_to_idle(u171_output_port),
+		.input_refresh_to_idle(u172_output_port)
 	);
 
-	assign reg_if_prdata = 32'hx;
-	assign u23_output_port = refresh_counter - 1'h1 + 9'b0;
+	assign u34_output_port = refresh_counter - 1'h1 + 9'b0;
 	assign dram_TC = tc;
-	assign u107_output_port = req_addr[28:25] - 1'h1 + 5'b0;
-	assign u122_output_port = wait_states - ((state == `BusIfStates__dma_wait) | (state == `BusIfStates__non_dram_dual_wait) | (state == `BusIfStates__non_dram_wait)) + 5'b0;
-	assign u139_output_port = req_valid & req_ext;
-	assign u140_output_port = req_valid & req_nram;
-	assign u141_output_port = req_valid & req_dma;
-	assign u142_output_port = req_valid & req_dram;
-	assign u143_output_port = req_valid & req_rfsh;
-	assign u145_output_port = req_valid &  ~ req_ext;
-	assign u146_output_port =  ~ req_valid;
-	assign u147_output_port =  ~ req_valid;
-	assign u148_output_port =  ~ req_valid;
-	assign u149_output_port = 1'h1;
-	assign u150_output_port = 1'h1;
-	assign u152_output_port =  ~ waiting & two_cycle_nram_access;
-	assign u155_output_port =  ~ waiting &  ~ two_cycle_nram_access;
-	assign u156_output_port = 1'h1;
-	assign u157_output_port = 1'h1;
-	assign u158_output_port =  ~ waiting;
-	assign u159_output_port = 1'h1;
-	assign u160_output_port =  ~ waiting;
+	assign u118_output_port = req_addr[28:25] - 1'h1 + 5'b0;
+	assign u133_output_port = wait_states - ((state == `BusIfStates__dma_wait) | (state == `BusIfStates__non_dram_dual_wait) | (state == `BusIfStates__non_dram_wait)) + 5'b0;
+	assign u150_output_port = req_valid & req_ext;
+	assign u151_output_port = req_valid & req_nram;
+	assign u152_output_port = req_valid & req_dma;
+	assign u153_output_port = req_valid & req_dram;
+	assign u154_output_port = req_valid & req_rfsh;
+	assign u156_output_port = req_valid &  ~ req_ext;
+	assign u157_output_port =  ~ req_valid;
+	assign u158_output_port =  ~ req_valid;
+	assign u159_output_port =  ~ req_valid;
+	assign u160_output_port = 1'h1;
 	assign u161_output_port = 1'h1;
+	assign u163_output_port =  ~ waiting & two_cycle_nram_access;
+	assign u166_output_port =  ~ waiting &  ~ two_cycle_nram_access;
+	assign u167_output_port = 1'h1;
+	assign u168_output_port = 1'h1;
+	assign u169_output_port =  ~ waiting;
+	assign u170_output_port = 1'h1;
+	assign u171_output_port =  ~ waiting;
+	assign u172_output_port = 1'h1;
 	assign dram_nWE = read_not_write;
 	assign dram_data_out_en = data_out_en;
-	assign dram_nRAS = DRAM_nRAS;
+	assign dram_nRAS_A = DRAM_nRAS_A;
+	assign dram_nRAS_B = DRAM_nRAS_B;
 	assign dram_nNREN = nNREN;
 	assign dram_nDACK = nDACK;
+	assign dram_addr = dram_addr_1;
 	assign mem_response_data = resp_data;
 endmodule
 
@@ -3679,6 +3818,7 @@ module FSM_3 (
 	output logic [1:0] next_state,
 	input logic [1:0] default_state,
 	input logic input_have_0_fragments_to_have_all_fragments,
+	input logic input_have_0_fragments_to_have_all_fragments_1,
 	input logic input_have_0_fragments_to_need_1_fragments,
 	input logic input_have_0_fragments_to_need_2_fragments,
 	input logic input_have_0_fragments_to_have_0_fragments,
@@ -3687,13 +3827,15 @@ module FSM_3 (
 	input logic input_need_1_fragments_to_need_1_fragments,
 	input logic input_need_1_fragments_to_have_0_fragments,
 	input logic input_need_2_fragments_to_need_1_fragments,
+	input logic input_need_2_fragments_to_have_all_fragments,
 	input logic input_need_2_fragments_to_need_2_fragments,
 	input logic input_need_2_fragments_to_have_0_fragments,
 	input logic input_have_all_fragments_to_have_all_fragments,
+	input logic input_have_all_fragments_to_have_all_fragments_1,
 	input logic input_have_all_fragments_to_need_1_fragments,
 	input logic input_have_all_fragments_to_need_2_fragments,
 	input logic input_have_all_fragments_to_have_0_fragments,
-	input logic input_have_all_fragments_to_have_all_fragments_1,
+	input logic input_have_all_fragments_to_have_all_fragments_2,
 	input logic input_have_all_fragments_to_have_0_fragments_1
 );
 
@@ -3707,6 +3849,7 @@ module FSM_3 (
 		.next_state(local_next_state),
 		.default_state(default_state),
 		.input_have_0_fragments_to_have_all_fragments(input_have_0_fragments_to_have_all_fragments),
+		.input_have_0_fragments_to_have_all_fragments_1(input_have_0_fragments_to_have_all_fragments_1),
 		.input_have_0_fragments_to_need_1_fragments(input_have_0_fragments_to_need_1_fragments),
 		.input_have_0_fragments_to_need_2_fragments(input_have_0_fragments_to_need_2_fragments),
 		.input_have_0_fragments_to_have_0_fragments(input_have_0_fragments_to_have_0_fragments),
@@ -3715,13 +3858,15 @@ module FSM_3 (
 		.input_need_1_fragments_to_need_1_fragments(input_need_1_fragments_to_need_1_fragments),
 		.input_need_1_fragments_to_have_0_fragments(input_have_0_fragments_to_have_0_fragments_1),
 		.input_need_2_fragments_to_need_1_fragments(input_need_2_fragments_to_need_1_fragments),
+		.input_need_2_fragments_to_have_all_fragments(input_need_2_fragments_to_have_all_fragments),
 		.input_need_2_fragments_to_need_2_fragments(input_need_2_fragments_to_need_2_fragments),
 		.input_need_2_fragments_to_have_0_fragments(input_have_0_fragments_to_have_0_fragments_1),
 		.input_have_all_fragments_to_have_all_fragments(input_have_all_fragments_to_have_all_fragments),
+		.input_have_all_fragments_to_have_all_fragments_1(input_have_all_fragments_to_have_all_fragments_1),
 		.input_have_all_fragments_to_need_1_fragments(input_have_all_fragments_to_need_1_fragments),
 		.input_have_all_fragments_to_need_2_fragments(input_have_all_fragments_to_need_2_fragments),
 		.input_have_all_fragments_to_have_0_fragments(input_have_all_fragments_to_have_0_fragments),
-		.input_have_all_fragments_to_have_all_fragments_1(input_have_all_fragments_to_have_all_fragments_1),
+		.input_have_all_fragments_to_have_all_fragments_2(input_have_all_fragments_to_have_all_fragments_2),
 		.input_have_all_fragments_to_have_0_fragments_1(input_have_0_fragments_to_have_0_fragments_1)
 	);
 
@@ -3741,10 +3886,11 @@ module FSM_2 (
 	output logic [1:0] next_state,
 	input logic [1:0] default_state,
 	input logic input_idle_to_request,
+	input logic input_idle_to_flushing,
 	input logic input_request_to_idle,
-	input logic input_request_to_flush_start,
-	input logic input_request_to_idle_1,
-	input logic input_flush_start_to_idle
+	input logic input_request_to_flushing,
+	input logic input_request_to_request,
+	input logic input_flushing_to_request
 );
 
 	logic [1:0] local_state;
@@ -3757,10 +3903,11 @@ module FSM_2 (
 		.next_state(local_next_state),
 		.default_state(default_state),
 		.input_idle_to_request(input_idle_to_request),
+		.input_idle_to_flushing(input_idle_to_flushing),
 		.input_request_to_idle(input_request_to_idle),
-		.input_request_to_flush_start(input_request_to_flush_start),
-		.input_request_to_idle_1(input_request_to_idle_1),
-		.input_flush_start_to_idle(input_flush_start_to_idle)
+		.input_request_to_flushing(input_request_to_flushing),
+		.input_request_to_request(input_request_to_request),
+		.input_flushing_to_request(input_flushing_to_request)
 	);
 
 	assign state = local_state;
@@ -3850,6 +3997,7 @@ module FSMLogic_3 (
 	output logic [1:0] next_state,
 	input logic [1:0] default_state,
 	input logic input_have_0_fragments_to_have_all_fragments,
+	input logic input_have_0_fragments_to_have_all_fragments_1,
 	input logic input_have_0_fragments_to_need_1_fragments,
 	input logic input_have_0_fragments_to_need_2_fragments,
 	input logic input_have_0_fragments_to_have_0_fragments,
@@ -3858,13 +4006,15 @@ module FSMLogic_3 (
 	input logic input_need_1_fragments_to_need_1_fragments,
 	input logic input_need_1_fragments_to_have_0_fragments,
 	input logic input_need_2_fragments_to_need_1_fragments,
+	input logic input_need_2_fragments_to_have_all_fragments,
 	input logic input_need_2_fragments_to_need_2_fragments,
 	input logic input_need_2_fragments_to_have_0_fragments,
 	input logic input_have_all_fragments_to_have_all_fragments,
+	input logic input_have_all_fragments_to_have_all_fragments_1,
 	input logic input_have_all_fragments_to_need_1_fragments,
 	input logic input_have_all_fragments_to_need_2_fragments,
 	input logic input_have_all_fragments_to_have_0_fragments,
-	input logic input_have_all_fragments_to_have_all_fragments_1,
+	input logic input_have_all_fragments_to_have_all_fragments_2,
 	input logic input_have_all_fragments_to_have_0_fragments_1
 );
 
@@ -3875,16 +4025,23 @@ module FSMLogic_3 (
 
 	assign state_have_0_fragments_selector = 
 		(input_have_0_fragments_to_have_all_fragments ? `InstAssembleStates__have_all_fragments : 2'b0) | 
+		(input_have_0_fragments_to_have_all_fragments_1 ? `InstAssembleStates__have_all_fragments : 2'b0) | 
 		(input_have_0_fragments_to_need_1_fragments ? `InstAssembleStates__need_1_fragments : 2'b0) | 
 		(input_have_0_fragments_to_need_2_fragments ? `InstAssembleStates__need_2_fragments : 2'b0) | 
 		(input_have_0_fragments_to_have_0_fragments ? `InstAssembleStates__have_0_fragments : 2'b0) | 
 		(input_have_0_fragments_to_have_0_fragments_1 ? `InstAssembleStates__have_0_fragments : 2'b0) | 
 		`InstAssembleStates__have_0_fragments;
 	assign state_need_1_fragments_selector = (input_need_1_fragments_to_have_all_fragments ? `InstAssembleStates__have_all_fragments : 2'b0) | (input_need_1_fragments_to_need_1_fragments ? `InstAssembleStates__need_1_fragments : 2'b0) | (input_have_0_fragments_to_have_0_fragments_1 ? `InstAssembleStates__have_0_fragments : 2'b0) | `InstAssembleStates__need_1_fragments;
-	assign state_need_2_fragments_selector = (input_need_2_fragments_to_need_1_fragments ? `InstAssembleStates__need_1_fragments : 2'b0) | (input_need_2_fragments_to_need_2_fragments ? `InstAssembleStates__need_2_fragments : 2'b0) | (input_have_0_fragments_to_have_0_fragments_1 ? `InstAssembleStates__have_0_fragments : 2'b0) | `InstAssembleStates__need_2_fragments;
+	assign state_need_2_fragments_selector = 
+		(input_need_2_fragments_to_need_1_fragments ? `InstAssembleStates__need_1_fragments : 2'b0) | 
+		(input_need_2_fragments_to_have_all_fragments ? `InstAssembleStates__have_all_fragments : 2'b0) | 
+		(input_need_2_fragments_to_need_2_fragments ? `InstAssembleStates__need_2_fragments : 2'b0) | 
+		(input_have_0_fragments_to_have_0_fragments_1 ? `InstAssembleStates__have_0_fragments : 2'b0) | 
+		`InstAssembleStates__need_2_fragments;
 	assign state_have_all_fragments_selector = 
 		(input_have_all_fragments_to_have_all_fragments ? `InstAssembleStates__have_all_fragments : 2'b0) | 
 		(input_have_all_fragments_to_have_all_fragments_1 ? `InstAssembleStates__have_all_fragments : 2'b0) | 
+		(input_have_all_fragments_to_have_all_fragments_2 ? `InstAssembleStates__have_all_fragments : 2'b0) | 
 		(input_have_all_fragments_to_need_1_fragments ? `InstAssembleStates__need_1_fragments : 2'b0) | 
 		(input_have_all_fragments_to_need_2_fragments ? `InstAssembleStates__need_2_fragments : 2'b0) | 
 		(input_have_all_fragments_to_have_0_fragments ? `InstAssembleStates__have_0_fragments : 2'b0) | 
@@ -3908,20 +4065,21 @@ module FSMLogic_2 (
 	output logic [1:0] next_state,
 	input logic [1:0] default_state,
 	input logic input_idle_to_request,
+	input logic input_idle_to_flushing,
 	input logic input_request_to_idle,
-	input logic input_request_to_flush_start,
-	input logic input_request_to_idle_1,
-	input logic input_flush_start_to_idle
+	input logic input_request_to_flushing,
+	input logic input_request_to_request,
+	input logic input_flushing_to_request
 );
 
 	logic [1:0] state_idle_selector;
 	logic [1:0] state_request_selector;
-	logic [1:0] state_flush_start_selector;
+	logic [1:0] state_flushing_selector;
 
-	assign state_idle_selector = (input_idle_to_request ? `InstBufferStates__request : 2'b0) | `InstBufferStates__idle;
-	assign state_request_selector = (input_request_to_idle ? `InstBufferStates__idle : 2'b0) | (input_request_to_idle_1 ? `InstBufferStates__idle : 2'b0) | (input_request_to_flush_start ? `InstBufferStates__flush_start : 2'b0) | `InstBufferStates__request;
-	assign state_flush_start_selector = (input_flush_start_to_idle ? `InstBufferStates__idle : 2'b0) | `InstBufferStates__flush_start;
-	assign next_state = ((state == `InstBufferStates__idle) ? state_idle_selector : 2'b0) | ((state == `InstBufferStates__request) ? state_request_selector : 2'b0) | ((state == `InstBufferStates__flush_start) ? state_flush_start_selector : 2'b0) | default_state;
+	assign state_idle_selector = (input_idle_to_request ? `InstBufferStates__request : 2'b0) | (input_idle_to_flushing ? `InstBufferStates__flushing : 2'b0) | `InstBufferStates__idle;
+	assign state_request_selector = (input_request_to_idle ? `InstBufferStates__idle : 2'b0) | (input_request_to_flushing ? `InstBufferStates__flushing : 2'b0) | (input_request_to_request ? `InstBufferStates__request : 2'b0) | `InstBufferStates__request;
+	assign state_flushing_selector = (input_flushing_to_request ? `InstBufferStates__request : 2'b0) | `InstBufferStates__flushing;
+	assign next_state = ((state == `InstBufferStates__idle) ? state_idle_selector : 2'b0) | ((state == `InstBufferStates__request) ? state_request_selector : 2'b0) | ((state == `InstBufferStates__flushing) ? state_flushing_selector : 2'b0) | default_state;
 
 endmodule
 
