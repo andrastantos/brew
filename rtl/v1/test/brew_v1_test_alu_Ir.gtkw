@@ -1,0 +1,117 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Wed Apr 19 00:22:38 2023
+[*]
+[dumpfile] "/home/tantos/brew/rtl/v1/test/brew_v1_test_alu_Ir.vcd"
+[dumpfile_mtime] "Wed Apr 19 00:18:40 2023"
+[dumpfile_size] 2100192
+[savefile] "/home/tantos/brew/rtl/v1/test/brew_v1_test_alu_Ir.gtkw"
+[timestart] 28590
+[size] 1920 990
+[pos] -1 -1
+*-11.997670 18050 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.cpu.
+[treeopen] top.cpu.pipeline.
+[treeopen] top.cpu.pipeline.fetch_stage.
+[sst_width] 483
+[signals_width] 354
+[sst_expanded] 1
+[sst_vpaned_height] 269
+@800200
+-EXEC_IN
+@28
+top.cpu.pipeline.execute_stage.input_port_alu_op
+top.cpu.pipeline.execute_stage.input_port_branch_op
+top.cpu.pipeline.execute_stage.input_port_do_bse
+top.cpu.pipeline.execute_stage.input_port_do_bze
+top.cpu.pipeline.execute_stage.input_port_do_wse
+top.cpu.pipeline.execute_stage.input_port_do_wze
+top.cpu.pipeline.execute_stage.input_port_exec_unit
+top.cpu.pipeline.execute_stage.input_port_fetch_av
+top.cpu.pipeline.execute_stage.input_port_inst_len[1:0]
+top.cpu.pipeline.execute_stage.input_port_ldst_op
+top.cpu.pipeline.execute_stage.input_port_mem_access_len[1:0]
+@22
+top.cpu.pipeline.execute_stage.input_port_op_a[31:0]
+top.cpu.pipeline.execute_stage.input_port_op_b[31:0]
+top.cpu.pipeline.execute_stage.input_port_op_c[31:0]
+@28
+top.cpu.pipeline.execute_stage.input_port_ready
+@22
+top.cpu.pipeline.execute_stage.input_port_result_reg_addr[3:0]
+@28
+top.cpu.pipeline.execute_stage.input_port_result_reg_addr_valid
+top.cpu.pipeline.execute_stage.input_port_shifter_op
+top.cpu.pipeline.execute_stage.input_port_valid
+@1000200
+-EXEC_IN
+@800200
+-RF_WRITE
+@22
+top.cpu.pipeline.reg_file.write_addr[3:0]
+top.cpu.pipeline.reg_file.write_data[31:0]
+top.cpu.pipeline.reg_file.write_data_d[31:0]
+@28
+top.cpu.pipeline.reg_file.write_data_en
+top.cpu.pipeline.reg_file.write_valid
+@1000200
+-RF_WRITE
+@800200
+-DECODE_INN
+@28
+top.cpu.pipeline.decode_stage.fetch_av
+@22
+top.cpu.pipeline.decode_stage.fetch_inst_0[15:0]
+top.cpu.pipeline.decode_stage.fetch_inst_1[15:0]
+top.cpu.pipeline.decode_stage.fetch_inst_2[15:0]
+@28
+top.cpu.pipeline.decode_stage.fetch_inst_len[1:0]
+top.cpu.pipeline.decode_stage.fetch_ready
+top.cpu.pipeline.decode_stage.fetch_valid
+@1000200
+-DECODE_INN
+@800200
+-BUS_IF
+@22
+top.cpu.pipeline.fetch_stage.inst_buf.bus_if_request_addr[30:0]
+@28
+top.cpu.pipeline.fetch_stage.inst_buf.bus_if_request_byte_en[1:0]
+@22
+top.cpu.pipeline.fetch_stage.inst_buf.bus_if_request_data[15:0]
+@28
+top.cpu.pipeline.fetch_stage.inst_buf.bus_if_request_read_not_write
+top.cpu.pipeline.fetch_stage.inst_buf.bus_if_request_ready
+top.cpu.pipeline.fetch_stage.inst_buf.bus_if_request_valid
+@22
+top.cpu.pipeline.fetch_stage.inst_buf.bus_if_response_data[15:0]
+@28
+top.cpu.pipeline.fetch_stage.inst_buf.bus_if_response_valid
+@1000200
+-BUS_IF
+@800200
+-FETCH_QUEUE_IN
+@28
+top.cpu.pipeline.fetch_stage.inst_queue.inst_av
+@22
+top.cpu.pipeline.fetch_stage.inst_queue.inst_data[15:0]
+@28
+top.cpu.pipeline.fetch_stage.inst_queue.inst_ready
+top.cpu.pipeline.fetch_stage.inst_queue.inst_valid
+@1000200
+-FETCH_QUEUE_IN
+@29
+top.cpu.pipeline.fetch_stage.inst_buf.outstanding_request[1:0]
+@800200
+-FETCH_QUEUE_OUT
+@28
+top.cpu.pipeline.fetch_stage.inst_queue.assemble_av
+@22
+top.cpu.pipeline.fetch_stage.inst_queue.assemble_data[15:0]
+@28
+top.cpu.pipeline.fetch_stage.inst_queue.assemble_ready
+top.cpu.pipeline.fetch_stage.inst_queue.assemble_valid
+@1000200
+-FETCH_QUEUE_OUT
+[pattern_trace] 1
+[pattern_trace] 0
