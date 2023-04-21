@@ -1,0 +1,46 @@
+set_io DRAM_ADDR[0] 37
+set_io DRAM_ADDR[1] 38
+set_io DRAM_ADDR[2] 39
+set_io DRAM_ADDR[3] 41
+set_io DRAM_ADDR[4] 42
+set_io DRAM_ADDR[5] 43
+set_io DRAM_ADDR[6] 44
+set_io DRAM_ADDR[7] 45
+set_io DRAM_ADDR[8] 47
+set_io DRAM_ADDR[9] 48
+set_io DRAM_ADDR[10] 56
+
+set_io DRAM_DATA[0] 1
+set_io DRAM_DATA[1] 2
+set_io DRAM_DATA[2] 3
+set_io DRAM_DATA[3] 4
+set_io DRAM_DATA[4] 7
+set_io DRAM_DATA[5] 8
+set_io DRAM_DATA[6] 9
+set_io DRAM_DATA[7] 10
+
+set_io DRQ[0] 11
+set_io DRQ[1] 12
+set_io DRQ[2] 19
+set_io DRQ[3] 22
+
+set_io DACK[0] 23
+set_io DACK[1] 24
+set_io DACK[2] 25
+set_io DACK[3] 26
+
+set_io TC 16
+
+set_io DRAM_nCAS_0 28
+set_io DRAM_nCAS_1 29
+set_io DRAM_nNREN 31
+set_io DRAM_nRAS_A 32
+set_io DRAM_nRAS_B 15
+set_io DRAM_nWAIT 33
+set_io DRAM_nWE 34
+
+set_io nINT 17
+
+set_io RST 18
+
+set_io CLK 49
