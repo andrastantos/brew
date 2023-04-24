@@ -211,3 +211,23 @@ http://www.bitsavers.org/components/edn/EDN-4th-annual-microprocessor-directory-
 6800: $20
 PIC1650/1655/1670: $20 (2500) $4 (100k)
 Z80: $20
+
+Synthesis results
+~~~~~~~~~~~~~~~~~
+
+Now that the V1 design is more or less complete, here are some stats:
+
+Using the OpenRoad toolchain and sky130hd PDK, the core area is 0.16mm^2.
+
+============== =============    ========  ==========================================================================================
+Core die area   Fmax             Node      Comparison (source: https://en.wikipedia.org/wiki/Transistor_count#Transistor_density)
+============== =============    ========  ==========================================================================================
+0.16mm^2        100MHz           130nm
+21mm^2          8.6MHz           1.5um     49mm^2 for 80286
+36mm^2          6.5MHz           2um
+85mm^2          4.3MHz           3um       60mm^2 for 80186; 33mm^2 for 8088
+============== =============    ========  ==========================================================================================
+
+According to http://www.bitsavers.org/components/rockwell/Trends_in_Microcomputer_Technology_1977.pdf people estimated 40,000mil^2 (62mm^2) dies to be economical in the early '80s. This is to say, that this processor would be rather cheap, if manufactured in 1.5 or 2u process nodes. 3u is not really feasible not just for die-size, but for speed reasons as well: 8-10MHz processors all only appeared in the 1.5u node. 3u node manufacturing tapped out at around 5MHz; too slow for our needs.
+
+Timing-wise, the design seems to be closing at 100MHz (though I'm not quite sure about my constraints) at 130nm. If that's true, we are on target to hit about 8MHz in 1.5u. FPGA-based timing closure is all over the map, making me nervous about the accuracy of these results.

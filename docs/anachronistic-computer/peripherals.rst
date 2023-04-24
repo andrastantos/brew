@@ -8,6 +8,8 @@ For this machine we will simply reuse something that's on the market already. Wi
 
 Here's a relatively modern datasheet for the original part: https://www.moxsyn.com/Altera/c8250.pdf.
 
+Alternatively, we can have a multi-purpose, custom I/O chip that includes a UART.
+
 Modern variants are still available, so no issues here.
 
 
@@ -194,6 +196,7 @@ Cores needed
   - programmable interrupt capability (edge/level/which edge/level)
 - SD-card (maybe just SPI)
 - USB host (high-speed)
+- Timers of various sorts
 
 Networking
 ~~~~~~~~~~
