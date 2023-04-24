@@ -229,10 +229,10 @@ class BranchUnitInputIf(Interface):
     opcode          = EnumNet(branch_ops)
     op_a            = BrewData
     op_b            = BrewData
-    pc              = BrewInstAddr
+    #pc              = BrewInstAddr
     spc             = BrewInstAddr
     tpc             = BrewInstAddr
-    op_c            = BrewData
+    #op_c            = BrewData
     task_mode       = logic
     branch_addr     = BrewInstAddr
     interrupt       = logic
@@ -587,7 +587,7 @@ class ExecuteStage(GenericModule):
         branch_output = Wire(BranchUnitOutputIf)
         branch_unit = BranchUnit()
         branch_input.opcode          <<= s1_branch_op
-        branch_input.pc              <<= s2_pc
+        #branch_input.pc              <<= s2_pc
         branch_input.spc             <<= s1_spc
         branch_input.tpc             <<= s1_tpc
         branch_input.task_mode       <<= s1_task_mode
@@ -598,7 +598,7 @@ class ExecuteStage(GenericModule):
         branch_input.mem_unaligned   <<= s1_ldst_output.mem_unaligned
         branch_input.op_a            <<= s1_op_a
         branch_input.op_b            <<= s1_op_b
-        branch_input.op_c            <<= s1_op_c
+        #branch_input.op_c            <<= s1_op_c
         branch_input.f_zero          <<= s1_alu_output.f_zero
         branch_input.f_sign          <<= s1_alu_output.f_sign
         branch_input.f_carry         <<= s1_alu_output.f_carry

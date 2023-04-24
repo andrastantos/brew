@@ -94,10 +94,10 @@ class LdStLeech(Module):
 
 from copy import copy
 class Dram(GenericModule):
-    nRAS          = Input(logic)
-    nCAS          = Input(logic)
+    n_ras          = Input(logic)
+    n_cas          = Input(logic)
     addr          = Input(Unsigned(11))
-    nWE           = Input(logic)
+    n_we           = Input(logic)
     data_out      = Output(BrewByte)
     data_out_en   = Output(logic)
     data_in       = Input(BrewByte)
@@ -124,26 +124,26 @@ class Dram(GenericModule):
         self.data_out <<= None
         self.data_out_en <<= 0
         while True:
-            yield self.nRAS
-            if self.nRAS.get_sim_edge() == EdgeType.Positive:
+            yield self.n_ras
+            if self.n_ras.get_sim_edge() == EdgeType.Positive:
                 # Get got deselected
                 self.data_out <<= None
                 self.data_out_en <<= 0
-            elif self.nRAS.get_sim_edge() == EdgeType.Negative:
-                simulator.sim_assert(self.nCAS == 1, f"DRAM {self.name}: nRAS should not assert while nCAS is low")
+            elif self.n_ras.get_sim_edge() == EdgeType.Negative:
+                simulator.sim_assert(self.n_cas == 1, f"DRAM {self.name}: n_ras should not assert while n_cas is low")
                 row_addr = copy(self.addr.sim_value)
                 while True:
-                    yield self.nCAS, self.nRAS
-                    if self.nRAS.get_sim_edge() == EdgeType.Positive:
+                    yield self.n_cas, self.n_ras
+                    if self.n_ras.get_sim_edge() == EdgeType.Positive:
                         # End of burst
                         break
-                    simulator.sim_assert(self.nRAS.get_sim_edge() == EdgeType.NoEdge)
-                    if self.nCAS.get_sim_edge() == EdgeType.Negative:
+                    simulator.sim_assert(self.n_ras.get_sim_edge() == EdgeType.NoEdge)
+                    if self.n_cas.get_sim_edge() == EdgeType.Negative:
                         yield 0
                         yield 0
                         col_addr = copy(self.addr.sim_value)
                         addr = row_addr << self.addr.get_num_bits() | col_addr
-                        if self.nWE == 1:
+                        if self.n_we == 1:
                             try:
                                 value = self.content[addr]
                             except KeyError:
@@ -153,33 +153,33 @@ class Dram(GenericModule):
                             yield self.latency
                             self.data_out <<= value
                             self.data_out_en <<= 1
-                        elif self.nWE == 0:
+                        elif self.n_we == 0:
                             value = None if self.data_in_en != 1 else self.data_in
                             self.content[addr] = int(value)
                             val_str = "--" if value is None else f"{value:02x}"
                             #simulator.log(f"                                              DRAM {self.name} Writing address {addr:08x} with value {val_str}")
                             self.data_out <<= None
                             self.data_out_en <<= 0
-                    elif self.nCAS.get_sim_edge() == EdgeType.Positive:
-                        if self.nWE == 1:
+                    elif self.n_cas.get_sim_edge() == EdgeType.Positive:
+                        if self.n_we == 1:
                             yield self.hold_time
                             self.data_out <<= None
                             self.data_out_en <<= 0
                     else:
-                        simulator.sim_assert(f"Unexpected nCAS edge: {self.nCAS.get_sim_edge()}")
+                        simulator.sim_assert(f"Unexpected n_cas edge: {self.n_cas.get_sim_edge()}")
 
 class AddressDecode(Module):
-    nNREN         = Input(logic)
-    nCAS_0        = Input(logic)
-    nCAS_1        = Input(logic)
+    n_nren        = Input(logic)
+    n_cas_0       = Input(logic)
+    n_cas_1       = Input(logic)
     addr          = Input(Unsigned(11))
     full_addr     = Output(Unsigned(23))
     rom_en        = Output(logic)
     con_en        = Output(logic)
 
     def body(self):
-        self.nCAS = Wire(logic)
-        self.nCAS <<= self.nCAS_0 & self.nCAS_1
+        self.n_cas = Wire(logic)
+        self.n_cas <<= self.n_cas_0 & self.n_cas_1
 
     def simulate(self, simulator: Simulator):
         global con_base
@@ -189,21 +189,21 @@ class AddressDecode(Module):
         self.rom_en <<= 0
         self.con_en <<= 0
         while True:
-            yield self.nNREN
-            if self.nNREN.get_sim_edge() == EdgeType.Negative:
-                simulator.sim_assert(self.nCAS == 1, "nNREN should not assert while nCAS is low")
+            yield self.n_nren
+            if self.n_nren.get_sim_edge() == EdgeType.Negative:
+                simulator.sim_assert(self.n_cas == 1, "n_nren should not assert while n_cas is low")
                 row_addr = copy(self.addr.sim_value)
                 while True:
-                    yield self.nCAS, self.nNREN
-                    if self.nNREN.get_sim_edge() == EdgeType.Positive:
+                    yield self.n_cas, self.n_nren
+                    if self.n_nren.get_sim_edge() == EdgeType.Positive:
                         # End of burst
                         self.rom_en <<= 0
                         self.con_en <<= 0
                         break
-                    simulator.sim_assert(self.nNREN.get_sim_edge() == EdgeType.NoEdge)
-                    if self.nCAS.get_sim_edge() == EdgeType.Negative:
+                    simulator.sim_assert(self.n_nren.get_sim_edge() == EdgeType.NoEdge)
+                    if self.n_cas.get_sim_edge() == EdgeType.Negative:
                         col_addr = copy(self.addr.sim_value)
-                        addr = (row_addr << self.addr.get_num_bits() | col_addr) << 1 | self.nCAS_0
+                        addr = (row_addr << self.addr.get_num_bits() | col_addr) << 1 | self.n_cas_0
                         self.full_addr <<= addr
                         if (addr & self.decode_mask) == self.con_base:
                             self.con_en <<= 1
@@ -214,11 +214,11 @@ class AddressDecode(Module):
                         else:
                             self.con_en <<= 0
                             self.rom_en <<= 0
-                    elif self.nCAS.get_sim_edge() == EdgeType.Positive:
+                    elif self.n_cas.get_sim_edge() == EdgeType.Positive:
                         self.rom_en <<= 0
                         self.con_en <<= 0
                     else:
-                        simulator.sim_assert(f"Unexpected nCAS edge: {self.nCAS.get_sim_edge()}")
+                        simulator.sim_assert(f"Unexpected n_cas edge: {self.n_cas.get_sim_edge()}")
 
 class Rom(GenericModule):
     enable        = Input(logic)
@@ -280,7 +280,7 @@ class Rom(GenericModule):
 class Console(Module):
     enable        = Input(logic)
     addr          = Input(Unsigned(23))
-    nWE           = Input(logic)
+    n_we          = Input(logic)
     data_in       = Input(BrewByte)
     data_in_en    = Input(logic)
     terminate     = Output(logic)
@@ -290,7 +290,7 @@ class Console(Module):
         while True:
             yield self.enable
             if self.enable.get_sim_edge() == EdgeType.Positive:
-                if self.nWE == 0:
+                if self.n_we == 0:
                     value = None if self.data_in_en != 1 else self.data_in
                     val_str = "--" if value is None else f"{value:02x}"
                     addr = self.addr & 0xff
@@ -334,17 +334,17 @@ class top(Module):
         self.exec_leech = ExecLeech()
         self.ldst_leech = LdStLeech()
 
-        self.dram_l.nRAS          <<= self.cpu.dram.nRAS_A
-        self.dram_l.nCAS          <<= self.cpu.dram.nCAS_0
+        self.dram_l.n_ras         <<= self.cpu.dram.n_ras_a
+        self.dram_l.n_cas         <<= self.cpu.dram.n_cas_0
         self.dram_l.addr          <<= self.cpu.dram.addr
-        self.dram_l.nWE           <<= self.cpu.dram.nWE
+        self.dram_l.n_we          <<= self.cpu.dram.n_we
         self.dram_l.data_in       <<= self.cpu.dram.data_out
         self.dram_l.data_in_en    <<= self.cpu.dram.data_out_en
 
-        self.dram_h.nRAS          <<= self.cpu.dram.nRAS_A
-        self.dram_h.nCAS          <<= self.cpu.dram.nCAS_1
+        self.dram_h.n_ras         <<= self.cpu.dram.n_ras_a
+        self.dram_h.n_cas         <<= self.cpu.dram.n_cas_1
         self.dram_h.addr          <<= self.cpu.dram.addr
-        self.dram_h.nWE           <<= self.cpu.dram.nWE
+        self.dram_h.n_we          <<= self.cpu.dram.n_we
         self.dram_h.data_in       <<= self.cpu.dram.data_out
         self.dram_h.data_in_en    <<= self.cpu.dram.data_out_en
 
@@ -354,20 +354,20 @@ class top(Module):
             self.rom.data_out_en,    self.rom.data_out,
         )
 
-        self.addr_decode.nNREN    <<= self.cpu.dram.nNREN
-        self.addr_decode.nCAS_0   <<= self.cpu.dram.nCAS_0
-        self.addr_decode.nCAS_1   <<= self.cpu.dram.nCAS_1
+        self.addr_decode.n_nren   <<= self.cpu.dram.n_nren
+        self.addr_decode.n_cas_0  <<= self.cpu.dram.n_cas_0
+        self.addr_decode.n_cas_1  <<= self.cpu.dram.n_cas_1
         self.addr_decode.addr     <<= self.cpu.dram.addr
 
         self.rom.enable           <<= self.addr_decode.rom_en
         self.rom.addr             <<= self.addr_decode.full_addr
         self.con.enable           <<= self.addr_decode.con_en
         self.con.addr             <<= self.addr_decode.full_addr
-        self.con.nWE              <<= self.cpu.dram.nWE
+        self.con.n_we             <<= self.cpu.dram.n_we
 
-        self.cpu.dram.nWAIT       <<= 1
-        self.cpu.DRQ              <<= 0
-        self.cpu.nINT             <<= 1
+        self.cpu.dram.n_wait      <<= 1
+        self.cpu.drq              <<= 0
+        self.cpu.n_int            <<= 1
 
     def set_timeout(self, timeout):
         self.timeout = timeout

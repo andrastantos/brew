@@ -103,19 +103,19 @@ class BusIfDmaResponseIf(Interface):
     valid           = logic
 
 class ExternalBusIf(Interface):
-    nRAS_A        = logic
-    nRAS_B        = logic
-    nCAS_0        = logic
-    nCAS_1        = logic
+    n_ras_a       = logic
+    n_ras_b       = logic
+    n_cas_0       = logic
+    n_cas_1       = logic
     addr          = Unsigned(11)
-    nWE           = logic
+    n_we          = logic
     data_in       = Reverse(BrewByte)
     data_out      = BrewByte
     data_out_en   = logic
-    nNREN         = logic
-    nWAIT         = Reverse(logic)
-    nDACK         = Unsigned(4)
-    TC            = logic
+    n_nren        = logic
+    n_wait        = Reverse(logic)
+    n_dack        = Unsigned(4)
+    tc            = logic
     bus_en        = logic
 
 class FetchDecodeIf(ReadyValid):

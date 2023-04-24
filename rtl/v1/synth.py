@@ -1,12 +1,23 @@
 # This file contains helpers to drive the synthesis of a top-level module all the way from Silicon source to gates and reports
 
-from typing import Sequence, Tuple
+from typing import Sequence, Tuple, Optional
 
 class QuartusException(Exception):
     pass
 
 class QuartusFlow(object):
-    def __init__(self, top_level: str, source_files: Sequence[str], clocks: Sequence[Tuple[str, int]], *, device, target_dir="quartus", project_name=None, no_timing_report_clocks: Sequence[str] = None):
+    def __init__(
+        self,
+        *,
+        top_level: str,
+        source_files: Sequence[str],
+        constraint_files: Optional[Sequence[str]] = None,
+        clocks: Sequence[Tuple[str, int]],
+        device: str,
+        target_dir="quartus",
+        project_name=None,
+        no_timing_report_clocks: Sequence[str] = None
+    ):
         from pathlib import Path
 
         self.source_files = source_files
@@ -17,6 +28,7 @@ class QuartusFlow(object):
         self.project_file_name = self.target_dir / f"{self.project_name}.qpf"
         self.no_timing_report_clocks = (no_timing_report_clocks, ) if isinstance(no_timing_report_clocks, str) else no_timing_report_clocks
         self.device = device
+        self.constraint_files = constraint_files
 
     def generate(self):
         from datetime import datetime
@@ -30,13 +42,14 @@ class QuartusFlow(object):
         self.target_dir.mkdir(parents=True, exist_ok=True)
 
         # Step 1: generate SDC files
-        constraint_file_name = None
-        if self.clocks is not None:
-            constraint_file_name = self.target_dir / f"{file_base_name}.sdc"
-            with open(constraint_file_name, "wt") as clock_file:
-                for clock, speed in self.clocks:
-                    clock_file.write(f"create_clock -name {clock} -period {1000/speed:.2f} [get_ports {{{clock}}}]\n")
-                clock_file.write(f"\nderive_clock_uncertainty\n")
+        if self.constraint_files is None:
+            if self.clocks is not None:
+                constraint_file_name = self.target_dir / f"{file_base_name}.sdc"
+                with open(constraint_file_name, "wt") as clock_file:
+                    for clock, speed in self.clocks:
+                        clock_file.write(f"create_clock -name {clock} -period {1000/speed:.2f} [get_ports {{{clock}}}]\n")
+                    clock_file.write(f"\nderive_clock_uncertainty\n")
+                self.constraint_files = (constraint_file_name,)
 
         # Step 2: generate project file
         with open(self.project_file_name, "wt") as project_file:
@@ -70,9 +83,10 @@ class QuartusFlow(object):
             for source in self.source_files:
                 relative_source = Path(os.path.relpath(str(Path(source).absolute()), str(self.target_dir.absolute())))
                 project_file.write(f"set_global_assignment -name SYSTEMVERILOG_FILE {relative_source}\n")
-            if constraint_file_name is not None:
-                relative_constraint = Path(os.path.relpath(str(Path(constraint_file_name).absolute()), str(self.target_dir.absolute())))
-                project_file.write(f"set_global_assignment -name SDC_FILE {relative_constraint}\n")
+            if self.constraint_files is not None:
+                for constraint_file_name in self.constraint_files:
+                    relative_constraint = Path(os.path.relpath(str(Path(constraint_file_name).absolute()), str(self.target_dir.absolute())))
+                    project_file.write(f"set_global_assignment -name SDC_FILE {relative_constraint}\n")
             #project_file.write(f"set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top\n")
             #project_file.write(f"set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top\n")
             #project_file.write(f"set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top\n")

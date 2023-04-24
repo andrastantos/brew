@@ -36,9 +36,9 @@ class BrewV1Top(GenericModule):
     dram              = Output(ExternalBusIf)
 
     # External dma-request
-    DRQ               = Input(Unsigned(4))
+    drq               = Input(Unsigned(4))
 
-    nINT              = Input(logic)
+    n_int             = Input(logic)
 
     def construct(self, csr_base: int, nram_base: int, has_multiply: bool = True, has_shift: bool = True, page_bits: int = 7):
         self.csr_base = csr_base
@@ -98,7 +98,7 @@ class BrewV1Top(GenericModule):
         dma_to_bus <<= dma.bus_req_if
         dma.bus_rsp_if <<= bus_to_dma
 
-        dma.drq <<= self.DRQ
+        dma.drq <<= self.drq
 
         dma.reg_if <<= dma_reg_if
 
@@ -115,7 +115,7 @@ class BrewV1Top(GenericModule):
         pipeline.mem_base <<= mem_base
         pipeline.mem_limit <<= mem_limit
 
-        pipeline.interrupt <<= ~self.nINT
+        pipeline.interrupt <<= ~self.n_int
 
         event_fetch_wait_on_bus = pipeline.fetch_wait_on_bus
         event_decode_wait_on_rf = pipeline.decode_wait_on_rf
@@ -235,7 +235,15 @@ def gen():
     top_level_name = netlist.get_module_class_name(netlist.top_level)
     cyclone_v_device = "5CEBA4U15C7"
     max_10_device = "10M04SAE144C7G"
-    flow = QuartusFlow(target_dir="q_brew_v1_top", top_level=top_level_name, source_files=("brew_v1.sv", "brew_v1_top.sv"), clocks=(("clk", 100),), device=cyclone_v_device, project_name="BREW_V1")
+    flow = QuartusFlow(
+        target_dir="q_brew_v1_top",
+        top_level="brew_v1",
+        source_files=("brew_v1.sv", "brew_v1_top.sv"),
+        constraint_files=("brew_v1.sdc",),
+        clocks=(("clk", 100),),
+        device=max_10_device,
+        project_name="BREW_V1"
+    )
     flow.generate()
     flow.run()
 

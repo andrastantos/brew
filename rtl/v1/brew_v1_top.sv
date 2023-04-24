@@ -82,23 +82,23 @@
 module BrewV1Top (
 	input logic clk,
 	input logic rst,
-	output logic dram_TC,
 	output logic [10:0] dram_addr,
 	output logic dram_bus_en,
 	input logic [7:0] dram_data_in,
 	output logic [7:0] dram_data_out,
 	output logic dram_data_out_en,
-	output logic dram_nCAS_0,
-	output logic dram_nCAS_1,
-	output logic [3:0] dram_nDACK,
-	output logic dram_nNREN,
-	output logic dram_nRAS_A,
-	output logic dram_nRAS_B,
-	input logic dram_nWAIT,
-	output logic dram_nWE,
+	output logic dram_n_cas_0,
+	output logic dram_n_cas_1,
+	output logic [3:0] dram_n_dack,
+	output logic dram_n_nren,
+	output logic dram_n_ras_a,
+	output logic dram_n_ras_b,
+	input logic dram_n_wait,
+	output logic dram_n_we,
+	output logic dram_tc,
 
-	input logic [3:0] DRQ,
-	input logic nINT
+	input logic [3:0] drq,
+	input logic n_int
 );
 
 	logic u_output_port;
@@ -316,20 +316,20 @@ module BrewV1Top (
 		.reg_if_pwdata(dma_reg_if_pwdata),
 		.reg_if_pwrite(dma_reg_if_pwrite),
 
-		.dram_TC(dram_TC),
 		.dram_addr(dram_addr),
 		.dram_bus_en(dram_bus_en),
 		.dram_data_in(dram_data_in),
 		.dram_data_out(dram_data_out),
 		.dram_data_out_en(dram_data_out_en),
-		.dram_nCAS_0(dram_nCAS_0),
-		.dram_nCAS_1(dram_nCAS_1),
-		.dram_nDACK(dram_nDACK),
-		.dram_nNREN(dram_nNREN),
-		.dram_nRAS_A(dram_nRAS_A),
-		.dram_nRAS_B(dram_nRAS_B),
-		.dram_nWAIT(dram_nWAIT),
-		.dram_nWE(dram_nWE)
+		.dram_n_cas_0(dram_n_cas_0),
+		.dram_n_cas_1(dram_n_cas_1),
+		.dram_n_dack(dram_n_dack),
+		.dram_n_nren(dram_n_nren),
+		.dram_n_ras_a(dram_n_ras_a),
+		.dram_n_ras_b(dram_n_ras_b),
+		.dram_n_wait(dram_n_wait),
+		.dram_n_we(dram_n_we),
+		.dram_tc(dram_tc)
 	);
 
 	CpuDma dma (
@@ -354,7 +354,7 @@ module BrewV1Top (
 		.reg_if_pwdata(dma_reg_if_pwdata),
 		.reg_if_pwrite(dma_reg_if_pwrite),
 
-		.drq(DRQ)
+		.drq(drq)
 	);
 
 	Pipeline pipeline (
@@ -403,7 +403,7 @@ module BrewV1Top (
 		.execute(event_execute)
 	);
 
-	assign u_output_port =  ~ nINT;
+	assign u_output_port =  ~ n_int;
 	assign bus_if_reg_if_psel = csr_dma_psel;
 	assign dma_reg_if_psel = csr_dma_psel;
 	assign u19_output_port = event_cnt_0 + 1'h1 + 21'b0;
@@ -1144,7 +1144,6 @@ module ExecuteStage (
 	logic [31:0] s1_op_a;
 	logic [31:0] branch_input_op_b;
 	logic [31:0] s1_op_b;
-	logic [31:0] branch_input_op_c;
 	logic [31:0] s1_op_c;
 	logic s1_do_bse;
 	logic s1_do_wse;
@@ -1162,7 +1161,6 @@ module ExecuteStage (
 	logic s1_task_mode;
 	logic [1:0] mem_input_access_len;
 	logic [1:0] s1_mem_access_len;
-	logic [30:0] branch_input_pc;
 	logic [30:0] s2_pc;
 	logic block_mem;
 	logic mem_input_valid;
@@ -1242,10 +1240,8 @@ module ExecuteStage (
 	always_ff @(posedge clk) u72_output_port <= rst ? 1'h0 : do_branch;
 	assign stage_2_reg_en = stage_1_valid & stage_2_ready &  ~ u72_output_port;
 	always_ff @(posedge clk) s1_branch_op <= rst ? 4'h0 : stage_1_reg_en ? input_port_branch_op : s1_branch_op;
-	assign s2_pc = s1_task_mode ? s1_tpc : s1_spc;
 	always_ff @(posedge clk) s1_op_a <= rst ? 32'h0 : stage_1_reg_en ? input_port_op_a : s1_op_a;
 	always_ff @(posedge clk) s1_op_b <= rst ? 32'h0 : stage_1_reg_en ? input_port_op_b : s1_op_b;
-	always_ff @(posedge clk) s1_op_c <= rst ? 32'h0 : stage_1_reg_en ? input_port_op_c : s1_op_c;
 	assign branch_input_is_branch_insn = s1_exec_unit == `op_class__branch;
 	always_ff @(posedge clk) s1_ldst_op <= rst ? 1'h0 : stage_1_reg_en ? input_port_ldst_op : s1_ldst_op;
 	assign mem_input_read_not_write = (s1_exec_unit == `op_class__ld_st) & (s1_ldst_op == `ldst_ops__load);
@@ -1279,6 +1275,8 @@ module ExecuteStage (
 	assign task_mode_out = s1_was_branch ? task_mode_in : stage_2_reg_en & branch_output_task_mode_changed ? branch_output_task_mode : task_mode_in;
 	assign ecause_out = stage_2_reg_en &  ~ s1_was_branch ? ecause_in | branch_output_ecause : ecause_in;
 	always_ff @(posedge clk) eaddr_out <= rst ? 32'h0 : branch_output_is_exception &  ~ do_branch ? input_port_fetch_av | (input_port_exec_unit == `op_class__branch) & (input_port_branch_op == `branch_ops__swi) ? ldst_output_phy_addr : pc : eaddr_out;
+	always_ff @(posedge clk) s1_op_c <= rst ? 32'h0 : stage_1_reg_en ? input_port_op_c : s1_op_c;
+	assign s2_pc = s1_task_mode ? s1_tpc : s1_spc;
 
 	ForwardBufLogic stage_1_fsm (
 		.clock_port(clk),
@@ -1376,9 +1374,7 @@ module ExecuteStage (
 		.input_port_mem_unaligned(branch_input_mem_unaligned),
 		.input_port_op_a(s1_op_a),
 		.input_port_op_b(s1_op_b),
-		.input_port_op_c(s1_op_c),
 		.input_port_opcode(s1_branch_op),
-		.input_port_pc(s2_pc),
 		.input_port_spc(s1_spc),
 		.input_port_task_mode(s1_task_mode),
 		.input_port_tpc(s1_tpc),
@@ -1440,13 +1436,11 @@ module ExecuteStage (
 	assign mem_input_data = s1_op_a;
 	assign branch_input_op_a = s1_op_a;
 	assign branch_input_op_b = s1_op_b;
-	assign branch_input_op_c = s1_op_c;
 	assign branch_input_fetch_av = s1_fetch_av;
 	assign branch_input_tpc = s1_tpc;
 	assign branch_input_spc = s1_spc;
 	assign branch_input_task_mode = s1_task_mode;
 	assign mem_input_access_len = s1_mem_access_len;
-	assign branch_input_pc = s2_pc;
 	assign complete = stage_2_valid;
 	assign u69_output_port = (s1_exec_unit == `op_class__ld_st) &  ~ block_mem ? s2_mem_output_valid : 1'h1;
 endmodule
@@ -1563,9 +1557,7 @@ module BranchUnit (
 	input logic input_port_mem_unaligned,
 	input logic [31:0] input_port_op_a,
 	input logic [31:0] input_port_op_b,
-	input logic [31:0] input_port_op_c,
 	input logic [3:0] input_port_opcode,
-	input logic [30:0] input_port_pc,
 	input logic [30:0] input_port_spc,
 	input logic input_port_task_mode,
 	input logic [30:0] input_port_tpc,
@@ -3526,20 +3518,20 @@ module BusIf (
 	input logic [31:0] reg_if_pwdata,
 	input logic reg_if_pwrite,
 
-	output logic dram_TC,
 	output logic [10:0] dram_addr,
 	output logic dram_bus_en,
 	input logic [7:0] dram_data_in,
 	output logic [7:0] dram_data_out,
 	output logic dram_data_out_en,
-	output logic dram_nCAS_0,
-	output logic dram_nCAS_1,
-	output logic [3:0] dram_nDACK,
-	output logic dram_nNREN,
-	output logic dram_nRAS_A,
-	output logic dram_nRAS_B,
-	input logic dram_nWAIT,
-	output logic dram_nWE
+	output logic dram_n_cas_0,
+	output logic dram_n_cas_1,
+	output logic [3:0] dram_n_dack,
+	output logic dram_n_nren,
+	output logic dram_n_ras_a,
+	output logic dram_n_ras_b,
+	input logic dram_n_wait,
+	output logic dram_n_we,
+	output logic dram_tc
 );
 
 	logic reg_write_strobe;
@@ -3608,26 +3600,25 @@ module BusIf (
 	logic [15:0] data_out;
 	logic dram_ras_active;
 	logic u213_output_port;
-	logic DRAM_nRAS_A;
+	logic dram_n_ras_a_1;
 	logic u220_output_port;
-	logic DRAM_nRAS_B;
-	logic nNREN;
+	logic dram_n_ras_b_1;
+	logic n_nren;
 	logic [3:0] u248_output_port;
-	logic [3:0] nDACK;
-	logic NR_CAS_logic;
-	logic NR_CAS_logic_0;
-	logic NR_CAS_logic_1;
-	logic NR_nCAS_0;
-	logic NR_nCAS_1;
-	logic CAS_nWINDOW_A_0;
-	logic CAS_nWINDOW_A_1;
-	logic CAS_nWINDOW_C_0;
-	logic CAS_nWINDOW_B_0;
-	logic CAS_nWINDOW_C_1;
-	logic CAS_nWINDOW_B_1;
-	logic DRAM_nCAS_0;
-	logic DRAM_nCAS_1;
-	logic [10:0] u400_output_port;
+	logic [3:0] n_dack;
+	logic nr_cas_logic;
+	logic nr_cas_logic_0;
+	logic nr_cas_logic_1;
+	logic nr_n_cas_0;
+	logic nr_n_cas_1;
+	logic cas_n_window_a_0;
+	logic cas_n_window_a_1;
+	logic cas_n_window_b_0;
+	logic cas_n_window_c_1;
+	logic cas_n_window_b_1;
+	logic dram_n_cas_0_1;
+	logic dram_n_cas_1_1;
+	logic [10:0] u398_output_port;
 	logic [10:0] dram_addr_1;
 	logic [7:0] data_out_low;
 	logic [7:0] data_out_high;
@@ -3636,8 +3627,8 @@ module BusIf (
 	logic [7:0] data_in_high;
 	logic [7:0] ndram_data_in_high;
 	logic [15:0] resp_data;
-	logic u451_output_port;
-	logic u456_output_port;
+	logic u449_output_port;
+	logic u454_output_port;
 	logic [10:0] u42_output_port;
 	logic [10:0] input_row_addr;
 	logic [3:0] state;
@@ -3682,7 +3673,7 @@ module BusIf (
 	assign req_dma = (arb_port_select == `Ports__dma_port) &  ~ dma_request_is_master;
 	assign req_dram = (req_addr[30:29] != 1'h0) & ((arb_port_select == `Ports__mem_port) | (arb_port_select == `Ports__fetch_port));
 	assign req_rfsh = arb_port_select == `Ports__refresh_port;
-	assign waiting =  ~ dram_nWAIT | (wait_states != 1'h0);
+	assign waiting =  ~ dram_n_wait | (wait_states != 1'h0);
 	always_ff @(posedge clk) two_cycle_nram_access <= rst ? 1'h0 : start ? (req_byte_en == 2'h3) & req_nram : two_cycle_nram_access;
 	always @(*) begin
 		unique case (dram_bank_size)
@@ -3705,29 +3696,28 @@ module BusIf (
 	assign dram_ras_active = (next_state == `BusIfStates__first) | (next_state == `BusIfStates__middle) | (next_state == `BusIfStates__precharge) | (next_state == `BusIfStates__dma_first) | (next_state == `BusIfStates__dma_wait);
 	always_ff @(posedge clk) u213_output_port <= rst ? 1'h0 : dram_ras_active & (dram_bank == dram_bank_swap) | (next_state == `BusIfStates__refresh);
 	always_ff @(posedge clk) u220_output_port <= rst ? 1'h0 : dram_ras_active & (dram_bank != dram_bank_swap) | (next_state == `BusIfStates__refresh);
-	always_ff @(posedge clk) nNREN <= rst ? 1'h1 : (next_state != `BusIfStates__non_dram_first) & (next_state != `BusIfStates__non_dram_wait) & (next_state != `BusIfStates__non_dram_dual_first) & (next_state != `BusIfStates__non_dram_dual_wait);
+	always_ff @(posedge clk) n_nren <= rst ? 1'h1 : (next_state != `BusIfStates__non_dram_first) & (next_state != `BusIfStates__non_dram_wait) & (next_state != `BusIfStates__non_dram_dual_first) & (next_state != `BusIfStates__non_dram_dual_wait);
 	always_ff @(posedge clk) dma_ch <= rst ? 4'h0 : start ? dma_request_one_hot_channel : dma_ch;
 	always_ff @(posedge clk) u248_output_port <= rst ? 4'h0 : (state == `BusIfStates__dma_first) | (state == `BusIfStates__dma_wait) & waiting | (state == `BusIfStates__external) & req_valid & req_ext ? dma_ch : 1'h0;
-	assign nDACK =  ~ u248_output_port;
-	assign NR_CAS_logic = (state == `BusIfStates__non_dram_dual_first) | (state == `BusIfStates__non_dram_first) | (state == `BusIfStates__dma_first) | waiting & ((state == `BusIfStates__non_dram_dual_wait) | (state == `BusIfStates__non_dram_wait) | (state == `BusIfStates__dma_wait));
-	assign NR_CAS_logic_0 = NR_CAS_logic & ( ~ two_cycle_nram_access | (state == `BusIfStates__non_dram_first) | (state == `BusIfStates__non_dram_wait) | (state == `BusIfStates__dma_first) | (state == `BusIfStates__dma_wait));
-	always_ff @(posedge clk) NR_nCAS_0 <= rst ? 1'h1 :  ~ NR_CAS_logic_0 |  ~ byte_en[0];
-	assign NR_CAS_logic_1 = NR_CAS_logic & ( ~ two_cycle_nram_access | (state == `BusIfStates__non_dram_dual_first) | (state == `BusIfStates__non_dram_dual_wait) | (state == `BusIfStates__dma_first) | (state == `BusIfStates__dma_wait));
-	always_ff @(posedge clk) NR_nCAS_1 <= rst ? 1'h1 :  ~ NR_CAS_logic_1 |  ~ byte_en[1];
-	always_ff @(posedge clk) CAS_nWINDOW_A_0 <= rst ? 1'h1 :  ~ byte_en[0] | (next_state == `BusIfStates__idle) | (next_state == `BusIfStates__precharge) | (next_state == `BusIfStates__non_dram_first) | (next_state == `BusIfStates__non_dram_wait) | (next_state == `BusIfStates__non_dram_dual) | (next_state == `BusIfStates__non_dram_dual_first) | (next_state == `BusIfStates__non_dram_dual_wait) | (next_state == `BusIfStates__dma_first) | (next_state == `BusIfStates__dma_wait);
-	always_ff @(posedge clk) CAS_nWINDOW_A_1 <= rst ? 1'h1 :  ~ byte_en[1] | (next_state == `BusIfStates__idle) | (next_state == `BusIfStates__precharge) | (next_state == `BusIfStates__non_dram_first) | (next_state == `BusIfStates__non_dram_wait) | (next_state == `BusIfStates__non_dram_dual) | (next_state == `BusIfStates__non_dram_dual_first) | (next_state == `BusIfStates__non_dram_dual_wait) | (next_state == `BusIfStates__dma_first) | (next_state == `BusIfStates__dma_wait);
-	always_ff @(posedge clk) CAS_nWINDOW_C_0 <= rst ? 1'h1 : CAS_nWINDOW_A_0;
-	always_ff @(negedge clk) CAS_nWINDOW_B_0 <= rst ? 1'h1 : CAS_nWINDOW_A_0;
-	always_ff @(posedge clk) CAS_nWINDOW_C_1 <= rst ? 1'h1 : CAS_nWINDOW_A_1;
-	always_ff @(negedge clk) CAS_nWINDOW_B_1 <= rst ? 1'h1 : CAS_nWINDOW_A_1;
-	assign DRAM_nRAS_A =  ~ u213_output_port;
-	assign DRAM_nRAS_B =  ~ u220_output_port;
-	assign DRAM_nCAS_0 = CAS_nWINDOW_A_0 | CAS_nWINDOW_B_0 | clk;
-	assign dram_nCAS_0 = DRAM_nCAS_0 & NR_nCAS_0;
-	assign DRAM_nCAS_1 = CAS_nWINDOW_B_1 | CAS_nWINDOW_C_1 |  ~ clk;
-	assign dram_nCAS_1 = DRAM_nCAS_1 & NR_nCAS_1;
-	always_ff @(negedge clk) u400_output_port <= rst ? 11'h0 : col_addr;
-	assign dram_addr_1 = ((state == `BusIfStates__first) | (state == `BusIfStates__non_dram_first) | (state == `BusIfStates__non_dram_dual_first) | (state == `BusIfStates__dma_first) | (state == `BusIfStates__refresh)) & clk ? row_addr : u400_output_port;
+	assign n_dack =  ~ u248_output_port;
+	assign nr_cas_logic = (state == `BusIfStates__non_dram_dual_first) | (state == `BusIfStates__non_dram_first) | (state == `BusIfStates__dma_first) | waiting & ((state == `BusIfStates__non_dram_dual_wait) | (state == `BusIfStates__non_dram_wait) | (state == `BusIfStates__dma_wait));
+	assign nr_cas_logic_0 = nr_cas_logic & ( ~ two_cycle_nram_access | (state == `BusIfStates__non_dram_first) | (state == `BusIfStates__non_dram_wait) | (state == `BusIfStates__dma_first) | (state == `BusIfStates__dma_wait));
+	always_ff @(posedge clk) nr_n_cas_0 <= rst ? 1'h1 :  ~ nr_cas_logic_0 |  ~ byte_en[0];
+	assign nr_cas_logic_1 = nr_cas_logic & ( ~ two_cycle_nram_access | (state == `BusIfStates__non_dram_dual_first) | (state == `BusIfStates__non_dram_dual_wait) | (state == `BusIfStates__dma_first) | (state == `BusIfStates__dma_wait));
+	always_ff @(posedge clk) nr_n_cas_1 <= rst ? 1'h1 :  ~ nr_cas_logic_1 |  ~ byte_en[1];
+	always_ff @(posedge clk) cas_n_window_a_0 <= rst ? 1'h1 :  ~ byte_en[0] | (next_state == `BusIfStates__idle) | (next_state == `BusIfStates__precharge) | (next_state == `BusIfStates__non_dram_first) | (next_state == `BusIfStates__non_dram_wait) | (next_state == `BusIfStates__non_dram_dual) | (next_state == `BusIfStates__non_dram_dual_first) | (next_state == `BusIfStates__non_dram_dual_wait) | (next_state == `BusIfStates__dma_first) | (next_state == `BusIfStates__dma_wait);
+	always_ff @(posedge clk) cas_n_window_a_1 <= rst ? 1'h1 :  ~ byte_en[1] | (next_state == `BusIfStates__idle) | (next_state == `BusIfStates__precharge) | (next_state == `BusIfStates__non_dram_first) | (next_state == `BusIfStates__non_dram_wait) | (next_state == `BusIfStates__non_dram_dual) | (next_state == `BusIfStates__non_dram_dual_first) | (next_state == `BusIfStates__non_dram_dual_wait) | (next_state == `BusIfStates__dma_first) | (next_state == `BusIfStates__dma_wait);
+	always_ff @(negedge clk) cas_n_window_b_0 <= rst ? 1'h1 : cas_n_window_a_0;
+	always_ff @(posedge clk) cas_n_window_c_1 <= rst ? 1'h1 : cas_n_window_a_1;
+	always_ff @(negedge clk) cas_n_window_b_1 <= rst ? 1'h1 : cas_n_window_a_1;
+	assign dram_n_ras_a_1 =  ~ u213_output_port;
+	assign dram_n_ras_b_1 =  ~ u220_output_port;
+	assign dram_n_cas_0_1 = cas_n_window_a_0 | cas_n_window_b_0 | clk;
+	assign dram_n_cas_0 = dram_n_cas_0_1 & nr_n_cas_0;
+	assign dram_n_cas_1_1 = cas_n_window_b_1 | cas_n_window_c_1 |  ~ clk;
+	assign dram_n_cas_1 = dram_n_cas_1_1 & nr_n_cas_1;
+	always_ff @(negedge clk) u398_output_port <= rst ? 11'h0 : col_addr;
+	assign dram_addr_1 = ((state == `BusIfStates__first) | (state == `BusIfStates__non_dram_first) | (state == `BusIfStates__non_dram_dual_first) | (state == `BusIfStates__dma_first) | (state == `BusIfStates__refresh)) & clk ? row_addr : u398_output_port;
 	always_ff @(negedge clk) data_out_low <= rst ? 8'h0 : data_out[7:0];
 	always_ff @(posedge clk) data_out_high <= rst ? 8'h0 : data_out[15:8];
 	assign dram_data_out = clk ? data_out_high : data_out_low;
@@ -3738,10 +3728,10 @@ module BusIf (
 	always_ff @(negedge clk) data_in_high <= rst ? 8'h0 : dram_data_in;
 	always_ff @(posedge clk) ndram_data_in_high <= rst ? 8'h0 : (state == `BusIfStates__non_dram_dual_wait) ? dram_data_in : ndram_data_in_high;
 	always_ff @(posedge clk) resp_data <= rst ? 16'h0 : ({two_cycle_nram_access ? ndram_data_in_high : data_in_high, data_in_low});
-	always_ff @(posedge clk) u451_output_port <= rst ? 1'h0 : read_active & (arb_port_select == `Ports__mem_port);
-	always_ff @(posedge clk) mem_response_valid <= rst ? 1'h0 : u451_output_port;
-	always_ff @(posedge clk) u456_output_port <= rst ? 1'h0 : read_active & (arb_port_select == `Ports__fetch_port);
-	always_ff @(posedge clk) fetch_response_valid <= rst ? 1'h0 : u456_output_port;
+	always_ff @(posedge clk) u449_output_port <= rst ? 1'h0 : read_active & (arb_port_select == `Ports__mem_port);
+	always_ff @(posedge clk) mem_response_valid <= rst ? 1'h0 : u449_output_port;
+	always_ff @(posedge clk) u454_output_port <= rst ? 1'h0 : read_active & (arb_port_select == `Ports__fetch_port);
+	always_ff @(posedge clk) fetch_response_valid <= rst ? 1'h0 : u454_output_port;
 	assign dma_response_valid = (state == `BusIfStates__dma_wait) &  ~ waiting;
 	assign reg_if_pready = 1'h1;
 	assign reg_if_prdata = {dram_bank_swap, dram_bank_size, refresh_disable, refresh_counter};
@@ -3780,7 +3770,7 @@ module BusIf (
 	);
 
 	assign u34_output_port = refresh_counter - 1'h1 + 9'b0;
-	assign dram_TC = tc;
+	assign dram_tc = tc;
 	assign u118_output_port = req_addr[28:25] - 1'h1 + 5'b0;
 	assign u133_output_port = wait_states - ((state == `BusIfStates__dma_wait) | (state == `BusIfStates__non_dram_dual_wait) | (state == `BusIfStates__non_dram_wait)) + 5'b0;
 	assign u150_output_port = req_valid & req_ext;
@@ -3802,12 +3792,12 @@ module BusIf (
 	assign u170_output_port = 1'h1;
 	assign u171_output_port =  ~ waiting;
 	assign u172_output_port = 1'h1;
-	assign dram_nWE = read_not_write;
+	assign dram_n_we = read_not_write;
 	assign dram_data_out_en = data_out_en;
-	assign dram_nRAS_A = DRAM_nRAS_A;
-	assign dram_nRAS_B = DRAM_nRAS_B;
-	assign dram_nNREN = nNREN;
-	assign dram_nDACK = nDACK;
+	assign dram_n_ras_a = dram_n_ras_a_1;
+	assign dram_n_ras_b = dram_n_ras_b_1;
+	assign dram_n_nren = n_nren;
+	assign dram_n_dack = n_dack;
 	assign dram_addr = dram_addr_1;
 	assign mem_response_data = resp_data;
 endmodule
