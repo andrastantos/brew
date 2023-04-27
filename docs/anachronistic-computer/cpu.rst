@@ -1,7 +1,92 @@
-CPU
-===
+CPU (the story)
+===============
 
-As it turns out, I have a rather interesting little ISA laying around that I've been toying with: the BREW architecture. I will use that, mostly because ... why not? It's a riff on a variable-instruction-length RISC architecture, which straddles the divide that started to emerge around that time in CPU architecture. In that sense it fits right in. It's also a 32-bit ISA with a 16-bit instruction encoding, something that would have been rather more appealing in those memory-constrained days. It highly depends on an MMU, which I don't think I can afford, so something more simplistic, probably a Cray-style base+limit-based protection scheme would need to be used. It also depends highly on memory-mapped I/O, which - as we will see - is good for pin-count reduction.
+For the anachronistic computer, we need a properly anachronistic processor. As it turns out, I just have the design! I have been toying around with an instruction set design lately: the BREW architecture.
+
+What is BREW you might ask? It's my attempt at a RISC-like architecture. I had a few ideas that have been rattling around in my cranium for years, but have always put it off as too crazy a project to endevour on. You see, there are way too many ISAs in the wild already, why should I inflict another one on the world? Plus, it's not exactly trivial to lift an ISA off the ground: one needs an assembler. A linker. A C compiler, runtime libraries, a debugger, a simulator. Ideally other languages, such as C++ as well. This was a daunting list that terrified my. About a year ago, I said, what the hack, why don't I give it a shot? As it turns out, porting GCC (and binutils) to a new target wasn't all that difficult. In a couple of months I had pretty much all of the above accomplished. Except for GDB, the debugger. That I still didn't get around. This experience also allowed me to run some benchmarks (on an instruction-set simulator) and realize that my instruction set sucked in so many ways. I ended up re-writing the ISA three times, following up with all the toolset changes. At the end of the process though, I ended up with an ISA that was better in code-density then RISC-V, better then ARM, almost as good as THUMB.
+
+So, what does this processor look like? It's a 32-bit processor, and as I said, it's RISC-like. There are a few (nowadays) unusual features, so let's get through them!
+
+Instruction size
+~~~~~~~~~~~~~~~~
+
+My ISA violates (at least) one of the main tenants of RISC: the instructions are of a variable length. The base instruction set is 16-bits long, but that doesn't allow for room for (almost any) immediate values. This is a problem for almost all 32-bit ISA designs: if you want to be able to store 32-bit constants right in the instruction stream, you obviously need more than 32-bits per instructions to do so. If you don't, then, well, how do you describe 32-bit constants? You have two options and various RISC implementations do both: you either use multiple instructions to assemble a constant (for instance load the lower 16-bit, then the upper), or put the values somewhere in memory instead in the instruction stream and get them using a load instruction.
+
+I didn't want to do either: multiple instructions seem wasteful (you end up using 64-bits of instruction space at least, provided you instructions are 32-bit long) and using loads is slow; using the pre-fetcher to get consecutive data for the instruction stream is about as efficient as you can get to interface to memory.
+
+Given these considerations, I decided that constants must be part of the instructions and there must be a way to store 32-bit constants right then and there. That however means that some of my instructions are going to be longer than 32 bits, the next logical value being 48 bits. So, I ended up with three instruction lengths:
+
+1. 16-bit instructions for everything not involving immediate constants
+2. 32-bit instructions where a 16-bit immediate is sufficient
+3. 48-bit instructions where a full 32-bit immediate is required
+
+After experimentation, this picture got muddled a bit: I realized that there is good value in encoding really small immediates in 16-bit instructions, at least for certain often used operations.
+
+Registers and their encoding
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The ISA follows the traditional 3-register addressing of almost all modern RISC processors: there is a destination register and (up to) two source registers, each being described by individual fields in the instruction set. There are a total of 15 general-purpose registers.
+
+This should bring up two interesting questions: Why 15 and how can that work?
+
+To describe on of 15 registers, one needs 4 bits. Three such register indices need 12 bits. I have only 16 bits for an instruction, so that should mean I can have only 16 instructions? That's surely insufficient. Indeed it is. But I don't have 16 registers, only 15. That means, that in each of the three register-index fields, I can have a special value (I've used 0xf) to denote an alternate behavior. Originally the idea was that an 0xf in a register index field means that the operand value should come from the immediate field after the instruction, instead of a register (see how variable instruction-length would come to be?) but later this idea got muddled quite a bit.
+
+These '0xf' fields allow for 'escaping' into an alternate instruction decode plane, allowing for more operations. For instance, if the destination register field is set to '0xf', that surely shouldn't mean that the destination is an immediate field after the instruction. That value could be used to decode conditional branches for instance.
+
+In the end, the 16-bit instruction is broken up into four 4-bit fields::
+
+    +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+    |    FIELD_D    |    FIELD_C    |    FIELD_B    |    FIELD_A    |
+    +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+FIELD_E, if exists is the 16- or 32-bit immediate, following these fields.
+
+Normally, FIELD_D denotes the destination register index, while FIELD_B and FIELD_A describes the source operand registers. As I said, things are more complicated than this, bit it gives you the basic idea.
+
+Program counter is not a register
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Many many RISC architectures put the program counter into one of the general purpose register slots. Index 0 could be the PC for instance. I started out that way as well, but soon realized that many instructions just don't make sense on the PC (why would you ever want to XOR the PC with another register, or store the resultant value of a multiply in the PC?). Other instructions mostly make sense only with the PC and not with any other general-purpose register.
+
+The actual processor implementation also needs to treat PC differently from other registers: it is modified by every instruction, you might need a 'copy' of it in the pre-fetch unit. You also want to be able to easily identify branch instructions (anything that can change program order) to implement branch-prediction.
+
+The compiler also treats branches special, it's not natural to treat it as part of the general purpose register set from that perspective either.
+
+Overall, I thought it is just better practice to have dedicated instructions for PC manipulation (a.k.a branches), with the added benefit of an extra general purpose register.
+
+Interrupts
+~~~~~~~~~~
+
+While working on <<<<<<<<<< ADD LINK >>>>>>>>>> the Cray simulator, I came across an interesting implementation idea, one that I haven't seen in any modern processor: these machines didn't have an interrupt vector; they had different execution contexts. While I didn't go as far as the Cray machines did, I decided to have two execution contexts: one that I call the SCHEDULER and the other, the TASK context. The operation is the following:
+
+In SCHEDULER mode, interrupts are *always* disabled. You can't enable them. Period. There is a special instruction, that takes you into TASK mode. This instruction simply swaps out the PC from underneath you and starts execution from the place where $tpc (the TASK mode PC) points to. It also switches the processor to TASK mode of course.
+
+In TASK mode, interrupts are *always* enabled. You can't disable them. Period. Whenever an interrupt occurs, the processor switches back to SCHEDULER mode and continues execution where it left off after the 'enter task mode' instruction. This is where $spc (the SCHEDULER mode PC) left off.
+
+This is very confusing at first, because it appears that interrupts just get the processor to start execution from some rather random place. In practice though, the SCHEDULER mode code is nothing but a ... well ... scheduler loop: it figures out the reason for the interrupt, finds the handler task for it, and enters task mode for it. This could involve switching to a different process (in the case of a timer interrupt in a multi-tasking machine) or entering for instance the keyboard driver in case of a keyboard interrupt. Either way, once the next task to switch to is identified, the 'enter task mode' operation happens again, within the loop. In reality it's a very natural way of writing such code.
+
+Exceptions and SW-generated interrupts (system calls, software break-points, what not) handled the same way: the TASK mode process is simply interrupted and execution is returned to SCHEDULER mode.
+
+The downside of such an arrangement is that all drivers, all OS functions, pretty much anything of import must be implemented as TASKs. This is because interrupts are disabled in SCHEDULER mode, so the absolute minimum should happen there. The problem with this is that there is a double-context-switch that's happening for every system-call: user-task to SCHEDULER; SCHEDULER to OS task. Then, on the way back: OS task to SCHEDULER and SCHEDULER to user-task. The mitigating factor is that quite often a system-call would result in the calling task being de-scheduled and another user task getting execution (because the OS is waiting for the requested I/O operation to complete for instance), so in the end the number of context switches are not that much greater. It is also common practice that only the bare minimum is done in the interrupt handler of a device driver and most operation is delegated to a task, that gets scheduled at a later point in time; again, very similar to what is happening here.
+
+<<<<<<<<< ADD SIMPLE CODE FOR SCHEDULER MODE >>>>>>>>>
+
+There of course needs to be a way to setup a task: there are instructions that can manipulate $tpc.
+
+Privileged instructions
+~~~~~~~~~~~~~~~~~~~~~~~
+
+There are none! Normally, there's quite a few operations that can only be executed in a privileged context. These include manipulating sensitive data, such as memory access permissions, or changing things that could impact the OS-es ability to take control of the system, such as disabling interrupts.
+
+None of this exists in my architecture. Or, to be precise, SCHEDULER mode is assumed to be privileged. SCHEDULER mode should be able to do anything to its hearts content, its TASK mode that should be confined.
+
+We've already dealt with interrupts: since they are always enabled in TASK mode and never enabled in SCHEDULER mode, there's no way to enable or disable them. There are no instructions for them, so there's no need to make them privileged either.
+
+We also discussed the way we set up tasks: loading a new value into $tpc. This operation is something that might first seem to be dangerous, if executed by anybody. But, if you think about it, if you are in TASK mode, $tpc is your PC. So, loading it with a value is just a branch operation. Nothing to see here! If executed in
+
+If you look through
+
+ I will use that, mostly because ... why not? It's a riff on a variable-instruction-length RISC architecture, which straddles the divide that started to emerge around that time in CPU architecture. In that sense it fits right in. It's also a 32-bit ISA with a 16-bit instruction encoding, something that would have been rather more appealing in those memory-constrained days. It highly depends on an MMU, which I don't think I can afford, so something more simplistic, probably a Cray-style base+limit-based protection scheme would need to be used. It also depends highly on memory-mapped I/O, which - as we will see - is good for pin-count reduction.
 
 The ISA is described in isa.txt, but there are changes to be made for this core:
  - No fence or cache invalidation
@@ -248,3 +333,16 @@ So, a 40-pin package would need 750x350um I/O region on each side. The chip woul
 Our little core in 130nm would be totally I/O limited, but in our target node, I/O is a rounding error: the chip is totally core-limited.
 
 https://lnf-wiki.eecs.umich.edu/wiki/Wire_bonding confirms that ~60ux60u bond pads are OK (they claim 75x75, but oh, well).
+
+RAMs
+~~~~
+
+I finally have found a RAM example for the sky130 SDK: it's a 32x1024bit RAM (single-ported, 6T cells).
+
+https://github.com/ShonTaware/SRAM_SKY130#openram-configuration-for-skywater-sky130-pdks
+
+It's size is 0.534mm^2, closes timing at about 80MHz. Back-scaling it to 1.5u, gives us a scaling factor of 133:1.
+
+Taking all of this, gives us 71mm^2 for this 32kbit SRAM or 0.00217mm^2/bit.
+
+What if we wanted to add a 1kByte ICache to the system? That would take 17.78mm^2, just for the SRAM array. In other words, we can expect our die-area to double even with a single kB of ICache. So, no ICache for sure!
