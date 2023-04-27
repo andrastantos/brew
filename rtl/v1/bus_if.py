@@ -364,7 +364,14 @@ class BusIf(GenericModule):
         byte_en = Wire()
         byte_en <<= hold(req_byte_en, enable=req_advance)
         data_out = Wire()
-        data_out <<= Reg(req_data, clock_en=req_advance)
+        data_out <<= Reg(
+            Select(
+                req_byte_en[0],
+                concat(req_data[7:0], req_data[7:0]), # low-byte-en is 0 --> 8-bit access to the high-byte
+                req_data, # low-byte-en is 1 --> either 16-bit access or 8-bit access from the low-byte
+            ),
+            clock_en=req_advance
+        )
 
         #AssertOnClk((input_row_addr == row_addr) | (state == BusIfStates.idle))
 
@@ -514,12 +521,17 @@ class BusIf(GenericModule):
             (state == BusIfStates.middle)
         ))
 
-        data_in_high = Wire()
-        data_in_high <<= NegReg(self.dram.data_in)
         ndram_data_in_high = Reg(self.dram.data_in, clock_en=(state == BusIfStates.non_dram_dual_wait))
+        data_in_high = Select(two_cycle_nram_access, NegReg(self.dram.data_in), ndram_data_in_high)
 
         resp_data = Wire()
-        resp_data <<= Reg(concat(Select(two_cycle_nram_access, data_in_high, ndram_data_in_high), data_in_low))
+        resp_data <<= Reg(Select(
+            byte_en,
+            None, # Invalid
+            concat("8'b0", data_in_low), # 8-bit read from low-byte
+            concat("8'b0", data_in_high), # 8-bit read from high-byte
+            concat(data_in_high, data_in_low) # 16-bit read
+        ))
 
         self.mem_response.valid <<= Reg(Reg(read_active & (arb_port_select == Ports.mem_port)))
         self.fetch_response.valid <<= Reg(Reg(read_active & (arb_port_select == Ports.fetch_port)))

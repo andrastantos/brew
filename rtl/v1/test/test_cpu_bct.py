@@ -719,6 +719,110 @@ def test_branch_bit(top):
     check()
     terminate()
 
+@prog_wrapper
+def test_ldst(top):
+    """
+    Test load-store operations
+    """
+
+    top.set_timeout(6000)
+
+    data_base = 0x80002000
+
+    startup()
+    load_reg("$r3", 0x01020304)
+    load_reg("$r4", 0xfffefdfc)
+    load_reg("$r5", data_base)
+
+    r_eq_i("$r13", 0)
+
+    # Test I loads
+    mem32_I_eq_r(data_base, "$r3")
+    mem32_I_eq_r(data_base+4, "$r4")
+    r_eq_mem32_I("$r0", data_base)
+    check_reg("$r0", 0x01020304)
+    r_eq_mem16_I("$r1", data_base)
+    check_reg("$r1", 0x0304)
+    r_eq_mem8_I("$r2", data_base+3)
+    check_reg("$r2", 0x01)
+    r_eq_smem16_I("$r1", data_base+2)
+    check_reg("$r1", 0x0102)
+    r_eq_smem8_I("$r0", data_base+2)
+    check_reg("$r0", 0x02)
+
+    r_eq_i("$r13", 1)
+
+    r_eq_mem16_I("$r1", data_base+4)
+    check_reg("$r1", 0xfdfc)
+    r_eq_mem8_I("$r2", data_base+4)
+    check_reg("$r2", 0xfc)
+    r_eq_mem8_I("$r2", data_base+5)
+    check_reg("$r2", 0xfd)
+    r_eq_smem16_I("$r1", data_base+4)
+    check_reg("$r1", 0xfffffdfc)
+    r_eq_smem16_I("$r1", data_base+4+2)
+    check_reg("$r1", 0xfffffffe)
+    r_eq_smem8_I("$r0", data_base+4)
+    check_reg("$r0", 0xfffffffc)
+    r_eq_smem8_I("$r0", data_base+5)
+    check_reg("$r0", 0xfffffffd)
+
+    r_eq_i("$r13", 2)
+
+    load_reg("$r10", 0xaabbccdd)
+    load_reg("$r11", 0x11223344)
+
+    mem32_I_eq_r(data_base, "$r3")
+    mem32_I_eq_r(data_base+4, "$r4")
+    mem8_I_eq_r(data_base, "$r10")
+    mem8_I_eq_r(data_base+3, "$r11")
+    r_eq_mem32_I("$r9", data_base)
+    check_reg("$r9", 0x440203dd)
+    mem32_I_eq_r(data_base, "$r3")
+    mem16_I_eq_r(data_base+2, "$r11")
+    r_eq_mem32_I("$r9", data_base)
+    check_reg("$r9", 0x33440304)
+
+    r_eq_i("$r13", 3)
+
+    load_reg("$r0", data_base+4)
+    load_reg("$r1", data_base)
+
+    mem32_I_eq_r(data_base, "$r3")
+    mem32_I_eq_r(data_base+4, "$r4")
+    mem8_r_plus_i_eq_r("$r0", -4, "$r10")
+    mem8_r_plus_i_eq_r("$r0", -1, "$r11")
+    r_eq_mem32_I("$r9", data_base)
+    check_reg("$r9", 0x440203dd)
+    mem32_I_eq_r(data_base, "$r3")
+    mem16_r_plus_i_eq_r("$r1", 2, "$r11")
+    r_eq_mem32_I("$r9", data_base)
+    check_reg("$r9", 0x33440304)
+    mem32_r_plus_i_eq_r("$r0", -4, "$r10")
+    r_eq_mem32_I("$r9", data_base)
+    check_reg("$r9", 0xaabbccdd)
+
+    r_eq_i("$r13", 4)
+
+    mem32_I_eq_r(data_base, "$r3")
+    mem32_I_eq_r(data_base+4, "$r4")
+    mem8_r_eq_r("$r1", "$r10")
+    r_eq_r_plus_i("$r13", "$r1", 3)
+    mem8_r_eq_r("$r13", "$r11")
+    r_eq_mem32_I("$r9", data_base)
+    check_reg("$r9", 0x440203dd)
+    mem32_I_eq_r(data_base, "$r3")
+    r_eq_r_plus_i("$r13", "$r1", 2)
+    mem16_r_eq_r("$r13", "$r11")
+    r_eq_mem32_I("$r9", data_base)
+    check_reg("$r9", 0x33440304)
+    mem32_r_eq_r("$r1", "$r10")
+    r_eq_mem32_I("$r9", data_base)
+    check_reg("$r9", 0xaabbccdd)
+
+    terminate()
+
+
 # TODO: zero-compare branches; compare branches; bit-test branches
 #       stack operations
 #       load-stores
@@ -726,7 +830,7 @@ def test_branch_bit(top):
 if __name__ == "__main__":
     prep_test(top)
     #test_3()
-    test_branch_bit()
+    test_ldst()
 
 
 if "pytest" in sys.modules:

@@ -238,6 +238,7 @@ def r_eq_i_xor_r(   rD, imm, rA ): _prog(_asm.r_eq_i_xor_r(   _r(rD), _i(imm), _
 def r_eq_i_or_r(    rD, imm, rA ): _prog(_asm.r_eq_i_or_r(    _r(rD), _i(imm), _r(rA)))
 def r_eq_i_and_r(   rD, imm, rA ): _prog(_asm.r_eq_i_and_r(   _r(rD), _i(imm), _r(rA)))
 def r_eq_i_plus_r(  rD, imm, rA ): _prog(_asm.r_eq_i_plus_r(  _r(rD), _i(imm), _r(rA)))
+def r_eq_r_plus_i(  rD, rA, imm ): _prog(_asm.r_eq_i_plus_r(  _r(rD), _i(imm), _r(rA)))
 def r_eq_i_minus_r( rD, imm, rA ): _prog(_asm.r_eq_i_minus_r( _r(rD), _i(imm), _r(rA)))
 def r_eq_r_shl_i(   rD, rA , imm): _prog(_asm.r_eq_r_shl_i(   _r(rD), _r(rA), _i(imm)))
 def r_eq_r_shr_i(   rD, rA , imm): _prog(_asm.r_eq_r_shr_i(   _r(rD), _r(rA), _i(imm)))
