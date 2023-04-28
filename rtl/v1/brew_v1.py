@@ -49,15 +49,17 @@ class BrewV1Top(GenericModule):
 
         self.csr_top_level_ofs = 0
         self.csr_cpu_ver_reg    = (self.csr_base << 30) + self.csr_top_level_ofs + 0*4
-        self.csr_mem_base_reg   = (self.csr_base << 30) + self.csr_top_level_ofs + 1*4
-        self.csr_mem_limit_reg  = (self.csr_base << 30) + self.csr_top_level_ofs + 2*4
-        self.csr_ecause_reg     = (self.csr_base << 30) + self.csr_top_level_ofs + 3*4
-        self.csr_eaddr_reg      = (self.csr_base << 30) + self.csr_top_level_ofs + 4*4
-        self.csr_event_sel_reg  = (self.csr_base << 30) + self.csr_top_level_ofs + 5*4
-        self.csr_event_cnt0_reg = (self.csr_base << 30) + self.csr_top_level_ofs + 6*4
-        self.csr_event_cnt1_reg = (self.csr_base << 30) + self.csr_top_level_ofs + 7*4
-        self.csr_event_cnt2_reg = (self.csr_base << 30) + self.csr_top_level_ofs + 8*4
-        self.csr_event_cnt3_reg = (self.csr_base << 30) + self.csr_top_level_ofs + 9*4
+        self.csr_pmem_base_reg  = (self.csr_base << 30) + self.csr_top_level_ofs + 1*4
+        self.csr_pmem_limit_reg = (self.csr_base << 30) + self.csr_top_level_ofs + 2*4
+        self.csr_dmem_base_reg  = (self.csr_base << 30) + self.csr_top_level_ofs + 3*4
+        self.csr_dmem_limit_reg = (self.csr_base << 30) + self.csr_top_level_ofs + 4*4
+        self.csr_ecause_reg     = (self.csr_base << 30) + self.csr_top_level_ofs + 5*4
+        self.csr_eaddr_reg      = (self.csr_base << 30) + self.csr_top_level_ofs + 6*4
+        self.csr_event_sel_reg  = (self.csr_base << 30) + self.csr_top_level_ofs + 7*4
+        self.csr_event_cnt0_reg = (self.csr_base << 30) + self.csr_top_level_ofs + 8*4
+        self.csr_event_cnt1_reg = (self.csr_base << 30) + self.csr_top_level_ofs + 9*4
+        self.csr_event_cnt2_reg = (self.csr_base << 30) + self.csr_top_level_ofs + 10*4
+        self.csr_event_cnt3_reg = (self.csr_base << 30) + self.csr_top_level_ofs + 11*4
 
     def body(self):
         bus_if = BusIf(nram_base=self.nram_base)
@@ -65,10 +67,12 @@ class BrewV1Top(GenericModule):
         dma = CpuDma()
 
         # Things that need CSR access
-        ecause    = Wire(Unsigned(12))
-        eaddr     = Wire(BrewAddr)
-        mem_base  = Wire(BrewMemBase)
-        mem_limit = Wire(BrewMemBase)
+        ecause     = Wire(Unsigned(12))
+        eaddr      = Wire(BrewAddr)
+        pmem_base  = Wire(BrewMemBase)
+        pmem_limit = Wire(BrewMemBase)
+        dmem_base  = Wire(BrewMemBase)
+        dmem_limit = Wire(BrewMemBase)
 
         fetch_to_bus = Wire(BusIfRequestIf)
         bus_to_fetch = Wire(BusIfResponseIf)
@@ -112,8 +116,10 @@ class BrewV1Top(GenericModule):
 
         ecause <<= pipeline.ecause
         eaddr  <<= pipeline.eaddr
-        pipeline.mem_base <<= mem_base
-        pipeline.mem_limit <<= mem_limit
+        pipeline.pmem_base  <<= pmem_base
+        pipeline.pmem_limit <<= pmem_limit
+        pipeline.dmem_base  <<= dmem_base
+        pipeline.dmem_limit <<= dmem_limit
 
         pipeline.interrupt <<= ~self.n_int
 
@@ -207,23 +213,29 @@ class BrewV1Top(GenericModule):
             csr_addr,
             ## CSR0: version and capabilities
             0x00000000,
-            ## CSR1: mem_base
-            concat(mem_base, "10'b0"),
-            ## CSR2: mem_limit
-            concat(mem_limit, "10'b0"),
-            ## CSR3: ecause
+            ## CSR1: pmem_base
+            concat(pmem_base, "10'b0"),
+            ## CSR2: pmem_limit
+            concat(pmem_limit, "10'b0"),
+            ## CSR3: dmem_base
+            concat(dmem_base, "10'b0"),
+            ## CSR4: dmem_limit
+            concat(dmem_limit, "10'b0"),
+            ## CSR5: ecause
             ecause,
-            ## CSR4: eaddr
+            ## CSR6: eaddr
             eaddr,
-            ## CSR5: event select
+            ## CSR7: event select
             concat(*reversed(event_selects)),
-            ## CSR6...9: event counters
+            ## CSR8...11: event counters
             *event_cnts
         ))
-        mem_base  <<= Reg(csr_if.pwdata[31:10], clock_en=(csr_addr == 1) & csr_write_strobe)
-        mem_limit <<= Reg(csr_if.pwdata[31:10], clock_en=(csr_addr == 2) & csr_write_strobe)
+        pmem_base  <<= Reg(csr_if.pwdata[31:10], clock_en=(csr_addr == 1) & csr_write_strobe)
+        pmem_limit <<= Reg(csr_if.pwdata[31:10], clock_en=(csr_addr == 2) & csr_write_strobe)
+        dmem_base  <<= Reg(csr_if.pwdata[31:10], clock_en=(csr_addr == 3) & csr_write_strobe)
+        dmem_limit <<= Reg(csr_if.pwdata[31:10], clock_en=(csr_addr == 4) & csr_write_strobe)
         for idx, event_select in enumerate(event_selects):
-            event_select <<= Reg(csr_if.pwdata[idx*4+3:idx*4], clock_en=(csr_addr == 4) & csr_write_strobe)
+            event_select <<= Reg(csr_if.pwdata[idx*4+3:idx*4], clock_en=(csr_addr == 7) & csr_write_strobe)
 def gen():
     def top():
         return BrewV1Top(csr_base=0x1, nram_base=0x0, has_multiply=True, has_shift=True, page_bits=7)

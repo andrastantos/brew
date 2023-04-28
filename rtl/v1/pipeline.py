@@ -51,8 +51,10 @@ class Pipeline(GenericModule):
     # Things that need CSR access
     ecause    = Output(Unsigned(12))
     eaddr     = Output(BrewAddr)
-    mem_base  = Input(BrewMemBase)
-    mem_limit = Input(BrewMemBase)
+    pmem_base  = Input(BrewMemBase)
+    pmem_limit = Input(BrewMemBase)
+    dmem_base  = Input(BrewMemBase)
+    dmem_limit = Input(BrewMemBase)
 
     interrupt         = Input(logic)
 
@@ -101,8 +103,8 @@ class Pipeline(GenericModule):
 
         fetch_to_decode <<= fetch_stage.decode
 
-        fetch_stage.mem_base <<= self.mem_base
-        fetch_stage.mem_limit <<= self.mem_limit
+        fetch_stage.mem_base <<= self.pmem_base
+        fetch_stage.mem_limit <<= self.pmem_limit
         fetch_stage.spc <<= spc
         fetch_stage.tpc <<= tpc
         fetch_stage.task_mode <<= task_mode
@@ -136,8 +138,8 @@ class Pipeline(GenericModule):
 
         self.csr_if <<= execute_stage.csr_if
 
-        execute_stage.mem_base      <<= self.mem_base
-        execute_stage.mem_limit     <<= self.mem_limit
+        execute_stage.mem_base      <<= self.dmem_base
+        execute_stage.mem_limit     <<= self.dmem_limit
         execute_stage.spc_in        <<= spc
         execute_stage.tpc_in        <<= tpc
         execute_stage.task_mode_in  <<= task_mode

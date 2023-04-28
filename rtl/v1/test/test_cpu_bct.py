@@ -216,9 +216,11 @@ def test_5(top):
     r_eq_r_plus_r("$r14","$r7","$r7")
 
     r_eq_I("$r0",0xffffffff)
-    mem32_I_eq_r(top.cpu.csr_mem_limit_reg,"$r0")
+    mem32_I_eq_r(top.cpu.csr_pmem_limit_reg,"$r0")
+    mem32_I_eq_r(top.cpu.csr_dmem_limit_reg,"$r0")
     r_eq_t("$r0",0)
-    mem32_I_eq_r(top.cpu.csr_mem_base_reg,"$r0")
+    mem32_I_eq_r(top.cpu.csr_pmem_base_reg,"$r0")
+    mem32_I_eq_r(top.cpu.csr_dmem_base_reg,"$r0")
     tpc_eq_I("_task_start")
 
     # Scheduler mode loop: decrementing $r5
