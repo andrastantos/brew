@@ -657,7 +657,7 @@ def test_branch_bit(top):
 
     top.set_timeout(6000)
 
-    startup(init_regs=False)
+    startup(call_init_regs=False)
     load_reg("$r0",  0x00000001)
     load_reg("$r1",  0x00000002)
     load_reg("$r2",  0x00000004)
@@ -769,6 +769,97 @@ def test_ldst(top):
 
     r_eq_i("$r13", 2)
 
+    # Test r loads
+    init_regs()
+    load_reg("$r3", 0x01020304)
+    load_reg("$r4", 0xfffefdfc)
+    load_reg("$r5", data_base)
+    load_reg("$r6", data_base+4)
+
+    mem32_I_eq_r(data_base, "$r3")
+    mem32_I_eq_r(data_base+4, "$r4")
+    r_eq_mem32_r("$r0", "$r5")
+    check_reg("$r0", 0x01020304)
+    r_eq_mem16_r("$r1", "$r5")
+    check_reg("$r1", 0x0304)
+    r_eq_r_plus_t("$r10", "$r5", 3)
+    r_eq_mem8_r("$r2", "$r10")
+    check_reg("$r2", 0x01)
+    r_eq_r_plus_t("$r10", "$r5", 2)
+    r_eq_smem16_r("$r1", "$r10")
+    check_reg("$r1", 0x0102)
+    r_eq_smem8_r("$r0", "$r10")
+    check_reg("$r0", 0x02)
+
+    r_eq_i("$r13", 3)
+
+    r_eq_mem16_r("$r1", "$r6")
+    check_reg("$r1", 0xfdfc)
+    r_eq_mem8_r("$r2", "$r6")
+    check_reg("$r2", 0xfc)
+    r_eq_r_plus_t("$r10", "$r6", 1)
+    r_eq_mem8_r("$r2", "$r10")
+    check_reg("$r2", 0xfd)
+    r_eq_smem16_r("$r1", "$r6")
+    check_reg("$r1", 0xfffffdfc)
+    r_eq_r_plus_t("$r10", "$r6", 2)
+    r_eq_smem16_r("$r1", "$r10")
+    check_reg("$r1", 0xfffffffe)
+    r_eq_smem8_r("$r0", "$r6")
+    check_reg("$r0", 0xfffffffc)
+    r_eq_r_plus_t("$r10", "$r6", 1)
+    r_eq_smem8_r("$r0", "$r10")
+    check_reg("$r0", 0xfffffffd)
+
+    r_eq_i("$r13", 4)
+
+
+
+
+    init_regs()
+    load_reg("$r3", 0x01020304)
+    load_reg("$r4", 0xfffefdfc)
+    load_reg("$r5", data_base)
+
+    r_eq_i("$r13", 5)
+
+    # Test r+i loads
+    mem32_I_eq_r(data_base, "$r3")
+    mem32_I_eq_r(data_base+4, "$r4")
+    load_reg("$r5", data_base)
+    load_reg("$r6", data_base+4)
+    r_eq_mem32_r_plus_i("$r0", "$r5", 0)
+    check_reg("$r0", 0x01020304)
+    r_eq_mem16_r_plus_i("$r1", "$r5", 0)
+    check_reg("$r1", 0x0304)
+    r_eq_mem8_r_plus_i("$r2", "$r5", 3)
+    check_reg("$r2", 0x01)
+    r_eq_smem16_r_plus_i("$r1", "$r5", 2)
+    check_reg("$r1", 0x0102)
+    r_eq_smem8_r_plus_i("$r0", "$r5", 2)
+    check_reg("$r0", 0x02)
+
+    r_eq_i("$r13", 6)
+
+    r_eq_mem16_r_plus_i("$r1", "$r5", 4)
+    check_reg("$r1", 0xfdfc)
+    r_eq_mem8_r_plus_i("$r2", "$r5", 4)
+    check_reg("$r2", 0xfc)
+    r_eq_mem8_r_plus_i("$r2", "$r5", 5)
+    check_reg("$r2", 0xfd)
+    r_eq_smem16_r_plus_i("$r1", "$r6", 0)
+    check_reg("$r1", 0xfffffdfc)
+    r_eq_smem16_r_plus_i("$r1", "$r6", 2)
+    check_reg("$r1", 0xfffffffe)
+    r_eq_smem8_r_plus_i("$r0", "$r6", 0)
+    check_reg("$r0", 0xfffffffc)
+    r_eq_smem8_r_plus_i("$r0", "$r6", 1)
+    check_reg("$r0", 0xfffffffd)
+
+    r_eq_i("$r13", 7)
+
+    # Test I stores
+
     load_reg("$r10", 0xaabbccdd)
     load_reg("$r11", 0x11223344)
 
@@ -783,7 +874,9 @@ def test_ldst(top):
     r_eq_mem32_I("$r9", data_base)
     check_reg("$r9", 0x33440304)
 
-    r_eq_i("$r13", 3)
+    r_eq_i("$r13", 8)
+
+    # Test r+i stores
 
     load_reg("$r0", data_base+4)
     load_reg("$r1", data_base)
@@ -802,7 +895,9 @@ def test_ldst(top):
     r_eq_mem32_I("$r9", data_base)
     check_reg("$r9", 0xaabbccdd)
 
-    r_eq_i("$r13", 4)
+    r_eq_i("$r13", 9)
+
+    # Test r stores
 
     mem32_I_eq_r(data_base, "$r3")
     mem32_I_eq_r(data_base+4, "$r4")

@@ -170,14 +170,15 @@ class RegFile(Module):
         So #1 it is.
         '''
         rsv_registered = Wire(logic)
-        rsv_registered <<= Reg(Select(
+        wait_for_rsv_raw = Wire(logic)
+        rsv_registered <<= ~req_advance & Reg(Select(
             rsv_set_valid,
             Select(
                 req_advance,
                 rsv_registered,
                 0
             ),
-            1
+            ~wait_for_rsv_raw # We might have an actual legitimate reason to wait for a write in case of a write-after-write hazard.
         ))
 
 
@@ -198,7 +199,8 @@ class RegFile(Module):
 
         wait_for_read1 = TIMING_CLOSURE_REG(wait(read1_valid, read1_addr))
         wait_for_read2 = TIMING_CLOSURE_REG(wait(read2_valid, read2_addr))
-        wait_for_rsv   = TIMING_CLOSURE_REG(wait(rsv_valid,   rsv_addr) & ~rsv_registered)
+        wait_for_rsv_raw <<= wait(rsv_valid,   rsv_addr)
+        wait_for_rsv   = TIMING_CLOSURE_REG(wait_for_rsv_raw & ~rsv_registered)
         wait_for_some = wait_for_read1 | wait_for_read2 | wait_for_rsv
         wait_for_write = Wire(logic)
         #wait_for_write <<= Select(

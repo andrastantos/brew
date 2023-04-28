@@ -74,7 +74,15 @@ def pc_rel(location):
 
 r = [None]*15
 
-def startup(init_regs = True):
+def init_regs():
+    for i in range(15):
+        if i <= 7:
+            r_eq_t(f"$r{i}",i)
+        else:
+            r_eq_r_plus_t(f"$r{i}",f"$r{i-7}",7)
+        r[i] = i
+
+def startup(call_init_regs = True):
     """
     Setting up initial segments, jump to DRAM and load all registers
     """
@@ -89,13 +97,7 @@ def startup(init_regs = True):
     pc_eq_I("_start")
 
     set_active_segment("code_dram")
-    if init_regs:
-        for i in range(15):
-            if i <= 7:
-                r_eq_t(f"$r{i}",i)
-            else:
-                r_eq_r_plus_t(f"$r{i}",f"$r{i-7}",7)
-            r[i] = i
+    if call_init_regs: init_regs()
 
 def check(start=0, stop=14):
     """
