@@ -25,13 +25,13 @@ After experimentation, this picture got muddled a bit: I realized that there is 
 Registers and their encoding
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The ISA follows the traditional 3-register addressing of almost all modern RISC processors: there is a destination register and (up to) two source registers, each being described by individual fields in the instruction set. There are a total of 15 general-purpose registers.
+The ISA follows the traditional 3-register addressing of almost all modern RISC processors: there is a destination register and (up to) two source registers, each being described by individual fields in the instruction set. There are a total of 15 general-purpose registers, $r0 through $r14. So, an addition can be described as: `$r3 <- $r10 + $r12` for instance (yes, the assembly is algebraic, you don't have to learn a bunch of cryptic mnemonics).
 
-This should bring up two interesting questions: Why 15 and how can that work?
+You probably have two questions at this point: Why 15 and how can this ever work?
 
-To describe on of 15 registers, one needs 4 bits. Three such register indices need 12 bits. I have only 16 bits for an instruction, so that should mean I can have only 16 instructions? That's surely insufficient. Indeed it is. But I don't have 16 registers, only 15. That means, that in each of the three register-index fields, I can have a special value (I've used 0xf) to denote an alternate behavior. Originally the idea was that an 0xf in a register index field means that the operand value should come from the immediate field after the instruction, instead of a register (see how variable instruction-length would come to be?) but later this idea got muddled quite a bit.
+To describe one of 15 registers, one needs 4 bits. Three such register indices need 12 bits. I have only 16 bits for an instruction, so that should mean I can have only 16 instructions? That's surely insufficient. Indeed it is. But I don't have 16 registers, only 15. That means, that in each of the three register-index fields, I can have a special value (I've used 0xf) to denote an alternate behavior. Originally the idea was that an 0xf in a register index field means that the operand value should come from the immediate field after the instruction, instead of a register (see how variable instruction-length would come to be?) but later this idea got muddled quite a bit.
 
-These '0xf' fields allow for 'escaping' into an alternate instruction decode plane, allowing for more operations. For instance, if the destination register field is set to '0xf', that surely shouldn't mean that the destination is an immediate field after the instruction. That value could be used to decode conditional branches for instance.
+One way to look at this is that these '0xf' fields 'escape' into an alternate instruction decode plane, allowing for more operations. For instance, if the destination register field is set to '0xf', that surely shouldn't mean that the destination is an immediate field after the instruction. That value could be used to decode conditional branches for instance.
 
 In the end, the 16-bit instruction is broken up into four 4-bit fields::
 
@@ -46,37 +46,46 @@ Normally, FIELD_D denotes the destination register index, while FIELD_B and FIEL
 Program counter is not a register
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Many many RISC architectures put the program counter into one of the general purpose register slots. Index 0 could be the PC for instance. I started out that way as well, but soon realized that many instructions just don't make sense on the PC (why would you ever want to XOR the PC with another register, or store the resultant value of a multiply in the PC?). Other instructions mostly make sense only with the PC and not with any other general-purpose register.
+Many many RISC architectures put the program counter into one of the general purpose register slots. Index 0 is a common choice. I started out that way as well, but soon realized that many instructions just don't make sense on the PC (why would you ever want to XOR the PC with another register, or store the resultant value of a multiply in the PC?). Other instructions mostly make sense only with the PC and not with any other general-purpose register.
 
-The actual processor implementation also needs to treat PC differently from other registers: it is modified by every instruction, you might need a 'copy' of it in the pre-fetch unit. You also want to be able to easily identify branch instructions (anything that can change program order) to implement branch-prediction.
+The actual processor implementation also needs to treat PC differently from other registers: it is modified by every instruction, you might need a 'copy' of it in the pre-fetch unit; you have to be careful with it when it comes to exceptions, etc. You also want to be able to easily identify branch instructions (anything that can change program order) if you ever want branch-prediction.
 
-The compiler also treats branches special, it's not natural to treat it as part of the general purpose register set from that perspective either.
+The compiler treats PC separately too; control flow is really different from data-flow, it's better not mixing the two.
 
 Overall, I thought it is just better practice to have dedicated instructions for PC manipulation (a.k.a branches), with the added benefit of an extra general purpose register.
 
 Interrupts
 ~~~~~~~~~~
 
-While working on <<<<<<<<<< ADD LINK >>>>>>>>>> the Cray simulator, I came across an interesting implementation idea, one that I haven't seen in any modern processor: these machines didn't have an interrupt vector; they had different execution contexts. While I didn't go as far as the Cray machines did, I decided to have two execution contexts: one that I call the SCHEDULER and the other, the TASK context. The operation is the following:
+While working on <<<<<<<<<< ADD LINK >>>>>>>>>> the Cray simulator, I came across an interesting implementation idea, one that I haven't seen in any modern processor: these machines didn't have an interrupt vector; they had different execution contexts. Crays had a way to save and load (almost) all registers when an interrupt occurred, changing the execution context automatically. I didn't go as far as these supercomputers did. I opted for just maintaining two PCs for two contexts: $spc for a context I call the SCHEDULER and another ($tpc) for the TASK context. PC (or $pc) is just a reference to one or the other, depending on the execution context. The operation is the following:
 
-In SCHEDULER mode, interrupts are *always* disabled. You can't enable them. Period. There is a special instruction, that takes you into TASK mode. This instruction simply swaps out the PC from underneath you and starts execution from the place where $tpc (the TASK mode PC) points to. It also switches the processor to TASK mode of course.
+In SCHEDULER mode, interrupts are *always* disabled. You can't enable them. Period. There is a special instruction, that takes you into TASK mode (stm). This instruction simply sets the execution context to TASK mode, so execution continues from the current $tpc.
 
-In TASK mode, interrupts are *always* enabled. You can't disable them. Period. Whenever an interrupt occurs, the processor switches back to SCHEDULER mode and continues execution where it left off after the 'enter task mode' instruction. This is where $spc (the SCHEDULER mode PC) left off.
+In TASK mode, interrupts are *always* enabled. You can't disable them. Period. Whenever an interrupt occurs, the processor switches back to SCHEDULER mode and continues from wherever $spc points to.
 
-This is very confusing at first, because it appears that interrupts just get the processor to start execution from some rather random place. In practice though, the SCHEDULER mode code is nothing but a ... well ... scheduler loop: it figures out the reason for the interrupt, finds the handler task for it, and enters task mode for it. This could involve switching to a different process (in the case of a timer interrupt in a multi-tasking machine) or entering for instance the keyboard driver in case of a keyboard interrupt. Either way, once the next task to switch to is identified, the 'enter task mode' operation happens again, within the loop. In reality it's a very natural way of writing such code.
+This is very confusing at first, because it appears that interrupts just get the processor to start execution from a seemingly random place. To understand what's going you have to think about how we entered TASK mode to begin with. The only way to enter TASK mode is to execute the `stm` instruction. Where does $spc point to when TASK mode execution starts? After this instruction. So, when the processor returns to SCHEDULER mode, it continues execution *after* the `stm` instruction. Pretty neat: `stm` works almost as a procedure call and TASK mode 'returns', whenever there's an event needing the attention of the SCHEDULER.
+
+In practice, the SCHEDULER mode code is nothing but a ... well ... scheduler loop: it figures out the reason for the interrupt, finds the handler task for it, and enters TASK mode to 'call' then handler. This could involve switching to a different process (in the case of a timer interrupt in a multi-tasking machine) or entering for instance the keyboard driver in case of a keyboard interrupt. It's a very natural way of writing such code.
 
 Exceptions and SW-generated interrupts (system calls, software break-points, what not) handled the same way: the TASK mode process is simply interrupted and execution is returned to SCHEDULER mode.
 
-The downside of such an arrangement is that all drivers, all OS functions, pretty much anything of import must be implemented as TASKs. This is because interrupts are disabled in SCHEDULER mode, so the absolute minimum should happen there. The problem with this is that there is a double-context-switch that's happening for every system-call: user-task to SCHEDULER; SCHEDULER to OS task. Then, on the way back: OS task to SCHEDULER and SCHEDULER to user-task. The mitigating factor is that quite often a system-call would result in the calling task being de-scheduled and another user task getting execution (because the OS is waiting for the requested I/O operation to complete for instance), so in the end the number of context switches are not that much greater. It is also common practice that only the bare minimum is done in the interrupt handler of a device driver and most operation is delegated to a task, that gets scheduled at a later point in time; again, very similar to what is happening here.
-
 <<<<<<<<< ADD SIMPLE CODE FOR SCHEDULER MODE >>>>>>>>>
 
-There of course needs to be a way to setup a task: there are instructions that can manipulate $tpc.
+There of course needs to be a way to setup a task: there are instructions that can manipulate $tpc directly (as opposed to branch operations with work on $pc, which could be an alias to either $tpc or $spc).
 
 Privileged instructions
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-There are none! Normally, there's quite a few operations that can only be executed in a privileged context. These include manipulating sensitive data, such as memory access permissions, or changing things that could impact the OS-es ability to take control of the system, such as disabling interrupts.
+There are none! Normally, there are quite a few operations that can only be executed in a privileged context. These include manipulating sensitive data, such as memory access permissions, or changing things that could impact the OS-es ability to take control of the system, such as disabling interrupts.
+
+In the BREW architecture SCHEDULER mode is assumed to have all the rights in the world: it can do anything. It's TASK mode that is limited, in particular, it's various processes in TASK mode that should have controlled ability to influence each other or the SCHEDULER mode process.
+
+In particular, it would be bad if there was any way to change $spc from TASK mode or the $tpc of another process. If you think about it a little though, you will realize that it is impossible: you can only manipulate either $tpc or $pc. If you happen to be in SCHEDULER mode,
+
+
+
+
+
 
 None of this exists in my architecture. Or, to be precise, SCHEDULER mode is assumed to be privileged. SCHEDULER mode should be able to do anything to its hearts content, its TASK mode that should be confined.
 

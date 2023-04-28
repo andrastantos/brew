@@ -71,6 +71,19 @@ There was the `HD63463 <https://datasheetspdf.com/pdf-file/1285972/HitachiSemico
 
 Overall, surveying the landscape, even today - let alone back in the day - I would have come to the conclusion that SCSI is the way to, and most likely would have gone the same route as Apple did: the 5380 or one of it's many variants.
 
+As far as price is concerned, I have bad news: hard drives were *very* expensive in those days. Here's a Byte magazine:
+
+https://ia801609.us.archive.org/16/items/byte-magazine-1984-11/1984_11_BYTE_09-12_New_Chips.pdf
+
+It lists a 10MB hard drive (MFM, with interface card) for $800, a 20MB one for $1100 and a 40MB one for $2300.
+
+Memory price: 64k DRAM 'kits' (I'm guessing 9 chips) were sold for $43.
+
+An original PC was ~$2000 (256kByte, two 360k FDDs)
+
+A Hercules adapter was $335, a CGA $200, mono monitors were about $100-$150, color ones around $450.
+
+
 Networking
 ----------
 
