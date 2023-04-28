@@ -1,15 +1,15 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Fri Apr 28 03:41:18 2023
+[*] Fri Apr 28 23:26:49 2023
 [*]
 [dumpfile] "/home/tantos/brew/rtl/v1/test/brew_v1_test_ldst.vcd"
-[dumpfile_mtime] "Fri Apr 28 03:36:16 2023"
-[dumpfile_size] 9044550
+[dumpfile_mtime] "Fri Apr 28 23:25:36 2023"
+[dumpfile_size] 9805657
 [savefile] "/home/tantos/brew/rtl/v1/test/brew_v1_test_ldst.gtkw"
-[timestart] 126101
+[timestart] 103619
 [size] 1920 990
 [pos] -1 -1
-*-9.880470 130156 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-9.013175 105010 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.cpu.
 [treeopen] top.cpu.pipeline.
@@ -17,6 +17,8 @@
 [signals_width] 429
 [sst_expanded] 1
 [sst_vpaned_height] 300
+@28
+top.cpu.pipeline.execute_stage.multi_cycle_exec_lockout
 @800200
 -EXEC_IN
 @28
@@ -43,6 +45,32 @@ top.cpu.pipeline.execute_stage.input_port_result_reg_addr_valid
 top.cpu.pipeline.execute_stage.input_port_shifter_op
 @1000200
 -EXEC_IN
+@800200
+-EXEC_OUT
+@22
+top.cpu.pipeline.execute_stage.output_port_addr[3:0]
+@28
+top.cpu.pipeline.execute_stage.output_port_data_en
+@22
+top.cpu.pipeline.execute_stage.output_port_data_h[15:0]
+top.cpu.pipeline.execute_stage.output_port_data_l[15:0]
+@28
+top.cpu.pipeline.execute_stage.output_port_do_bse
+top.cpu.pipeline.execute_stage.output_port_do_bze
+top.cpu.pipeline.execute_stage.output_port_do_wse
+top.cpu.pipeline.execute_stage.output_port_do_wze
+top.cpu.pipeline.execute_stage.output_port_valid
+@1000200
+-EXEC_OUT
+@28
+top.cpu.pipeline.execute_stage.s2_mem_output_valid
+@22
+top.cpu.pipeline.execute_stage.s2_mem_output_data_h[15:0]
+top.cpu.pipeline.execute_stage.s2_mem_output_data_l[15:0]
+@29
+top.cpu.pipeline.execute_stage.s1_exec_unit
+@28
+top.cpu.pipeline.execute_stage.s2_exec_unit
 @22
 top.cpu.pipeline.reg_file.write_addr[3:0]
 top.cpu.pipeline.reg_file.write_data[31:0]
@@ -52,15 +80,34 @@ top.cpu.pipeline.reg_file.write_valid
 top.cpu.pipeline.reg_file.wait_for_read1
 top.cpu.pipeline.reg_file.wait_for_read2
 top.cpu.pipeline.reg_file.wait_for_rsv
+@c00028
 top.cpu.pipeline.reg_file.rsv_board[14:0]
+@28
+(0)top.cpu.pipeline.reg_file.rsv_board[14:0]
+(1)top.cpu.pipeline.reg_file.rsv_board[14:0]
+(2)top.cpu.pipeline.reg_file.rsv_board[14:0]
+(3)top.cpu.pipeline.reg_file.rsv_board[14:0]
+(4)top.cpu.pipeline.reg_file.rsv_board[14:0]
+(5)top.cpu.pipeline.reg_file.rsv_board[14:0]
+(6)top.cpu.pipeline.reg_file.rsv_board[14:0]
+(7)top.cpu.pipeline.reg_file.rsv_board[14:0]
+(8)top.cpu.pipeline.reg_file.rsv_board[14:0]
+(9)top.cpu.pipeline.reg_file.rsv_board[14:0]
+(10)top.cpu.pipeline.reg_file.rsv_board[14:0]
+(11)top.cpu.pipeline.reg_file.rsv_board[14:0]
+(12)top.cpu.pipeline.reg_file.rsv_board[14:0]
+(13)top.cpu.pipeline.reg_file.rsv_board[14:0]
+(14)top.cpu.pipeline.reg_file.rsv_board[14:0]
+@1401200
+-group_end
+@28
 top.cpu.pipeline.reg_file.rsv_clr_valid
 top.cpu.pipeline.reg_file.rsv_set_valid
 top.cpu.pipeline.reg_file.rsv_valid
 @22
 top.cpu.pipeline.reg_file.rsv_addr[3:0]
-@29
-top.cpu.pipeline.reg_file.rsv_registered
 @28
+top.cpu.pipeline.reg_file.rsv_registered
 top.cpu.pipeline.reg_file.req_advance
 top.cpu.pipeline.reg_file.wait_for_rsv_raw
 top.cpu.pipeline.reg_file.outstanding_req

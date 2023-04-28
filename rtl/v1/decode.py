@@ -95,7 +95,8 @@ class DecodeStage(GenericModule):
         field_c_is_f = field_c == 0xf
         field_d_is_f = field_d == 0xf
 
-        tiny_ofs = concat(self.fetch.inst_0[7:1], "2'b0")
+        tiny_ofs = Wire(Unsigned(32))
+        tiny_ofs <<= concat(*(self.fetch.inst_0[7], )*23, self.fetch.inst_0[7:1], "2'b0")
         tiny_field_a = self.fetch.inst_0[0]
 
         field_a_plus_one = Wire()

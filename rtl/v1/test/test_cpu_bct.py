@@ -917,6 +917,29 @@ def test_ldst(top):
     r_eq_mem32_I("$r9", data_base)
     check_reg("$r9", 0xaabbccdd)
 
+    # Test stack ops
+
+    r_eq_i("$r13", 10)
+
+    load_reg("$r10", 0x01234567)
+    load_reg("$r11", 0x89abcdef)
+    load_reg("$r0", data_base)
+    load_reg("$r1", data_base+4)
+
+    mem32_r_plus_t_eq_r("$r0", 0, "$r2")
+    mem32_r_plus_t_eq_r("$r1", 0, "$r2")
+    mem32_r_plus_t_eq_r("$r0", 4, "$r11")
+    mem32_r_plus_t_eq_r("$r1", -4, "$r10")
+    r_eq_mem32_r_plus_t("$r5", "$r0", 4)
+    r_eq_mem32_r_plus_t("$r6", "$r1", -4)
+    r_eq_mem32_r_plus_t("$r7", "$r0", 0)
+    r_eq_mem32_r_plus_t("$r8", "$r1", 0)
+
+    check_reg("$r5", 0x89abcdef)
+    check_reg("$r6", 0x01234567)
+    check_reg("$r7", 0x01234567)
+    check_reg("$r8", 0x89abcdef)
+
     terminate()
 
 

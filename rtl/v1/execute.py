@@ -556,6 +556,7 @@ class ExecuteStage(GenericModule):
 
         stage_2_valid = Wire(logic)
         s2_exec_unit = Wire()
+        s2_ldst_op = Wire()
 
         # NOTE: The use of s1_exec_unit here is not exactly nice: we depend on it being static independent of stage_2_ready.
         # It's correct, but it's not nice.
@@ -569,7 +570,7 @@ class ExecuteStage(GenericModule):
         mem_input.valid <<= stage_1_valid & ~block_mem & (s1_exec_unit == op_class.ld_st)
         stage_2_ready <<= Select((s1_exec_unit == op_class.ld_st) & ~block_mem, stage_2_fsm.input_ready,  mem_input.ready)
         stage_2_valid <<= Select((s2_exec_unit == op_class.ld_st) & ~block_mem, stage_2_fsm.output_valid, s2_mem_output.valid) & ~s2_was_branch
-        stage_2_fsm.output_ready <<= Select((s1_exec_unit == op_class.ld_st) & ~block_mem, 1, s2_mem_output.valid)
+        stage_2_fsm.output_ready <<= Select((s2_exec_unit == op_class.ld_st) & (s2_ldst_op == ldst_ops.load) & ~block_mem, 1, s2_mem_output.valid)
 
         stage_2_reg_en = Wire(logic)
         stage_2_reg_en <<= stage_1_valid & stage_2_ready & ~Reg(self.do_branch)
@@ -647,6 +648,7 @@ class ExecuteStage(GenericModule):
         self.output_port.valid <<= stage_2_valid & s2_result_reg_addr_valid & (Reg(stage_2_reg_en) | s2_mem_output.valid)
 
         s2_exec_unit <<= Reg(s1_exec_unit, clock_en = stage_2_reg_en)
+        s2_ldst_op <<= Reg(s1_ldst_op, clock_en = stage_2_reg_en)
 
         self.output_port.data_l <<= Select(s2_exec_unit == op_class.ld_st, Reg(result[15: 0], clock_en = stage_2_reg_en), s2_mem_output.data_l)
         self.output_port.data_h <<= Select(s2_exec_unit == op_class.ld_st, Reg(result[31:16], clock_en = stage_2_reg_en), s2_mem_output.data_h)
