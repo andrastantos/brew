@@ -1,0 +1,80 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Tue May  2 00:29:02 2023
+[*]
+[dumpfile] "/home/tantos/brew/rtl/v1/fpga_system.vcd"
+[dumpfile_mtime] "Tue May  2 00:25:27 2023"
+[dumpfile_size] 170494
+[savefile] "/home/tantos/brew/rtl/v1/fpga_system.gtkw"
+[timestart] 0
+[size] 1920 990
+[pos] -1 -1
+*-9.836171 8269 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.local_top.
+[treeopen] top.local_top.dut.
+[treeopen] top.local_top.dut.dram0.mem.
+[treeopen] top.local_top.dut.dram0.mem.real_mem.
+[treeopen] top.local_top.dut.dram1.
+[treeopen] top.local_top.dut.dram1.mem.
+[treeopen] top.local_top.dut.dram1.mem.real_mem.
+[treeopen] top.local_top.dut.rom.
+[treeopen] top.local_top.dut.rom.mem.
+[treeopen] top.local_top.dut.rom.mem.real_mem.
+[sst_width] 233
+[signals_width] 270
+[sst_expanded] 1
+[sst_vpaned_height] 280
+@28
+top.local_top.dut.clk
+top.local_top.dut.dram0.clk
+@800200
+-BREW_IF
+@28
+top.local_top.dut.brew_if_n_ras_b
+top.local_top.dut.brew_if_n_nren
+top.local_top.dut.brew_if_n_ras_a
+top.local_top.dut.brew_if_n_cas_0
+top.local_top.dut.brew_if_n_cas_1
+top.local_top.dut.brew_if_n_we
+@22
+top.local_top.dut.brew_if_addr[10:0]
+top.local_top.dut.brew_if_data_out[7:0]
+top.local_top.dut.brew_if_data_in[7:0]
+@28
+top.local_top.dut.brew_if_n_wait
+top.local_top.dut.brew_if_bus_en
+top.local_top.dut.brew_if_data_out_en
+@22
+top.local_top.dut.brew_if_n_dack[3:0]
+@28
+top.local_top.dut.brew_if_tc
+@1000200
+-BREW_IF
+@22
+top.local_top.dut.dram0.data_out[7:0]
+top.local_top.dut.dram1.data_out[7:0]
+@28
+top.local_top.dut.rom.mem.write_en
+top.local_top.dut.rom.n_we
+@22
+top.local_top.dut.decode.brew_if_addr[10:0]
+@28
+top.local_top.dut.decode.brew_if_n_nren
+top.local_top.dut.rom.n_ce
+top.local_top.dut.rom.mem.real_mem.inner_mem.write_clk_0_port
+top.local_top.dut.rom.mem.real_mem.inner_mem.write_en_0_port
+@22
+top.local_top.dut.rom.mem.real_mem.inner_mem.data_in_0_port[7:0]
+top.local_top.dut.rom.mem.real_mem.inner_mem.data_out_0_port[7:0]
+top.local_top.dut.rom.data_out[7:0]
+top.local_top.dut.rom.addr[22:0]
+top.local_top.dut.decode.rom_data_in[7:0]
+top.local_top.dut.input_pins[7:0]
+top.local_top.dut.output_pins[7:0]
+@28
+top.local_top.dut.gpio.n_ce
+@29
+top.local_top.dut.gpio.n_we
+[pattern_trace] 1
+[pattern_trace] 0
