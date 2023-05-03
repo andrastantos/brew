@@ -40,7 +40,7 @@ class BrewV1Top(GenericModule):
 
     n_int             = Input(logic)
 
-    def construct(self, csr_base: int, nram_base: int, has_multiply: bool = True, has_shift: bool = True, page_bits: int = 7):
+    def construct(self, csr_base: int = 0x1, nram_base: int = 0x0, has_multiply: bool = True, has_shift: bool = True, page_bits: int = 7):
         self.csr_base = csr_base
         self.nram_base = nram_base
         self.has_multiply = has_multiply

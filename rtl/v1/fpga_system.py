@@ -290,22 +290,24 @@ class FpgaSystem(GenericModule):
         decode.clk <<= self.clk2
         decode.brew_if <<= decode_input
 
+        # We support 128kByte of DRAM.
         dram0.clk     <<= self.clk2
-        dram0.addr    <<= self.brew_if.addr
+        dram0.addr    <<= self.brew_if.addr[7:0]
         dram0.data_in <<= self.brew_if.data_out
         dram0.n_ras   <<= self.brew_if.n_ras_a
         dram0.n_cas   <<= self.brew_if.n_cas_0
         dram0.n_we    <<= self.brew_if.n_we
 
         dram1.clk     <<= self.clk2
-        dram1.addr    <<= self.brew_if.addr
+        dram1.addr    <<= self.brew_if.addr[7:0]
         dram1.data_in <<= self.brew_if.data_out
         dram1.n_ras   <<= self.brew_if.n_ras_a
         dram1.n_cas   <<= self.brew_if.n_cas_1
         dram1.n_we    <<= self.brew_if.n_we
 
+        # We have 8kB of ROM (SRAM really)
         rom.clk <<= self.clk2
-        rom.addr <<= decode.addr
+        rom.addr <<= decode.addr[12:0]
         rom.n_ce <<= decode.rom
         rom.data_in <<= self.brew_if.data_out
         rom.n_we <<= self.brew_if.n_we
