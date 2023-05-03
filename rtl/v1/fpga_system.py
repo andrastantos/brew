@@ -40,9 +40,9 @@ class Dram(GenericModule):
     n_cas = Input(logic)
     n_we =  Input(logic)
 
-    def construct(self, inv_clock: bool, reset_content: Optional[str] = None):
+    def construct(self, inv_clock: bool, init_content: Optional[str] = None):
         self.inv_clock = inv_clock
-        self.reset_content = reset_content
+        self.init_content = init_content
 
     def body(self):
         self.data_out.set_net_type(self.data_in.get_net_type())
@@ -94,7 +94,7 @@ class Dram(GenericModule):
                 (
                     MemoryPortConfig(addr_type=Unsigned(self.addr.get_num_bits()*2), data_type=self.data_in.get_net_type(), registered_input=True, registered_output=False),
                 ),
-                self.reset_content
+                self.init_content
             ))
 
             mem.addr <<= concat(row_addr, self.addr)
@@ -113,8 +113,8 @@ class Sram(GenericModule):
     n_ce = Input(logic)
     n_we =  Input(logic)
 
-    def construct(self, reset_content: Optional[str] = None):
-        self.reset_content = reset_content
+    def construct(self, init_content: Optional[str] = None):
+        self.init_content = init_content
 
     def body(self):
         #self.data_out.set_net_type(self.data_in.get_net_type())
@@ -123,7 +123,7 @@ class Sram(GenericModule):
             (
                 MemoryPortConfig(addr_type=self.addr.get_net_type(), data_type=self.data_in.get_net_type(), registered_input=False, registered_output=True),
             ),
-            self.reset_content
+            self.init_content
         ))
 
         mem.addr <<= self.addr
@@ -146,8 +146,8 @@ class Gpio(Module):
     output_pins = Output()
     input_pins = Input()
 
-    def construct(self, reset_content: Optional[str] = None):
-        self.reset_content = reset_content
+    def construct(self, init_content: Optional[str] = None):
+        self.init_content = init_content
 
     def body(self):
         self.data_out.set_net_type(self.data_in.get_net_type())
@@ -167,15 +167,15 @@ class Rom(GenericModule):
 
     n_ce = Input(logic)
 
-    def construct(self, reset_content: Optional[str]):
-        self.reset_content = reset_content
+    def construct(self, init_content: Optional[str]):
+        self.init_content = init_content
 
     def body(self):
         mem = Memory(MemoryConfig(
             (
                 MemoryPortConfig(addr_type=self.addr.get_net_type(), data_type=self.data_in.get_net_type(), registered_input=False, registered_output=True),
             ),
-            self.reset_content
+            self.init_content
         ))
 
         mem.addr <<= self.addr
@@ -251,9 +251,9 @@ class FpgaSystem(GenericModule):
         self.dram1_content = dram1_content
 
     def body(self):
-        dram0 = Dram(reset_content=self.dram0_content, inv_clock=True)
-        dram1 = Dram(reset_content=self.dram1_content, inv_clock=False)
-        rom = Sram(reset_content=self.rom_content)
+        dram0 = Dram(init_content=self.dram0_content, inv_clock=True)
+        dram1 = Dram(init_content=self.dram1_content, inv_clock=False)
+        rom = Sram(init_content=self.rom_content)
         gpio = Gpio()
 
         decode_input = Wire(ExternalBusIf)
