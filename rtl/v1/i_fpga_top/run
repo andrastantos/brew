@@ -1,0 +1,4 @@
+#!/bin/sh
+iverilog -g2012 sim_top.sv ../fpga_top.sv -o fpga_top && ./fpga_top
+
+
