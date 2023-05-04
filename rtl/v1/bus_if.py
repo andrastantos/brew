@@ -313,7 +313,9 @@ class BusIf(GenericModule):
         waiting = ~self.dram.n_wait | (wait_states != 0)
 
         two_cycle_nram_access = Wire(logic)
-        two_cycle_nram_access = Reg((req_byte_en == 3) & req_nram, clock_en=start)
+        two_cycle_nram_access <<= Reg((req_byte_en == 3) & req_nram, clock_en=start)
+        nram_access = Wire(logic)
+        nram_access <<= Reg(req_nram, clock_en=start)
 
         self.fsm.add_transition(BusIfStates.idle,                         req_valid & req_ext,                                  BusIfStates.external)
         self.fsm.add_transition(BusIfStates.idle,                         req_valid & req_nram,                                 BusIfStates.non_dram_first)
@@ -492,9 +494,29 @@ class BusIf(GenericModule):
         self.dram.n_we         <<= read_not_write
         self.dram.data_out_en <<= data_out_en
         data_out_low = Wire()
-        data_out_low <<= NegReg(data_out[7:0])
+        data_out_low <<= NegReg(
+            Select(
+                nram_access,
+                data_out[7:0],
+                Select(
+                    two_cycle_nram_access & (nr_cas_logic_1 | ~nr_n_cas_1),
+                    data_out[7:0],
+                    data_out[15:8]
+                )
+            )
+        )
         data_out_high = Wire()
-        data_out_high <<= Reg(data_out[15:8])
+        data_out_high <<= Reg(
+            Select(
+                nram_access,
+                data_out[15:8],
+                Select(
+                    two_cycle_nram_access & nr_cas_logic_1,
+                    data_out[7:0],
+                    data_out[15:8]
+                )
+            )
+        )
         self.dram.data_out   <<= Select(
             self.clk,
             data_out_low,

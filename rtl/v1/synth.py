@@ -79,6 +79,8 @@ class QuartusFlow(object):
             #project_file.write(f"set_global_assignment -name POWER_BOARD_THERMAL_MODEL ""NONE (CONSERVATIVE)""\n")
             project_file.write(f"set_global_assignment -name PHYSICAL_SYNTHESIS_REGISTER_RETIMING ON\n")
             project_file.write(f"set_global_assignment -name FLOW_ENABLE_POWER_ANALYZER ON\n")
+            if self.device.startswith("10M"):
+                project_file.write(f"set_global_assignment -name INTERNAL_FLASH_UPDATE_MODE \"SINGLE COMP IMAGE WITH ERAM\"\n")
             #project_file.write(f"set_global_assignment -name POWER_DEFAULT_INPUT_IO_TOGGLE_RATE ""12.5 %""\n")
             for source in self.source_files:
                 relative_source = Path(os.path.relpath(str(Path(source).absolute()), str(self.target_dir.absolute())))

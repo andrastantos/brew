@@ -245,12 +245,21 @@ class FpgaSystem(GenericModule):
     output_pins = Output(BrewByte)
     input_pins = Input(BrewByte)
 
-    def construct(self, rom_content: str, dram0_content: str = None, dram1_content: str = None):
+    rom_base = 0x0000_0000
+    gpio_base = 0x0001_0000
+    gpio_size = 4096
+    dram_base = 0x8000_0000
+
+    def construct(self, rom_content: str, *, dram_size: int = 128*1024, rom_size: int = 8*1024, dram0_content: str = None, dram1_content: str = None):
         self.rom_content = rom_content
         self.dram0_content = dram0_content
         self.dram1_content = dram1_content
+        self.dram_size = dram_size
+        self.rom_size = rom_size
 
     def body(self):
+        dram_addr_width = int(log2(self.dram_size/2))//2
+
         dram0 = Dram(init_content=self.dram0_content, inv_clock=True)
         dram1 = Dram(init_content=self.dram1_content, inv_clock=False)
         rom = Sram(init_content=self.rom_content)
@@ -259,14 +268,14 @@ class FpgaSystem(GenericModule):
         decode_input = Wire(ExternalBusIf)
         decode = AddrDecode(
             (
-                ("rom",  0x0000_0000, 0x0001_0000),
-                ("gpio", 0x0001_0000, 0x0000_1000)
+                ("rom",  self.rom_base,  self.rom_size),
+                ("gpio", self.gpio_base, self.gpio_size)
             )
         )
 
         self.brew_if.data_in <<= SelectOne(
-            ~self.brew_if.n_ras_a & ~self.brew_if.n_cas_0, dram0.data_out,
-            ~self.brew_if.n_ras_a & ~self.brew_if.n_cas_1, dram1.data_out,
+            Reg(~self.brew_if.n_ras_a & ~self.brew_if.n_cas_0, clock_port=self.clk2), dram0.data_out,
+            Reg(~self.brew_if.n_ras_a & ~self.brew_if.n_cas_1, clock_port=self.clk2), dram1.data_out,
             default_port = decode_input.data_in
         )
 
@@ -292,14 +301,14 @@ class FpgaSystem(GenericModule):
 
         # We support 128kByte of DRAM.
         dram0.clk     <<= self.clk2
-        dram0.addr    <<= self.brew_if.addr[7:0]
+        dram0.addr    <<= self.brew_if.addr[dram_addr_width-1:0]
         dram0.data_in <<= self.brew_if.data_out
         dram0.n_ras   <<= self.brew_if.n_ras_a
         dram0.n_cas   <<= self.brew_if.n_cas_0
         dram0.n_we    <<= self.brew_if.n_we
 
         dram1.clk     <<= self.clk2
-        dram1.addr    <<= self.brew_if.addr[7:0]
+        dram1.addr    <<= self.brew_if.addr[dram_addr_width-1:0]
         dram1.data_in <<= self.brew_if.data_out
         dram1.n_ras   <<= self.brew_if.n_ras_a
         dram1.n_cas   <<= self.brew_if.n_cas_1
