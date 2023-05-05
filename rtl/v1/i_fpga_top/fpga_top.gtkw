@@ -1,19 +1,22 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Thu May  4 21:39:10 2023
+[*] Thu May  4 23:58:58 2023
 [*]
 [dumpfile] "/home/tantos/brew/rtl/v1/i_fpga_top/fpga_top.vcd"
-[dumpfile_mtime] "Thu May  4 21:38:32 2023"
-[dumpfile_size] 3165480
+[dumpfile_mtime] "Thu May  4 23:58:45 2023"
+[dumpfile_size] 15003491
 [savefile] "/home/tantos/brew/rtl/v1/i_fpga_top/fpga_top.gtkw"
 [timestart] 0
 [size] 1920 990
 [pos] -1 -1
-*-12.343728 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-13.726065 500 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.dut.
-[sst_width] 233
-[signals_width] 198
+[treeopen] top.dut.brew.
+[treeopen] top.dut.brew.bus_if.
+[treeopen] top.dut.brew.bus_if.fsm.
+[sst_width] 344
+[signals_width] 342
 [sst_expanded] 1
 [sst_vpaned_height] 269
 @22
@@ -21,23 +24,26 @@ top.dut.output_pins[7:0]
 @28
 top.dut.clk
 top.dut.clk2
+@29
+top.n_rst
+@28
 top.dut.rst
 @800200
 -EXT_BUS
-@23
+@22
 top.dut.ext_bus_addr[10:0]
-@29
+@28
 top.dut.ext_bus_bus_en
-@23
+@22
 top.dut.ext_bus_data_in[7:0]
 top.dut.ext_bus_data_out[7:0]
-@29
+@28
 top.dut.ext_bus_data_out_en
 top.dut.ext_bus_n_cas_0
 top.dut.ext_bus_n_cas_1
-@23
+@22
 top.dut.ext_bus_n_dack[3:0]
-@29
+@28
 top.dut.ext_bus_n_nren
 top.dut.ext_bus_n_ras_a
 top.dut.ext_bus_n_ras_b
@@ -46,5 +52,10 @@ top.dut.ext_bus_n_we
 top.dut.ext_bus_tc
 @1000200
 -EXT_BUS
+@24
+top.dut.brew.bus_if.state[3:0]
+@22
+top.dut.brew.bus_if.next_state[3:0]
+top.dut.brew.bus_if.fsm.fsm_logic.state_non_dram_first_selector[3:0]
 [pattern_trace] 1
 [pattern_trace] 0

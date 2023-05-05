@@ -1,11 +1,17 @@
 # This file contains helpers to drive the synthesis of a top-level module all the way from Silicon source to gates and reports
 
-from typing import Sequence, Tuple, Optional
+from typing import Sequence, Tuple, Optional, Dict
+from dataclasses import dataclass
 
 class QuartusException(Exception):
     pass
 
 class QuartusFlow(object):
+    @dataclass
+    class IoAssignment(object):
+        location: str
+        io_standard: str
+
     def __init__(
         self,
         *,
@@ -29,6 +35,15 @@ class QuartusFlow(object):
         self.no_timing_report_clocks = (no_timing_report_clocks, ) if isinstance(no_timing_report_clocks, str) else no_timing_report_clocks
         self.device = device
         self.constraint_files = constraint_files
+        self.pin_assignments: Dict[str, QuartusFlow.IoAssignment] = {}
+        self.custom_settings = []
+
+    def add_pin_assignment(self, wire_name, pin_location, pin_io_standard):
+        assert wire_name not in self.pin_assignments, f"Pin {wire_name} already has assignments"
+        self.pin_assignments[wire_name] = self.IoAssignment(pin_location, pin_io_standard)
+
+    def add_custom_setting(self, setting: str):
+        self.custom_settings.append(setting)
 
     def generate(self):
         from datetime import datetime
@@ -93,6 +108,11 @@ class QuartusFlow(object):
             #project_file.write(f"set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top\n")
             #project_file.write(f"set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top\n")
             #project_file.write(f"set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top\n")
+            for wire, assignments in self.pin_assignments.items():
+                project_file.write(f"set_location_assignment {assignments.location} -to {wire}\n")
+                project_file.write(f"set_instance_assignment -name IO_STANDARD \"{assignments.io_standard}\" -to {wire}\n")
+            for setting in self.custom_settings:
+                project_file.write(f"{setting}\n")
 
         # Step 3: generate timing report TCL script
         if self.clocks is not None:

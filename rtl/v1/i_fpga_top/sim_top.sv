@@ -1,16 +1,18 @@
+`timescale 1ns/1ns
+
 module top();
 
     logic clk;
     logic clk2;
-    logic rst;
+    logic n_rst;
     logic [7:0] input_pins;
     logic [7:0] output_pins;
 
     FpgaTop dut(.*);
 
     initial begin
-        clk = 0;
-        clk2 = 0;
+        clk = 1;
+        clk2 = 1;
     end
 
     always #10 clk2 = ~clk2;
@@ -18,8 +20,8 @@ module top();
 
     initial begin
         $display("Reset applied");
-        rst = 1;
-        #500 rst = 0;
+        n_rst = 0;
+        #500 n_rst = 1;
         $display("Reset removed");
     end
 
