@@ -102,7 +102,8 @@ def counter_demo():
 
     r_eq_i("$r5", 0)
     place_symbol("loop")
-    mem8_I_eq_r(FpgaSystem.gpio_base, "$r5")
+    r_eq_r_shr_i("$r6", "$r5", 10)
+    mem8_I_eq_r(FpgaSystem.gpio_base, "$r6")
     r_eq_r_plus_i("$r5", "$r5", 1)
     pc_eq_I("loop")
 
