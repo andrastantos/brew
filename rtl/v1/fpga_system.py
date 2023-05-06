@@ -100,7 +100,7 @@ class Dram(GenericModule):
             mem.addr <<= concat(row_addr, self.addr)
             mem.data_in <<= self.data_in
             self.data_out <<= mem.data_out
-            mem.write_en <<= ~self.n_cas & ~self.n_we
+            mem.write_en <<= ~self.n_cas & ~self.n_we & ~self.n_ras
 
 class Sram(GenericModule):
     clk = ClkPort()
