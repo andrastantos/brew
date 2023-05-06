@@ -184,7 +184,7 @@ class Rom(GenericModule):
 
 class AddrDecode(GenericModule):
     clk = ClkPort()
-    rst = RstPort()
+    #rst = RstPort()
 
     brew_if = Input(ExternalBusIf)
     addr = Output()
@@ -219,11 +219,11 @@ class AddrDecode(GenericModule):
         for (port, data_port, n_wait_port, base_addr, size) in self.enables:
             # TODO: fix this syntax:
             #enable = (self.addr[:size] != base_addr) | (n_cas) | ~self.brew_if.bus_en
-            enable = (self.addr[self.addr.get_num_bits()-1:size] != base_addr) | (n_cas) | ~self.brew_if.bus_en | self.brew_if.n_nren
-            port <<= enable
-            data_mux_selectors.append(~enable)
+            n_enable = (self.addr[self.addr.get_num_bits()-1:size] != base_addr) | (n_cas) | ~self.brew_if.bus_en | self.brew_if.n_nren #| self.rst
+            port <<= n_enable
+            data_mux_selectors.append(~n_enable)
             data_mux_selectors.append(data_port)
-            n_wait_selectors.append(~enable)
+            n_wait_selectors.append(~n_enable)
             n_wait_selectors.append(n_wait_port)
         del port
         del data_port
