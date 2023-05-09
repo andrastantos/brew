@@ -1,30 +1,28 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Tue May  2 00:29:02 2023
+[*] Tue May  9 02:44:07 2023
 [*]
 [dumpfile] "/home/tantos/brew/rtl/v1/fpga_system.vcd"
-[dumpfile_mtime] "Tue May  2 00:25:27 2023"
-[dumpfile_size] 170494
+[dumpfile_mtime] "Tue May  9 02:42:23 2023"
+[dumpfile_size] 185086
 [savefile] "/home/tantos/brew/rtl/v1/fpga_system.gtkw"
-[timestart] 0
+[timestart] 7556
 [size] 1920 990
 [pos] -1 -1
-*-9.836171 8269 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-8.895564 10350 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.local_top.
 [treeopen] top.local_top.dut.
 [treeopen] top.local_top.dut.dram0.mem.
 [treeopen] top.local_top.dut.dram0.mem.real_mem.
-[treeopen] top.local_top.dut.dram1.
 [treeopen] top.local_top.dut.dram1.mem.
 [treeopen] top.local_top.dut.dram1.mem.real_mem.
-[treeopen] top.local_top.dut.rom.
 [treeopen] top.local_top.dut.rom.mem.
 [treeopen] top.local_top.dut.rom.mem.real_mem.
 [sst_width] 233
 [signals_width] 270
 [sst_expanded] 1
-[sst_vpaned_height] 280
+[sst_vpaned_height] 544
 @28
 top.local_top.dut.clk
 top.local_top.dut.dram0.clk
@@ -68,13 +66,34 @@ top.local_top.dut.rom.mem.real_mem.inner_mem.write_en_0_port
 top.local_top.dut.rom.mem.real_mem.inner_mem.data_in_0_port[7:0]
 top.local_top.dut.rom.mem.real_mem.inner_mem.data_out_0_port[7:0]
 top.local_top.dut.rom.data_out[7:0]
-top.local_top.dut.rom.addr[22:0]
 top.local_top.dut.decode.rom_data_in[7:0]
 top.local_top.dut.input_pins[7:0]
 top.local_top.dut.output_pins[7:0]
 @28
 top.local_top.dut.gpio.n_ce
-@29
 top.local_top.dut.gpio.n_we
+@800200
+-APB_BRIDGE
+@28
+top.local_top.dut.apb_bridge.n_ce
+top.local_top.dut.apb_bridge.n_we
+top.local_top.dut.apb_bridge.n_wait
+@23
+top.local_top.dut.apb_bridge.data_out[7:0]
+@28
+top.local_top.dut.apb_bridge.served
+@22
+top.local_top.dut.apb_bridge.apb_out_paddr[15:0]
+@28
+top.local_top.dut.apb_bridge.apb_out_psel
+top.local_top.dut.apb_bridge.apb_out_penable
+top.local_top.dut.apb_bridge.apb_out_pready
+@22
+top.local_top.dut.apb_bridge.apb_out_pwdata[7:0]
+top.local_top.dut.apb_bridge.apb_out_prdata[7:0]
+@28
+top.local_top.dut.apb_bridge.apb_out_pwrite
+@1000200
+-APB_BRIDGE
 [pattern_trace] 1
 [pattern_trace] 0
