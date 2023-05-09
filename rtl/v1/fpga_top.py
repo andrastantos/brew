@@ -30,8 +30,18 @@ class FpgaTop(GenericModule):
     output_pins = Output(BrewByte)
     input_pins = Input(BrewByte)
 
-    def construct(self, program_generator: Callable) -> None:
+    def construct(
+        self,
+        *,
+        program_generator: Callable = None,
+        rom_content: str = None,
+        dram0_content: str = None,
+        dram1_content: str = None
+    ) -> None:
         self.program_generator = program_generator
+        self.rom_content = rom_content
+        self.dram0_content = dram0_content
+        self.dram1_content = dram1_content
         return super().construct()
 
     def body(self):
@@ -54,25 +64,30 @@ class FpgaTop(GenericModule):
                 for byte in content:
                     f.write(f"{byte:02x}\n")
 
-        clear_asm()
-        self.program_generator()
-        reloc()
-        rom_content = None
-        dram0_content = None
-        dram1_content = None
-        for segment in get_all_segments():
-            section = segment.base_addr & 0xc000_0000
-            if section == FpgaSystem.rom_base:
-                rom_content = copy(segment.content)
-                #rom_content = "fpga_top_rom_content.mif"
-                #create_mif(rom_content, segment.content)
-            elif section == FpgaSystem.dram_base:
-                dram0_content = segment.content[0::2]
-                dram1_content = segment.content[1::2]
-                #dram0_content = "fpga_top_dram0_content.mif"
-                #dram1_content = "fpga_top_dram1_content.mif"
-                #create_mif(dram0_content, segment.content[0::2])
-                #create_mif(dram1_content, segment.content[1::2])
+        if self.program_generator is not None:
+            clear_asm()
+            self.program_generator()
+            reloc()
+            rom_content = None
+            dram0_content = None
+            dram1_content = None
+            for segment in get_all_segments():
+                section = segment.base_addr & 0xc000_0000
+                if section == FpgaSystem.rom_base:
+                    rom_content = copy(segment.content)
+                    #rom_content = "fpga_top_rom_content.mif"
+                    #create_mif(rom_content, segment.content)
+                elif section == FpgaSystem.dram_base:
+                    dram0_content = segment.content[0::2]
+                    dram1_content = segment.content[1::2]
+                    #dram0_content = "fpga_top_dram0_content.mif"
+                    #dram1_content = "fpga_top_dram1_content.mif"
+                    #create_mif(dram0_content, segment.content[0::2])
+                    #create_mif(dram1_content, segment.content[1::2])
+        else:
+            rom_content = self.rom_content
+            dram0_content = self.dram0_content
+            dram1_content = self.dram1_content
 
         system = FpgaSystem(rom_content=rom_content, dram0_content=dram0_content, dram1_content=dram1_content, dram_size=128*1024, rom_size=8*1024)
 
@@ -107,7 +122,13 @@ def counter_demo():
     r_eq_r_plus_i("$r5", "$r5", 1)
     pc_eq_I("loop")
 
-def sim():
+def sim(
+    *,
+    program_generator: Callable = None,
+    rom_content: str = None,
+    dram0_content: str = None,
+    dram1_content: str = None
+):
     class top(Module):
         clk               = ClkPort()
         clk2              = ClkPort()
@@ -117,7 +138,12 @@ def sim():
         input_pins = Input(BrewByte)
 
         def body(self):
-            top = FpgaTop(counter_demo)
+            top = FpgaTop(
+                program_generator=program_generator,
+                rom_content=rom_content,
+                dram0_content=dram0_content,
+                dram1_content=dram1_content
+            )
             top.clk <<= self.clk
             top.clk2 <<= self.clk2
             top.n_rst <<= self.n_rst
@@ -165,14 +191,44 @@ def sim():
         top_inst = top_class()
     netlist.simulate(vcd_filename, add_unnamed_scopes=False)
 
-def gen():
+def gen(
+    *,
+    program_generator: Callable = None,
+    rom_content: str = None,
+    dram0_content: str = None,
+    dram1_content: str = None
+):
+    target_dir = "q_fpga_top"
+
+    from os import makedirs
+
+    makedirs(target_dir, exist_ok=True)
+
+    def copy_file(source: str) -> str:
+        """
+        Copies the file 'source' to the destination folder and returns it's name
+        """
+        from shutil import copyfile
+        dst_name = str(Path(target_dir) / Path(source).name)
+        copyfile(source, dst_name)
+        return dst_name
+
+    if rom_content is not None: rom_content = copy_file(rom_content)
+    if dram0_content is not None: dram0_content = copy_file(dram0_content)
+    if dram1_content is not None: dram1_content = copy_file(dram1_content)
+
     def top():
-        return FpgaTop(counter_demo)
+        return FpgaTop(
+            program_generator=program_generator,
+            rom_content=rom_content,
+            dram0_content=dram0_content,
+            dram1_content=dram1_content
+        )
 
     netlist = Build.generate_rtl(top, "fpga_top.sv")
     top_level_name = netlist.get_module_class_name(netlist.top_level)
     flow = QuartusFlow(
-        target_dir="q_fpga_top",
+        target_dir=target_dir,
         top_level=top_level_name,
         source_files=("fpga_top.sv",),
         clocks=(("clk", 10), ("clk2", 50)),
@@ -290,7 +346,16 @@ def gen():
     flow.generate()
     flow.run()
 
-
 if __name__ == "__main__":
-    gen()
-    #sim()
+    #gen(program_generator=counter_demo)
+    gen(
+        rom_content="../../sw/blinky/rom.rom_mef",
+        dram0_content="../../sw/blinky/blinky.dram0_mef",
+        dram1_content="../../sw/blinky/blinky.dram1_mef"
+    )
+    #sim(
+    #    rom_content="../../sw/blinky/rom.rom_mef",
+    #    dram0_content="../../sw/blinky/blinky.dram0_mef",
+    #    dram1_content="../../sw/blinky/blinky.dram1_mef"
+    #)
+
