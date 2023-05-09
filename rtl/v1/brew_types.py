@@ -203,7 +203,7 @@ class Apb8If(Interface):
 
     paddr = GenericMember
     pwdata = Unsigned(8)
-    prdata = Reverse(BrewCsrData)
+    prdata = Reverse(Unsigned(8))
 
 class Apb16If(Interface):
     pwrite = logic
