@@ -35,7 +35,7 @@ class UartWordSize(Enum):
 class PhyDataIf(ReadyValid):
     data = Unsigned(8)
 
-class Uart(Module):
+class ApbUart(Module):
     clk = ClkPort()
     rst = RstPort()
 
@@ -400,8 +400,8 @@ class Uart(Module):
         divider
     """
     def body(self):
-        tx_phy = Uart.UartTxPhy()
-        rx_phy = Uart.UartRxPhy()
+        tx_phy = ApbUart.UartTxPhy()
+        rx_phy = ApbUart.UartRxPhy()
 
         config_reg = Wire(Unsigned(8))
         rx_data = Wire(PhyDataIf)
@@ -461,12 +461,12 @@ class Uart(Module):
                 divider_limit,
             )
         )
-        data_reg_wr = (self.bus_if.psel & self.bus_if.penable &  self.bus_if.pwrite & (self.bus_if.paddr == Uart.data_buf_reg_ofs))
-        data_reg_rd = (self.bus_if.psel & self.bus_if.penable & ~self.bus_if.pwrite & (self.bus_if.paddr == Uart.data_buf_reg_ofs))
-        status_reg_wr = (self.bus_if.psel & self.bus_if.penable &  self.bus_if.pwrite & (self.bus_if.paddr == Uart.status_reg_ofs))
-        config1_reg_wr = (self.bus_if.psel & self.bus_if.penable &  self.bus_if.pwrite & (self.bus_if.paddr == Uart.config1_reg_ofs))
-        config2_reg_wr = (self.bus_if.psel & self.bus_if.penable &  self.bus_if.pwrite & (self.bus_if.paddr == Uart.config2_reg_ofs))
-        divider_reg_wr = (self.bus_if.psel & self.bus_if.penable &  self.bus_if.pwrite & (self.bus_if.paddr == Uart.divider_reg_ofs))
+        data_reg_wr =    (self.bus_if.psel & self.bus_if.penable &  self.bus_if.pwrite & (self.bus_if.paddr == ApbUart.data_buf_reg_ofs))
+        data_reg_rd =    (self.bus_if.psel & self.bus_if.penable & ~self.bus_if.pwrite & (self.bus_if.paddr == ApbUart.data_buf_reg_ofs))
+        status_reg_wr =  (self.bus_if.psel & self.bus_if.penable &  self.bus_if.pwrite & (self.bus_if.paddr == ApbUart.status_reg_ofs))
+        config1_reg_wr = (self.bus_if.psel & self.bus_if.penable &  self.bus_if.pwrite & (self.bus_if.paddr == ApbUart.config1_reg_ofs))
+        config2_reg_wr = (self.bus_if.psel & self.bus_if.penable &  self.bus_if.pwrite & (self.bus_if.paddr == ApbUart.config2_reg_ofs))
+        divider_reg_wr = (self.bus_if.psel & self.bus_if.penable &  self.bus_if.pwrite & (self.bus_if.paddr == ApbUart.divider_reg_ofs))
         config_reg <<= Reg(self.bus_if.pwdata, clock_en=config1_reg_wr)
         prescaler_select <<= Reg(self.bus_if.pwdata[2:0], clock_en=config2_reg_wr)
         soft_rts <<= Reg(self.bus_if.pwdata[4], clock_en=config2_reg_wr)
@@ -528,8 +528,8 @@ def sim():
         interrupt2 = Output(logic)
 
         def body(self):
-            self.uart1 = Uart()
-            self.uart2 = Uart()
+            self.uart1 = ApbUart()
+            self.uart2 = ApbUart()
 
             self.reg_if1 = Wire(Apb8If)
             self.reg_if1.paddr.set_net_type(Unsigned(3))
@@ -610,20 +610,20 @@ def sim():
             for _ in range(3):
                 yield from wait_clk()
             # Set up both UARTs to the same config
-            yield from write_reg(0, Uart.config1_reg_ofs, (UartParityType.none.value << 0) | (UartStopBits.one_and_half.value << 2) | (UartWordSize.bit8.value << 4) | (1 << 6))
-            yield from write_reg(1, Uart.config1_reg_ofs, (UartParityType.none.value << 0) | (UartStopBits.one_and_half.value << 2) | (UartWordSize.bit8.value << 4) | (1 << 6))
-            yield from write_reg(0, Uart.config2_reg_ofs, (0 << 0) | (0 << 5) | (1 << 6))
-            yield from write_reg(1, Uart.config2_reg_ofs, (0 << 0) | (1 << 5) | (1 << 6)) # Enable RX on UART2
-            yield from write_reg(0, Uart.divider_reg_ofs, 5)
-            yield from write_reg(1, Uart.divider_reg_ofs, 5)
-            yield from write_reg(0, Uart.status_reg_ofs, 0) # clear any pending status
-            yield from write_reg(1, Uart.status_reg_ofs, 0) # clear any pending status
+            yield from write_reg(0, ApbUart.config1_reg_ofs, (UartParityType.none.value << 0) | (UartStopBits.one_and_half.value << 2) | (UartWordSize.bit8.value << 4) | (1 << 6))
+            yield from write_reg(1, ApbUart.config1_reg_ofs, (UartParityType.none.value << 0) | (UartStopBits.one_and_half.value << 2) | (UartWordSize.bit8.value << 4) | (1 << 6))
+            yield from write_reg(0, ApbUart.config2_reg_ofs, (0 << 0) | (0 << 5) | (1 << 6))
+            yield from write_reg(1, ApbUart.config2_reg_ofs, (0 << 0) | (1 << 5) | (1 << 6)) # Enable RX on UART2
+            yield from write_reg(0, ApbUart.divider_reg_ofs, 5)
+            yield from write_reg(1, ApbUart.divider_reg_ofs, 5)
+            yield from write_reg(0, ApbUart.status_reg_ofs, 0) # clear any pending status
+            yield from write_reg(1, ApbUart.status_reg_ofs, 0) # clear any pending status
 
             for _ in range(5):
-                yield from write_reg(0, Uart.data_buf_reg_ofs, 0x55)
-                yield from read_reg(1, Uart.data_buf_reg_ofs)
+                yield from write_reg(0, ApbUart.data_buf_reg_ofs, 0x55)
+                yield from read_reg(1,  ApbUart.data_buf_reg_ofs)
             for i in range(5):
-                yield from write_reg(0, Uart.data_buf_reg_ofs, i)
+                yield from write_reg(0, ApbUart.data_buf_reg_ofs, i)
 
     class top(Module):
         clk               = ClkPort()
@@ -670,22 +670,33 @@ def sim():
     netlist.simulate(vcd_filename, add_unnamed_scopes=False)
 
 def gen():
-    class UartWrapper(Uart):
+    class ApbUart(globals()["ApbUart"]):
         def construct(self):
             self.bus_if.paddr.set_net_type(Unsigned(3))
 
+    #def top():
+    #    return ScanWrapper(UartWrapper, {"clk", "rst"})
     def top():
-        return ScanWrapper(UartWrapper, {"clk", "rst"})
+        return ApbUart()
 
-    netlist = Build.generate_rtl(top, "uart.sv")
+    back_end = SystemVerilog()
+    back_end.support_unique_case = False
+    netlist = Build.generate_rtl(top, "apb_uart.sv", back_end=back_end)
     top_level_name = netlist.get_module_class_name(netlist.top_level)
-    flow = QuartusFlow(target_dir="q_uart", top_level=top_level_name, source_files=("uart.sv",), clocks=(("clk", 10), ("top_clk", 100)), project_name="uart")
+    flow = QuartusFlow(
+        target_dir="q_uart",
+        top_level=top_level_name,
+        source_files=("apb_uart.sv",),
+        clocks=(("clk", 10), ("top_clk", 100)),
+        project_name="apb_uart",
+        device="10M50DAF484C6G" # Device on the DECA board
+    )
     flow.generate()
     flow.run()
 
 
 if __name__ == "__main__":
-    #gen()
-    sim()
+    gen()
+    #sim()
 
 
