@@ -158,6 +158,45 @@ class Gpio(Module):
         self.data_out <<= Reg(Reg(self.input_pins))
 
 
+class ApbBridge(Module):
+    clk = ClkPort()
+    rst = RstPort()
+
+    apb_out = Output(Apb8If)
+
+    n_ce = Input(logic)
+    n_we = Input(logic)
+    n_wait = Output(logic)
+
+    addr = Input()
+    data_in = Input(BrewByte)
+    data_out = Output(BrewByte)
+
+    def body(self):
+        self.apb_out.paddr <<= Reg(self.addr, clock_en=~self.n_ce)
+        self.apb_out.pwdata <<= Reg(self.data_in, clock_en=~self.n_ce)
+        self.apb_out.pwrite <<= Reg(~self.n_we, clock_en=~self.n_ce)
+        apb_done = (self.apb_out.penable & self.apb_out.pready)
+        served = Wire(logic)
+        served <<= Reg(Select(
+            self.n_ce,
+            apb_done | served,
+            0
+        ))
+        self.apb_out.psel <<= Reg(Select(
+            self.apb_out.psel,
+            ~self.n_ce & ~served,
+            ~apb_done
+        ))
+        self.apb_out.penable <<= Reg(Select(
+            self.apb_out.penable,
+            self.apb_out.psel & ~served,
+            ~apb_done
+        ))
+        self.data_out <<= Select(apb_done, Reg(self.apb_out.prdata, clock_en=apb_done), self.apb_out.prdata)
+        self.n_wait <<= apb_done | self.n_ce | served
+
+
 class Rom(GenericModule):
     clk = ClkPort()
     rst = RstPort()
@@ -242,11 +281,16 @@ class FpgaSystem(GenericModule):
 
     brew_if = Input(ExternalBusIf)
 
+    io_apb_if = Output(Apb8If)
+    #io_interrupt = Input(logic)
+
     output_pins = Output(BrewByte)
     input_pins = Input(BrewByte)
 
     rom_base = 0x0000_0000
     gpio_base = 0x0001_0000
+    io_apb_base = 0x0002_0000
+    io_apb_size = 4096*16
     gpio_size = 4096
     dram_base = 0x8000_0000
 
@@ -264,12 +308,14 @@ class FpgaSystem(GenericModule):
         dram1 = Dram(init_content=self.dram1_content, inv_clock=False)
         rom = Sram(init_content=self.rom_content)
         gpio = Gpio()
+        apb_bridge = ApbBridge()
 
         decode_input = Wire(ExternalBusIf)
         decode = AddrDecode(
             (
-                ("rom",  self.rom_base,  self.rom_size),
-                ("gpio", self.gpio_base, self.gpio_size)
+                ("rom",    self.rom_base,    self.rom_size),
+                ("gpio",   self.gpio_base,   self.gpio_size),
+                ("io_apb", self.io_apb_base, self.io_apb_size)
             )
         )
 
@@ -330,6 +376,17 @@ class FpgaSystem(GenericModule):
         gpio.input_pins <<= self.input_pins
         self.output_pins <<= gpio.output_pins
 
+        apb_bridge.clk <<= self.clk2
+        apb_bridge.addr <<= decode.addr[15:0]
+
+        apb_bridge.n_ce <<= decode.io_apb
+        apb_bridge.n_we <<= self.brew_if.n_we
+        decode.io_apb_n_wait <<= apb_bridge.n_wait
+
+        apb_bridge.data_in <<= self.brew_if.data_out
+        decode.io_apb_data_in <<= apb_bridge.data_out
+
+        self.io_apb_if <<= apb_bridge.apb_out
 
 def sim():
 
@@ -350,6 +407,13 @@ def sim():
             dut.brew_if <<= self.brew_if
             dut.input_pins <<= self.input_pins
             self.output_pins <<= dut.output_pins
+
+            dut.io_apb_if.prdata <<= Select(
+                dut.io_apb_if.psel & dut.io_apb_if.penable,
+                None,
+                dut.io_apb_if.paddr[7:0]
+            )
+            dut.io_apb_if.pready <<= 1
 
         def simulate(self, simulator: Simulator):
             def wait_clk():
@@ -586,6 +650,14 @@ def sim():
             self.input_pins <<= 0xf0
             readback = yield from read_nram(0x0001_0000, 1)
             assert readback == b"\xf0"
+
+            for _ in range(10):
+                yield from wait_clk()
+
+            yield from write_nram(0x0002_0000, b"\xaa")
+            yield from wait_clk()
+            readback = yield from read_nram(0x0002_0001, 1)
+            assert readback == b"\x01"
 
 
     class top(Module):
