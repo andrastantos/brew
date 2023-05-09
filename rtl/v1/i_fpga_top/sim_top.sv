@@ -23,10 +23,15 @@ module top();
         n_rst = 0;
         #500 n_rst = 1;
         $display("Reset removed");
+        //#30006 n_rst = 0;
+        #28660 n_rst = 0;
+        $display("Reset applied");
+        #30104 n_rst = 1;
+        $display("Reset removed");
     end
 
     initial begin
-    	$dumpfile("fpga_top.vcd");
+    	$dumpfile("i_fpga_top/fpga_top.vcd");
     	$dumpvars(0,top);
         #(1000*1000) $finish;
     end
