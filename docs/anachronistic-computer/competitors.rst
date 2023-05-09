@@ -29,3 +29,42 @@ They aggregated audio and video into a single chip and many of the IO functions 
 For mouse and keyboard, they had a serial interface of sorts (actually, probably TTL-level serial) to an 8051 micro in the keyboard. This micro then interfaced to both the keyboard matrix and the mouse which was - just as with anybody else - nothing but the opto-couplers and the (in their case 3) buttons.
 
 The funny thing is that this machine is in so many ways what I wanted to design anyways. It feels sooo much better then anything on the market at the time. It's unfortunate that it arrived late and thus was a market failure.
+
+General landscape
+-----------------
+
+https://ia801609.us.archive.org/16/items/byte-magazine-1984-11/1984_11_BYTE_09-12_New_Chips.pdf
+
+It lists a 10MB hard drive (MFM, with interface card) for $800, a 20MB one for $1100 and a 40MB one for $2300.
+
+Memory price: 64k DRAM 'kits' (I'm guessing 9 chips) were sold for $43.
+
+An original PC was ~$2000 (256kByte, two 360k FDDs)
+
+A Hercules adapter was $335, a CGA $200, mono monitors were about $100-$150, color ones around $450.
+
+Even a Commodore B128 was about $1000. And that's without any FDDs. In fact, by the time you got a dual-FDD for it, it was more expensive then a PC!
+
+Page 227 contains a large list of component prices. This is good, though of course not for large quantities.
+
+DRAM: $5 (150ns) for 64kBit, $32 (200ns) for 256kBit.
+EPROM: 2764 for $7 (300ns) - two years earlier in '82, these were $20 parts according to EDN.
+8086: $25; 8088: $20; Z80: $3; 6502: $5; 8085: $5; 68k: $40
+FD179x FDD controller: $25-$30
+74LSxxx series: $1.5 for 20 pin, $0.75 for 14-pin devices (mostly)
+Raw Keyboards are $15-$25
+
+EDN: https://archive.org/details/edn-1982_11_24/page/30/mode/2up
+
+Has a SeeQ E2ROM for $10; the 5213. It's 350ns read, 1ms write and 16k(bits?) Xicor als had 2kx8 (X2816A) and 512x8 devices.
+
+By 1986 the Atari 1040ST was on the front page of Byte. So 1MB must have been affordable...
+
+1986:
+
+PCs are $800 (Bare bones, but with FDD and 640k of RAM)
+AT: $1900 with no HDD, but 1.2MB FDD, CGA, also 640k of RAM
+64kB RAM: $10; 256kB RAM: $30 (9 chips each)
+20MB HDD: $450 (with controller)
+Hercules card is $100, CGA $70
+The Atari 1024ST was $1000

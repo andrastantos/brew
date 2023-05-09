@@ -196,7 +196,21 @@ Atomic group
 =================  ========
 Instruction code   Assembly
 =================  ========
-0x.001             FENCE
+0x0001             FENCE_RW_RW
+0x1001             FENCE__W_RW
+0x2001             FENCE_R__RW
+0x3001             FENCE____RW
+0x4001             FENCE_RW__W
+0x5001             FENCE__W__W
+0x6001             FENCE_R___W
+0x7001             FENCE_____W
+0x8001             FENCE_RW_R_
+0x9001             FENCE__W_R_
+0xa001             FENCE_R__R_
+0xb001             FENCE____R_
+0xc001             FENCE_RW___
+0xd001             FENCE__W___
+0xe001             FENCE_R____
 =================  ========
 
 Every instruction in this group implements a fence, or an ordering between loads and stores. The top-most 4 bits of the instruction code is used the encode the fence type:
@@ -458,17 +472,15 @@ Short constant ALU group
 =========================  =================================    ==================
 Instruction code           Assembly                             Operation
 =========================  =================================    ==================
-0x.1f. 0x****              $rD <- FIELD_E ^ $rA                 Bit-wise 'xor' [#note_logical]_
-0x.2f. 0x****              $rD <- FIELD_E | $rA                 Bit-wise 'or'  [#note_logical]_
-0x.3f. 0x****              $rD <- FIELD_E & $rA                 Bit-wise 'and' [#note_logical]_
-0x.4f. 0x****              $rD <- FIELD_E + $rA                 Type-dependent add
-0x.5f. 0x****              $rD <- FIELD_E - $rA                 Type-dependent subtract
-vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv NOTE NOTE NOTE THESE ARE CHANGED!!!!! TO BE CHECKED WITH COMPILER/ASSEMBLER!!!!!!!
-0x.6f. 0x****              $rD <- $rA << FIELD_E                Binary left-shift [#note_binary_shift]_
-0x.7f. 0x****              $rD <- $rA >> FIELD_E                Binary right-shift [#note_binary_shift]_
-0x.8f. 0x****              $rD <- $rA >>> FIELD_E               Arithmetic right-shift [#note_binary_shift]_
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ NOTE NOTE NOTE THESE ARE CHANGED!!!!! TO BE CHECKED WITH COMPILER/ASSEMBLER!!!!!!!
-0x.9f. 0x****              $rD <- FIELD_E * $rA                 Type-dependent multiply
+0x.1f. 0x****              $rD <- short FIELD_E ^ $rA           Bit-wise 'xor' [#note_logical]_
+0x.2f. 0x****              $rD <- short FIELD_E | $rA           Bit-wise 'or'  [#note_logical]_
+0x.3f. 0x****              $rD <- short FIELD_E & $rA           Bit-wise 'and' [#note_logical]_
+0x.4f. 0x****              $rD <- short FIELD_E + $rA           Type-dependent add
+0x.5f. 0x****              $rD <- short FIELD_E - $rA           Type-dependent subtract
+0x.6f. 0x****              $rD <- short $rA << FIELD_E          Binary left-shift [#note_binary_shift]_
+0x.7f. 0x****              $rD <- short $rA >> FIELD_E          Binary right-shift [#note_binary_shift]_
+0x.8f. 0x****              $rD <- short $rA >>> FIELD_E         Arithmetic right-shift [#note_binary_shift]_
+0x.9f. 0x****              $rD <- short FIELD_E * $rA           Type-dependent multiply
 0x.af. 0x****              $rD <- lane_swizzle $rA, VALUE       [#note_lane_swizzle]_
 0x.bf. 0x****              SII                                  Reserved for future ISA expansion
 0x.cf. 0x****              see below (stack ops)
@@ -671,6 +683,9 @@ Instruction code    Assembly                        Operation
 0x.c**              MEM[$rA,tiny OFS*4] <- $rD      Store $rD in memory
 0x.d**              $rD <- MEM[$rA,tiny OFS*4]      Load $rD from memory
 ==================  ============================    ==================
+
+.. warning::
+  The encoding of field-A is special: A=0 denotes $r12, A=1 denotes $r13
 
 .. note::
   the existence of these ops complicate memory op decode as well as operation size decode, but save a *huge* amount of code-space, allowing almost all register spills and fills to be done in two bytes.

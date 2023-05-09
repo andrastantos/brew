@@ -1,7 +1,13 @@
 HOW TO BUILD THE TOOLSET?
 =========================
 
-To run tests, we need dejagnu and autogen.
+Prerequisites:
+
+  dejagnu
+  autogen
+  libmpc-dev
+  libmpfr-dev
+  libisl-dev
 
 TARGET=brew-none-elf
 or

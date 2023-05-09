@@ -105,98 +105,98 @@ Pin Number Pin Name    Description
 Combined graphics/sound
 -----------------------
 
-========== ============= ===========
-Pin Number Pin Name      Description
-========== ============= ===========
-1          A8_0          Multiplexed address bus
-2          A9_1          Multiplexed address bus
-3          A10_2         Multiplexed address bus
-4          A11_3         Multiplexed address bus
-5          A12_4         Multiplexed address bus
-6          A13_5         Multiplexed address bus
-7          A14_6         Multiplexed address bus
-8          A15_7         Multiplexed address bus
-9          A17_16        Multiplexed address bus
-10         A19_18        Multiplexed address bus, nRAS_C for bank C
-11         A20_21        Multiplexed address bus, nRAS_D for bank D
-12         D0            Data bus
-13         D1            Data bus
-14         D2            Data bus
-15         D3            Data bus
-16         D4            Data bus
-17         D5            Data bus
-18         D6            Data bus
-19         D7            Data bus
-20         nRAS_A        Active low row-select, bank A
-21         nRAS_B        Active low row-select, bank B
-22         nCAS_0        Active low column select, byte 0
-23         nCAS_1        Active low column select, byte 1
-24         nWE           Active low write-enable
-25         SYS_CLK       Clock output
-26         nRST          Active low reset input
-27         nINT          Active low interrupt output
-28         nBREQ         Active low bus-request output
-29         nBGRANT       Active low bus-grant input
-30         nREG_CS       Active low chip-select for register accesses
-31         R             Analog 'red' channel output
-32         G             Analog 'green' channel output
-33         B             Analog 'blue' channel output
-34         HSYNC         Horizontal video sync output with programmable polarity
-35         VSYNC         Vertical video sync output with programmable polarity
-36         AUD_L_OUT     Audio output left channel
-37         AUD_R_OUT/IN  Audio output right channel; audio input
-38         CLK_IN        28.63636MHz crystal oscillator pins
-39         VCC           Power input
-40         GND           Ground input
-========== ============= ===========
+========== ============= ========== ===========
+Pin Number Pin Name      IO std.    Description
+========== ============= ========== ===========
+1          A8_0          3.3V out   Multiplexed address bus
+2          A9_1          3.3V out   Multiplexed address bus
+3          A10_2         3.3V out   Multiplexed address bus
+4          A11_3         3.3V out   Multiplexed address bus
+5          A12_4         3.3V out   Multiplexed address bus
+6          A13_5         3.3V out   Multiplexed address bus
+7          A14_6         3.3V out   Multiplexed address bus
+8          A15_7         3.3V out   Multiplexed address bus
+9          A17_16        3.3V out   Multiplexed address bus
+10         A19_18        3.3V out   Multiplexed address bus
+11         A20_21        3.3V out   Multiplexed address bus
+12         D0            3.3V io    Data bus
+13         D1            3.3V io    Data bus
+14         D2            3.3V io    Data bus
+15         D3            3.3V io    Data bus
+16         D4            3.3V io    Data bus
+17         D5            3.3V io    Data bus
+18         D6            3.3V io    Data bus
+19         D7            3.3V io    Data bus
+20         nRAS_A        3.3V out   Active low row-select, bank A
+21         nRAS_B        3.3V out   Active low row-select, bank B
+22         nCAS_0        3.3V out   Active low column select, byte 0
+23         nCAS_1        3.3V out   Active low column select, byte 1
+24         nWE           3.3V out   Active low write-enable
+25         SYS_CLK       3.3V out   Clock output
+26         nRST          3.3V in    Active low reset input
+27         nINT          3.3V out   Active low interrupt output
+28         nBREQ         3.3V out   Active low bus-request output
+29         nBGRANT       3.3V in    Active low bus-grant input
+30         nREG_CS       3.3V in    Active low chip-select for register accesses
+31         R             ANALOG     Analog 'red' channel output
+32         G             ANALOG     Analog 'green' channel output
+33         B             ANALOG     Analog 'blue' channel output
+34         HSYNC         3.3V out   Horizontal video sync output with programmable polarity
+35         VSYNC         3.3V out   Vertical video sync output with programmable polarity
+36         AUD_L_OUT     ANALOG     Audio output left channel
+37         AUD_R_OUT/IN  ANALOG     Audio output right channel; audio input
+38         CLK_IN        3.3V in    28.63636MHz crystal oscillator pins
+39         VCC           3.3V PWR   Power input
+40         GND           GND        Ground input
+========== ============= ========== ===========
 
 CPU
 ---
 
-========== =========== ===========
-Pin Number Pin Name    Description
-========== =========== ===========
-1          A8_0        Multiplexed address bus
-2          A9_1        Multiplexed address bus
-3          A10_2       Multiplexed address bus
-4          A11_3       Multiplexed address bus
-5          A12_4       Multiplexed address bus
-6          A13_5       Multiplexed address bus
-7          A14_6       Multiplexed address bus
-8          A15_7       Multiplexed address bus
-9          A17_16      Multiplexed address bus
-10         A19_18      Multiplexed address bus, nRAS_C for bank C
-11         A20_21      Multiplexed address bus, nRAS_D for bank D
-12         D0          Data bus
-13         D1          Data bus
-14         D2          Data bus
-15         D3          Data bus
-16         D4          Data bus
-17         D5          Data bus
-18         D6          Data bus
-19         D7          Data bus
-20         nRAS_A      Active low row-select, bank A
-21         nRAS_B      Active low row-select, bank B
-22         nCAS_0      Active low column select, byte 0
-23         nCAS_1      Active low column select, byte 1
-24         nNREN       Active low non-DRAM bus cycle qualifier
-25         nWE         Active low write-enable
-26         nWAIT       Active low wait-state input
-27         SYS_CLK     Clock input
-28         nRST        Active low reset input
-29         nINT        Active low interrupt input
-30         DRQ_A       Active high DMA channel A request input
-31         nDACK_A     Active low DMA channel A grant output
-32         DRQ_B       Active high DMA channel B request input
-33         nDACK_B     Active low DMA channel B grant output
-34         DRQ_C       Active high DMA channel C request input
-35         nDACK_C     Active low DMA channel C grant output
-36         DRQ_D       Active high DMA channel D request input
-37         nDACK_D     Active low DMA channel D grant output
-38         DMA_TC      Active high DMA terminal count output
-39         VCC         Power input
-40         GND         Ground input
-========== =========== ===========
+========== =========== ========== ===========
+Pin Number Pin Name    IO std.    Description
+========== =========== ========== ===========
+1          A8_0        3.3V out   Multiplexed address bus
+2          A9_1        3.3V out   Multiplexed address bus
+3          A10_2       3.3V out   Multiplexed address bus
+4          A11_3       3.3V out   Multiplexed address bus
+5          A12_4       3.3V out   Multiplexed address bus
+6          A13_5       3.3V out   Multiplexed address bus
+7          A14_6       3.3V out   Multiplexed address bus
+8          A15_7       3.3V out   Multiplexed address bus
+9          A17_16      3.3V out   Multiplexed address bus
+10         A19_18      3.3V out   Multiplexed address bus
+11         A20_21      3.3V out   Multiplexed address bus
+12         D0          3.3V io    Data bus
+13         D1          3.3V io    Data bus
+14         D2          3.3V io    Data bus
+15         D3          3.3V io    Data bus
+16         D4          3.3V io    Data bus
+17         D5          3.3V io    Data bus
+18         D6          3.3V io    Data bus
+19         D7          3.3V io    Data bus
+20         nRAS_A      3.3V out   Active low row-select, bank A
+21         nRAS_B      3.3V out   Active low row-select, bank B
+22         nCAS_0      3.3V out   Active low column select, byte 0
+23         nCAS_1      3.3V out   Active low column select, byte 1
+24         nNREN       3.3V out   Active low non-DRAM bus cycle qualifier
+25         nWE         3.3V out   Active low write-enable
+26         nWAIT       3.3V in    Active low wait-state input
+27         SYS_CLK     3.3V in    Clock input
+28         nRST        3.3V in    Active low reset input
+29         nINT        3.3V in    Active low interrupt input
+30         DRQ_A       3.3V in    Active high DMA channel A request input
+31         nDACK_A     3.3V out   Active low DMA channel A grant output
+32         DRQ_B       3.3V in    Active high DMA channel B request input
+33         nDACK_B     3.3V out   Active low DMA channel B grant output
+34         DRQ_C       3.3V in    Active high DMA channel C request input
+35         nDACK_C     3.3V out   Active low DMA channel C grant output
+36         DRQ_D       3.3V in    Active high DMA channel D request input
+37         nDACK_D     3.3V out   Active low DMA channel D grant output
+38         DMA_TC      3.3V out   Active high DMA terminal count output
+39         VCC         3.3V PWR   Power input
+40         GND         GND        Ground input
+========== =========== ========== ===========
 
 New additions:
 
@@ -278,3 +278,25 @@ All right, so we have 3.3V I/O and we're cool with that. We might have to build 
 
 These 3.3V memories are rather large, the above one is 16Mbit device in 4Mx4 config. So, qin a 16-bit (dual-bank) setup, that would create 8MByte of DRAM. That's 11 address lines: A0-A10. Righ now, we have only 9, but with the reduction of the data-bus to 8-bits, we can affort the extra address pin, at least on the CPU.
 
+Universal Chips (UniC)
+======================
+
+An interesting idea is to make an FPGA-based chip, that can pretend to be anything.
+
+Logic levels allow for a 3.3V I/O to be TTL compatible, provided we take care of the above-the-limit voltages:
+
+https://en.wikipedia.org/wiki/7400-series_integrated_circuits#/media/File:Niveaux_logiques_CMOS-TTL-LVTTL.png
+
+This can be done by a series 330 ohm resistor and a diode towards VCC. The resistor will limit the current to 5mA on the driver, if it hard-pulls to 5V. The resistor also (unfortunately) slows the transitions down, but hopefully not to the level where it's problematic: the RC constant with a 10pF load is 3.3ns, which is half the propagation delay of a single LS gate.
+
+Power is more problematic: we don't know where the GND and VDD pins on the to-be-simulated package are. What we can do is to provide a pair of (Schottky) diodes towards the internal VDD and GND from each pin. These diodes would be on the 'outer' pin of the 330 ohm resistor and tied together on the top and bottom to provide my internal VDD and GND. This setup is tested in LTSpice and seems to work, albeit shifts the GND by maybe as much as 0.4V.
+
+An LDO can then generate VCC from VDD. Due to the GND-shift, maybe it's better to generate a somewhat lower VCC, maybe 3.1V or so. That would split the difference in half.
+
+There is a part (74S107 or something) that contains the right diode arrangement for 16 pins, though it might be a bit too large (TSSOP20 is the best it can do). There are quad-diode packages (2 pins worth) as well in the BV56 family.
+
+We can add a tiny OLED display (https://www.ebay.com/itm/293291361583 for instance) to the top for fun displaying of the part number being emulated, maybe even small animations.
+
+The PCB could be covered by a 3D printed snap-on plastic cover, pretending to be a DIP package.
+
+Programming ideally would be done through USB, with a USB connector on one end of the package, but that might be a little too expensive, especially since that would need an FTDI chip of sorts as well.

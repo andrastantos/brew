@@ -76,24 +76,96 @@ There of course needs to be a way to setup a task: there are instructions that c
 Privileged instructions
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-There are none! Normally, there are quite a few operations that can only be executed in a privileged context. These include manipulating sensitive data, such as memory access permissions, or changing things that could impact the OS-es ability to take control of the system, such as disabling interrupts.
+There are none! Normally, a processor would have several instructions that can only be executed in a privileged context. These include manipulating sensitive machine state, or changing things that could impact the OS-es ability to take control of the system, such as disabling interrupts.
 
 In the BREW architecture SCHEDULER mode is assumed to have all the rights in the world: it can do anything. It's TASK mode that is limited, in particular, it's various processes in TASK mode that should have controlled ability to influence each other or the SCHEDULER mode process.
 
-In particular, it would be bad if there was any way to change $spc from TASK mode or the $tpc of another process. If you think about it a little though, you will realize that it is impossible: you can only manipulate either $tpc or $pc. If you happen to be in SCHEDULER mode,
+There are two main avenues of interference that needs to be blocked. First: no TASK mode process should be able to influence the execution (the $tpc) of any other TASK mode process. Second, no TASK mode process should be able to influence the execution (the $spc) of SCHEDULER mode.
+
+Both of these requirements are easily satisfied: there's just one $tpc that the SCHEDULER swaps in and out when it changes TASK mode execution context. Unless a TASK mode process can modify the storage location where the SCHEDULER stores another processes $tpc (which is an access right issue, discussed in a minute) there's no way for such influence to occur. A TASK mode process also can't modify $spc, simply because there is no instruction to do so: instructions can modify $tpc or $pc. For a TASK mode process $pc *is* $tpc, so there's no instruction to touch $spc. For the SCHEDULER mode process, $pc is an alias of $spc, so it can modify either that or $tpc.
+
+It's feels wholesome that all instructions execute the same way with the same semantics in both TASK and SCHEDULER mode. It's this slight asymmetry in the instruction set (that there are instructions directly manipulating $tpc, but there are none to do the same with $spc) that makes all the difference.
+
+Access rights
+~~~~~~~~~~~~~
+
+Now, on to access rights. The processor architecture doesn't really define any memory protection scheme, all it really does is to make sure that everything goes through whatever this external protection logic is. This includes CPU-specific CSR registers.
+
+While the canonical way of dealing with access rights and protections is through a paging MMU, the first implementation of BREW doesn't have enough silicon area (remember, we try to work with 1.5um silicon process) to implement that. Thus, a much simpler protection scheme is used:
+
+In TASK mode, every memory access is offset by a `base` register and checked against a `limit` register. This sets up a single, contiguous window in physical memory, that a the process can access. Anything below the `base` is inaccessible (no negative addresses are supported) and anything above the `limit` would generate an access violation exception. In reality, the situation is a bit more complicated: there are a pair of `base` and `limit` registers: one for instruction fetches and one for everything else.
+
+In SCHEDULER mode, these registers are simply assumed to be 0, giving access to the whole physical address space without translation.
+
+The aforementioned `base` and `limit` registers are implemented as CSRs. CSRs are mapped into the physical address space, starting 0x4000_0000, between ROMs and I/O (0x0000_0000) and DRAM (0x8000_0000). This region is normally not used by user code: they interact with HW (I/O) using drivers, don't have code in ROM so, they can have the `base` set to somewhere in DRAM.
+
+Such a simple scheme has limitations. It is sufficient to protect user-mode processes from one another. However, drivers and OS components (which also run in TASK mode, but need access to certain I/Os and CSRs; they could also be partially in ROM) need compete open access to every HW resource: there's no way to be more granular about permissions. This is a problem in that drivers can crash the system.
+
+Stack operations
+~~~~~~~~~~~~~~~~
+
+Most processors, in fact, all processors I know of have special instructions for stack management: you can push and pop values off of a stack, call subroutines (in which case the PC gets pushed on the stack) and return from them (when you pop the PC from the stack). The problem with these operations is that they (the pops at least) modify two registers at the same time: the stack pointer and the register they popped.
+
+The BREW implementation allows *strictly* up to two register reads and a single register write per instruction. This setup allows for a single write port into the register file, something that's crucial if we wanted to use RAMs instead of flops for implementation (either in FPGAs or in an ASIC).
+
+So, the solution is that there are no stack operations in BREW. This makes subroutine calls and returns a little bit more expensive then they would otherwise be, but only slightly. Under normal circumstances on a RISC processor, the caller has to:
+
+1. Save important caller-saved registers on the stack
+2. Put argument values on the stack
+3. Save return address in the link register.
+4. Jump to the subroutine
+
+At this point, the callee:
+
+1. Sets up the stack-frame, but modifying the frame pointer
+2. Save the link register value
+
+On return the reverse needs to happen. This is several instructions and clock cycles, especially on a machine without (efficient) caches.
+
+If no pushes and pulls are supported, really the only thing that needs to be included is a single, manual modification of the stack pointer. That's one extra instruction in the long instruction stream, something that doesn't touch memory and thus significantly faster then what's already there.
+
+I suppose one other thing that stack-operations help with is the automatic addressing. The BREW processor has register-offset indirect addressing for every load/store operation kind, which not only helps with subroutine calls but also very important for local variables as well as struct-member accesses. Supporting this is much better bang for the buck then the stack operations and either their multi-cycle behavior or second write port.
+
+There are special, 16-bit load/store instructions that work with `$r0` and `$r1` as their base-register. These instructions, combined with the ABI that designates these two registers as the stack and frame pointer respectively makes code very compact, almost as compact as the ARM THUMB ISA. (Note that THUMB only supports 8 general purpose registers, we have 14, so we can handle register pressure better and generate less spills into the stack.)
+
+Unimplemented features
+~~~~~~~~~~~~~~~~~~~~~~
+
+There are several features of the original BREW concept that the current implementation doesn't support. These are either things that I deemed too complex for the target technology (and era) or things that I'm on the fence on at the moment.
+
+Memory model operations
+-----------------------
+
+In a more complex processor, especially in a multi-core system memory model is a big problem. Write queues, instruction and data-caches, out-of-order execution all mess with the real order of memory operations compared to the SW-apparent one. The BREW architecture has support for 'load-acquire' 'store-release' model of synchronization primitives. It has support for various fence instructions and cache-invalidation operations. None of this makes sense in a single-processor, in-order, cache-less processor, which this simple design is. So these operations either revert to regular loads and stores or just don't do anything.
+
+Floating point operations
+-------------------------
+
+Floating point support would be nice, of course, but not within the silicon complexity constraints of the early '80s. This feature must go.
+
+Multiple Load-Stores
+--------------------
+
+This is a new idea that I'm toying with: would it be too difficult to add a pair of (multi-cycle) instructions that could load and store any combination of registers? This goes against the RISC approach, it's clearly a complex concept. However, ARM has it and for good reason: it collapses function prologs and epilogs, results in very compact code and - if implemented properly - results in pretty nice memory access patterns with high efficiencies. I have found a right-sized hole in the instruction space to fit these instructions in, but the implementation complexity is rather high. I'm not yet sure if it's worth to have them, I probably need to model it first.
+
+Register Types
+--------------
+
+This is probably the most controversial feature of BREW, something that I haven't seen in any other processor (maybe for good reasons). The idea is that along with every register value, the processor maintains the type of the data stored in that register. This type can be set by a set of instructions and - crucially - used by the processor to determine the semantics of various operations. For instance, the operation `$r4 <- $r5 + $r6` could mean an integer addition if `$r5` and `$r6` hold integer values, but the same bit-pattern can mean a floating-point addition if the source operand types set as such. There are many many corner-cases to be ironed out (what if `$r5` is a float and `$r6` is an integer?) but that is mostly just a set of decisions to be made.
+
+Another big problem is that now on function entry/return not only register values, but their types will need to be saved and restored. I have instructions that can handle this, but the previously mentioned multiple load-store operations would shine in this aspect: they can handle the type load/store aspect right then and there.
+
+Yet another problem is compiler support: I don't know how to explain this behavior to GCC: that it can use *any* register as a floating-point one, but really shouldn't: it should try to group operations and register-assignments by type: type-changes are extra instructions, so should be avoided. But now, the register-allocator would need to be type-aware.
+
+Finally, there's the question of how to build a high(er) performance processor with this feature? You see, the problem is that the execution-unit selection can't be done until the source operand types are known. This on the surface would mean that out-of-order execution would be really difficult. The saving-grace though is this: the result type of an operation is known right when the source operand types are determined. So, even though the *values* of the registers might come several clock cycles later, the *type* of those values can be known immediately and scheduling of operations to execution units (and queues) can continue. The complexity of
+
+Extension groups
+----------------
+
+There are several holes in the instruction set, that can be used to extend the ISA in the future. Some of these are already called for for more complex operations (linear interpolation is one example).
 
 
 
-
-
-
-None of this exists in my architecture. Or, to be precise, SCHEDULER mode is assumed to be privileged. SCHEDULER mode should be able to do anything to its hearts content, its TASK mode that should be confined.
-
-We've already dealt with interrupts: since they are always enabled in TASK mode and never enabled in SCHEDULER mode, there's no way to enable or disable them. There are no instructions for them, so there's no need to make them privileged either.
-
-We also discussed the way we set up tasks: loading a new value into $tpc. This operation is something that might first seem to be dangerous, if executed by anybody. But, if you think about it, if you are in TASK mode, $tpc is your PC. So, loading it with a value is just a branch operation. Nothing to see here! If executed in
-
-If you look through
 
  I will use that, mostly because ... why not? It's a riff on a variable-instruction-length RISC architecture, which straddles the divide that started to emerge around that time in CPU architecture. In that sense it fits right in. It's also a 32-bit ISA with a 16-bit instruction encoding, something that would have been rather more appealing in those memory-constrained days. It highly depends on an MMU, which I don't think I can afford, so something more simplistic, probably a Cray-style base+limit-based protection scheme would need to be used. It also depends highly on memory-mapped I/O, which - as we will see - is good for pin-count reduction.
 

@@ -9,23 +9,23 @@ The following register usage is defined:
 ========     =====================================
 Register     Functionality
 ========     =====================================
-$sp          call-saved register a.k.a. $r0 - stack pointer.
-$fp          call-saved register a.k.a. $r1 - frame pointer.
-$lr          call-clobbered link register.
-$r3          call-saved general purpose register.
+$r0          call-clobbered general purpose register; used in thunks for virtual inheritance. Must be call-clobbered
+$r1          call-clobbered general purpose register; struct value address (return value area pointer for large return values). EH_RETURN_STACKADJ_RTX BREW_STACKADJ_REG. Must be call-clobbered
+$r2          call-clobbered general purpose register; static chain register
+$r3          call-clobbered general purpose register
 $r4          call-clobbered first argument/return value register.
 $r5          call-clobbered second argument/return value register.
 $r6          call-clobbered third argument/return value register;
 $r7          call-clobbered fourth argument/return value register;
-$r8          call-clobbered general purpose; static chain register
-$r9          call-clobbered general purpose; used in thunks for virtual inheritance. Must be call-clobbered
-$r10         call-clobbered general purpose; struct value address (return value area pointer for large return values). :code:`EH_RETURN_STACKADJ_RTX` :code:`BREW_STACKADJ_REG`. Must be call-clobbered
-$r11         call-saved general purpose register.
-$r12         call-saved general purpose register.
-$r13         call-saved general purpose register; :code:`EH_RETURN_DATA_REGNO`
-$r14         call-saved general purpose register; :code:`EH_RETURN_DATA_REGNO`
-========     =====================================
 
+$r8          call-saved general purpose register; EH_RETURN_DATA_REGNO
+$r9          call-saved general purpose register; EH_RETURN_DATA_REGNO
+$r10         call-saved general purpose register
+$r11         call-saved general purpose register
+$r12         call-saved register a.k.a. $fp - frame pointer. NOTE: we depend on it being $r1 in the stack-frame: brew_dynamic_chain_address assumes it's in the 1st save slot.
+$r13         call-saved register a.k.a. $sp - stack pointer.
+$r14         call-saved register a.k.a. $lr - link register. NOTE: we depend on it being $r2 in the stack-frame: brew_return_addr_rtx assumes it's in the 2nd save slot.
+========     =====================================
 
 .. note::
   $lr is actually call-saved at the moment, but I don't think that's necessary.
@@ -36,6 +36,8 @@ $r14         call-saved general purpose register; :code:`EH_RETURN_DATA_REGNO`
     - :code:`brew-newlib/newlib/libc/include/machine/setjmp.h` (size of jump buffer in _JBLEN)
     - :code:`brew-gcc/gcc/config/brew/brew.h` (actual register use definition for GCC)
     - :code:`brew-glibc/sysdeps/brew/bits/setjmp.h`
+    - :code:`brew-binutils-gdb/opcodes/brew-decode.c`
+    - :code:`brew-binutils-gdb/include/opcode/brew-abi.h`
 
 EH_RETURN_STACKADJ_RTX:
   This is a register that is used to communicate to the epilog of functions that might have exception handlers in them that they need to adjust $sp by more than the usual amount. It is 0-ed out for normal control-flow, and filled in with a potentially non-0 value for the exception path.

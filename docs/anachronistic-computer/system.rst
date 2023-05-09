@@ -152,7 +152,9 @@ ISA bus notes
 DRAM interface
 ~~~~~~~~~~~~~~
 
-There are up to 4 banks of DRAM, each divided into two 8-bit words. All DRAM pins are directly connected to the corresponding pins of the CPU and all other bus-masters.
+There are up to 2 banks of DRAM, each divided into two 8-bit words. All DRAM pins are directly connected to the corresponding pins of the CPU and all other bus-masters.
+
+While this would not have been the case (or possible really) in the old days, now a 3.3V level translator is necessary on the data lines. This is a single 74LVT245 device. Additional families to consider: AHCT (7ns), LVT (4.1ns), LVC (6ns)
 
 Buffer stage
 ~~~~~~~~~~~~
@@ -312,9 +314,11 @@ The ISA address and data bits are going as follows::
     ISA_A18 <<= BLA18
     ISA_A19 <<= BLA19
 
-    ISA_D0-7 <<=>> B0-7
+    ISA_D0-7 <<=>> D0-7
 
 These most likely could be wires as long as we don't intend to support a huge number of ISA slots.
+
+.. note:: For modern environments, a level-shifter/buffer (74LVT245) is needed to buffer the data-lines. Potentially the same instance that is used for DRAM data buffering could be used.
 
 The rest of the ISA signals::
 
@@ -325,10 +329,10 @@ The rest of the ISA signals::
     ISA_nDACK1    <<= nDACK_B
     ISA_nDACK2    <<= nDACK_C
     ISA_nDACK3    <<= nDACK_D
-    nDRQ_B        <<= ISA_DRQ1
-    nDRQ_C        <<= ISA_DRQ2
-    nDRQ_D        <<= ISA_DRQ3
-    ISA_RST       <<= ~nRST
+    nDRQ_B        <<= ISA_DRQ1 - note: level-shifter is needed
+    nDRQ_C        <<= ISA_DRQ2 - note: level-shifter is needed
+    nDRQ_D        <<= ISA_DRQ3 - note: level-shifter is needed
+    ISA_RST       <<= ~nRST - note: bi-directional level-shifter (FET-based) is needed
 
 There are 2 inverters needed here. We also need an open-collector driver for nWAIT.
 
@@ -340,6 +344,8 @@ This leaves with interrupt signals. These need to go ... somewhere. I'm starting
     ISA_IRQ5      =>>
     ISA_IRQ6      =>>
     ISA_IRQ7      =>>
+
+.. note:: level shifters are needed on modern systems.
 
 DMA
 ---
