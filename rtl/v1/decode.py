@@ -97,7 +97,7 @@ class DecodeStage(GenericModule):
 
         tiny_ofs = Wire(Unsigned(32))
         tiny_ofs <<= concat(*(self.fetch.inst_0[7], )*23, self.fetch.inst_0[7:1], "2'b0")
-        tiny_field_a = self.fetch.inst_0[0]
+        tiny_field_a = 12 | self.fetch.inst_0[0]
 
         field_a_plus_one = Wire()
         field_a_plus_one <<= (field_a+1)[3:0]
