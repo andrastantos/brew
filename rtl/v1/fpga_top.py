@@ -225,7 +225,9 @@ def gen(
             dram1_content=dram1_content
         )
 
-    netlist = Build.generate_rtl(top, "fpga_top.sv")
+    back_end = SystemVerilog()
+    back_end.support_unique_case = False
+    netlist = Build.generate_rtl(top, "fpga_top.sv", back_end=back_end)
     top_level_name = netlist.get_module_class_name(netlist.top_level)
     flow = QuartusFlow(
         target_dir=target_dir,
