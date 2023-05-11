@@ -8,7 +8,7 @@ PCF = brew_v1.pcf
 all: brew_v1.bin
 
 brew_v1.blif: $(SOURCES)
-	yosys -p "synth_ice40 -blif brew_v1.blif" $^
+	yosys -p "synth_ice40 -top BREW_V1 -blif brew_v1.blif" $^
 
 brew_v1.bin: brew_v1.blif brew_v1.pcf
 #	arachne-pnr -d $(PNR_DEVICE) -P $(PNR_PACKAGE) -p $(PCF) brew_v1.blif -o brew_v1.asc
