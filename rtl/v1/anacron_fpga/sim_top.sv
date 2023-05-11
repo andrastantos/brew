@@ -33,10 +33,10 @@ module top();
         #500 n_rst = 1;
         $display("Reset removed");
         //#30006 n_rst = 0;
-        #28660 n_rst = 0;
-        $display("Reset applied");
-        #30104 n_rst = 1;
-        $display("Reset removed");
+        //#28660 n_rst = 0;
+        //$display("Reset applied");
+        //#30104 n_rst = 1;
+        //$display("Reset removed");
     end
 
     initial begin
