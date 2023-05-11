@@ -342,16 +342,14 @@ class BusIf(GenericModule):
         self.fsm.add_transition(BusIfStates.refresh, 1,                                                                         BusIfStates.idle)
 
         dram_bank = Wire()
-        dram_bank <<= Reg(
-            Select(
-                dram_bank_size,
-                req_addr[22],
-                req_addr[20],
-                req_addr[18],
-                req_addr[16],
-            )
-            , clock_en=start
-        ) # masking out the top bit in the bank selector if only 2 banks are enabled
+        dram_bank_next = Select(
+            dram_bank_size,
+            req_addr[22],
+            req_addr[20],
+            req_addr[18],
+            req_addr[16],
+        )
+        dram_bank <<= Select(start, Reg(dram_bank_next, clock_en=start), dram_bank_next)
 
         input_row_addr = Wire()
         input_row_addr <<= req_addr[21:11]
