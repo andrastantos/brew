@@ -1,0 +1,6 @@
+#!/bin/sh
+iverilog -g2012 brew.sv apb_uart.sv fpga_system.sv fpga_top.sv sim_top.sv -o fpga_top || exit 1
+p=$PWD
+cd ..
+$p/fpga_top
+cd $p
