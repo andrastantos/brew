@@ -244,7 +244,7 @@ def gen(
     flow.run()
 
 gen(
-    rom_content="rom.rom_mef",
-    dram0_content="dram.dram0_mef",
-    dram1_content="dram.dram1_mef"
+    rom_content="rom.mef",
+    dram0_content="dram.0.mef",
+    dram1_content="dram.1.mef"
 )
