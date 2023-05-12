@@ -220,8 +220,8 @@ class BranchTargetUnit(Module):
                 offset[0], offset[0], offset[0], offset[0], offset[0], offset[0], offset[0], offset[0],
                 offset[15:1]
             )
-
-        self.output_port.branch_addr   <<= (self.input_port.pc + unmunge_offset(self.input_port.op_c))[30:0]
+        offset = unmunge_offset(self.input_port.op_c)
+        self.output_port.branch_addr   <<= (self.input_port.pc + offset)[30:0]
         self.output_port.straight_addr <<= (self.input_port.pc + self.input_port.inst_len + 1)[30:0]
 
 
