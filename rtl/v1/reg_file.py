@@ -227,7 +227,7 @@ class RegFile(Module):
         #rsv_valid_d = Reg(rsv_valid)
         #rsv_addr_d = Reg(rsv_addr)
         #rsv_set_valid = self.read_rsp.valid & self.read_rsp.ready & rsv_valid_d # We only set the reservation bit when we give our response. This way, if we get back-pressured.
-        rsv_clr_valid = self.write.valid & ~wait_for_rsv
+        rsv_clr_valid = self.write.valid & (~wait_for_rsv | (rsv_addr != self.write.addr))
         for i in range(BrewRegCnt):
             rsv_board[i] <<= Reg(
                 Select(
