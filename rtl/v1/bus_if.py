@@ -171,7 +171,7 @@ class BusIf(GenericModule):
     # Register setup:
     # bits 7-0: refresh divider
     # bit 8: refresh disable (if set)
-    # bit 10-9: DRAM bank size: 0 - 22 bits, 1 - 20 bits, 2 - 18 bits, 3 - 16 bits
+    # bit 10-9: DRAM bank size: 0 - 16 bits, 1 - 18 bits, 2 - 20 bits, 3 - 22 bits
     # bit 11: DRAM bank swap: 0 - no swap, 1 - swap
     refresh_counter_size = 8
 
@@ -289,6 +289,7 @@ class BusIf(GenericModule):
         req_ext  = (arb_port_select == Ports.dma_port) &  self.dma_request.is_master
         req_rfsh = (arb_port_select == Ports.refresh_port)
 
+        dram_addr_muxing = Select(start, Reg(req_dram | req_dma, clock_en=start), req_dram | req_dma)
         dma_ch = Reg(self.dma_request.one_hot_channel, clock_en=start)
         tc = Reg(self.dma_request.terminal_count, clock_en=start)
 
@@ -344,18 +345,40 @@ class BusIf(GenericModule):
         dram_bank = Wire()
         dram_bank_next = Select(
             dram_bank_size,
-            req_addr[22],
-            req_addr[20],
-            req_addr[18],
             req_addr[16],
+            req_addr[18],
+            req_addr[20],
+            req_addr[22],
         )
         dram_bank <<= Select(start, Reg(dram_bank_next, clock_en=start), dram_bank_next)
 
         input_row_addr = Wire()
-        input_row_addr <<= req_addr[21:11]
+        input_row_addr <<= Select(
+            dram_addr_muxing,
+            req_addr[21:11],
+            Select(
+                dram_bank_size,
+                req_addr[15:8],
+                req_addr[17:9],
+                req_addr[19:10],
+                req_addr[21:11]
+            )
+        )
         row_addr = Wire()
         row_addr <<= Reg(Select(req_rfsh, input_row_addr, refresh_addr), clock_en=start)
         col_addr = Wire()
+        # NOTE: I don't think we need to change muxing of COL address based on target device.
+        #col_addr <<= Reg(Select(
+        #    dram_addr_muxing,
+        #    req_addr[10:0],
+        #    Select(
+        #        dram_bank_size,
+        #        req_addr[7:0],
+        #        req_addr[8:0],
+        #        req_addr[9:0],
+        #        req_addr[10:0]
+        #    )
+        #), clock_en=req_advance)
         col_addr <<= Reg(req_addr[10:0], clock_en=req_advance)
         read_not_write = Wire()
         read_not_write <<= Reg(req_read_not_write, clock_en=start, reset_value_port=1) # reads and writes can't mix within a burst
