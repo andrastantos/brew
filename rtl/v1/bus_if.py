@@ -232,9 +232,10 @@ class BusIf(GenericModule):
             non_dram_dual        = 7
             non_dram_dual_first  = 8
             non_dram_dual_wait   = 9
-            dma_first            = 10
-            dma_wait             = 11
-            refresh              = 12
+            non_dram_last        = 10
+            dma_first            = 11
+            dma_wait             = 12
+            refresh              = 13
 
         self.fsm = FSM()
 
@@ -332,11 +333,12 @@ class BusIf(GenericModule):
         self.fsm.add_transition(BusIfStates.non_dram_first, 1,                                                                  BusIfStates.non_dram_wait)
         self.fsm.add_transition(BusIfStates.non_dram_wait,  waiting,                                                            BusIfStates.non_dram_wait)
         self.fsm.add_transition(BusIfStates.non_dram_wait, ~waiting &  two_cycle_nram_access,                                   BusIfStates.non_dram_dual)
-        self.fsm.add_transition(BusIfStates.non_dram_wait, ~waiting & ~two_cycle_nram_access,                                   BusIfStates.idle)
+        self.fsm.add_transition(BusIfStates.non_dram_wait, ~waiting & ~two_cycle_nram_access,                                   BusIfStates.non_dram_last)
         self.fsm.add_transition(BusIfStates.non_dram_dual, 1,                                                                   BusIfStates.non_dram_dual_first)
         self.fsm.add_transition(BusIfStates.non_dram_dual_first, 1,                                                             BusIfStates.non_dram_dual_wait)
         self.fsm.add_transition(BusIfStates.non_dram_dual_wait,  waiting,                                                       BusIfStates.non_dram_dual_wait)
-        self.fsm.add_transition(BusIfStates.non_dram_dual_wait, ~waiting,                                                       BusIfStates.idle)
+        self.fsm.add_transition(BusIfStates.non_dram_dual_wait, ~waiting,                                                       BusIfStates.non_dram_last)
+        self.fsm.add_transition(BusIfStates.non_dram_last, 1,                                                                   BusIfStates.idle)
         self.fsm.add_transition(BusIfStates.dma_first, 1,                                                                       BusIfStates.dma_wait)
         self.fsm.add_transition(BusIfStates.dma_wait,  waiting,                                                                 BusIfStates.dma_wait)
         self.fsm.add_transition(BusIfStates.dma_wait, ~waiting,                                                                 BusIfStates.idle)
@@ -466,6 +468,7 @@ class BusIf(GenericModule):
             (next_state == BusIfStates.non_dram_dual) |
             (next_state == BusIfStates.non_dram_dual_first) |
             (next_state == BusIfStates.non_dram_dual_wait) |
+            (next_state == BusIfStates.non_dram_last) |
             (next_state == BusIfStates.dma_first) |
             (next_state == BusIfStates.dma_wait),
             reset_value_port = 1
@@ -480,6 +483,7 @@ class BusIf(GenericModule):
             (next_state == BusIfStates.non_dram_dual) |
             (next_state == BusIfStates.non_dram_dual_first) |
             (next_state == BusIfStates.non_dram_dual_wait) |
+            (next_state == BusIfStates.non_dram_last) |
             (next_state == BusIfStates.dma_first) |
             (next_state == BusIfStates.dma_wait),
             reset_value_port = 1
