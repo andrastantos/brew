@@ -16,5 +16,7 @@ int main()
 	volatile uint8_t *out_port = gpio1_base + gpio_data_reg_ofs;
 	while (true) {
 		cnt = blink(out_port, cnt);
+		sim_uart_write_hex((uint16_t)cnt);
+		sim_uart_write_str("\n");
 	}
 }
