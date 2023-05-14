@@ -12,6 +12,7 @@ try:
     from .fpga_system import FpgaSystem
     from .brew_v1 import BrewV1Top
     from .apb_uart import ApbUart
+    from .apb_gpio import ApbGpio
 except ImportError:
     from brew_types import *
     from scan import *
@@ -19,6 +20,7 @@ except ImportError:
     from fpga_system import FpgaSystem
     from brew_v1 import BrewV1Top
     from apb_uart import ApbUart
+    from apb_gpio import ApbGpio
 
 from silicon import *
 from os import makedirs
@@ -111,6 +113,23 @@ def generate_uart():
     top_level_name = netlist.get_module_class_name(netlist.top_level)
     return top_level_name
 
+def generate_gpio():
+    class ApbGpio(globals()["ApbGpio"]):
+        def construct(self):
+            self.bus_if.paddr.set_net_type(Unsigned(3))
+
+    def top(): return ApbGpio()
+
+    netlist = Build.generate_rtl(
+        top,
+        Path(target_dir) / "apb_gpio.sv",
+        back_end=create_back_end(),
+        name_prefix = "apb_gpio",
+        top_level_prefix = None
+    )
+    top_level_name = netlist.get_module_class_name(netlist.top_level)
+    return top_level_name
+
 
 def gen(
     *,
@@ -121,6 +140,7 @@ def gen(
     generate_brew()
     generate_system(rom_content=rom_content, dram0_content=dram0_content, dram1_content=dram1_content)
     generate_uart()
+    generate_gpio()
 
     return
 

@@ -287,8 +287,12 @@ class FpgaSystem(GenericModule):
     output_pins = Output(BrewByte)
     input_pins = Input(BrewByte)
 
+    output_pins2 = Output(BrewByte)
+    input_pins2 = Input(BrewByte)
+
     rom_base = 0x0000_0000
     gpio_base = 0x0001_0000
+    gpio2_base = 0x0001_1000
     io_apb_base = 0x0002_0000
     io_apb_size = 4096*16
     gpio_size = 4096
@@ -308,6 +312,7 @@ class FpgaSystem(GenericModule):
         dram1 = Dram(init_content=self.dram1_content, inv_clock=False)
         rom = Sram(init_content=self.rom_content)
         gpio = Gpio()
+        gpio2 = Gpio()
         apb_bridge = ApbBridge()
 
         decode_input = Wire(ExternalBusIf)
@@ -315,6 +320,7 @@ class FpgaSystem(GenericModule):
             (
                 ("rom",    self.rom_base,    self.rom_size),
                 ("gpio",   self.gpio_base,   self.gpio_size),
+                ("gpio2",  self.gpio2_base,  self.gpio_size),
                 ("io_apb", self.io_apb_base, self.io_apb_size)
             )
         )
@@ -375,6 +381,14 @@ class FpgaSystem(GenericModule):
 
         gpio.input_pins <<= self.input_pins
         self.output_pins <<= gpio.output_pins
+
+        gpio2.n_ce <<= decode.gpio2
+        gpio2.n_we <<= self.brew_if.n_we
+        gpio2.data_in <<= self.brew_if.data_out
+        decode.gpio2_data_in <<= gpio2.data_out
+
+        gpio2.input_pins <<= self.input_pins2
+        self.output_pins2 <<= gpio2.output_pins
 
         apb_bridge.clk <<= self.clk2
         apb_bridge.addr <<= decode.addr[15:0]

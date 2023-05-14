@@ -10,6 +10,14 @@ module FpgaTop (
 	output logic [7:0] output_pins,
 	input logic [7:0] input_pins,
 
+    // GPIO2
+	output logic [7:0] output_pins2,
+	input logic [7:0] input_pins2,
+
+    // GPIO3
+	output logic [7:0] output_pins3,
+	output logic       output_pins3_update,
+
     // UART
     input logic rxd,
 	output logic txd,
@@ -100,20 +108,25 @@ module FpgaTop (
 		.io_apb_if_pwrite   (system_io_apb_if_pwrite),
 
 		.output_pins(output_pins),
-		.input_pins(input_pins)
+		.input_pins(input_pins),
+
+		.output_pins2(output_pins2),
+		.input_pins2(input_pins2)
 	);
 
     logic uart1_psel;
     assign uart1_psel = system_io_apb_if_psel & (system_io_apb_if_paddr[15:8] == 8'h00);
     logic uart_int;
+	logic [7:0] uart1_prdata;
+	logic uart1_pready;
 
     ApbUart uart1 (
         .clk(clk2),
         .rst(rst),
         .bus_if_paddr    (system_io_apb_if_paddr[2:0]),
         .bus_if_penable  (system_io_apb_if_penable),
-        .bus_if_prdata   (system_io_apb_if_prdata),
-        .bus_if_pready   (system_io_apb_if_pready),
+        .bus_if_prdata   (uart1_prdata),
+        .bus_if_pready   (uart1_pready),
         .bus_if_psel     (uart1_psel),
         .bus_if_pwdata   (system_io_apb_if_pwdata),
         .bus_if_pwrite   (system_io_apb_if_pwrite),
@@ -125,4 +138,35 @@ module FpgaTop (
         .rts        (rts),
         .n_tx_en    (n_tx_en)
     );
+
+    logic gpio3_psel;
+    assign gpio3_psel = system_io_apb_if_psel & (system_io_apb_if_paddr[15:8] == 8'h01);
+	logic [7:0] gpio3_prdata;
+	logic gpio3_pready;
+
+	ApbGpio gpio3 (
+        .clk(clk2),
+        .rst(rst),
+        .bus_if_paddr    (system_io_apb_if_paddr[2:0]),
+        .bus_if_penable  (system_io_apb_if_penable),
+        .bus_if_prdata   (gpio3_prdata),
+        .bus_if_pready   (gpio3_pready),
+        .bus_if_psel     (gpio3_psel),
+        .bus_if_pwdata   (system_io_apb_if_pwdata),
+        .bus_if_pwrite   (system_io_apb_if_pwrite),
+
+		.output_port (output_pins3),
+		.output_update (output_pins3_update)
+    );
+
+	assign system_io_apb_if_prdata =
+		uart1_psel ? uart1_prdata :
+		gpio3_psel ? gpio3_prdata :
+		8'bX;
+
+	assign system_io_apb_if_pready =
+		uart1_psel ? uart1_pready :
+		gpio3_psel ? gpio3_pready :
+		8'bX;
+
 endmodule

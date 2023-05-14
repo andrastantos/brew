@@ -28,6 +28,7 @@ class FpgaTop(GenericModule):
     n_rst             = Input(logic)
 
     output_pins = Output(BrewByte)
+    output_pins2 = Output(BrewByte)
     input_pins = Input(BrewByte)
 
     def construct(
@@ -98,6 +99,7 @@ class FpgaTop(GenericModule):
         system.brew_if <<= ext_bus
 
         self.output_pins <<= system.output_pins
+        self.output_pins2 <<= system.output_pins2
         system.input_pins <<= self.input_pins
 
 def counter_demo():

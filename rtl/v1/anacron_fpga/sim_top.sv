@@ -9,6 +9,12 @@ module top();
     // GPIO
     logic [7:0] input_pins;
     logic [7:0] output_pins;
+    logic [7:0] input_pins2;
+    logic [7:0] output_pins2;
+
+    // GPIO3
+	logic [7:0] output_pins3;
+	logic       output_pins3_update;
 
     // UART
     logic rxd;
@@ -29,6 +35,11 @@ module top();
 
     assign cts = 0;
 
+    always @(posedge output_pins3_update) begin
+        $write("%c", output_pins3);
+        $fflush();
+    end
+
     initial begin
         $display("Reset applied");
         n_rst = 0;
@@ -44,6 +55,6 @@ module top();
     initial begin
     	$dumpfile("anacron_fpga.vcd");
     	$dumpvars(0,top);
-        #(1000*1000) $finish;
+        #(2*1000*1000) $finish;
     end
 endmodule
