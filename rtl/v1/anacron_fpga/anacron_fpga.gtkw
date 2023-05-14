@@ -1,20 +1,20 @@
 [*]
 [*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
-[*] Sun May 14 21:55:42 2023
+[*] Sun May 14 23:45:28 2023
 [*]
 [dumpfile] "/home/tantos/brew/rtl/v1/anacron_fpga/anacron_fpga.vcd"
-[dumpfile_mtime] "Sun May 14 21:55:10 2023"
-[dumpfile_size] 40243935
+[dumpfile_mtime] "Sun May 14 23:44:53 2023"
+[dumpfile_size] 53551071
 [savefile] "/home/tantos/brew/rtl/v1/anacron_fpga/anacron_fpga.gtkw"
-[timestart] 0
+[timestart] 19900
 [size] 1920 990
 [pos] -1 -1
-*-17.975914 120440 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+*-15.122524 141780 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
 [treeopen] top.
 [treeopen] top.dut.
 [treeopen] top.dut.brew.
 [treeopen] top.dut.brew.bus_if.
-[treeopen] top.dut.brew.pipeline.execute_stage.
+[treeopen] top.dut.brew.pipeline.
 [treeopen] top.dut.brew.pipeline.fetch_stage.
 [treeopen] top.dut.brew.pipeline.reg_file.
 [treeopen] top.dut.system.dram0.
@@ -45,11 +45,11 @@ top.dut.output_pins3[7:0]
 @28
 top.dut.output_pins3_update
 top.txd
-@800200
+@c00200
 -IO_APB
-@c00023
+@c00022
 top.dut.system.io_apb_if_paddr[15:0]
-@29
+@28
 (0)top.dut.system.io_apb_if_paddr[15:0]
 (1)top.dut.system.io_apb_if_paddr[15:0]
 (2)top.dut.system.io_apb_if_paddr[15:0]
@@ -66,7 +66,7 @@ top.dut.system.io_apb_if_paddr[15:0]
 (13)top.dut.system.io_apb_if_paddr[15:0]
 (14)top.dut.system.io_apb_if_paddr[15:0]
 (15)top.dut.system.io_apb_if_paddr[15:0]
-@1401201
+@1401200
 -group_end
 @28
 top.dut.system.io_apb_if_penable
@@ -79,9 +79,9 @@ top.dut.system.io_apb_if_psel
 top.dut.system.io_apb_if_pwdata[7:0]
 @28
 top.dut.system.io_apb_if_pwrite
-@1000200
+@1401200
 -IO_APB
-@800200
+@c00200
 -GPIO3_BUS_IF
 @28
 top.dut.gpio3.bus_if_paddr[2:0]
@@ -95,9 +95,9 @@ top.dut.gpio3.bus_if_psel
 top.dut.gpio3.bus_if_pwdata[7:0]
 @28
 top.dut.gpio3.bus_if_pwrite
-@1000200
+@1401200
 -GPIO3_BUS_IF
-@800200
+@c00200
 -UART_BUS_IF
 @24
 top.dut.uart1.bus_if_paddr[2:0]
@@ -134,7 +134,7 @@ top.dut.uart1.bus_if_pwdata[7:0]
 -group_end
 @28
 top.dut.uart1.bus_if_pwrite
-@1000200
+@1401200
 -UART_BUS_IF
 @22
 top.dut.brew.bus_if.ndram_data_in_high[7:0]
@@ -199,8 +199,32 @@ top.dut.brew.bus_if.mem_response_data[15:0]
 top.dut.brew.bus_if.mem_response_valid
 @1000200
 -MEM_REQ_RSP
+@22
+top.dut.brew.pipeline.fetch_stage.inst_buf.req_len[4:0]
+@800200
+-FETCH_REQ_RSP
+@22
+top.dut.brew.pipeline.fetch_stage.inst_buf.bus_if_request_addr[30:0]
+@28
+top.dut.brew.pipeline.fetch_stage.inst_buf.bus_if_request_byte_en[1:0]
+@22
+top.dut.brew.pipeline.fetch_stage.inst_buf.bus_if_request_data[15:0]
+@28
+top.dut.brew.pipeline.fetch_stage.inst_buf.bus_if_request_read_not_write
+top.dut.brew.pipeline.fetch_stage.inst_buf.bus_if_request_ready
+top.dut.brew.pipeline.fetch_stage.inst_buf.bus_if_request_valid
+@22
+top.dut.brew.pipeline.fetch_stage.inst_buf.bus_if_response_data[15:0]
+@28
+top.dut.brew.pipeline.fetch_stage.inst_buf.bus_if_response_valid
+@1000200
+-FETCH_REQ_RSP
 @28
 top.dut.system.decode_gpio
+top.dut.brew.pipeline.fetch_stage.inst_buf.start_new_request
+top.dut.brew.pipeline.fetch_stage.inst_buf.do_branch
+@25
+top.dut.brew.pipeline.fetch_stage.inst_buf.next_outstanding_request[1:0]
 @800200
 -INST_QUEUE_IN
 @28
@@ -283,6 +307,10 @@ top.dut.brew.pipeline.reg_file.rsv_addr[3:0]
 top.dut.brew.pipeline.reg_file.rsv_valid
 @1401200
 -RSV_LOGIC
+@22
+top.dut.output_pins3[7:0]
+@28
+top.dut.output_pins3_update
 @800200
 -EXEC_INT
 @28
@@ -326,6 +354,16 @@ top.dut.brew.pipeline.execute_stage.mem_input_ready
 top.dut.brew.pipeline.execute_stage.s2_mem_output_valid
 @1000200
 -EXEC_INT
+@800200
+-RF_WRITE
+@22
+top.dut.brew.pipeline.reg_file.write_addr[3:0]
+top.dut.brew.pipeline.reg_file.write_data[31:0]
+@28
+top.dut.brew.pipeline.reg_file.write_data_en
+top.dut.brew.pipeline.reg_file.write_valid
+@1000200
+-RF_WRITE
 @c00200
 -MEM_IN
 @24

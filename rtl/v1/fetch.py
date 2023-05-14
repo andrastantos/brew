@@ -228,8 +228,11 @@ class InstBuffer(GenericModule):
         )
         outstanding_request <<= Reg(next_outstanding_request)
 
+
+        # We have to make sure that we only start a new burst if we know for sure the queue can take all the responses,
+        # including all the outstanding ones.
         start_new_request = (
-            ((((self.queue_free_cnt >= fetch_threshold) & ~branch_req) | (branch_req & (next_outstanding_request == 0))) & (state == InstBufferStates.idle)) |
+            ((((self.queue_free_cnt > fetch_threshold + next_outstanding_request) & ~branch_req) | (branch_req & (next_outstanding_request == 0))) & (state == InstBufferStates.idle)) |
             ((state == InstBufferStates.flushing) & (next_outstanding_request == 0)) |
             ((state == InstBufferStates.request) & branch_req & (next_outstanding_request == 0))
         )
@@ -239,7 +242,13 @@ class InstBuffer(GenericModule):
             Select(
                 start_new_request,
                 Select(advance_request, req_len, Select(req_len > 0, 0, truncate_queue_ptr(req_len - 1))), # No new request: simply decrement
-                Select(self.do_branch, self.queue_free_cnt, fetch_threshold) # New request: capture the new value
+                Select(
+                    self.do_branch,
+                    # If we don't have a branch, we need to imit fetch burst length to fetch_threshold (to be good citizens on the bus).
+                    Select(self.queue_free_cnt >= fetch_threshold, self.queue_free_cnt, fetch_threshold),
+                    #self.queue_free_cnt,
+                    # In case of a branch, we're blowing the queue away, so ignore the free counter and start a full burst.
+                    fetch_threshold)
             ),
             reset_value_port = fetch_threshold
         )
