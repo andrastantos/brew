@@ -439,12 +439,12 @@ class ApbUart(Module):
                 rx_data.data,
                 # Reg 1: status
                 concat(
+                    tx_phy.cts_out,
                     rx_phy.overrun_error,
                     rx_phy.framing_error,
                     rx_phy.parity_error,
                     tx_data.ready,
-                    rx_data.valid,
-                    tx_phy.cts_out
+                    rx_data.valid
                 ),
                 # Reg 2: config1
                 config_reg,
