@@ -80,12 +80,12 @@ Filed value    Register name
 ===========    =============
 
 Register aliases:
-    $sp:  alias to $r0
-    $fp:  alias to $r1
-    $lr:  alias to $r2
+    $sp:  alias to $r12
+    $fp:  alias to $r13
+    $lr:  alias to $r14
 
 .. note::
-  Aliases have (almost) anything to do with HW and only make assembly unambiguous and/or easier to read. The only exception is that the ISA supports compact load-store operations with $r0 and $r1 as their base registers. There's no functional difference between these compact and the full-format load/store operations, but the intent is that by using these instructions to access stack-local variables allows much more compact code-size (close to ARM THUMB compactness).
+  Aliases have (almost) nothing to do with HW and only make assembly unambiguous and/or easier to read. The only exception is that the ISA supports compact load-store operations with $r12 and $r13 as their base registers. There's no functional difference between these compact and the full-format load/store operations, but the intent is that by using these instructions to access stack-local variables allows much more compact code-size (close to ARM THUMB compactness).
 
 Special registers:
 
@@ -279,7 +279,7 @@ Unary group
 Instruction code   Assembly                    Operation
 =================  ========================    ==================
 0x.01.             $rD <- tiny FIELD_A         Load $rD with constant [#note0xX01X]_
-0x.02.             $rD <- $pc + FIELD_A*2      Short relative jump [#note0xX02X]_
+0x.02.             $rD <- $pc + FIELD_A*2      Call return address calculation [#note0xX02X]_
 0x.03.             $rD <- -$rA                 Negative operation, depending on type
 0x.04.             $rD <- ~$rA                 Binary inversion
 0x.05.             $rD <- bse $rA              Sign-extend from byte [#note0xX05X]_
