@@ -27,6 +27,8 @@ module top();
     always #10 clk2 = ~clk2;
     always #50 clk = ~clk;
 
+    assign cts = 0;
+
     initial begin
         $display("Reset applied");
         n_rst = 0;
