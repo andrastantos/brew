@@ -569,7 +569,11 @@ class BusIf(GenericModule):
         ))
 
         ndram_data_in_high = Reg(self.dram.data_in, clock_en=(state == BusIfStates.non_dram_dual_wait))
-        data_in_high = Select(two_cycle_nram_access, NegReg(self.dram.data_in), ndram_data_in_high)
+        data_in_high = Select(
+            nram_access,
+            NegReg(self.dram.data_in),
+            Select(two_cycle_nram_access, data_in_low, ndram_data_in_high)
+        )
 
         resp_data = Wire()
         resp_data <<= Reg(Select(
