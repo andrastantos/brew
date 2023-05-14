@@ -1,11 +1,9 @@
 #include "platform.h"
 #include "uart.h"
 
-const int speed = 1;
-int blink(volatile uint8_t *port, int cnt)
+void blink(volatile uint8_t *port, int cnt)
 {
-	*port = cnt >> 1;
-	return cnt + 1;
+	*port = cnt;
 }
 
 int main()
@@ -14,9 +12,10 @@ int main()
 	sim_uart_write_str("Hello world!\n");
 	int cnt = 0;
 	volatile uint8_t *out_port = gpio1_base + gpio_data_reg_ofs;
-	while (true) {
-		cnt = blink(out_port, cnt);
-		sim_uart_write_hex((uint16_t)cnt);
+	for (cnt=0;cnt<20;++cnt) {
+		blink(out_port, cnt);
+		sim_uart_write_hex((uint8_t)cnt);
 		sim_uart_write_str("\n");
 	}
+	gpio4_base[0] = 0;
 }

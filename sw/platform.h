@@ -36,6 +36,7 @@ volatile uint8_t* const gpio2_base = (volatile uint8_t *)(gpio_base + gpio_size)
 const uint32_t gpio_data_reg_ofs  = 0;
 
 volatile uint8_t* const gpio3_base = (volatile uint8_t *)((io_apb_base + 0x0100) | wait_state_0);
+volatile uint8_t* const gpio4_base = (volatile uint8_t *)((io_apb_base + 0x0200) | wait_state_0);
 
 /////////////////////////////////////////////////////////////////////////////////////
 // UART

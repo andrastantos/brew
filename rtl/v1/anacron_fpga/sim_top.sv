@@ -16,6 +16,10 @@ module top();
 	logic [7:0] output_pins3;
 	logic       output_pins3_update;
 
+    // GPIO4
+	logic [7:0] output_pins4;
+	logic       output_pins4_update;
+
     // UART
     logic rxd;
 	logic txd;
@@ -35,6 +39,12 @@ module top();
 
     assign cts = 0;
 
+    always @(posedge output_pins4_update) begin
+        $write("\n");
+        $display("==================== TERMINATING WITH EXIT CODE %d =============", output_pins4);
+        $finish;
+    end
+
     always @(posedge output_pins3_update) begin
         $write("%c", output_pins3);
         $fflush();
@@ -43,7 +53,8 @@ module top();
     initial begin
         $display("Reset applied");
         n_rst = 0;
-        #500 n_rst = 1;
+        #500;
+        n_rst = 1;
         $display("Reset removed");
         //#30006 n_rst = 0;
         //#28660 n_rst = 0;
@@ -55,6 +66,8 @@ module top();
     initial begin
     	$dumpfile("anacron_fpga.vcd");
     	$dumpvars(0,top);
-        #(2*1000*1000) $finish;
+        #(10*1000*1000);
+        $display("Timeout on simulation");
+        $finish;
     end
 endmodule

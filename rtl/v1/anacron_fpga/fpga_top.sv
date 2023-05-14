@@ -18,6 +18,10 @@ module FpgaTop (
 	output logic [7:0] output_pins3,
 	output logic       output_pins3_update,
 
+    // GPIO4
+	output logic [7:0] output_pins4,
+	output logic       output_pins4_update,
+
     // UART
     input logic rxd,
 	output logic txd,
@@ -159,14 +163,36 @@ module FpgaTop (
 		.output_update (output_pins3_update)
     );
 
+    logic gpio4_psel;
+    assign gpio4_psel = system_io_apb_if_psel & (system_io_apb_if_paddr[15:8] == 8'h02);
+	logic [7:0] gpio4_prdata;
+	logic gpio4_pready;
+
+	ApbGpio gpio4 (
+        .clk(clk2),
+        .rst(rst),
+        .bus_if_paddr    (system_io_apb_if_paddr[2:0]),
+        .bus_if_penable  (system_io_apb_if_penable),
+        .bus_if_prdata   (gpio4_prdata),
+        .bus_if_pready   (gpio4_pready),
+        .bus_if_psel     (gpio4_psel),
+        .bus_if_pwdata   (system_io_apb_if_pwdata),
+        .bus_if_pwrite   (system_io_apb_if_pwrite),
+
+		.output_port (output_pins4),
+		.output_update (output_pins4_update)
+    );
+
 	assign system_io_apb_if_prdata =
 		uart1_psel ? uart1_prdata :
 		gpio3_psel ? gpio3_prdata :
+		gpio4_psel ? gpio4_prdata :
 		8'bX;
 
 	assign system_io_apb_if_pready =
 		uart1_psel ? uart1_pready :
 		gpio3_psel ? gpio3_pready :
+		gpio4_psel ? gpio4_pready :
 		8'bX;
 
 endmodule
