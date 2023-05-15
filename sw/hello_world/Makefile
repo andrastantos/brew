@@ -8,7 +8,7 @@ DRAM_LDFLAGS = $(LDFLAGS) -T ../dram.lds
 ROM_LDFLAGS = --gc-sections --script ../rom.lds
 
 ROM_SOURCES=../rom.s
-DRAM_SOURCES=main.cpp ../uart.cpp
+DRAM_SOURCES=main.cpp ../uart.cpp ../sim_utils.cpp
 
 OBJ_DIR=_obj
 BIN_DIR=_bin

@@ -50,7 +50,7 @@ void uart_write_char(char value) {
 	uart1_base[uart_data_buf_reg_ofs] = (uint8_t)value;
 }
 
-const char *hex_digit_table = "0123456789abcdef";
+static const char *hex_digit_table = "0123456789abcdef";
 
 void uart_write_hex(uint8_t value) {
 	uart_write_str("0x");
@@ -80,46 +80,3 @@ void uart_write_hex(uint32_t value) {
 void uart_wait_tx() {
 	while ((uart1_base[uart_status_reg_ofs] & (1 << uart_status_tx_empty_bit)) == 0);
 }
-
-
-void sim_uart_init(unsigned int baud_rate) {}
-void sim_uart_write_str(const char *message) {
-	if (message == nullptr) return;
-	if (message[0] == 0) return;
-	while (*message != 0) {
-		gpio3_base[0] = *(uint8_t*)message;
-		++message;
-	}
-}
-
-void sim_uart_write_char(char value) {
-	gpio3_base[0] = (uint8_t)value;
-}
-
-void sim_uart_write_hex(uint8_t value) {
-	sim_uart_write_str("0x");
-	sim_uart_write_char(hex_digit_table[(value >> 4) & 0xf]);
-	sim_uart_write_char(hex_digit_table[(value >> 0) & 0xf]);
-}
-
-void sim_uart_write_hex(uint16_t value) {
-	sim_uart_write_str("0x");
-	sim_uart_write_char(hex_digit_table[(value >> 12) & 0xf]);
-	sim_uart_write_char(hex_digit_table[(value >>  8) & 0xf]);
-	sim_uart_write_char(hex_digit_table[(value >>  4) & 0xf]);
-	sim_uart_write_char(hex_digit_table[(value >>  0) & 0xf]);
-}
-
-void sim_uart_write_hex(uint32_t value) {
-	sim_uart_write_str("0x");
-	sim_uart_write_char(hex_digit_table[(value >> 28) & 0xf]);
-	sim_uart_write_char(hex_digit_table[(value >> 24) & 0xf]);
-	sim_uart_write_char(hex_digit_table[(value >> 20) & 0xf]);
-	sim_uart_write_char(hex_digit_table[(value >> 16) & 0xf]);
-	sim_uart_write_char(hex_digit_table[(value >> 12) & 0xf]);
-	sim_uart_write_char(hex_digit_table[(value >>  8) & 0xf]);
-	sim_uart_write_char(hex_digit_table[(value >>  4) & 0xf]);
-	sim_uart_write_char(hex_digit_table[(value >>  0) & 0xf]);
-}
-
-void sim_uart_wait_tx() {}

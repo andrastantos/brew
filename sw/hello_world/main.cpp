@@ -1,5 +1,6 @@
 #include "platform.h"
 #include "uart.h"
+#include "sim_utils.h"
 
 void blink(volatile uint8_t *port, int cnt)
 {
@@ -17,5 +18,5 @@ int main()
 		sim_uart_write_hex((uint8_t)cnt);
 		sim_uart_write_str("\n");
 	}
-	gpio4_base[0] = 0;
+	sim_terminate(0);
 }
