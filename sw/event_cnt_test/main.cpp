@@ -10,13 +10,21 @@ int main()
 	event_select_event(0, event_clk_cycles);
 	event_select_event(1, event_execute);
 	event_select_event(2, event_fetch_wait_on_bus);
-	event_select_event(3, event_decode_wait_on_rf);
+	event_select_event(3, event_mem_wait_on_bus);
+	event_select_event(4, event_decode_wait_on_rf);
+	event_select_event(5, event_branch_taken);
+	event_select_event(6, event_load);
+	event_select_event(7, event_store);
 
 
 	uint32_t clocks = event_get_cnt(0);
 	uint32_t instructions = event_get_cnt(1);
 	uint32_t fetch_waits = event_get_cnt(2);
 	uint32_t mem_waits = event_get_cnt(3);
+	uint32_t rf_waits = event_get_cnt(4);
+	uint32_t branch_taken = event_get_cnt(5);
+	uint32_t loads = event_get_cnt(6);
+	uint32_t stores = event_get_cnt(7);
 
 	event_enable_events();
 
@@ -33,6 +41,10 @@ int main()
 	instructions = event_get_cnt(1) - instructions;
 	fetch_waits = event_get_cnt(2) - fetch_waits;
 	mem_waits = event_get_cnt(3) - mem_waits;
+	rf_waits = event_get_cnt(4) - rf_waits;
+	branch_taken = event_get_cnt(5) - branch_taken;
+	loads = event_get_cnt(6) - loads;
+	stores = event_get_cnt(7) - stores;
 
 	//sim_uart_write_str("S1: ");
 	//sim_uart_write_hex((uint32_t)(uart1_clock_rate / (1 << prescaler)));
@@ -52,6 +64,14 @@ int main()
 	sim_uart_write_hex(fetch_waits);
 	sim_uart_write_str(" mem waits: ");
 	sim_uart_write_hex(mem_waits);
+	sim_uart_write_str(" rf waits: ");
+	sim_uart_write_hex(rf_waits);
+	sim_uart_write_str(" branches taken: ");
+	sim_uart_write_hex(branch_taken);
+	sim_uart_write_str(" loads: ");
+	sim_uart_write_hex(loads);
+	sim_uart_write_str(" stores: ");
+	sim_uart_write_hex(stores);
 	sim_uart_write_str("\n");
 
 	sim_terminate(0);

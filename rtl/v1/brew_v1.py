@@ -177,7 +177,7 @@ class BrewV1Top(GenericModule):
         event_cnts = []
         event_selects = []
         event_regs = []
-        event_counter_cnt = 4
+        event_counter_cnt = 8
         event_enabled = Wire(logic)
         event_write_strobe = csr_event_psel &  csr_if.pwrite & csr_if.penable
 
