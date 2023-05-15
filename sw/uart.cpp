@@ -26,8 +26,8 @@ void uart_init(unsigned int baud_rate) {
 			uart1_base[uart_divider_reg_ofs] = 109;
 			break;
 		default: {
-			unsigned int prescaler = __builtin_clz((uart1_clock_rate / baud_rate) >> 8);
-			unsigned int divider = uart1_clock_rate / (1 << prescaler) / divider / 2;
+			unsigned int prescaler = 32-__builtin_clz((uart1_clock_rate / baud_rate) >> 8);
+			unsigned int divider = uart1_clock_rate / (1 << prescaler) / baud_rate / 2;
 			uart1_base[uart_config2_reg_ofs] = prescaler * (1 << uart_config2_pre_scaler_bit);
 			uart1_base[uart_divider_reg_ofs] = divider;
 			break;
