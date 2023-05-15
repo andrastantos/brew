@@ -68,3 +68,12 @@ AT: $1900 with no HDD, but 1.2MB FDD, CGA, also 640k of RAM
 20MB HDD: $450 (with controller)
 Hercules card is $100, CGA $70
 The Atari 1024ST was $1000
+
+The Elephant in the Room
+------------------------
+
+That is IBM, of course. This article: https://en.wikipedia.org/wiki/Influence_of_the_IBM_PC_on_the_personal_computer_market is a good summary of what happened. In essence, by '84, certainly by '85, the PC train was unstoppable, though it might not have had been obvious yet:
+
+  > From mid-1985, what Compute! described as a "wave" of inexpensive clones from American and Asian companies caused prices to decline; by the end of 1986, the equivalent to a $1,600 real IBM PC with 256K RAM and two disk drives cost as little as $600, lower than the price of the Apple IIc.
+
+Since we need 1.5u tech, we are a contemporary of the 286, which means no earlier than '82 introduction.
