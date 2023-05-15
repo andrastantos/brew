@@ -1,13 +1,15 @@
 #pragma once
 
 #include <stdint.h>
+#include <stddef.h>
 
-const uint32_t rom_base = 0x00000000;
-const uint32_t gpio_base = 0x00010000;
+const uint32_t rom_base =    0x00000000;
+const uint32_t gpio_base =   0x00010000;
 const uint32_t io_apb_base = 0x00020000;
 const uint32_t io_apb_size = 4096*16;
-const uint32_t gpio_size = 4096;
-const uint32_t dram_base = 0x80000000;
+const uint32_t gpio_size =   4096;
+const uint32_t dram_base =   0x80000000;
+const uint32_t csr_base =    0x40000000;
 
 const uint32_t wait_state_0  = 0x04000000;
 const uint32_t wait_state_1  = 0x08000000;
@@ -122,3 +124,40 @@ inline uint32_t next_power_of_2(uint32_t v) {
     return v;
 }
 */
+
+/////////////////////////////////////////////////////////////////////////////////////
+// CSRs
+/////////////////////////////////////////////////////////////////////////////////////
+
+volatile uint32_t* const csr_ver_cap_reg = (volatile uint32_t *)(csr_base + 0x0000*4);
+volatile uint32_t* const csr_pmem_base   = (volatile uint32_t *)(csr_base + 0x0001*4);
+volatile uint32_t* const csr_pmem_limit  = (volatile uint32_t *)(csr_base + 0x0002*4);
+volatile uint32_t* const csr_dmem_base   = (volatile uint32_t *)(csr_base + 0x0003*4);
+volatile uint32_t* const csr_dmem_limit  = (volatile uint32_t *)(csr_base + 0x0004*4);
+volatile uint32_t* const csr_ecause      = (volatile uint32_t *)(csr_base + 0x0005*4);
+volatile uint32_t* const csr_eaddr       = (volatile uint32_t *)(csr_base + 0x0006*4);
+volatile uint32_t* const csr_event_sel   = (volatile uint32_t *)(csr_base + 0x0007*4);
+volatile uint32_t* const csr_event_cnt0  = (volatile uint32_t *)(csr_base + 0x0008*4);
+volatile uint32_t* const csr_event_cnt1  = (volatile uint32_t *)(csr_base + 0x0009*4);
+volatile uint32_t* const csr_event_cnt2  = (volatile uint32_t *)(csr_base + 0x000a*4);
+volatile uint32_t* const csr_event_cnt3  = (volatile uint32_t *)(csr_base + 0x000b*4);
+
+const uint8_t event_clk_cycles        = 0;
+const uint8_t event_fetch_wait_on_bus = 1;
+const uint8_t event_decode_wait_on_rf = 2;
+const uint8_t event_mem_wait_on_bus   = 3;
+const uint8_t event_branch_taken      = 4;
+const uint8_t event_branch            = 5;
+const uint8_t event_load              = 6;
+const uint8_t event_store             = 7;
+const uint8_t event_execute           = 8;
+
+const uint32_t event_cnt_sel_size = 4;
+
+const uint32_t event_cnt0_sel_bit = event_cnt_sel_size*0;
+const uint32_t event_cnt1_sel_bit = event_cnt_sel_size*1;
+const uint32_t event_cnt2_sel_bit = event_cnt_sel_size*2;
+const uint32_t event_cnt3_sel_bit = event_cnt_sel_size*3;
+
+
+const size_t event_cnt_count = 4;
