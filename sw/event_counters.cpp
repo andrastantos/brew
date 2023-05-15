@@ -2,22 +2,24 @@
 #include "platform.h"
 
 void event_select_event(size_t counter, uint8_t event) {
-    uint32_t max_event = (1 << event_cnt_sel_size) - 1;
-
     if (counter >= event_cnt_count) return;
-    if (event > max_event) return;
 
-
-    uint32_t mask = max_event << (counter * event_cnt_sel_size);
-    uint32_t old_val = *csr_event_sel;
-    uint32_t new_val = old_val & mask | (event << (counter * event_cnt_sel_size));
-    *csr_event_sel = new_val;
+    csr_event_regs[event_reg_size*counter+event_sel_ofs] = event;
 }
 
 uint32_t event_get_cnt(size_t counter) {
     if (counter >= event_cnt_count) return 0;
 
-    return csr_event_cnt0[counter];
+
+    return csr_event_regs[event_reg_size*counter+event_cnt_ofs];
+}
+
+void event_enable_events() {
+    *csr_event_enable = 1;
+}
+
+void event_disable_events() {
+    *csr_event_enable = 0;
 }
 
 

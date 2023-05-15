@@ -129,6 +129,10 @@ inline uint32_t next_power_of_2(uint32_t v) {
 // CSRs
 /////////////////////////////////////////////////////////////////////////////////////
 
+const size_t csr_event_base =  csr_base + 0x0100*4;
+const size_t csr_bus_if_base = csr_base + 0x0200*4;
+const size_t csr_dma_base =    csr_base + 0x0300*4;
+
 volatile uint32_t* const csr_ver_cap_reg = (volatile uint32_t *)(csr_base + 0x0000*4);
 volatile uint32_t* const csr_pmem_base   = (volatile uint32_t *)(csr_base + 0x0001*4);
 volatile uint32_t* const csr_pmem_limit  = (volatile uint32_t *)(csr_base + 0x0002*4);
@@ -136,11 +140,22 @@ volatile uint32_t* const csr_dmem_base   = (volatile uint32_t *)(csr_base + 0x00
 volatile uint32_t* const csr_dmem_limit  = (volatile uint32_t *)(csr_base + 0x0004*4);
 volatile uint32_t* const csr_ecause      = (volatile uint32_t *)(csr_base + 0x0005*4);
 volatile uint32_t* const csr_eaddr       = (volatile uint32_t *)(csr_base + 0x0006*4);
-volatile uint32_t* const csr_event_sel   = (volatile uint32_t *)(csr_base + 0x0007*4);
-volatile uint32_t* const csr_event_cnt0  = (volatile uint32_t *)(csr_base + 0x0008*4);
-volatile uint32_t* const csr_event_cnt1  = (volatile uint32_t *)(csr_base + 0x0009*4);
-volatile uint32_t* const csr_event_cnt2  = (volatile uint32_t *)(csr_base + 0x000a*4);
-volatile uint32_t* const csr_event_cnt3  = (volatile uint32_t *)(csr_base + 0x000b*4);
+
+volatile uint32_t* const csr_event_regs    = (volatile uint32_t *)(csr_event_base + 0x0002*4);
+
+const size_t event_sel_ofs = 0;
+const size_t event_cnt_ofs = 1;
+const size_t event_reg_size = 2;
+
+volatile uint32_t* const csr_event_enable  = (volatile uint32_t *)(csr_event_base + 0x0000*4);
+volatile uint32_t* const csr_event_sel0    = (volatile uint32_t *)(csr_event_base + 0x0002*4);
+volatile uint32_t* const csr_event_cnt0    = (volatile uint32_t *)(csr_event_base + 0x0003*4);
+volatile uint32_t* const csr_event_sel1    = (volatile uint32_t *)(csr_event_base + 0x0004*4);
+volatile uint32_t* const csr_event_cnt1    = (volatile uint32_t *)(csr_event_base + 0x0005*4);
+volatile uint32_t* const csr_event_sel2    = (volatile uint32_t *)(csr_event_base + 0x0006*4);
+volatile uint32_t* const csr_event_cnt2    = (volatile uint32_t *)(csr_event_base + 0x0007*4);
+volatile uint32_t* const csr_event_sel3    = (volatile uint32_t *)(csr_event_base + 0x0008*4);
+volatile uint32_t* const csr_event_cnt3    = (volatile uint32_t *)(csr_event_base + 0x0009*4);
 
 const uint8_t event_clk_cycles        = 0;
 const uint8_t event_fetch_wait_on_bus = 1;
@@ -151,13 +166,5 @@ const uint8_t event_branch            = 5;
 const uint8_t event_load              = 6;
 const uint8_t event_store             = 7;
 const uint8_t event_execute           = 8;
-
-const uint32_t event_cnt_sel_size = 4;
-
-const uint32_t event_cnt0_sel_bit = event_cnt_sel_size*0;
-const uint32_t event_cnt1_sel_bit = event_cnt_sel_size*1;
-const uint32_t event_cnt2_sel_bit = event_cnt_sel_size*2;
-const uint32_t event_cnt3_sel_bit = event_cnt_sel_size*3;
-
 
 const size_t event_cnt_count = 4;

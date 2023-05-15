@@ -134,9 +134,10 @@ class BrewV1Top(GenericModule):
 
         # CSR address decode
         #############################
-        csr_top_level_psel = csr_if.psel & (csr_if.paddr[5:4] == 0)
-        csr_bus_if_psel    = csr_if.psel & (csr_if.paddr[5:4] == 1)
-        csr_dma_psel       = csr_if.psel & (csr_if.paddr[5:4] == 2)
+        csr_top_level_psel = csr_if.psel & (csr_if.paddr[9:8] == 0)
+        csr_event_psel     = csr_if.psel & (csr_if.paddr[9:8] == 1)
+        csr_bus_if_psel    = csr_if.psel & (csr_if.paddr[9:8] == 2)
+        csr_dma_psel       = csr_if.psel & (csr_if.paddr[9:8] == 3)
 
         top_level_prdata = Wire(Unsigned(32))
         top_level_pready = Wire(logic)
@@ -155,14 +156,18 @@ class BrewV1Top(GenericModule):
         bus_if_reg_if.paddr   <<= csr_if.paddr[3:0]
         bus_if_reg_if.pwdata  <<= csr_if.pwdata
 
+        event_prdata = Wire(BrewData)
+
         csr_if.prdata <<= SelectOne(
             csr_dma_psel, dma_reg_if.prdata,
             csr_bus_if_psel, bus_if_reg_if.prdata,
+            csr_event_psel, event_prdata,
             default_port = top_level_prdata
         )
         csr_if.pready <<= SelectOne(
             csr_dma_psel, dma_reg_if.pready,
             csr_bus_if_psel, bus_if_reg_if.pready,
+            csr_event_psel, 1,
             default_port = top_level_pready
         )
 
@@ -171,18 +176,39 @@ class BrewV1Top(GenericModule):
 
         event_cnts = []
         event_selects = []
-        for i in range(4):
+        event_regs = []
+        event_counter_cnt = 4
+        event_enabled = Wire(logic)
+        event_write_strobe = csr_event_psel &  csr_if.pwrite & csr_if.penable
+
+        for i in range(event_counter_cnt):
             event_cnt = Wire(Unsigned(20))
             event_select = Wire(Unsigned(4))
             event = Select(event_select, 1, event_fetch_wait_on_bus, event_decode_wait_on_rf, event_mem_wait_on_bus, event_branch_taken, event_branch, event_load, event_store, event_execute)
-            event_cnt <<= Reg((event_cnt + 1)[event_cnt.get_num_bits()-1:0], clock_en=event)
+            event_cnt <<= Reg((event_cnt + 1)[event_cnt.get_num_bits()-1:0], clock_en=(event & event_enabled))
             setattr(self, f"event_cnt_{i}", event_cnt)
             setattr(self, f"event_select_{i}", event_select)
             event_cnts.append(event_cnt)
             event_selects.append(event_select)
+            event_regs.append(event_select)
+            event_regs.append(event_cnt)
             del event
             del event_cnt
             del event_select
+
+        event_addr = csr_if.paddr[4:0]
+        event_prdata <<= Reg(Select(
+            event_addr,
+            event_enabled, # Global enable register
+            0,             # Reserved
+            *event_regs,   # Pairs of selector/counter registers
+        ))
+        event_enabled <<= Reg(csr_if.pwdata[0], clock_en=(event_addr == 0) & event_write_strobe) # Global enable register
+        for i, (event_cnt, event_select) in enumerate(zip(event_cnts, event_selects)):
+            event_select <<= Reg(csr_if.pwdata[event_select.get_num_bits()-1:0], clock_en=(event_addr == i*2+2) & event_write_strobe) # Selector registers
+            # Counters are read-only.
+        del event_cnt
+        del event_select
 
         # CSRs
         #####################
@@ -225,17 +251,12 @@ class BrewV1Top(GenericModule):
             ecause,
             ## CSR6: eaddr
             eaddr,
-            ## CSR7: event select
-            concat(*reversed(event_selects)),
-            ## CSR8...11: event counters
-            *event_cnts
         ))
         pmem_base  <<= Reg(csr_if.pwdata[31:10], clock_en=(csr_addr == 1) & csr_write_strobe)
         pmem_limit <<= Reg(csr_if.pwdata[31:10], clock_en=(csr_addr == 2) & csr_write_strobe)
         dmem_base  <<= Reg(csr_if.pwdata[31:10], clock_en=(csr_addr == 3) & csr_write_strobe)
         dmem_limit <<= Reg(csr_if.pwdata[31:10], clock_en=(csr_addr == 4) & csr_write_strobe)
-        for idx, event_select in enumerate(event_selects):
-            event_select <<= Reg(csr_if.pwdata[idx*4+3:idx*4], clock_en=(csr_addr == 7) & csr_write_strobe)
+
 def gen():
     def top():
         return BrewV1Top(csr_base=0x1, nram_base=0x0, has_multiply=True, has_shift=True, page_bits=7)
