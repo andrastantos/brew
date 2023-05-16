@@ -123,14 +123,17 @@ class BrewV1Top(GenericModule):
 
         pipeline.interrupt <<= ~self.n_int
 
-        event_fetch_wait_on_bus = pipeline.fetch_wait_on_bus
-        event_decode_wait_on_rf = pipeline.decode_wait_on_rf
-        event_mem_wait_on_bus   = pipeline.mem_wait_on_bus
-        event_branch_taken      = pipeline.branch_taken
-        event_branch            = pipeline.branch
-        event_load              = pipeline.load
-        event_store             = pipeline.store
-        event_execute           = pipeline.execute
+        event_fetch_wait_on_bus = pipeline.event_fetch_wait_on_bus
+        event_decode_wait_on_rf = pipeline.event_decode_wait_on_rf
+        event_mem_wait_on_bus   = pipeline.event_mem_wait_on_bus
+        event_branch_taken      = pipeline.event_branch_taken
+        event_branch            = pipeline.event_branch
+        event_load              = pipeline.event_load
+        event_store             = pipeline.event_store
+        event_execute           = pipeline.event_execute
+        event_bus_idle          = bus_if.event_bus_idle
+        event_fetch             = pipeline.event_fetch
+        event_fetch_drop        = pipeline.event_fetch_drop
 
         # CSR address decode
         #############################
@@ -184,8 +187,21 @@ class BrewV1Top(GenericModule):
         for i in range(event_counter_cnt):
             event_cnt = Wire(Unsigned(20))
             event_select = Wire(Unsigned(4))
-            event = Select(event_select, 1, event_fetch_wait_on_bus, event_decode_wait_on_rf, event_mem_wait_on_bus, event_branch_taken, event_branch, event_load, event_store, event_execute)
-            event_cnt <<= Reg((event_cnt + 1)[event_cnt.get_num_bits()-1:0], clock_en=(event & event_enabled))
+            event = Select(event_select,
+                1,
+                event_fetch_wait_on_bus,
+                event_decode_wait_on_rf,
+                event_mem_wait_on_bus,
+                event_branch_taken,
+                event_branch,
+                event_load,
+                event_store,
+                event_execute,
+                event_bus_idle,
+                event_fetch,
+                event_fetch_drop
+            )
+            event_cnt <<= Reg((event_cnt + event)[event_cnt.get_num_bits()-1:0], clock_en=event_enabled)
             setattr(self, f"event_cnt_{i}", event_cnt)
             setattr(self, f"event_select_{i}", event_select)
             event_cnts.append(event_cnt)

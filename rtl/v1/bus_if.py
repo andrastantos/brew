@@ -134,6 +134,9 @@ class BusIf(GenericModule):
     # DRAM interface
     dram = Output(ExternalBusIf)
 
+    # Events
+    event_bus_idle = Output(logic)
+
     def construct(self, nram_base: int = 0):
         self.nram_base = nram_base
 
@@ -318,6 +321,8 @@ class BusIf(GenericModule):
         two_cycle_nram_access <<= Reg((req_byte_en == 3) & req_nram, clock_en=start)
         nram_access = Wire(logic)
         nram_access <<= Reg(req_nram, clock_en=start)
+
+        self.event_bus_idle <<= (state == BusIfStates.idle) & (next_state == BusIfStates.idle)
 
         self.fsm.add_transition(BusIfStates.idle,                         req_valid & req_ext,                                  BusIfStates.external)
         self.fsm.add_transition(BusIfStates.idle,                         req_valid & req_nram,                                 BusIfStates.non_dram_first)

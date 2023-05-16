@@ -378,6 +378,30 @@ http://www.bitsavers.org/components/edn/EDN-4th-annual-microprocessor-directory-
 PIC1650/1655/1670: $20 (2500) $4 (100k)
 Z80: $20
 
+MIPS comparison
+~~~~~~~~~~~~~~~
+
+Source: https://en.wikipedia.org/wiki/Instructions_per_second
+
+==============   ========   =========
+Chip             Year       MIPS/MHz
+==============   ========   =========
+Intel 8088       1979       0.075
+MC68000          1979       0.175
+Intel 80286      1982       0.107
+MC68010          1984       0.193
+MC68020          1984       0.303
+Intel 80386      1985       0.134
+ARM2             1986       0.5
+MC68040          1987       0.36
+Intel 80486      1989       0.3
+==============   ========   =========
+
+I'm currently standing at 0.23, slightly better then the competition, but not enormously.
+
+The *main* reason for us not being faster is that the memory bus is busy. At least that's what it appears to be.
+Now, that's not to say, it's doing useful work: we might be constantly fetching stuff that we'll discard.
+
 Synthesis results
 ~~~~~~~~~~~~~~~~~
 

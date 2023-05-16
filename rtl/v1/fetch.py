@@ -138,6 +138,10 @@ class InstBuffer(GenericModule):
     task_mode  = Input(logic)
     do_branch = Input(logic) # do_branch is active for one cycle only; in the same cycle the new spc/tpc/task_mode values are available
 
+    # Events
+    event_fetch = Output(logic)
+    event_drop = Output(logic)
+
     def construct(self, page_bits: int = 7):
         self.page_bits = page_bits # 256 bytes, but we count in 16-bit words
 
@@ -284,6 +288,8 @@ class InstBuffer(GenericModule):
         #AssertOnClk(
         #    state != InstBufferStates.idle | self.queue.ready | (state != InstBufferStates.flush)
         #)
+        self.event_drop <<= self.bus_if_response.valid & (state == InstBufferStates.flushing)
+        self.event_fetch <<= self.bus_if_response.valid
 
 # A simple FIFO with some extra sprinkles to handle bursts and flushing. It sits between the instruction buffer and fetch
 class InstQueue(Module):
@@ -298,6 +304,9 @@ class InstQueue(Module):
 
     # Side-band interfaces
     do_branch = Input(logic)
+
+    # Events
+    event_queue_flush = Output(QueuePointerType) # This is strange: in a single clock we drop a bunch of items in the queue.
 
     def body(self):
         fifo = Fifo(depth=fetch_queue_length)
@@ -316,6 +325,8 @@ class InstQueue(Module):
         )
         self.queue_free_cnt <<= self.empty_cnt
 
+        self.event_queue_flush <<= Select(self.do_branch, 0, QueuePointerType(fetch_queue_length - self.queue_free_cnt))
+
 class InstAssemble(Module):
     clk = ClkPort()
     rst = RstPort()
@@ -324,6 +335,9 @@ class InstAssemble(Module):
     decode = Output(FetchDecodeIf)
 
     do_branch = Input(logic)
+
+    # Events
+    event_words_dropped = Output(Unsigned(2)) # We drop up to 3 words in one clock cycle
 
     def body(self):
         @module(1)
@@ -400,6 +414,13 @@ class InstAssemble(Module):
         self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments, ~self.do_branch & ~fsm_advance                                                                       , InstAssembleStates.have_all_fragments)
         self.decode_fsm.add_transition(InstAssembleStates.have_all_fragments,  self.do_branch                                                                                      , InstAssembleStates.have_0_fragments)
 
+        self.event_words_dropped <<= Select(self.do_branch, 0, SelectOne(
+            self.decode_fsm.state == InstAssembleStates.have_0_fragments, 0,
+            self.decode_fsm.state == InstAssembleStates.need_1_fragments, Unsigned(2)(inst_len_reg),
+            self.decode_fsm.state == InstAssembleStates.need_2_fragments, Unsigned(2)(inst_len_reg - 1),
+            self.decode_fsm.state == InstAssembleStates.have_all_fragments, Unsigned(2)(inst_len_reg + 1),
+        ))
+
         # Handshake logic: we're widening the datapath, so it's essentially the same as a ForwardBuf
         terminal_fsm_state = Wire(logic)
         terminal_fsm_state <<= (self.decode_fsm.state == InstAssembleStates.have_all_fragments)
@@ -472,6 +493,10 @@ class FetchStage(GenericModule):
     task_mode  = Input(logic)
     do_branch = Input(logic)
 
+    # Events
+    event_fetch = Output(logic)
+    event_dropped = Output()
+
     def construct(self, page_bits: int):
         self.page_bits = page_bits
 
@@ -498,6 +523,9 @@ class FetchStage(GenericModule):
         inst_assemble.inst_buf <<= inst_queue.assemble
         self.decode <<= inst_assemble.decode
         inst_assemble.do_branch <<= self.do_branch
+
+        self.event_fetch <<= inst_buf.event_fetch
+        self.event_dropped <<= inst_buf.event_drop + inst_queue.event_queue_flush + inst_assemble.event_words_dropped
 
 """
 def sim():

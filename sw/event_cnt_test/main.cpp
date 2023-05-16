@@ -3,28 +3,32 @@
 #include "sim_utils.h"
 #include "event_counters.h"
 
+#define ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
+#define MAX(a,b) ((a) > (b) ? (a) : (b))
+#define MIN(a,b) ((a) < (b) ? (a) : (b))
+
 int main()
 {
 	sim_uart_init(115200);
 
-	event_select_event(0, event_clk_cycles);
-	event_select_event(1, event_execute);
-	event_select_event(2, event_fetch_wait_on_bus);
-	event_select_event(3, event_mem_wait_on_bus);
-	event_select_event(4, event_decode_wait_on_rf);
-	event_select_event(5, event_branch_taken);
-	event_select_event(6, event_load);
-	event_select_event(7, event_store);
+	struct ev_t {size_t counter; const char *name;};
+	const ev_t events[] = {
+		{event_clk_cycles,        "event_clk_cycles"},
+		{event_execute,           "event_execute"},
+		{event_mem_wait_on_bus,   "event_mem_wait_on_bus"},
+		{event_fetch,             "event_fetch"},
+		{event_fetch_drop,        "event_fetch_drop"},
+		{event_load,              "event_load"},
+		{event_store,             "event_store"},
+		{event_bus_idle,          "event_bus_idle"}
+	};
+	uint32_t ev_cnts[event_cnt_count];
+	const size_t num_events = MIN(ARRAY_SIZE(events), event_cnt_count);
 
-
-	uint32_t clocks = event_get_cnt(0);
-	uint32_t instructions = event_get_cnt(1);
-	uint32_t fetch_waits = event_get_cnt(2);
-	uint32_t mem_waits = event_get_cnt(3);
-	uint32_t rf_waits = event_get_cnt(4);
-	uint32_t branch_taken = event_get_cnt(5);
-	uint32_t loads = event_get_cnt(6);
-	uint32_t stores = event_get_cnt(7);
+	for(size_t i=0; i<num_events;++i) {
+		event_select_event(i, events[i].counter);
+		ev_cnts[i] = event_get_cnt(i);
+	}
 
 	event_enable_events();
 
@@ -37,42 +41,23 @@ int main()
 
 	event_disable_events();
 
-	clocks = event_get_cnt(0) - clocks;
-	instructions = event_get_cnt(1) - instructions;
-	fetch_waits = event_get_cnt(2) - fetch_waits;
-	mem_waits = event_get_cnt(3) - mem_waits;
-	rf_waits = event_get_cnt(4) - rf_waits;
-	branch_taken = event_get_cnt(5) - branch_taken;
-	loads = event_get_cnt(6) - loads;
-	stores = event_get_cnt(7) - stores;
-
-	//sim_uart_write_str("S1: ");
-	//sim_uart_write_hex((uint32_t)(uart1_clock_rate / (1 << prescaler)));
+	for(size_t i=0; i<num_events;++i) {
+		ev_cnts[i] = event_get_cnt(i) - ev_cnts[i];
+	}
+	//for(size_t i=0; i<num_events;++i) {
+	//	if (i != 0) sim_uart_write_str(" ");
+	//	sim_uart_write_str(events[i].name);
+	//	sim_uart_write_str(": ");
+	//	sim_uart_write_hex(ev_cnts[i]);
+	//}
 	//sim_uart_write_str("\n");
-	//sim_uart_write_str("prescaler: ");
-	//sim_uart_write_hex((uint32_t)prescaler);
-	//sim_uart_write_str("\n");
-	//sim_uart_write_str("divider: ");
-	//sim_uart_write_hex((uint32_t)divider);
-	//sim_uart_write_str("\n");
-
-	sim_uart_write_str("clock cycles: ");
-	sim_uart_write_hex(clocks);
-	sim_uart_write_str(" instructions: ");
-	sim_uart_write_hex(instructions);
-	sim_uart_write_str(" fetch waits: ");
-	sim_uart_write_hex(fetch_waits);
-	sim_uart_write_str(" mem waits: ");
-	sim_uart_write_hex(mem_waits);
-	sim_uart_write_str(" rf waits: ");
-	sim_uart_write_hex(rf_waits);
-	sim_uart_write_str(" branches taken: ");
-	sim_uart_write_hex(branch_taken);
-	sim_uart_write_str(" loads: ");
-	sim_uart_write_hex(loads);
-	sim_uart_write_str(" stores: ");
-	sim_uart_write_hex(stores);
-	sim_uart_write_str("\n");
+	for(size_t i=0; i<num_events;++i) {
+		//if (i != 0) sim_uart_write_str(" ");
+		sim_uart_write_str(events[i].name);
+		sim_uart_write_str(": ");
+		sim_uart_write_dec(ev_cnts[i]);
+		sim_uart_write_str("\n");
+	}
 
 	sim_terminate(0);
 }

@@ -48,3 +48,22 @@ void sim_uart_wait_tx() {}
 void sim_terminate(uint8_t exit_code) {
 	gpio4_base[0] = exit_code;
 }
+
+void sim_uart_write_dec(unsigned int value) {
+	char digits[10]; // A 32-bit integer can at most have 10 digits
+	int idx = 0;
+	if (value == 0) {
+		sim_uart_write_char('0');
+		return;
+	}
+	while (value > 0) {
+		char digit = value % 10;
+		digits[idx] = digit;
+		value /= 10;
+		++idx;
+		if (idx > sizeof(digits)) break;
+	}
+	while (idx >= 0) {
+		sim_uart_write_char(char('0'+digits[--idx]));
+	}
+}

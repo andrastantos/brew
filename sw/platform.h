@@ -166,5 +166,8 @@ const uint8_t event_branch            = 5;
 const uint8_t event_load              = 6;
 const uint8_t event_store             = 7;
 const uint8_t event_execute           = 8;
+const uint8_t event_bus_idle          = 9;
+const uint8_t event_fetch             = 10;
+const uint8_t event_fetch_drop        = 11;
 
 const size_t event_cnt_count = 8;

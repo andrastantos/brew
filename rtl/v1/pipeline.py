@@ -59,14 +59,16 @@ class Pipeline(GenericModule):
     interrupt         = Input(logic)
 
     # Events
-    fetch_wait_on_bus = Output(logic)
-    decode_wait_on_rf = Output(logic)
-    mem_wait_on_bus   = Output(logic)
-    branch_taken      = Output(logic)
-    branch            = Output(logic)
-    load              = Output(logic)
-    store             = Output(logic)
-    execute           = Output(logic)
+    event_fetch_wait_on_bus = Output(logic)
+    event_decode_wait_on_rf = Output(logic)
+    event_mem_wait_on_bus   = Output(logic)
+    event_branch_taken      = Output(logic)
+    event_branch            = Output(logic)
+    event_load              = Output(logic)
+    event_store             = Output(logic)
+    event_execute           = Output(logic)
+    event_fetch             = Output(logic)
+    event_fetch_drop        = Output()
 
     def construct(self, csr_base: int, has_multiply: bool = True, has_shift: bool = True, page_bits: int = 7):
         self.csr_base = csr_base
@@ -110,7 +112,10 @@ class Pipeline(GenericModule):
         fetch_stage.task_mode <<= task_mode
         fetch_stage.do_branch <<= do_branch
 
-        self.fetch_wait_on_bus <<= self.fetch_to_bus.valid & ~self.fetch_to_bus.ready
+        self.event_fetch <<= fetch_stage.event_fetch
+        self.event_fetch_drop <<= fetch_stage.event_dropped
+
+        self.event_fetch_wait_on_bus <<= self.fetch_to_bus.valid & ~self.fetch_to_bus.ready
 
         # DECODE STAGE
         ############################
@@ -122,11 +127,11 @@ class Pipeline(GenericModule):
 
         decode_stage.do_branch <<= do_branch
 
-        self.decode_wait_on_rf <<= rf_req.valid & ~rf_req.ready
+        self.event_decode_wait_on_rf <<= rf_req.valid & ~rf_req.ready
 
-        self.branch <<= decode_to_exec.exec_unit == op_class.branch & ~decode_to_exec.fetch_av
-        self.load <<= (decode_to_exec.exec_unit == op_class.ld_st) & (decode_to_exec.ldst_op == ldst_ops.load) & ~decode_to_exec.fetch_av
-        self.store <<= (decode_to_exec.exec_unit == op_class.ld_st) & (decode_to_exec.ldst_op == ldst_ops.store) & ~decode_to_exec.fetch_av
+        self.event_branch <<= decode_to_exec.exec_unit == op_class.branch & ~decode_to_exec.fetch_av
+        self.event_load <<= (decode_to_exec.exec_unit == op_class.ld_st) & (decode_to_exec.ldst_op == ldst_ops.load) & ~decode_to_exec.fetch_av
+        self.event_store <<= (decode_to_exec.exec_unit == op_class.ld_st) & (decode_to_exec.ldst_op == ldst_ops.store) & ~decode_to_exec.fetch_av
 
         # EXECUTE STAGE
         #############################
@@ -146,7 +151,7 @@ class Pipeline(GenericModule):
         execute_stage.ecause_in     <<= self.ecause
         execute_stage.interrupt     <<= self.interrupt
 
-        self.execute <<= decode_to_exec.ready & decode_to_exec.valid & ~decode_to_exec.fetch_av
+        self.event_execute <<= decode_to_exec.ready & decode_to_exec.valid & ~decode_to_exec.fetch_av & ~execute_stage.do_branch
 
         spc          <<= Reg(execute_stage.spc_out)
         tpc          <<= Reg(execute_stage.tpc_out)
@@ -155,8 +160,8 @@ class Pipeline(GenericModule):
         do_branch    <<= Reg(execute_stage.do_branch)
         self.eaddr   <<= execute_stage.eaddr_out
 
-        self.mem_wait_on_bus <<= self.mem_to_bus.valid & ~self.mem_to_bus.ready
-        self.branch_taken <<= do_branch
+        self.event_mem_wait_on_bus <<= self.mem_to_bus.valid & ~self.mem_to_bus.ready
+        self.event_branch_taken <<= do_branch
 
         # RESULT EXTEND STAGE
         ######################
