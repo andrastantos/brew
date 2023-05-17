@@ -96,8 +96,10 @@ class FetchQueueIf(ReadyValid):
     data = Unsigned(16)
     av = logic
 
-fetch_queue_length = 16
-fetch_threshold = (fetch_queue_length+1)//2
+#fetch_queue_length = 16
+#fetch_threshold = (fetch_queue_length+1)//2
+fetch_queue_length = 11
+fetch_threshold = 8
 QueuePointerType = Unsigned(fetch_queue_length.bit_length())
 
 def truncate_queue_ptr(ptr):
@@ -137,6 +139,7 @@ class InstBuffer(GenericModule):
     tpc  = Input(BrewInstAddr)
     task_mode  = Input(logic)
     do_branch = Input(logic) # do_branch is active for one cycle only; in the same cycle the new spc/tpc/task_mode values are available
+    break_burst = Input(logic) # active for one cycle, to break any progressing burst. Doesn't kill the queue or drop outstanding requests, simply stops requesting more...
 
     # Events
     event_fetch = Output(logic)
@@ -245,7 +248,12 @@ class InstBuffer(GenericModule):
         req_len <<= Reg(
             Select(
                 start_new_request,
-                Select(advance_request, req_len, Select(req_len > 0, 0, truncate_queue_ptr(req_len - 1))), # No new request: simply decrement
+                Select(
+                    self.break_burst,
+                    Select(advance_request, req_len, Select(req_len > 0, 0, truncate_queue_ptr(req_len - 1))), # No new request: simply decrement
+                    0
+                ),
+                # TODO: I think this could be just 'fetch_threshold', but I don't want to make the change without extensive test coverage
                 Select(
                     self.do_branch,
                     # If we don't have a branch, we need to imit fetch burst length to fetch_threshold (to be good citizens on the bus).
@@ -492,6 +500,7 @@ class FetchStage(GenericModule):
     tpc  = Input(BrewInstAddr)
     task_mode  = Input(logic)
     do_branch = Input(logic)
+    break_burst = Input(logic) # active for one cycle, to break any progressing burst. Doesn't kill the queue or drop outstanding requests, simply stops requesting more...
 
     # Events
     event_fetch = Output(logic)
@@ -517,6 +526,7 @@ class FetchStage(GenericModule):
         inst_buf.tpc <<= self.tpc
         inst_buf.task_mode <<= self.task_mode
         inst_buf.do_branch <<= self.do_branch
+        inst_buf.break_burst <<= self.break_burst
 
         inst_queue.do_branch <<= self.do_branch
 
@@ -814,6 +824,7 @@ def sim():
             self.dut.tpc <<= self.tpc
             self.dut.task_mode <<= self.task_mode
             self.dut.do_branch <<= self.do_branch
+            self.dut.break_burst <<= 0
 
             self.mem_base <<= self.sideband_emulator.mem_base
             self.mem_limit <<= self.sideband_emulator.mem_limit

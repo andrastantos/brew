@@ -68,6 +68,8 @@ class DecodeStage(GenericModule):
 
     do_branch = Input(logic)
 
+    break_fetch_burst = Output(logic)
+
     def construct(self, has_multiply: bool = True, has_shift: bool = True, use_mini_table: bool = False):
         self.has_multiply = has_multiply
         self.has_shift = has_shift
@@ -592,7 +594,8 @@ class DecodeStage(GenericModule):
         self.output_port.result_reg_addr_valid <<= Reg(rsv_needed, clock_en=register_outputs)
         self.output_port.fetch_av              <<= Reg(self.fetch.av, clock_en=register_outputs)
 
-
+        #self.break_fetch_burst <<= register_outputs & ((exec_unit == op_class.ld_st) | (exec_unit == op_class.branch))
+        self.break_fetch_burst <<= register_outputs & ((exec_unit == op_class.branch))
 
 
 def sim():

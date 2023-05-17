@@ -29,6 +29,7 @@ I also reorged the code to be more reasonable and report results in decimal inst
 
 event_clk_cycles:        5450
 event_execute:           1255
+event_branch_taken:       270
 event_fetch_wait_on_bus:  532
 event_mem_wait_on_bus:    196
 event_fetch:             3786
@@ -43,4 +44,39 @@ So far we've accounted for: 4690 cycles out of the 5450. The rest can easily be 
 
 So, I think we can claim success: we know where the cycles go.
 
+BTW: with 270 branches taken, we get an average run-length of 3.6 instructions of linear execution, again, lower then expectations.
+
 Now, what to do about them?
+
+One idea is to make the prefetch queue only a few items longer then the burst size: as much longer as the memory latency is, that is 2-3 cycles or something. This way, we will only start a burst when the queue is almost empty, that is, when we have a high likelihood of actually using the results.
+
+That actually helped a little, but just a little:
+
+==============    =================   ===============   ==============   =========
+Queue Length      Fetch Threshold     Total cycles      Instructions     IPC
+==============    =================   ===============   ==============   =========
+19                16                  5548              1255
+16                8                   5450              1255
+11                8                   5398              1255
+11                4                   5741              1255
+7                 4                   5709              1255
+==============    =================   ===============   ==============   =========
+
+So, again it appears that we can get very modest (0.1%) gain by this change and fetching less then 8 words, the bus efficiency starts to kill us. Larger bursts also do too much.
+
+OK, so we didn't get much smarter: we still don't know how to *not* fetch a bunch of stuff we don't need.
+
+Of course another idea would be to terminate a burst as soon as we realize that we *might* jump. But for that, we would need a burst-termination signal that will be a bit more involved to add.
+
+==============    =================   ===============   ==============   ==========================================
+Queue Length      Fetch Threshold     Total cycles      Instructions     Note
+==============    =================   ===============   ==============   ==========================================
+11                8                   5398              1255             No break bursts
+11                8                   5114              1255             Breaking bursts on ld/st and branches
+11                8                   5404              1255             Breaking only on ld/st
+11                8                   5091              1255             Breaking only on branches
+==============    =================   ===============   ==============   ==========================================
+
+This is interesting: we're better off not speculating through branches (too much). But we are better off bursting through load-stores, though the gain there is not all that impressive and could be an artifact of the benchmark I'm using.
+
+

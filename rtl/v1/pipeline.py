@@ -111,6 +111,7 @@ class Pipeline(GenericModule):
         fetch_stage.tpc <<= tpc
         fetch_stage.task_mode <<= task_mode
         fetch_stage.do_branch <<= do_branch
+        fetch_stage.break_burst <<= decode_stage.break_fetch_burst
 
         self.event_fetch <<= fetch_stage.event_fetch
         self.event_fetch_drop <<= fetch_stage.event_dropped
