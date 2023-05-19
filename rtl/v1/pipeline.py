@@ -129,10 +129,6 @@ class Pipeline(GenericModule):
         decode_stage.do_branch <<= do_branch
 
         self.event_decode_wait_on_rf <<= rf_req.valid & ~rf_req.ready
-        decode_to_exec_transfer = rf_req.valid & rf_req.ready
-        self.event_branch <<= decode_to_exec_transfer & ~decode_to_exec.fetch_av & (decode_to_exec.exec_unit == op_class.branch)
-        self.event_load   <<= decode_to_exec_transfer & ~decode_to_exec.fetch_av & (decode_to_exec.exec_unit == op_class.ld_st) & (decode_to_exec.ldst_op == ldst_ops.load)
-        self.event_store  <<= decode_to_exec_transfer & ~decode_to_exec.fetch_av & (decode_to_exec.exec_unit == op_class.ld_st) & (decode_to_exec.ldst_op == ldst_ops.store)
 
         # EXECUTE STAGE
         #############################
@@ -152,7 +148,11 @@ class Pipeline(GenericModule):
         execute_stage.ecause_in     <<= self.ecause
         execute_stage.interrupt     <<= self.interrupt
 
-        self.event_execute <<= decode_to_exec.ready & decode_to_exec.valid & ~decode_to_exec.fetch_av & ~execute_stage.do_branch
+        will_execute = decode_to_exec.ready & decode_to_exec.valid & ~decode_to_exec.fetch_av & ~execute_stage.do_branch
+        self.event_branch  <<= will_execute & (decode_to_exec.exec_unit == op_class.branch)
+        self.event_load    <<= will_execute & (decode_to_exec.exec_unit == op_class.ld_st) & (decode_to_exec.ldst_op == ldst_ops.load)
+        self.event_store   <<= will_execute & (decode_to_exec.exec_unit == op_class.ld_st) & (decode_to_exec.ldst_op == ldst_ops.store)
+        self.event_execute <<= will_execute
 
         spc          <<= Reg(execute_stage.spc_out)
         tpc          <<= Reg(execute_stage.tpc_out)
