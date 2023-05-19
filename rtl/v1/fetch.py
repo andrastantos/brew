@@ -187,7 +187,6 @@ class InstBuffer(GenericModule):
         class InstBufferStates(Enum):
             idle = 0
             request = 1
-            flushing = 2
 
         state = Wire()
         next_state = Wire()
@@ -228,6 +227,7 @@ class InstBuffer(GenericModule):
         #    )
         #)
         outstanding_request = Wire(Unsigned(2))
+        drop_count = Wire(Unsigned(2))
         next_outstanding_request = SelectOne(
             advance_request &  advance_response, outstanding_request,
             advance_request & ~advance_response, (outstanding_request+1)[1:0],
@@ -235,13 +235,21 @@ class InstBuffer(GenericModule):
             ~advance_request & ~advance_response, outstanding_request,
         )
         outstanding_request <<= Reg(next_outstanding_request)
+        drop_count <<= Reg(Select(
+            branch_req,
+            Select(
+                drop_count == 0,
+                Unsigned(2)(drop_count - advance_response),
+                0
+            ),
+            next_outstanding_request
+        ))
 
 
         # We have to make sure that we only start a new burst if we know for sure the queue can take all the responses,
         # including all the outstanding ones.
         start_new_request = (
             ((((self.queue_free_cnt > fetch_threshold + next_outstanding_request) & ~branch_req) | (branch_req & (next_outstanding_request == 0))) & (state == InstBufferStates.idle)) |
-            ((state == InstBufferStates.flushing) & (next_outstanding_request == 0)) |
             ((state == InstBufferStates.request) & branch_req & (next_outstanding_request == 0))
         )
 
@@ -297,21 +305,18 @@ class InstBuffer(GenericModule):
         self.bus_if_request.data            <<= None
 
         self.fsm.add_transition(InstBufferStates.idle,         start_new_request,              InstBufferStates.request)
-        self.fsm.add_transition(InstBufferStates.idle,         branch_req & (next_outstanding_request != 0),  InstBufferStates.flushing)
         self.fsm.add_transition(InstBufferStates.request,     ~branch_req & (~self.bus_if_request.valid | (req_len == 0)),  InstBufferStates.idle)
-        self.fsm.add_transition(InstBufferStates.request,      branch_req & (next_outstanding_request != 0),  InstBufferStates.flushing)
-        self.fsm.add_transition(InstBufferStates.request,      branch_req & (next_outstanding_request == 0),  InstBufferStates.request)
-        self.fsm.add_transition(InstBufferStates.flushing,     (next_outstanding_request == 0),  InstBufferStates.request)
+        self.fsm.add_transition(InstBufferStates.request,      branch_req,  InstBufferStates.idle)
 
 
         # The response interface is almost completely a pass-through. All we need to do is to handle the AV flag.
         self.queue.data <<= self.bus_if_response.data
         self.queue.av <<= req_av
-        self.queue.valid <<= self.bus_if_response.valid & (state != InstBufferStates.flushing)
+        self.queue.valid <<=  self.bus_if_response.valid & (drop_count == 0)
         #AssertOnClk(
         #    state != InstBufferStates.idle | self.queue.ready | (state != InstBufferStates.flush)
         #)
-        self.event_drop <<= self.bus_if_response.valid & (state == InstBufferStates.flushing)
+        self.event_drop <<= self.bus_if_response.valid & (drop_count != 0)
         self.event_fetch <<= self.bus_if_response.valid
 
 # A simple FIFO with some extra sprinkles to handle bursts and flushing. It sits between the instruction buffer and fetch

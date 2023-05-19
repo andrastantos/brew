@@ -80,3 +80,84 @@ Queue Length      Fetch Threshold     Total cycles      Instructions     Note
 This is interesting: we're better off not speculating through branches (too much). But we are better off bursting through load-stores, though the gain there is not all that impressive and could be an artifact of the benchmark I'm using.
 
 
+A new theory
+~~~~~~~~~~~~
+
+It takes 2 clock cycles to get from FETCH response to DECODE IN. It takes another 3 to get from request to reply. So we have a 5-cycle latency in the front-end of the pipeline. That's too high and results in a lot of fetches. So, how about some quick-and-dirty branch recognition in InstBuffer and break the burst right there?
+
+I've coded up something trivial (only catches conditional branches). Let's see!
+
+==============    =================   ===============   ==============   ==========================================
+Queue Length      Fetch Threshold     Total cycles      Instructions     Note
+==============    =================   ===============   ==============   ==========================================
+11                8                   5398              1255             No break bursts
+11                8                   5114              1255             Breaking bursts on ld/st and branches
+11                8                   5404              1255             Breaking only on ld/st
+11                8                   5091              1255             Breaking only on branches
+11                8                   5579              1255             Breaking only on cbranches early
+==============    =================   ===============   ==============   ==========================================
+
+OK, well, that didn't work out: it's even worse! Of course, looking at it, almost every other instruction is a branch in that code! Maybe it's a particularly bad example? It shows a tight loop with three (normally not-taken) branches plus of course the looping branch.
+
+What's interesting is that we claim we've dropped more fetches here then when we broke on branches only. We also spend the same number of cycles in bus idle, so really, the difference is a combination of more fetch over-head (shorter average burst length) and more dropped fetches, if I can believe that count. Not sure I do though: this result is very counter-intuitive.
+
+Another theory
+~~~~~~~~~~~~~~
+
+Actually, I think that dropped fetches (and in general high bus-utilization) is a red herring: since there's no other contender for the bus, it's harmless to fetch a bunch of words that we don't use (BTW the metric on some if these counters is not the same: some are measured in instructions, while others are in words).
+
+There's also an issue with one of the counters, that needs to be tracked down, but I digress.
+
+The point is that the reason the CPU is slow is not that it's waiting on the bus. Or at least high bus utilization is not a clear sign of that. What would be a clear sign is if the fetch would be constantly waiting for the bus interface. But it doesn't - that's the reason it can run so much ahead and fetch a bunch of useless stuff.
+
+So, then: why isn't the processor better at executing instructions?
+
+Wow, a bunch of 'execute class' counters were wrong: they didn't take ready/valid into account neither did they look at do_jump which would indicate an accepted instruction to execute that would get dropped.
+
+So, with all that fixed, I can start staring at the traces. The question is this: when we do NOT execute an instruction, why is that? Because we haven't anything decoded or because we're not ready to execute?
+
+Looking at the traces, it obvious that we mostly are ready, but not valid, that is: we're waiting on something to get decoded.
+
+Looking at the same thing at the input of decode, we see the same pattern: we're almost always ready to decode, except there's nothing available.
+
+Overlaying it with do_branch, it's pretty obvious what's going on: it takes way too long to fill the fetch pipeline after a branch: the long stretches of unavailability from fetch almost always follow a branch.
+
+So, what does it tell us? It says that branch mis-predicts are the main culprit, coupled with high latency of fetch: It takes 6 (**6!!**) clock-cycles from do_branch to get a new instruction to decode.
+
+So, where those 6 clock cycles go?
+1. We have to start a new burst, which means we have to terminate the old one. That's 1 clock cycle.
+2. We spend another clock cycle in waiting. But WHY??? <========= THIS COULD BE SAVED
+3. We spend a clock cycle reading data from DRAM (i.e. outputting the nCAS pulses)
+4. We spend another half clock cycle to gather the high-byte, so we can only output our first result here
+5. We spend a cycle in the instruction queue. THIS COULD POTENTIALLY BE SAVED, but it's rather difficult as we would need to bypass the FIFO when it's empty and assembly is ready to consume
+6. We spend (at least) one cycle in instruction assembly. THIS COULD POTENTIALLY BE SAVED. It can be merged with decode: we get the instruction code in the first clock-cycle, so - as long as we don't support extension groups - we can start decoding, looking at reservations, etc. Then, we wait for FIELD_E to populate if we need it.
+
+So, theoretically we could cut this time in half, but saving cycle 5 and 6 is non-trivial. So let's start looking at cycle 2, that should be low-hanging fruit.
+
+So, the reason we spend an extra cycle in idle has nothing to do with bus_if, it's because fetch (inst_buf) goes through some flush cycle. Oh, and we do *that* because we have to drain our outstanding requests, before we can start a new burst. Otherwise, we won't know when the new responses would start showing up and when to stop dropping. While that's not directly true, this is how it is working now, so changing even *that* is non-trivial.
+
+What should happen is to capture the outstanding requests count upon do_branch and use that as a drop-counter. That way we can start the new burst immediately.
+
+Well, I managed to get clock cycle '2' out of the system using the drop-count idea. Results:
+
+Before:
+    event_clk_cycles: 5091
+    event_execute: 1255
+    event_branch: 502
+    event_branch_taken: 270
+    event_fetch_drop: 843
+    event_load: 31
+    event_store: 42
+    event_bus_idle: 302
+
+After:
+    event_clk_cycles: 5031
+    event_execute: 1255
+    event_branch: 502
+    event_branch_taken: 270
+    event_fetch_drop: 843
+    event_load: 31
+    event_store: 42
+    event_bus_idle: 242
+
+Not all that impressive, is it? Still, it's a step in the right direction.
