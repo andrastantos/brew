@@ -145,8 +145,9 @@ class InstBuffer(GenericModule):
     event_fetch = Output(logic)
     event_drop = Output(logic)
 
-    def construct(self, page_bits: int = 7):
+    def construct(self, page_bits: int = 7, break_on_branch: bool = False):
         self.page_bits = page_bits # 256 bytes, but we count in 16-bit words
+        self.break_on_branch = break_on_branch
 
     def body(self):
         def truncate_addr(a):
@@ -244,12 +245,26 @@ class InstBuffer(GenericModule):
             ((state == InstBufferStates.request) & branch_req & (next_outstanding_request == 0))
         )
 
+        if self.break_on_branch:
+            field_a = self.bus_if_response.data[ 3: 0]
+            field_b = self.bus_if_response.data[ 4: 7]
+            field_c = self.bus_if_response.data[11: 8]
+            field_d = self.bus_if_response.data[15:12]
+            field_a_is_f = field_a == 0xf
+            field_b_is_f = field_b == 0xf
+            field_c_is_f = field_c == 0xf
+            field_d_is_f = field_d == 0xf
+            could_be_branch = (field_d_is_f & ~field_c_is_f) # Catches all the conditional branches
+            break_burst = advance_response & could_be_branch
+        else:
+            break_burst = self.break_burst
+
         req_len = Wire(QueuePointerType)
         req_len <<= Reg(
             Select(
                 start_new_request,
                 Select(
-                    self.break_burst,
+                    break_burst,
                     Select(advance_request, req_len, Select(req_len > 0, 0, truncate_queue_ptr(req_len - 1))), # No new request: simply decrement
                     0
                 ),
