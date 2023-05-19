@@ -15,8 +15,9 @@ int main()
 	const ev_t events[] = {
 		{event_clk_cycles,        "event_clk_cycles"},
 		{event_execute,           "event_execute"},
-		{event_mem_wait_on_bus,   "event_mem_wait_on_bus"},
-		{event_fetch,             "event_fetch"},
+		{event_branch,            "event_branch"},
+		{event_branch_taken,            "event_branch_taken"},
+		//{event_fetch,             "event_fetch"},
 		{event_fetch_drop,        "event_fetch_drop"},
 		{event_load,              "event_load"},
 		{event_store,             "event_store"},

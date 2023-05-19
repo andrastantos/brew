@@ -129,10 +129,10 @@ class Pipeline(GenericModule):
         decode_stage.do_branch <<= do_branch
 
         self.event_decode_wait_on_rf <<= rf_req.valid & ~rf_req.ready
-
-        self.event_branch <<= decode_to_exec.exec_unit == op_class.branch & ~decode_to_exec.fetch_av
-        self.event_load <<= (decode_to_exec.exec_unit == op_class.ld_st) & (decode_to_exec.ldst_op == ldst_ops.load) & ~decode_to_exec.fetch_av
-        self.event_store <<= (decode_to_exec.exec_unit == op_class.ld_st) & (decode_to_exec.ldst_op == ldst_ops.store) & ~decode_to_exec.fetch_av
+        decode_to_exec_transfer = rf_req.valid & rf_req.ready
+        self.event_branch <<= decode_to_exec_transfer & ~decode_to_exec.fetch_av & (decode_to_exec.exec_unit == op_class.branch)
+        self.event_load   <<= decode_to_exec_transfer & ~decode_to_exec.fetch_av & (decode_to_exec.exec_unit == op_class.ld_st) & (decode_to_exec.ldst_op == ldst_ops.load)
+        self.event_store  <<= decode_to_exec_transfer & ~decode_to_exec.fetch_av & (decode_to_exec.exec_unit == op_class.ld_st) & (decode_to_exec.ldst_op == ldst_ops.store)
 
         # EXECUTE STAGE
         #############################
