@@ -248,10 +248,7 @@ class InstBuffer(GenericModule):
 
         # We have to make sure that we only start a new burst if we know for sure the queue can take all the responses,
         # including all the outstanding ones.
-        start_new_request = (
-            ((((self.queue_free_cnt > fetch_threshold + next_outstanding_request) & ~branch_req) | (branch_req & (next_outstanding_request == 0))) & (state == InstBufferStates.idle)) |
-            ((state == InstBufferStates.request) & branch_req & (next_outstanding_request == 0))
-        )
+        start_new_request = (self.queue_free_cnt > fetch_threshold + next_outstanding_request) | branch_req
 
         if self.break_on_branch:
             field_a = self.bus_if_response.data[ 3: 0]
@@ -305,9 +302,7 @@ class InstBuffer(GenericModule):
         self.bus_if_request.data            <<= None
 
         self.fsm.add_transition(InstBufferStates.idle,         start_new_request,              InstBufferStates.request)
-        self.fsm.add_transition(InstBufferStates.request,     ~branch_req & (~self.bus_if_request.valid | (req_len == 0)),  InstBufferStates.idle)
-        self.fsm.add_transition(InstBufferStates.request,      branch_req,  InstBufferStates.idle)
-
+        self.fsm.add_transition(InstBufferStates.request,      ~self.bus_if_request.valid | (req_len == 0) | branch_req,  InstBufferStates.idle)
 
         # The response interface is almost completely a pass-through. All we need to do is to handle the AV flag.
         self.queue.data <<= self.bus_if_response.data

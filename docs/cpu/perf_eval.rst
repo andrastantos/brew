@@ -161,3 +161,16 @@ After:
     event_bus_idle: 242
 
 Not all that impressive, is it? Still, it's a step in the right direction.
+
+There also seem to be cases where we're idling in the instruction queue, yet we take our sweet time to start a new burst upon getting a branch request. Turns out the state-machine had some vestigial transitions and 'start_new_request' was rather conservative as well. These both can be simplified now with the drop-count (wow, faster and simpler!). Results:
+
+    event_clk_cycles: 4900
+    event_execute: 1255
+    event_branch: 502
+    event_branch_taken: 270
+    event_fetch_drop: 884
+    event_load: 31
+    event_store: 42
+    event_bus_idle: 105
+
+This is a decent win, so let's packet it!
