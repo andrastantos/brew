@@ -134,6 +134,7 @@ class BrewV1Top(GenericModule):
         event_bus_idle          = bus_if.event_bus_idle
         event_fetch             = pipeline.event_fetch
         event_fetch_drop        = pipeline.event_fetch_drop
+        event_inst_word         = pipeline.event_inst_word
 
         # CSR address decode
         #############################
@@ -186,7 +187,7 @@ class BrewV1Top(GenericModule):
 
         for i in range(event_counter_cnt):
             event_cnt = Wire(Unsigned(20))
-            event_select = Wire(Unsigned(4))
+            event_select = Wire(Unsigned(5))
             event = Select(event_select,
                 1,
                 event_fetch_wait_on_bus,
@@ -196,10 +197,12 @@ class BrewV1Top(GenericModule):
                 event_branch,
                 event_load,
                 event_store,
+                event_load | event_store,
                 event_execute,
                 event_bus_idle,
                 event_fetch,
-                event_fetch_drop
+                event_fetch_drop,
+                event_inst_word
             )
             event_cnt <<= Reg((event_cnt + event)[event_cnt.get_num_bits()-1:0], clock_en=event_enabled)
             setattr(self, f"event_cnt_{i}", event_cnt)

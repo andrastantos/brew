@@ -16,11 +16,10 @@ int main()
 		{event_clk_cycles,        "event_clk_cycles"},
 		{event_execute,           "event_execute"},
 		{event_branch,            "event_branch"},
-		{event_branch_taken,            "event_branch_taken"},
-		//{event_fetch,             "event_fetch"},
+		{event_inst_word,         "event_inst_word"},
+		{event_fetch,             "event_fetch"},
 		{event_fetch_drop,        "event_fetch_drop"},
-		{event_load,              "event_load"},
-		{event_store,             "event_store"},
+		{event_load_or_store,     "event_load_or_store"},
 		{event_bus_idle,          "event_bus_idle"}
 	};
 	uint32_t ev_cnts[event_cnt_count];
