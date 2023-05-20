@@ -307,12 +307,13 @@ class InstBuffer(GenericModule):
         # The response interface is almost completely a pass-through. All we need to do is to handle the AV flag.
         self.queue.data <<= self.bus_if_response.data
         self.queue.av <<= req_av
-        self.queue.valid <<=  self.bus_if_response.valid & (drop_count == 0)
+        self.queue.valid <<=  self.bus_if_response.valid & (drop_count == 0) & ~branch_req
         #AssertOnClk(
         #    state != InstBufferStates.idle | self.queue.ready | (state != InstBufferStates.flush)
         #)
         self.event_drop <<= self.bus_if_response.valid & (drop_count != 0)
         self.event_fetch <<= self.bus_if_response.valid
+
 
 # A simple FIFO with some extra sprinkles to handle bursts and flushing. It sits between the instruction buffer and fetch
 class InstQueue(Module):
@@ -332,23 +333,24 @@ class InstQueue(Module):
     event_queue_flush = Output(QueuePointerType) # This is strange: in a single clock we drop a bunch of items in the queue.
 
     def body(self):
+        #fifo = ZeroDelayFifo(depth=fetch_queue_length)
         fifo = Fifo(depth=fetch_queue_length)
         self.assemble <<= fifo(self.inst, clear = self.do_branch)
 
-        self.empty_cnt = Wire(QueuePointerType)
+        empty_cnt = Wire(QueuePointerType)
         dec = self.inst.ready & self.inst.valid
         inc = self.assemble.ready & self.assemble.valid
-        self.empty_cnt <<= Reg(
+        empty_cnt <<= Reg(
             Select(
                 self.do_branch,
-                truncate_queue_ptr(self.empty_cnt + inc - dec),
+                truncate_queue_ptr(empty_cnt + inc - dec),
                 fetch_queue_length
             ),
             reset_value_port = fetch_queue_length
         )
-        self.queue_free_cnt <<= self.empty_cnt
+        self.queue_free_cnt <<= empty_cnt
 
-        self.event_queue_flush <<= Select(self.do_branch, 0, QueuePointerType(fetch_queue_length - self.queue_free_cnt))
+        self.event_queue_flush <<= Select(self.do_branch, 0, QueuePointerType(fetch_queue_length - empty_cnt))
 
 class InstAssemble(Module):
     clk = ClkPort()

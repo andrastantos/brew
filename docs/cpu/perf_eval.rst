@@ -174,3 +174,77 @@ There also seem to be cases where we're idling in the instruction queue, yet we 
     event_bus_idle: 105
 
 This is a decent win, so let's packet it!
+
+Something else!
+~~~~~~~~~~~~~~~
+
+At this point, we start seeing something else:
+
+..image:: image/cpu_inst_assembly_and_other_stalls.png
+
+There are no branches or even load/stores in the selected region, yet fetch_valid is rather unhappy. The clue as to why that is, is in the `fetch_inst_len` signal: most of these instructions are 2 or 3 words long, so it takes 2 or 3 cycles to assemble them. This is because we can pull only 16 bits from the instruction queue every clock-cycle. So, this is expected, and can be calked down as code inefficiency: I know the average instruction size is around 24 bits, so the section we're looking at is just atypical.
+
+However, let's look at how choppy `fetch_ready` is! Compare that to `input_port_ready` on the EXEC_INT section. The latter shows if execute has a stall. The former is if decode has one. Look how little execute applies back-pressure compared to what decode is doing!
+
+What must be going on here is that decode finds a bunch of read-after-write or write-after-write hazards and stalls awaiting those to clear.
+
+Let's see if we have the right event counters to capture these problems.
+
+So, we do, but it doesn't line up with the wait-states decode pushes into the stream. Why then, does it apply back-pressure? Oh, actually the counter is right: just because we're waiting on the RF, that doesn't mean we're actually stalling. For that to happen, there should be something better for us to do. Which in many cases, there isn't.
+
+So, those notches in fetch_valid are valid, legitimate and unless I can reduce the latency of the RF (which is already timing-critical), there isn't much I can do.
+
+So, at this point we're back to the previous problem, with an extra wrinkle: can we somehow decode 32 bits at a time and if we did, what would it buy us?
+
+What I think I should add a counter for is all the times we see 2- or 3-work instructions, or in other words, the average instruction length.
+
+Hmm... After adding this counter, turns out my average instruction length *is* 1.5 words:
+
+    event_clk_cycles: 4900
+    event_execute: 1255
+    event_branch: 502
+    event_inst_word: 1992
+    event_fetch: 3481
+    event_fetch_drop: 884
+    event_load_or_store: 73
+    event_bus_idle: 105
+
+So then what gives? At any rate: I should spend *at least* 1992 cycles on this program. Each branch takes an extra (now) 5 clock cycles, so that's 2500 cycles, which gets me pretty close: 4502 clock cycles. The 73 loads and stores would add another few hundred for sure, and we're almost there.
+
+So really, the only thing we can do anything about is still the branch mis-predict penalty.
+
+Removing the queue latency
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+I've added a new FIFO variant (ZeroDelayFifo) which has a combinatorial bypass circuit. This, in case of an empty FIFO passes on fetched data from the instruction buffer to instruction assembly without any latency.
+
+Now, this can cause timing issues, but let's worry about that later. Going back and forth is a one-line change anyway, so it's easy to mock around with.
+
+It took me a while to get it right, not because of the regular logic, but because I forgot to pass on the 'clear' signal to the underlying FIFO. Such a dumb mistake!
+
+At any rate, drum-roll please!
+
+Before:
+    event_clk_cycles: 4900
+    event_execute: 1255
+    event_branch: 502
+    event_inst_word: 1992
+    event_fetch: 3481
+    event_fetch_drop: 884
+    event_load_or_store: 73
+    event_bus_idle: 105
+
+After:
+    event_clk_cycles: 4902
+    event_execute: 1255
+    event_branch: 502
+    event_inst_word: 1992
+    event_fetch: 3372
+    event_fetch_drop: 682
+    event_load_or_store: 73
+    event_bus_idle: 314
+
+Even worse??!!! How could that be? One thing that got better is the number of dropped words, but I don't understand! Let's count the cycles from branch to restart of the pipeline!
+
+Before the change it was 6 cycles (and I actually miscounted above, so our starting point is 7, I think).
+After the change it is 5 cycles. So, we do get the reduction we hoped for, but not the improvement in speed.
