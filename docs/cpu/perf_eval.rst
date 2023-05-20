@@ -248,3 +248,30 @@ Even worse??!!! How could that be? One thing that got better is the number of dr
 
 Before the change it was 6 cycles (and I actually miscounted above, so our starting point is 7, I think).
 After the change it is 5 cycles. So, we do get the reduction we hoped for, but not the improvement in speed.
+
+So, where do the cycles go now? Is it possible that we drain the fetch queue now too often and end up waiting for it? What we seemed to have gained was a bunch of bus idle cycles. That would corroborate this theory...
+
+Old:
+    event_mem_wait_on_bus: 279
+    event_fetch_wait_on_bus: 80
+
+New:
+    event_mem_wait_on_bus: 340
+    event_fetch_wait_on_bus: 372
+
+That's it! We are now waiting more for the bus to respond! Where do those waits occur? They happen almost every time (once!) when we take a branch. Indeed, it appears we're wasting a cycle in BusIf: we spend 2 cycles in IDLE.
+
+After realizing that we continue request during a 'do_branch' cycle from fetch towards the bus (and fixing it), we do see some minor improvements:
+
+    event_clk_cycles: 4861
+    event_execute: 1255
+    event_branch: 502
+    event_mem_wait_on_bus: 340
+    event_fetch: 3331
+    event_fetch_drop: 641
+    event_fetch_wait_on_bus: 132
+    event_bus_idle: 336
+
+Crucially, we don't wait on bus for fetch nearly as much.
+
+Right now we're taking two cycles to restart requesting from the bus: one cycle *during* and one cycle *after* the branch. Can we make it faster?

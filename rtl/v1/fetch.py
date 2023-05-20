@@ -295,7 +295,7 @@ class InstBuffer(GenericModule):
             )
         )
 
-        self.bus_if_request.valid           <<= (state == InstBufferStates.request) & (~fetch_page_limit)
+        self.bus_if_request.valid           <<= (state == InstBufferStates.request) & ~fetch_page_limit & ~self.do_branch
         self.bus_if_request.read_not_write  <<= 1
         self.bus_if_request.byte_en         <<= 3
         self.bus_if_request.addr            <<= fetch_addr[BrewBusAddr.length-1:0]
@@ -333,8 +333,8 @@ class InstQueue(Module):
     event_queue_flush = Output(QueuePointerType) # This is strange: in a single clock we drop a bunch of items in the queue.
 
     def body(self):
-        #fifo = ZeroDelayFifo(depth=fetch_queue_length)
-        fifo = Fifo(depth=fetch_queue_length)
+        fifo = ZeroDelayFifo(depth=fetch_queue_length)
+        #fifo = Fifo(depth=fetch_queue_length)
         self.assemble <<= fifo(self.inst, clear = self.do_branch)
 
         empty_cnt = Wire(QueuePointerType)
