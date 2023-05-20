@@ -275,3 +275,16 @@ After realizing that we continue request during a 'do_branch' cycle from fetch t
 Crucially, we don't wait on bus for fetch nearly as much.
 
 Right now we're taking two cycles to restart requesting from the bus: one cycle *during* and one cycle *after* the branch. Can we make it faster?
+
+OK, there were quite a few dumb decisions in InstBuf that added extra cycles of delay. Things, like going back and forth between idle and request multiple times, which added delay to starting a new request that stuck. After fixing them:
+
+    event_clk_cycles: 4672
+    event_execute: 1255
+    event_branch: 502
+    event_mem_wait_on_bus: 340
+    event_fetch: 3331
+    event_fetch_drop: 641
+    event_fetch_wait_on_bus: 162
+    event_bus_idle: 147
+
+This is a decent improvement. We're still waiting on the bus quite a bit more then before, but at least the top-of-the-line number is better.
