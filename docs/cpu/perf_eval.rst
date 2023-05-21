@@ -287,4 +287,18 @@ OK, there were quite a few dumb decisions in InstBuf that added extra cycles of 
     event_fetch_wait_on_bus: 162
     event_bus_idle: 147
 
-This is a decent improvement. We're still waiting on the bus quite a bit more then before, but at least the top-of-the-line number is better.
+This is a decent improvement. We're still waiting on the bus quite a bit more then before, but at least the top-of-the-line number is better. The remaining events correlate with back-to-back not-taken branches. Those are cases when we have a quick succession of burst breaks, which results in fetch going back to idle. While the situation can be improved some by disabling burst-breaking, I think overall that should improve performance, even if this particular benchmark doesn't show it:
+
+Burst breaking removed:
+    event_clk_cycles: 4643
+    event_execute: 1255
+    event_branch: 502
+    event_mem_wait_on_bus: 352
+    event_fetch: 3324
+    event_fetch_drop: 753
+    event_fetch_wait_on_bus: 300
+    event_bus_idle: 147
+
+The IPC is now 0.268, which is still rather appalling, but improving, I guess.
+
+Next, I guess is removing FIELD_E from the critical path...

@@ -85,6 +85,7 @@ class Pipeline(GenericModule):
 
         # Connecting tissue
         fetch_to_decode = Wire(FetchDecodeIf)
+        fetch_to_decode_field_e = Wire(FetchDecodeFieldEIf)
         decode_to_exec = Wire(DecodeExecIf)
         do_branch = Wire(logic)
         exec_to_extend = Wire(ResultExtendIf)
@@ -105,6 +106,7 @@ class Pipeline(GenericModule):
         fetch_stage.bus_if_response <<= self.bus_to_fetch
 
         fetch_to_decode <<= fetch_stage.decode
+        fetch_to_decode_field_e <<= fetch_stage.decode_field_e
 
         fetch_stage.mem_base <<= self.pmem_base
         fetch_stage.mem_limit <<= self.pmem_limit
@@ -122,6 +124,7 @@ class Pipeline(GenericModule):
         # DECODE STAGE
         ############################
         decode_stage.fetch           <<= fetch_to_decode
+        decode_stage.fetch_field_e   <<= fetch_to_decode_field_e
         decode_to_exec               <<= decode_stage.output_port
 
         rf_req <<= decode_stage.reg_file_req

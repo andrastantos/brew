@@ -120,10 +120,13 @@ class ExternalBusIf(Interface):
 
 class FetchDecodeIf(ReadyValid):
     inst_0 = Unsigned(16)
-    inst_1 = Unsigned(16)
-    inst_2 = Unsigned(16)
     inst_len = Unsigned(2) # Len 3 is reserved
     av = logic
+
+class FetchDecodeFieldEIf(ReadyValid):
+    # I don't think 'ready' is going to be used
+    inst_1 = Unsigned(16)
+    inst_2 = Unsigned(16)
 
 class DecodeExecIf(ReadyValid):
     exec_unit = EnumNet(op_class)

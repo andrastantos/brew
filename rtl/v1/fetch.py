@@ -145,9 +145,10 @@ class InstBuffer(GenericModule):
     event_fetch = Output(logic)
     event_drop = Output(logic)
 
-    def construct(self, page_bits: int = 7, break_on_branch: bool = False):
+    def construct(self, page_bits: int = 7, break_on_branch_early: bool = False, use_break_burst: bool = True):
         self.page_bits = page_bits # 256 bytes, but we count in 16-bit words
-        self.break_on_branch = break_on_branch
+        self.break_on_branch_early = break_on_branch_early
+        self.use_break_burst = use_break_burst
 
     def body(self):
         def truncate_addr(a):
@@ -251,19 +252,22 @@ class InstBuffer(GenericModule):
         # We need to delay branch_req to align with the request address, which is delayed
         start_new_request = (self.queue_free_cnt > fetch_threshold + next_outstanding_request) | Reg(branch_req)
 
-        if self.break_on_branch:
-            field_a = self.bus_if_response.data[ 3: 0]
-            field_b = self.bus_if_response.data[ 4: 7]
-            field_c = self.bus_if_response.data[11: 8]
-            field_d = self.bus_if_response.data[15:12]
-            field_a_is_f = field_a == 0xf
-            field_b_is_f = field_b == 0xf
-            field_c_is_f = field_c == 0xf
-            field_d_is_f = field_d == 0xf
-            could_be_branch = (field_d_is_f & ~field_c_is_f) # Catches all the conditional branches
-            break_burst = advance_response & could_be_branch
+        if self.use_break_burst:
+            if self.break_on_branch_early:
+                field_a = self.bus_if_response.data[ 3: 0]
+                field_b = self.bus_if_response.data[ 4: 7]
+                field_c = self.bus_if_response.data[11: 8]
+                field_d = self.bus_if_response.data[15:12]
+                field_a_is_f = field_a == 0xf
+                field_b_is_f = field_b == 0xf
+                field_c_is_f = field_c == 0xf
+                field_d_is_f = field_d == 0xf
+                could_be_branch = (field_d_is_f & ~field_c_is_f) # Catches all the conditional branches
+                break_burst = advance_response & could_be_branch
+            else:
+                break_burst = self.break_burst
         else:
-            break_burst = self.break_burst
+            break_burst = 0
 
         req_len = Wire(QueuePointerType)
         req_len <<= Reg(
@@ -359,6 +363,7 @@ class InstAssemble(Module):
 
     inst_buf = Input(FetchQueueIf)
     decode = Output(FetchDecodeIf)
+    decode_field_e = Output(FetchDecodeFieldEIf)
 
     do_branch = Input(logic)
 
@@ -450,10 +455,9 @@ class InstAssemble(Module):
         # Handshake logic: we're widening the datapath, so it's essentially the same as a ForwardBuf
         terminal_fsm_state = Wire(logic)
         terminal_fsm_state <<= (self.decode_fsm.state == InstAssembleStates.have_all_fragments)
-        fetch_ready = ~terminal_fsm_state | self.decode.ready | self.do_branch
+        fetch_ready = ~terminal_fsm_state | (self.decode.ready & self.decode_field_e.ready) | self.do_branch
         self.inst_buf.ready <<= fetch_ready
-        self.decode.valid <<= terminal_fsm_state & ~self.do_branch
-        fsm_advance <<= (~terminal_fsm_state & self.inst_buf.valid & fetch_ready) | (terminal_fsm_state & self.decode.ready)
+        fsm_advance <<= (~terminal_fsm_state & self.inst_buf.valid & fetch_ready) | (terminal_fsm_state & self.decode.ready & self.decode_field_e.ready)
 
         # Loading of the datapath registers
         fetch_av = Wire(logic)
@@ -492,11 +496,14 @@ class InstAssemble(Module):
             )
 
         # Filling the output data
+        self.decode.valid <<= (self.decode_fsm.state != InstAssembleStates.have_0_fragments) & ~self.do_branch
         self.decode.inst_0 <<= inst_reg_0
-        self.decode.inst_1 <<= inst_reg_1
-        self.decode.inst_2 <<= inst_reg_2
         self.decode.inst_len <<= inst_len_reg
         self.decode.av <<= fetch_av
+
+        self.decode_field_e.valid <<= terminal_fsm_state & ~self.do_branch
+        self.decode_field_e.inst_1 <<= inst_reg_1
+        self.decode_field_e.inst_2 <<= inst_reg_2
 
 
 
@@ -510,6 +517,7 @@ class FetchStage(GenericModule):
 
     # Decode interface
     decode = Output(FetchDecodeIf)
+    decode_field_e = Output(FetchDecodeFieldEIf)
 
     # Side-band interfaces
     mem_base = Input(BrewMemBase)
@@ -550,6 +558,8 @@ class FetchStage(GenericModule):
 
         inst_assemble.inst_buf <<= inst_queue.assemble
         self.decode <<= inst_assemble.decode
+        self.decode_field_e <<= inst_assemble.decode_field_e
+
         inst_assemble.do_branch <<= self.do_branch
 
         self.event_fetch <<= inst_buf.event_fetch
