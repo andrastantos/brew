@@ -172,7 +172,7 @@ class RegFile(Module):
         rsv_registered = Wire(logic)
         wait_for_rsv_raw = Wire(logic)
         rsv_registered <<= ~req_advance & Reg(Select(
-            rsv_set_valid,
+            rsv_set_valid & ~rsv_registered,
             Select(
                 req_advance,
                 rsv_registered,
