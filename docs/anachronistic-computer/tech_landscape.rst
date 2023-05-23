@@ -107,3 +107,12 @@ Most computers of the time featured a single expansion port, maybe - in the case
 The stand-out is the Apple II with its internal expansion bus, and of course the IBM PC from 1983. Others, such as the TI 99/4 had external expansion boxes. Let's not forget of course of the pioneers of the micro-computer age, the Altair 8800 or the IMSAI 8080, which also used internal expansion buses.
 
 It appears to me though that these internal buses were more of a necessity then a goal: early machines couldn't integrate all necessary features onto a single PCB, so a multi-PCB design - and a corresponding inter-PCB interface definition - was necessary.
+
+PCB costs
+=========
+
+SMT: $0.13/in^2
+PTH: $0.15/in^2
+
+According to https://www.youtube.com/watch?v=nNpuiJitKwk
+

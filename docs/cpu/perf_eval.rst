@@ -302,3 +302,158 @@ Burst breaking removed:
 The IPC is now 0.268, which is still rather appalling, but improving, I guess.
 
 Next, I guess is removing FIELD_E from the critical path...
+
+FIELD_E speedup
+===============
+
+God, this is way more involved then I thought
+
+Right now the issue seems to be that we pick up FIELD_E without it's high word at or around 23235ns. This is a relative jump, but when the jump actually happens, we seem to be using a 16-bit signed offset instead of a 32-bit one. This of course vectors us to the void.
+
+The problem seems to be that the decoder and execute get unsynced. This happens at 22336, I think, where we READY the same instruction twice. There's also the curiosity that VALID disappears for a cycle, but I don't think that's where the problem originates.
+
+Oh, actually it's the other way around: Why does fetch offer the same instruction code twice???
+
+OK, I'm getting tired. The problem now seems to be that $r2 gets corrupted somewhere in memset. So, when this gets executed:
+
+    800006ba:       a2 3e           mem32[$r2] <- $r3
+
+We start writing to some rather strange location. This might not be the root cause of the hang, but a register corruption is nevertheless bad.
+
+That's because $r0 is corrupted.
+
+Actually, there's something majorly wrong with the reservation logic (or obeying it rather in Decode most likely). In this instruction stream:
+
+    800006b6:       10 60           $r6 <- tiny 0
+    800006b8:       60 24           $r2 <- $r0 + $r6
+
+Decoded at 24400, we're happily blasting through, accepting the second instruction, even though it's clearly dependent on the previous one. Predictably, we pick up the wrong value to hand over to Execute.
+
+Actually no, we don't. We wait until we have the response for $r6. We actually only issue the second instruction to execute 400ns later.
+
+An in fact, we even write back the write value (0) into $r2, unless of course $r0 is busted. $r0 is our destination pointer:
+
+    8000065a <memset>:  <========= this is 4000032d in $spc terms.
+    8000065a:	ff cc       	mem32[$sp - tiny 4 (0xfffffffc)] <- $fp
+    8000065c:	fd 8c       	mem32[$sp - tiny 8 (0xfffffff8)] <- $r8
+    8000065e:	dd c2       	$fp <- $sp
+    80000660:	fd d4 f8 ff 	$sp <- short -8 (0xfffffff8) + $sp
+    80000664:	44 22       	$r2 <- $r4
+    80000666:	f4 03 03 00 	$r0 <- short 3 (0x3) & $r4
+    8000066a:	00 f0 b4 00 	if $r0 == 0 $pc <- $pc + 180 (0xb4) <---- alignment-check destination pointer
+    8000066e:	6e 1b       	$r1 <- tiny $r6 - 1
+    80000670:	06 f0 9a 00 	if $r6 == 0 $pc <- $pc + 154 (0x9a) <---- 0-check size (?)
+    80000674:	55 62       	$r6 <- $r5
+    80000676:	44 02       	$r0 <- $r4 <---- $r0 is set to the destination pointer
+
+So let's follow this stream of instructions:
+
+    80000666:	f4 03 03 00 	$r0 <- short 3 (0x3) & $r4          EXEC: 19800
+    8000066a:	00 f0 b4 00 	if $r0 == 0 $pc <- $pc + 180 (0xb4) EXEC: 20100
+    8000066e:	6e 1b       	$r1 <- tiny $r6 - 1                 EXEC: 20200 (speculative)
+    80000670:	06 f0 9a 00 	if $r6 == 0 $pc <- $pc + 154 (0x9a) <---- 0-check size (?)
+    80000674:	55 62       	$r6 <- $r5
+    80000676:	44 02       	$r0 <- $r4 <---- $r0 is set to the destination pointer
+
+Hmm... The branch seems to be flying to the wrong target: 1 word too early. We should land here:
+
+    8000071e:	44 02       	$r0 <- $r4
+    80000720:	66 12       	$r1 <- $r6
+    80000722:	00 f1 71 ff 	if $r0 == $r0 $pc <- $pc - 144 (0x90)
+    80000726:	11 72       	$r7 <- $r1
+    80000728:	00 f1 b7 ff 	if $r0 == $r0 $pc <- $pc - 74 (0x4a)
+
+Instead, we land on the previous two bytes decoded as the instruction word: FFF1. So, we mis-compute the branch target, but WHY?
+
+When we issued the branch, the target was set to 0xb4, which seems correct. At that point $spc was 0x40000334, which apparently is *not* correct.
+
+I think the issue is that instruction len gets passed on to execute wrongly: the NEXT instruction length is passed, instead of the issued one.
+
+I think in fact, we've skipped over one instruction. Since there was no branch, its possible for fetch and $spc to get out of sync.
+
+So, let's back up:
+
+    8000065a <memset>:
+    8000065a:	ff cc       	mem32[$sp - tiny 4 (0xfffffffc)] <- $fp
+    8000065c:	fd 8c       	mem32[$sp - tiny 8 (0xfffffff8)] <- $r8
+    8000065e:	dd c2       	$fp <- $sp
+    80000660:	fd d4 f8 ff 	$sp <- short -8 (0xfffffff8) + $sp
+
+We seem to be never executing the first instruction. In fact not even decode it. We put the stuff on the decode input, but never bother to raise 'valid'. This is at 18600ns. And that's because decode_taken is high.
+
+OK, so the problem here was that we haven't properly cleared decode_taken upon a branch.
+
+We are now getting further, but not *that* much further. We start executing this:
+
+    8000024a <frame_dummy>:
+    8000024a:	ff cc       	mem32[$sp - tiny 4 (0xfffffffc)] <- $fp
+    8000024c:	fd ec       	mem32[$sp - tiny 8 (0xfffffff8)] <- $lr
+    8000024e:	dd c2       	$fp <- $sp
+    80000250:	fd d4 e8 ff 	$sp <- short -24 (0xffffffe8) + $sp
+    80000254:	0f 00 00 00 	$r0 <- 0 (0x0)
+    80000258:	00 00
+    8000025a:	00 f0 14 00 	if $r0 == 0 $pc <- $pc + 20 (0x14) <----------- GET THIS FAR
+    8000025e:	0f 50 20 1e 	$r5 <- 2147491360 (0x80001e20)
+    80000262:	00 80
+    80000264:	0f 40 ac 19 	$r4 <- 2147490220 (0x800019ac)
+    80000268:	00 80
+    8000026a:	22 e0       	$lr <- $pc + 4 (0x4)
+    8000026c:	02 00       	$pc <- $r0
+    8000026e:	24 e0       	$lr <- $pc + 8 (0x8)              <----------- should jump here
+    80000270:	ef 20 c2 01 	$pc <- 2147484098 (0x800001c2)
+    80000274:	00 80
+    80000276:	fd d4 18 00 	$sp <- short 24 (0x18) + $sp
+    8000027a:	fd ed       	$lr <- mem32[$sp - tiny 8 (0xfffffff8)]
+    8000027c:	ff cd       	$fp <- mem32[$sp - tiny 4 (0xfffffffc)]
+    8000027e:	02 e0       	$pc <- $lr
+
+But end up jumping into the void. The reason seems to be to screw up the immediate. Instead of 0x14, we're getting 0x80001e20, which is the *next* immediate. The proper immediate is just on tne bus before. This smells another mix-up with FIELD_E.
+
+At 49300, we should have issued the instruction for execution, but declined. That's because the reg file is still busy serving us. So why doesn't field_e_valid persist to the next cycle?
+
+I think the current problem is that we can issue multiple reg_file_req-s for the same to-be-decoded instruction. This is happening at 33000ns, and then again at 33100ns. But maybe the better question task is: why isn't req.ready go low? And it doesn't because we give the response immediately.
+
+Ah! The problem is that we don't have field_e yet even though it's coming in the same cycle as our other fields. And that's because in the first cycle, we're still pregnant with our previous FIELD_E for the previous instruction.
+
+BTW: the problem is even more complex then that: we're even duplicating the acceptance from fetch: both fetch_ready and fetch_valid are active in these cycles.
+
+Single-stage decode
+~~~~~~~~~~~~~~~~~~~
+
+So, I think I decided it's enough with the band-aids, and I'll just re-write InstAssemble and Decode as a single stage.
+
+I will also structure it as a stage with input registers as opposed to output ones. That I think works well for read-valid signalling.
+
+I will need the following states:
+
+**got_inst_word**: This goes high when I accept the first word of an instruction and goes low when the instruction is delivered for execution. It also goes low on branches. It follows the logic of a forward buf in the sense that if we deliver and capture at the same time, it stays high.
+
+**got_field_e_low**: This goes high if the first word of field_e is captured. It goes low when the instruction is delivered for execution. It also goes low on branches. Since it *can't* be the first word for an instruction, it's impossible to set and clear in the same cycle.
+
+**got_field_e_high**: This goes high if the second word of field_e is captured. It goes low when the instruction is delivered for execution. It also goes low on branches. Since it *can't* be the first word for an instruction, it's impossible to set and clear in the same cycle.
+
+**got_field_e**: This, I don't think is a state. It's just a combination of got_field_e_low, got_field_e_high and got_inst_word, based on instruction length.
+
+Handshaking still goes through the register file, in the following way:
+
+reg_file_req.valid is driven by 'valid' of the forward_buf logic of got_inst_word.
+reg_file_req.ready drives the 'ready' of forward_buf_logic
+
+reg_file_rsp.ready is driven by decode_out.ready & got_field_e.
+reg_file_rsp.valid drives decode_out.valid
+
+Since reg file propagates reg_file_rsp.ready to reg_file_req.ready, we won't accept the next instruction word, until we can deliver field_e to execute.
+
+
+
+
+
+
+
+
+
+
+
+OTHER NOTES
+===========
+On the first few instructions out of DRAM: there's no dependency between them, yet RF seems to apply back-pressure. Why???
