@@ -94,10 +94,10 @@ class LdStLeech(Module):
 
 from copy import copy
 class Dram(GenericModule):
-    n_ras          = Input(logic)
-    n_cas          = Input(logic)
-    addr          = Input(Unsigned(11))
-    n_we           = Input(logic)
+    n_ras         = Input(logic)
+    n_cas         = Input(logic)
+    addr          = Input()
+    n_we          = Input(logic)
     data_out      = Output(BrewByte)
     data_out_en   = Output(logic)
     data_in       = Input(BrewByte)
@@ -336,14 +336,14 @@ class top(Module):
 
         self.dram_l.n_ras         <<= self.cpu.dram.n_ras_a
         self.dram_l.n_cas         <<= self.cpu.dram.n_cas_0
-        self.dram_l.addr          <<= self.cpu.dram.addr
+        self.dram_l.addr          <<= self.cpu.dram.addr[7:0]
         self.dram_l.n_we          <<= self.cpu.dram.n_we
         self.dram_l.data_in       <<= self.cpu.dram.data_out
         self.dram_l.data_in_en    <<= self.cpu.dram.data_out_en
 
         self.dram_h.n_ras         <<= self.cpu.dram.n_ras_a
         self.dram_h.n_cas         <<= self.cpu.dram.n_cas_1
-        self.dram_h.addr          <<= self.cpu.dram.addr
+        self.dram_h.addr          <<= self.cpu.dram.addr[7:0]
         self.dram_h.n_we          <<= self.cpu.dram.n_we
         self.dram_h.data_in       <<= self.cpu.dram.data_out
         self.dram_h.data_in_en    <<= self.cpu.dram.data_out_en
