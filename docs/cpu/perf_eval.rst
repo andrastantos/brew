@@ -445,9 +445,13 @@ reg_file_rsp.valid drives decode_out.valid
 Since reg file propagates reg_file_rsp.ready to reg_file_req.ready, we won't accept the next instruction word, until we can deliver field_e to execute.
 
 
+Wow, this is complicated. At this point I have found a RF bug, realized that decode needs an extra pipeline stage, that field_e capturing is way more complex then I thought it would be.
 
+Now I finally can execute up until the first pipelined branch. I'm guessing the problem is that I don't clear something on do_branch and things get wedged.
 
+So, the last (maybe) problem:
 
+on test_ldst, we generate an unaligned exception at 156810ns.
 
 
 

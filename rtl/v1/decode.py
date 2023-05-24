@@ -50,9 +50,16 @@ de-asserted, so no matter what, no write-back will occur. Execute assume assumes
 
 HW interrupts are dealt with in the execute stage.
 """
+
 """
-TODO: things to test:
-- fetch_av
+We need to include an extra pipeline stage, unfortunately. What we have is:
+
+1. Instr. capture in ForwardBuf
+2. Issue of register request
+3. Receipt of register response; issue to execute.
+
+Since all the fields (except for field_e) is ready at (2), we need to register them for (3)
+
 """
 
 class DecodeStage(GenericModule):
@@ -60,7 +67,6 @@ class DecodeStage(GenericModule):
     rst = RstPort()
 
     fetch = Input(FetchDecodeIf)
-    fetch_field_e = Input(FetchDecodeFieldEIf)
     output_port = Output(DecodeExecIf)
 
     # Interface to the register file
@@ -77,23 +83,112 @@ class DecodeStage(GenericModule):
         self.use_mini_table = use_mini_table
 
     def body(self):
-        register_outputs = Wire()
+        # IMPORTANT!!!!! It is very important that the ISA is such that the reset state of inst_word (0x0000) decodes to a 16-bit instruction. This means that
+        # coming out of reset, we think that we have all the fields and allow for the next instruction to come in.
 
-        field_d = self.fetch.inst_0[15:12]
-        field_c = self.fetch.inst_0[11:8]
-        field_b = self.fetch.inst_0[7:4]
-        field_a = self.fetch.inst_0[3:0]
-        field_e = Reg(Select(
-            self.fetch.inst_len == inst_len_48,
-            concat(
-                self.fetch_field_e.inst_1[15], self.fetch_field_e.inst_1[15], self.fetch_field_e.inst_1[15], self.fetch_field_e.inst_1[15],
-                self.fetch_field_e.inst_1[15], self.fetch_field_e.inst_1[15], self.fetch_field_e.inst_1[15], self.fetch_field_e.inst_1[15],
-                self.fetch_field_e.inst_1[15], self.fetch_field_e.inst_1[15], self.fetch_field_e.inst_1[15], self.fetch_field_e.inst_1[15],
-                self.fetch_field_e.inst_1[15], self.fetch_field_e.inst_1[15], self.fetch_field_e.inst_1[15], self.fetch_field_e.inst_1[15],
-                self.fetch_field_e.inst_1
+        stage_2_full = Wire(logic)
+        stage_2_has_all_fields = Wire(logic)
+        register_outputs = Wire(logic)
+        release_outputs = Wire(logic)
+
+        ########### DEAL WITH ASSEMBLING THE INSTRUCTION
+
+        inst_word_in = Wire(FetchDecodeIf)
+        inst_word_out = Wire(FetchDecodeIf)
+
+        inst_word = inst_word_out.data
+        inst_word_av = inst_word_out.av
+
+        field_d = Wire()
+        field_c = Wire()
+        field_b = Wire()
+        field_a = Wire()
+        field_e = Wire()
+
+        have_all_fields = Wire()
+
+        inst_word_in.valid <<= self.fetch.valid
+        self.fetch.ready <<= inst_word_in.ready | (~have_all_fields & (~stage_2_full | ~stage_2_has_all_fields | release_outputs))
+        inst_word_in.data <<= self.fetch.data
+        inst_word_in.av <<= self.fetch.av
+
+        inst_word_out <<= ForwardBuf(inst_word_in, clear=self.do_branch)
+
+        multi_word_inst = \
+            (field_d == 0xf) | \
+            ((field_c == 0xf) & ((field_b != 0xf) | (field_a == 0xf))) | \
+            ((field_c == 0xe) &                     (field_a == 0xf)) | \
+            ((field_c  < 0xc) & ((field_b == 0xf) | (field_a == 0xf)))
+
+        inst_32_bit = (field_d == 0xf) | (field_a != 0xf)
+
+        # 0 -> 16 bits, 1 -> 32 bits, 2 -> 48 bits
+        inst_len = concat(
+            multi_word_inst & ~inst_32_bit,
+            multi_word_inst &  inst_32_bit
+        )
+
+        have_field_e_low = Wire(logic)
+        need_field_e_low = inst_len != inst_len_16
+        capture_field_e_low = need_field_e_low  & ~have_field_e_low & inst_word_out.valid & self.fetch.valid & self.fetch.ready
+        have_field_e_high = Wire(logic)
+        need_field_e_high = inst_len == inst_len_48
+        capture_field_e_high = need_field_e_high & ~have_field_e_high & have_field_e_low & inst_word_out.valid & self.fetch.valid & self.fetch.ready
+
+        field_e_low   = Reg(self.fetch.data, clock_en = capture_field_e_low)
+        field_e_high  = Reg(self.fetch.data, clock_en = capture_field_e_high)
+
+        have_field_e_low <<= Reg(Select(
+            self.do_branch,
+            Select(
+                capture_field_e_low,
+                Select(
+                    self.output_port.ready & self.output_port.valid,
+                    have_field_e_low,
+                    0
+                ),
+                1
             ),
-            concat(self.fetch_field_e.inst_2, self.fetch_field_e.inst_1)
-        ), clock_en = register_outputs)
+            0
+        ))
+
+        have_field_e_high <<= Reg(Select(
+            self.do_branch,
+            Select(
+                capture_field_e_high,
+                Select(
+                    self.output_port.ready & self.output_port.valid,
+                    have_field_e_high,
+                    0
+                ),
+                1
+            ),
+            0
+        ))
+
+        have_all_fields <<= SelectOne(
+            inst_len == inst_len_16, 1,
+            inst_len == inst_len_32, have_field_e_low,
+            inst_len == inst_len_48, have_field_e_high
+        ) | inst_word_av
+
+        ############ DECODE INSTRUCTION
+
+        field_d <<= inst_word[15:12]
+        field_c <<= inst_word[11:8]
+        field_b <<= inst_word[7:4]
+        field_a <<= inst_word[3:0]
+        field_e <<= Select(
+            inst_len == inst_len_48,
+            concat(
+                field_e_low[15], field_e_low[15], field_e_low[15], field_e_low[15],
+                field_e_low[15], field_e_low[15], field_e_low[15], field_e_low[15],
+                field_e_low[15], field_e_low[15], field_e_low[15], field_e_low[15],
+                field_e_low[15], field_e_low[15], field_e_low[15], field_e_low[15],
+                field_e_low
+            ),
+            concat(field_e_high, field_e_low)
+        )
 
         field_a_is_f = field_a == 0xf
         field_b_is_f = field_b == 0xf
@@ -101,8 +196,8 @@ class DecodeStage(GenericModule):
         field_d_is_f = field_d == 0xf
 
         tiny_ofs = Wire(Unsigned(32))
-        tiny_ofs <<= concat(*(self.fetch.inst_0[7], )*23, self.fetch.inst_0[7:1], "2'b0")
-        tiny_field_a = 12 | self.fetch.inst_0[0]
+        tiny_ofs <<= concat(*(inst_word[7], )*23, inst_word[7:1], "2'b0")
+        tiny_field_a = 12 | inst_word[0]
 
         field_a_plus_one = Wire()
         field_a_plus_one <<= (field_a+1)[3:0]
@@ -551,8 +646,8 @@ class DecodeStage(GenericModule):
         branch_op      = SelectOne(*optimize_selector(select_list_branch_op,      "branch_op"))                       if len(select_list_branch_op) > 0 else None
         ldst_op        = SelectOne(*optimize_selector(select_list_ldst_op,        "ldst_op"))                         if len(select_list_ldst_op) > 0 else None
         rd1_addr       = SelectOne(*optimize_selector(select_list_rd1_addr,       "rd1_addr"))                        if len(select_list_rd1_addr) > 0 else None
-        res_addr       = SelectOne(*optimize_selector(select_list_res_addr,       "res_addr"))                        if len(select_list_res_addr) > 0 else None
         rd2_addr       = SelectOne(*optimize_selector(select_list_rd2_addr,       "rd2_addr"))                        if len(select_list_rd2_addr) > 0 else None
+        rsv_addr       = SelectOne(*optimize_selector(select_list_res_addr,       "rsv_addr"))                        if len(select_list_res_addr) > 0 else None
         use_reg_a      = SelectOne(*optimize_selector(select_list_use_reg_a,      "use_reg_a"), default_port = 0)     if len(select_list_use_reg_a) > 0 else 0
         use_reg_b      = SelectOne(*optimize_selector(select_list_use_reg_b,      "use_reg_b"), default_port = 0)     if len(select_list_use_reg_b) > 0 else 0
         use_field_e_a  = SelectOne(*optimize_selector(select_list_use_field_e_a,  "use_field_e_a"), default_port = 0) if len(select_list_use_field_e_a) > 0 else 0
@@ -567,47 +662,75 @@ class DecodeStage(GenericModule):
         bze            = SelectOne(*optimize_selector(select_list_bze,            "bze"), default_port = 0)           if len(select_list_bze) > 0 else 0
         wze            = SelectOne(*optimize_selector(select_list_wze,            "wze"), default_port = 0)           if len(select_list_wze) > 0 else 0
 
-        read1_needed = Select(self.fetch.av, SelectOne(*optimize_selector(select_list_read1_needed, "read1_needed"), default_port=0) if len(select_list_read1_needed) > 0 else 0, 0)
-        read2_needed = Select(self.fetch.av, SelectOne(*optimize_selector(select_list_read2_needed, "read2_needed"), default_port=0) if len(select_list_read2_needed) > 0 else 0, 0)
-        rsv_needed   = Select(self.fetch.av, SelectOne(*optimize_selector(select_list_rsv_needed,   "rsv_needed"),   default_port=0) if len(select_list_rsv_needed)   > 0 else 0, 0)
+        read1_needed = Select(inst_word_av, SelectOne(*optimize_selector(select_list_read1_needed, "read1_needed"), default_port=0) if len(select_list_read1_needed) > 0 else 0, 0)
+        read2_needed = Select(inst_word_av, SelectOne(*optimize_selector(select_list_read2_needed, "read2_needed"), default_port=0) if len(select_list_read2_needed) > 0 else 0, 0)
+        rsv_needed   = Select(inst_word_av, SelectOne(*optimize_selector(select_list_rsv_needed,   "rsv_needed"),   default_port=0) if len(select_list_rsv_needed)   > 0 else 0, 0)
+
+        ########## DEAL WITH RESERVATION AND HANDSHAKE TO EXECUTE
 
         # We let the register file handle the hand-shaking for us. We just need to implement the output buffers
-        self.fetch.ready <<= self.reg_file_req.ready
-        self.fetch_field_e.ready <<= 1
-        self.reg_file_req.valid <<= self.fetch.valid & self.fetch_field_e.valid & ~self.do_branch
+        #inst_word_out.ready <<= self.reg_file_req.ready & have_all_fields
+        #inst_word_out.ready <<= self.reg_file_req.ready
+        inst_word_out.ready <<= self.output_port.ready & have_all_fields & self.reg_file_req.ready
+        # We have to create a different valid register for the reg file request as we only clear inst_word_out.valid
+        # when we deliver to execute.
+        # We need to request from the reg_file only once.
+        reg_file_req_valid = Wire(logic)
+        reg_file_req_valid <<= Reg(
+            Select(
+                inst_word_in.ready & inst_word_in.valid & ~self.do_branch,
+                # We don't take a new input
+                Select(
+                    self.reg_file_req.ready | self.do_branch,
+                    reg_file_req_valid,
+                    0
+                ),
+                # We do request a new input
+                1
+            )
+        )
+        def Stage2Reg(input): return Reg(input, clock_en=register_outputs)
 
-        self.output_port.valid <<= self.reg_file_rsp.valid
-        self.reg_file_rsp.ready <<= self.output_port.ready
+        self.reg_file_req.valid <<= reg_file_req_valid
+
+        self.output_port.valid <<= self.reg_file_rsp.valid & (stage_2_has_all_fields | have_all_fields)
+        self.reg_file_rsp.ready <<= self.output_port.ready & (stage_2_has_all_fields | have_all_fields)
 
         self.reg_file_req.read1_addr  <<= BrewRegAddr(rd1_addr)
-        self.reg_file_req.read1_valid <<= read1_needed & ~self.do_branch
+        self.reg_file_req.read1_valid <<= read1_needed & ~self.do_branch & ~inst_word_av
         self.reg_file_req.read2_addr  <<= BrewRegAddr(rd2_addr)
-        self.reg_file_req.read2_valid <<= read2_needed & ~self.do_branch
-        self.reg_file_req.rsv_addr    <<= BrewRegAddr(res_addr)
-        self.reg_file_req.rsv_valid   <<= rsv_needed & ~self.do_branch
+        self.reg_file_req.read2_valid <<= read2_needed & ~self.do_branch & ~inst_word_av
+        self.reg_file_req.rsv_addr    <<= BrewRegAddr(rsv_addr)
+        self.reg_file_req.rsv_valid   <<= rsv_needed & ~self.do_branch & ~inst_word_av
 
         register_outputs <<= self.reg_file_req.ready & self.reg_file_req.valid
+        release_outputs <<= self.output_port.ready & self.output_port.valid
 
-        self.output_port.exec_unit             <<= Reg(exec_unit, clock_en=register_outputs)
-        self.output_port.alu_op                <<= Reg(alu_op, clock_en=register_outputs)
-        self.output_port.shifter_op            <<= Reg(shifter_op, clock_en=register_outputs) if shifter_op is not None else None
-        self.output_port.branch_op             <<= Reg(branch_op, clock_en=register_outputs)
-        self.output_port.ldst_op               <<= Reg(ldst_op, clock_en=register_outputs)
-        self.output_port.op_a                  <<= Select(Reg(use_reg_a, clock_en=register_outputs), Select(Reg(use_field_e_a, clock_en=register_outputs), Reg(op_a, clock_en=register_outputs), field_e), self.reg_file_rsp.read1_data)
-        self.output_port.op_b                  <<= Select(Reg(use_reg_b, clock_en=register_outputs), Select(Reg(use_field_e_b, clock_en=register_outputs), Reg(op_b, clock_en=register_outputs), field_e), self.reg_file_rsp.read2_data)
-        self.output_port.op_c                  <<= Select(Reg(use_field_e_c, clock_en=register_outputs), Reg(op_c, clock_en=register_outputs), field_e)
-        self.output_port.mem_access_len        <<= Reg(mem_len, clock_en=register_outputs)
-        self.output_port.inst_len              <<= Reg(self.fetch.inst_len, clock_en=register_outputs)
-        self.output_port.do_bse                <<= Reg(bse, clock_en=register_outputs)
-        self.output_port.do_wse                <<= Reg(wse, clock_en=register_outputs)
-        self.output_port.do_bze                <<= Reg(bze, clock_en=register_outputs)
-        self.output_port.do_wze                <<= Reg(wze, clock_en=register_outputs)
-        self.output_port.result_reg_addr       <<= Reg(BrewRegAddr(res_addr), clock_en=register_outputs)
-        self.output_port.result_reg_addr_valid <<= Reg(rsv_needed, clock_en=register_outputs)
-        self.output_port.fetch_av              <<= Reg(self.fetch.av, clock_en=register_outputs)
+        stage_2_full <<= Reg(Select(self.do_branch, Select(register_outputs, Select(release_outputs, stage_2_full, 0), 1), 0))
 
-        #self.break_fetch_burst <<= register_outputs & ((exec_unit == op_class.ld_st) | (exec_unit == op_class.branch))
-        self.break_fetch_burst <<= register_outputs & ((exec_unit == op_class.branch))
+
+        stage_2_has_all_fields                 <<= Stage2Reg(have_all_fields)
+
+        self.output_port.exec_unit             <<= Stage2Reg(exec_unit)
+        self.output_port.alu_op                <<= Stage2Reg(alu_op)
+        self.output_port.shifter_op            <<= Stage2Reg(shifter_op)
+        self.output_port.branch_op             <<= Stage2Reg(branch_op)
+        self.output_port.ldst_op               <<= Stage2Reg(ldst_op)
+        self.output_port.op_a                  <<= Select(Stage2Reg(use_reg_a), Select(Stage2Reg(use_field_e_a), Stage2Reg(op_a), field_e), self.reg_file_rsp.read1_data)
+        self.output_port.op_b                  <<= Select(Stage2Reg(use_reg_b), Select(Stage2Reg(use_field_e_b), Stage2Reg(op_b), field_e), self.reg_file_rsp.read2_data)
+        self.output_port.op_c                  <<= Select(Stage2Reg(use_field_e_c), Stage2Reg(op_c), field_e)
+        self.output_port.mem_access_len        <<= Stage2Reg(mem_len)
+        self.output_port.inst_len              <<= Stage2Reg(inst_len)
+        self.output_port.do_bse                <<= Stage2Reg(bse)
+        self.output_port.do_wse                <<= Stage2Reg(wse)
+        self.output_port.do_bze                <<= Stage2Reg(bze)
+        self.output_port.do_wze                <<= Stage2Reg(wze)
+        self.output_port.result_reg_addr       <<= Stage2Reg(BrewRegAddr(rsv_addr))
+        self.output_port.result_reg_addr_valid <<= Stage2Reg(rsv_needed)
+        self.output_port.fetch_av              <<= Stage2Reg(inst_word_av)
+
+        #self.break_fetch_burst <<= inst_word_out.ready & inst_word_out.valid & ((exec_unit == op_class.ld_st) | (exec_unit == op_class.branch))
+        self.break_fetch_burst <<= inst_word_out.ready & inst_word_out.valid & ((exec_unit == op_class.branch))
 
 
 def sim():
