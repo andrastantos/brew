@@ -197,8 +197,9 @@ class RegFile(Module):
         #self.read2_rsv_bit <<= Select(read2_addr, *rsv_board_as_bits)
         #self.rsv_rsv_bit   <<= Select(rsv_addr,   *rsv_board_as_bits)
 
-        wait_for_read1 = TIMING_CLOSURE_REG(wait(read1_valid, read1_addr))
-        wait_for_read2 = TIMING_CLOSURE_REG(wait(read2_valid, read2_addr))
+        # If we've registered our reservation and we also have a read of the same register, let's not wait: no one will clear the reservation
+        wait_for_read1 = TIMING_CLOSURE_REG(wait(read1_valid, read1_addr) & ((read1_addr != rsv_addr) | ~rsv_registered))
+        wait_for_read2 = TIMING_CLOSURE_REG(wait(read2_valid, read2_addr) & ((read2_addr != rsv_addr) | ~rsv_registered))
         wait_for_rsv_raw <<= wait(rsv_valid,   rsv_addr)
         wait_for_rsv   = TIMING_CLOSURE_REG(wait_for_rsv_raw & ~rsv_registered)
         wait_for_some = wait_for_read1 | wait_for_read2 | wait_for_rsv
