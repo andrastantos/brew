@@ -363,7 +363,6 @@ class InstAssemble(Module):
 
     inst_buf = Input(FetchQueueIf)
     decode = Output(FetchDecodeIf)
-    decode_field_e = Output(FetchDecodeFieldEIf)
 
     do_branch = Input(logic)
 
@@ -455,9 +454,10 @@ class InstAssemble(Module):
         # Handshake logic: we're widening the datapath, so it's essentially the same as a ForwardBuf
         terminal_fsm_state = Wire(logic)
         terminal_fsm_state <<= (self.decode_fsm.state == InstAssembleStates.have_all_fragments)
-        fetch_ready = ~terminal_fsm_state | (self.decode.ready & self.decode_field_e.ready) | self.do_branch
+        fetch_ready = ~terminal_fsm_state | self.decode.ready | self.do_branch
         self.inst_buf.ready <<= fetch_ready
-        fsm_advance <<= (~terminal_fsm_state & self.inst_buf.valid & fetch_ready) | (terminal_fsm_state & self.decode.ready & self.decode_field_e.ready)
+        self.decode.valid <<= terminal_fsm_state & ~self.do_branch
+        fsm_advance <<= (~terminal_fsm_state & self.inst_buf.valid & fetch_ready) | (terminal_fsm_state & self.decode.ready)
 
         # Loading of the datapath registers
         fetch_av = Wire(logic)
@@ -496,14 +496,11 @@ class InstAssemble(Module):
             )
 
         # Filling the output data
-        self.decode.valid <<= (self.decode_fsm.state != InstAssembleStates.have_0_fragments) & ~self.do_branch
         self.decode.inst_0 <<= inst_reg_0
+        self.decode.inst_1 <<= inst_reg_1
+        self.decode.inst_2 <<= inst_reg_2
         self.decode.inst_len <<= inst_len_reg
         self.decode.av <<= fetch_av
-
-        self.decode_field_e.valid <<= terminal_fsm_state & ~self.do_branch
-        self.decode_field_e.inst_1 <<= inst_reg_1
-        self.decode_field_e.inst_2 <<= inst_reg_2
 
 
 
@@ -517,7 +514,6 @@ class FetchStage(GenericModule):
 
     # Decode interface
     decode = Output(FetchDecodeIf)
-    decode_field_e = Output(FetchDecodeFieldEIf)
 
     # Side-band interfaces
     mem_base = Input(BrewMemBase)
@@ -558,8 +554,6 @@ class FetchStage(GenericModule):
 
         inst_assemble.inst_buf <<= inst_queue.assemble
         self.decode <<= inst_assemble.decode
-        self.decode_field_e <<= inst_assemble.decode_field_e
-
         inst_assemble.do_branch <<= self.do_branch
 
         self.event_fetch <<= inst_buf.event_fetch

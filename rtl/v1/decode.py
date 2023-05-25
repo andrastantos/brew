@@ -60,7 +60,6 @@ class DecodeStage(GenericModule):
     rst = RstPort()
 
     fetch = Input(FetchDecodeIf)
-    fetch_field_e = Input(FetchDecodeFieldEIf)
     output_port = Output(DecodeExecIf)
 
     # Interface to the register file
@@ -84,13 +83,13 @@ class DecodeStage(GenericModule):
         field_e = Select(
             self.fetch.inst_len == inst_len_48,
             concat(
-                self.fetch_field_e.inst_1[15], self.fetch_field_e.inst_1[15], self.fetch_field_e.inst_1[15], self.fetch_field_e.inst_1[15],
-                self.fetch_field_e.inst_1[15], self.fetch_field_e.inst_1[15], self.fetch_field_e.inst_1[15], self.fetch_field_e.inst_1[15],
-                self.fetch_field_e.inst_1[15], self.fetch_field_e.inst_1[15], self.fetch_field_e.inst_1[15], self.fetch_field_e.inst_1[15],
-                self.fetch_field_e.inst_1[15], self.fetch_field_e.inst_1[15], self.fetch_field_e.inst_1[15], self.fetch_field_e.inst_1[15],
-                self.fetch_field_e.inst_1
+                self.fetch.inst_1[15], self.fetch.inst_1[15], self.fetch.inst_1[15], self.fetch.inst_1[15],
+                self.fetch.inst_1[15], self.fetch.inst_1[15], self.fetch.inst_1[15], self.fetch.inst_1[15],
+                self.fetch.inst_1[15], self.fetch.inst_1[15], self.fetch.inst_1[15], self.fetch.inst_1[15],
+                self.fetch.inst_1[15], self.fetch.inst_1[15], self.fetch.inst_1[15], self.fetch.inst_1[15],
+                self.fetch.inst_1
             ),
-            concat(self.fetch_field_e.inst_2, self.fetch_field_e.inst_1)
+            concat(self.fetch.inst_2, self.fetch.inst_1)
         )
 
         field_a_is_f = field_a == 0xf
@@ -563,8 +562,7 @@ class DecodeStage(GenericModule):
 
         # We let the register file handle the hand-shaking for us. We just need to implement the output buffers
         self.fetch.ready <<= self.reg_file_req.ready
-        self.fetch_field_e.ready <<= 1
-        self.reg_file_req.valid <<= self.fetch.valid & self.fetch_field_e.valid & ~self.do_branch
+        self.reg_file_req.valid <<= self.fetch.valid & ~self.do_branch
 
         self.output_port.valid <<= self.reg_file_rsp.valid
         self.reg_file_rsp.ready <<= self.output_port.ready
