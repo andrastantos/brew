@@ -453,6 +453,74 @@ So, the last (maybe) problem:
 
 on test_ldst, we generate an unaligned exception at 156810ns.
 
+OK, so *finally* things seem to work. Where do we stand?
+
+Baseline:
+    event_clk_cycles: 4672
+    event_execute: 1255
+    event_branch: 502
+    event_mem_wait_on_bus: 340
+    event_fetch: 3331
+    event_fetch_drop: 641
+    event_fetch_wait_on_bus: 162
+    event_bus_idle: 147
+
+New decode:
+    event_clk_cycles: 4731
+    event_execute: 1255
+    event_branch: 502
+    event_mem_wait_on_bus: 340
+    event_fetch: 3320
+    event_fetch_drop: 590
+    event_fetch_wait_on_bus: 271
+    event_bus_idle: 237
+
+Wow, this is quite a bit worse!! What happened? Fetch waits quite a bit more on the bus and that accounts for almost all the difference.
+
+Let's see what the latency for a branch is these days!
+
+Now the latency (from do_branch to execute) is 8 (!!!) cycles, though that's with a 48-bit follow-up instruction. Let's look for a better example... For a single-word instruction it's 6 cycles.
+
+I'm going to check out both branches (yay version control!) and compare the waveforms.
+
+OK, doing the same measurement on the reference, I get the same, 6 cycle latency.
+
+Let's look at how they stack up!
+
+In the old model, it takes 4 cycles to get the first result out of the instruction queue. Same for the new model, not all that surprising...
+
+So, old system had:
+
+1 cycle in instruction assembly
+1 cycle in register file
+
+The new system has:
+
+1 cycle in decode forward buf
+1 cycle in register file
+
+So we haven't really gained anything. But if there's no real difference in latency, then what causes the difference in cycles???
+
+In the new system, we seem to be waiting more for memory, because do_branch goes up a cycle earlier, so we recover fetch_request a cycle earlier. Or at least in certain cases we do: the distance between break_burst and do_branch is 3 cycles in the old implementation and 2 in the new one. And that's not because break_burst comes later, at least I don't think so. But can we move break_burst earlier?
+
+Another thing to consider is that I did fix a few things in this branch that are not in the main one. Let's port them back over and see if we regress the main branch...
+
+That didn't move an inch. So what gives?! All this work for nothing?!
+
+So, is it possible that under certain conditions we apply more back-pressure than we should? We can look through the two traces and see the first difference in time of execution issue...
+
+So, the very first branch happens a cycle *earlier* in the new system, yet by the time we execute (well, set SPC to) 0x40000364, we're two cycles behind.
+
+The second branch though happens at the same cycle: 6100ns after the first one. Same for the 3rd at 8900ns. Even the 4th is identical at 10100ns.
+
+The first difference 12100ns after the first jump: this time $spc update takes one cycle in the old system, but two in the new one. Now, there are this kind of differences all over the trace, it appears, this is the first one that 'sticks' so to speak. This is changing $spc to 0x40000355.
+
+At this point the old system issued the next instruction right away, while the new one took an extra cycle. The difference it seems is the following:
+
+**The new system can't possibly issue back-to-back 2-word (or longer) instructions because FIELD_E collection is prevented while there's an instruction waiting to be issued. In the old system, such a collection could go on in the back-ground. So, if there were two 2-word instructions back-to-back (same for 48-word ones), where the first one gets held back on reservation waits, the second instruction can collect up all it's FIELD_E fields and - if no dependencies exist between the two, issue back-to-back.**
+
+With some extra work (figuring out how to capture FIELD_E for the held back first instruction if needed, but feed-forward FIELD_E, if it arrives just in time) might make it *on par* with the old system, but what would the benefit be? Not much as far as I can tell. At least not directly. Maybe timing closure is better as we have a register on the input?
+
 
 
 
