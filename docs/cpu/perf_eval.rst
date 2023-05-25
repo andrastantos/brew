@@ -288,3 +288,48 @@ OK, there were quite a few dumb decisions in InstBuf that added extra cycles of 
     event_bus_idle: 147
 
 This is a decent improvement. We're still waiting on the bus quite a bit more then before, but at least the top-of-the-line number is better.
+
+Better branching
+~~~~~~~~~~~~~~~~
+
+There are at least two more things to try:
+
+Bus If doesn't have to break the burst (or fetch really, that deals with generating it), if the jump happens within a page. This should reduce mis-predict penalty for tight loops quite a bit.
+
+I did this - it was rather easy - and the payoff is quite measurable:
+
+    event_clk_cycles: 4542
+    event_execute: 1255
+    event_branch: 502
+    event_mem_wait_on_bus: 110
+    event_fetch: 3463
+    event_fetch_drop: 841
+    event_fetch_wait_on_bus: 614
+    event_bus_idle: 5
+
+Now, we're in IPC numbers of 0.276. Still rather lackluster, but, considering that I initially had hoped for around 0.3, it's not *that* far off. Still much better then the competition of the day:
+
+Source: https://en.wikipedia.org/wiki/Instructions_per_second
+
+==============   ========   =========
+Chip             Year       MIPS/MHz
+==============   ========   =========
+Intel 8088       1979       0.075
+MC68000          1979       0.175
+Intel 80286      1982       0.107
+MC68010          1984       0.193
+MC68020          1984       0.303
+Intel 80386      1985       0.134
+ARM2             1986       0.5
+MC68040          1987       0.36
+Intel 80486      1989       0.3
+==============   ========   =========
+
+A branch predictor?
+~~~~~~~~~~~~~~~~~~~
+
+Maybe we can do a very simple branch prediction? Something where we only predict branches for which the target address is in the instruction.
+
+In those cases we only have to pass down a single bit in the pipeline (predicted taken or not). We do have to decode the target address and we do have to know it's a branch instruction (so the earliest time to do this would be Instruction Assembly), but that's still 4 cycles earlier then where we detect taken branches now. We would need some number of bits for this, in a direct-mapped array, but even a small array should be useful. I would have to think about the scheme a little, but the idea would be that two consecutive branch at the same (branch-cache) address would trigger prediction in that particular direction. Lacking any better idea, branches are predicted taken.
+
+This of course is one of the big kickers, but I'm going to refrain from doing it: it's a lot of work and can cost significant silicon area. For now, I'm going to packet the improvements (over 900 cycles saved) and concentrate instead on correctness.

@@ -208,25 +208,11 @@ class InstBuffer(GenericModule):
         state <<= self.fsm.state
         next_state <<= self.fsm.next_state
 
-        # branch_req will remain high until our request is accepted by the bus_if
-        # NOTE: Acutally, I don't think that's necessary for two reasons:
-        # 1. If there's not active request going on, we can cancel immediately.
-        # 2. The branch request will clear the instruction queue, so queue_free_cnt
-        #    will soon be at it's maximum value, triggering a new request, even if
-        #    start_new_request would otherwise go inactive
-        branch_req = Wire(logic)
-        branch_req <<= self.do_branch
-        #branch_req <<= self.do_branch | Reg(
-        #    Select(
-        #        advance_request,
-        #        Select(
-        #            self.do_branch,
-        #            branch_req,
-        #            1
-        #        ),
-        #        0
-        #    )
-        #)
+        fetch_page = fetch_addr[30:self.page_bits]
+        branch_page = branch_target[30:self.page_bits]
+        xor_page = fetch_page ^ branch_page
+        out_of_page_branch = self.do_branch & (xor_page != 0)
+
         outstanding_request = Wire(Unsigned(2))
         drop_count = Wire(Unsigned(2))
         next_outstanding_request = SelectOne(
@@ -237,7 +223,7 @@ class InstBuffer(GenericModule):
         )
         outstanding_request <<= Reg(next_outstanding_request)
         drop_count <<= Reg(Select(
-            branch_req,
+            self.do_branch,
             Select(
                 drop_count == 0,
                 Unsigned(2)(drop_count - advance_response),
@@ -249,8 +235,8 @@ class InstBuffer(GenericModule):
 
         # We have to make sure that we only start a new burst if we know for sure the queue can take all the responses,
         # including all the outstanding ones.
-        # We need to delay branch_req to align with the request address, which is delayed
-        start_new_request = (self.queue_free_cnt > fetch_threshold + next_outstanding_request) | Reg(branch_req)
+        # We need to delay out_of_page_branch to align with the request address, which is delayed
+        start_new_request = (self.queue_free_cnt > fetch_threshold + next_outstanding_request) | Reg(out_of_page_branch)
 
         if self.use_break_burst:
             if self.break_on_branch_early:
@@ -300,7 +286,7 @@ class InstBuffer(GenericModule):
             )
         )
 
-        self.bus_if_request.valid           <<= (state == InstBufferStates.request) & ~fetch_page_limit & ~self.do_branch
+        self.bus_if_request.valid           <<= (state == InstBufferStates.request) & ~fetch_page_limit & ~out_of_page_branch
         self.bus_if_request.read_not_write  <<= 1
         self.bus_if_request.byte_en         <<= 3
         self.bus_if_request.addr            <<= fetch_addr[BrewBusAddr.length-1:0]
@@ -312,7 +298,7 @@ class InstBuffer(GenericModule):
         # The response interface is almost completely a pass-through. All we need to do is to handle the AV flag.
         self.queue.data <<= self.bus_if_response.data
         self.queue.av <<= req_av
-        self.queue.valid <<=  self.bus_if_response.valid & (drop_count == 0) & ~branch_req
+        self.queue.valid <<=  self.bus_if_response.valid & (drop_count == 0) & ~self.do_branch
         #AssertOnClk(
         #    state != InstBufferStates.idle | self.queue.ready | (state != InstBufferStates.flush)
         #)

@@ -595,7 +595,8 @@ class DecodeStage(GenericModule):
         self.output_port.fetch_av              <<= Reg(self.fetch.av, clock_en=register_outputs)
 
         #self.break_fetch_burst <<= register_outputs & ((exec_unit == op_class.ld_st) | (exec_unit == op_class.branch))
-        self.break_fetch_burst <<= register_outputs & ((exec_unit == op_class.branch))
+        #self.break_fetch_burst <<= register_outputs & ((exec_unit == op_class.branch))
+        self.break_fetch_burst <<= register_outputs & (exec_unit == op_class.ld_st)
 
 
 def sim():
