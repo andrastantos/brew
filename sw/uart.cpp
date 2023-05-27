@@ -80,3 +80,22 @@ void uart_write_hex(uint32_t value) {
 void uart_wait_tx() {
 	while ((uart1_base[uart_status_reg_ofs] & (1 << uart_status_tx_empty_bit)) == 0);
 }
+
+void uart_write_dec(unsigned int value) {
+	char digits[10]; // A 32-bit integer can at most have 10 digits
+	int idx = 0;
+	if (value == 0) {
+		uart_write_char('0');
+		return;
+	}
+	while (value > 0) {
+		char digit = value % 10;
+		digits[idx] = digit;
+		value /= 10;
+		++idx;
+		if (idx > sizeof(digits)) break;
+	}
+	while (idx >= 0) {
+		uart_write_char(char('0'+digits[--idx]));
+	}
+}
