@@ -324,8 +324,8 @@ class InstQueue(Module):
     event_queue_flush = Output(QueuePointerType) # This is strange: in a single clock we drop a bunch of items in the queue.
 
     def body(self):
-        fifo = ZeroDelayFifo(depth=fetch_queue_length)
-        #fifo = Fifo(depth=fetch_queue_length)
+        #fifo = ZeroDelayFifo(depth=fetch_queue_length)
+        fifo = Fifo(depth=fetch_queue_length)
         self.assemble <<= fifo(self.inst, clear = self.do_branch)
 
         empty_cnt = Wire(QueuePointerType)
