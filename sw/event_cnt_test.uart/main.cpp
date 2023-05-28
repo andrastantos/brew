@@ -18,7 +18,16 @@ int blink(volatile char *port, int cnt)
 
 int main()
 {
-	uart_init(115200);
+	int cnt;
+
+	//cnt = 0;
+	//out_port = (char*)(0x00010000);
+	//while (true) {
+	//	cnt = blink(out_port, cnt);
+	//}
+
+	//uart_init(115200);
+	uart_init(96000); // We're running at 1/10th of the intended clock rate for now
 	uart_write_str("Hello world!\n");
 
 	struct ev_t {size_t counter; const char *name;};
@@ -69,7 +78,7 @@ int main()
 		uart_write_str("\n");
 	}
 
-	int cnt = 0;
+	cnt = 0;
 	out_port = (char*)(0x00010000);
 	while (true) {
 		cnt = blink(out_port, cnt);
