@@ -27,7 +27,7 @@ int main()
 	//}
 
 	//uart_init(115200);
-	uart_init(96000); // We're running at 1/10th of the intended clock rate for now
+	uart_init(9600);
 	uart_write_str("Hello world!\n");
 
 	struct ev_t {size_t counter; const char *name;};

@@ -1,10 +1,10 @@
 create_clock -name ADC_CLK_10 -period 100.00 [get_ports {ADC_CLK_10}]
-create_clock -name MAX10_CLK1_50 -period 20.00 [get_ports {MAX10_CLK1_50}]
-create_clock -name clk -period 100.00 [get_ports {*DecaTop*clk}]
-create_clock -name clk2 -period 20.00 [get_ports {*DecaTop*clk2}]
+#create_clock -name MAX10_CLK1_50 -period 20.00 [get_ports {MAX10_CLK1_50}]
+#create_clock -name clk -period 100.00 [get_ports {*DecaTop*clk}]
+#create_clock -name clk2 -period 20.00 [get_ports {*DecaTop*clk2}]
 
 # Cut cross-clock-domain analysys between our fast clock (clk2) and our slow clock (clk)
-set_clock_groups -asynchronous -group [get_clocks {clk ADC_CLK_10}] -group [get_clocks {clk MAX10_CLK1_50}]
+#set_clock_groups -asynchronous -group [get_clocks {clk ADC_CLK_10}] -group [get_clocks {clk MAX10_CLK1_50}]
 
 # These are the interface signals on the Brew CPU. Some of these are going
 # through a CDC to reach the faster fpga_system clock.
@@ -38,61 +38,61 @@ set_clock_groups -asynchronous -group [get_clocks {clk ADC_CLK_10}] -group [get_
 # The problem is that these constraints are applied on the optimized netlist, so registers that get optimized away generate this warning.
 # For now, they're commented out, but that's not a long-term solution.
 
-set_max_delay -from [get_registers {*bus_if*data_out_high[*]}] -to [get_registers {*system*ext_if_data_out_nr[*]}] 10
-set_max_delay -from [get_registers {*bus_if*data_out_low[*]}]  -to [get_registers {*system*ext_if_data_out_nr[*]}] 10
-set_max_delay -from [get_registers {*bus_if*data_out_high[*]}] -to [get_registers {*system*ext_if_data_out_r[*]}] 10
-set_max_delay -from [get_registers {*bus_if*data_out_low[*]}]  -to [get_registers {*system*ext_if_data_out_r[*]}] 10
-
-set_max_delay -from [get_registers {*bus_if*col_addr* *bus_if*row_addr*}] -to [get_registers {*system*ext_if_addr*}] 10
-
-set_max_delay -from [get_registers {*bus_if*read_not_write}]  -to [get_registers {*system*ext_if_n_we}] 10
-
-#set_max_delay -from [get_registers {FpgaTop:fpga_top|BrewV1Top:brew|brew_BusIf:bus_if|n_dack[*]}] -to [get_registers {FpgaTop:fpga_top|FpgaSystem:system|ext_if_n_dack[*]}] 10
-#set_max_delay -from [get_registers {FpgaTop:fpga_top|BrewV1Top:brew|brew_BusIf:bus_if|tc}] -to [get_registers {FpgaTop:fpga_top|FpgaSystem:system|ext_if_tc}] 10
-
-#set_max_delay -from [get_registers {FpgaTop:fpga_top|BrewV1Top:brew|brew_BusIf:bus_if|data_out_en}] -to [get_registers {FpgaTop:fpga_top|FpgaSystem:system|ext_if_data_out_en}] 10
-
-set_min_delay -from [get_registers {*bus_if*n_nren}]  -to [get_registers {*system*ext_if_n_nren}] 10
-set_min_delay -from [get_registers {*bus_if*dram_ras_a}] -to [get_registers {*system*ext_if_n_ras_a}] 10
-#set_min_delay -from [get_registers {*bus_if*dram_ras_b}] -to [get_registers {*system*ext_if_n_ras_b}] 10
-set_min_delay -from [get_registers {*bus_if*cas_n_window_a_0 *bus_if*cas_n_window_b_0 *bus_if*nr_n_cas_0}] -to [get_registers {*system*ext_if_n_cas_0}] 10
-set_min_delay -from [get_registers {*bus_if*cas_n_window_b_1 *bus_if*cas_n_window_c_1 *bus_if*nr_n_cas_1}] -to [get_registers {*system*ext_if_n_cas_1}] 10
-
-set_max_delay -from [get_registers {*bus_if*n_nren}]  -to [get_registers {*system*ext_if_n_nren}] 18
-set_max_delay -from [get_registers {*bus_if*dram_ras_a}] -to [get_registers {*system*ext_if_n_ras_a}] 18
-#set_max_delay -from [get_registers {*bus_if*dram_ras_b}] -to [get_registers {*system*ext_if_n_ras_b}] 18
-set_max_delay -from [get_registers {*bus_if*cas_n_window_a_0 *bus_if*cas_n_window_b_0 *bus_if*nr_n_cas_0}] -to [get_registers {*system*ext_if_n_cas_0}] 18
-set_max_delay -from [get_registers {*bus_if*cas_n_window_b_1 *bus_if*cas_n_window_c_1 *bus_if*nr_n_cas_1}] -to [get_registers {*system*ext_if_n_cas_1}] 18
-
-#        ext_if_bus_en = Reg(self.brew_if.bus_en, clock_port=self.clk2)
-
-# set_max_skew -from [get_keepers {data_a[*]}] -to [get_keepers {data_b[*]}] -get_skew_value_from_clock_period src_clock_period -skew_value_multiplier 0.8
-set_max_skew -from [get_keepers { \
-    *bus_if*data_out_high[*] \
-    *bus_if*data_out_low[*] \
-    *bus_if*col_addr* \
-    *bus_if*row_addr* \
-    *bus_if*read_not_write \
-}] -to [get_keepers { \
-    *system*ext_if_data_out_nr[*] \
-    *system*ext_if_data_out_r[*] \
-    *system*ext_if_addr* \
-    *system*ext_if_n_we
-}] 5
-
-# We'll make sure that the CAS/RAS/NREN lines are really kept close to each other.
-set_max_skew -from [get_keepers { \
-    *bus_if*n_nren,
-    *bus_if*dram_ras_a,
-    *bus_if*dram_ras_b,
-    *bus_if*cas_n_window_a_0 *bus_if*cas_n_window_b_0 *bus_if*nr_n_cas_0 \
-    *bus_if*cas_n_window_b_1 *bus_if*cas_n_window_c_1 *bus_if*nr_n_cas_1 \
-}] -to [get_keepers { \
-    *system*ext_if_n_nren \
-    *system*ext_if_n_ras_a \
-    *system*ext_if_n_ras_b \
-    *system*ext_if_n_cas_0 \
-    *system*ext_if_n_cas_1 \
-}] 2
+#set_max_delay -from [get_registers {*bus_if*data_out_high[*]}] -to [get_registers {*system*ext_if_data_out_nr[*]}] 10
+#set_max_delay -from [get_registers {*bus_if*data_out_low[*]}]  -to [get_registers {*system*ext_if_data_out_nr[*]}] 10
+#set_max_delay -from [get_registers {*bus_if*data_out_high[*]}] -to [get_registers {*system*ext_if_data_out_r[*]}] 10
+#set_max_delay -from [get_registers {*bus_if*data_out_low[*]}]  -to [get_registers {*system*ext_if_data_out_r[*]}] 10
+#
+#set_max_delay -from [get_registers {*bus_if*col_addr* *bus_if*row_addr*}] -to [get_registers {*system*ext_if_addr*}] 10
+#
+#set_max_delay -from [get_registers {*bus_if*read_not_write}]  -to [get_registers {*system*ext_if_n_we}] 10
+#
+##set_max_delay -from [get_registers {FpgaTop:fpga_top|BrewV1Top:brew|brew_BusIf:bus_if|n_dack[*]}] -to [get_registers {FpgaTop:fpga_top|FpgaSystem:system|ext_if_n_dack[*]}] 10
+##set_max_delay -from [get_registers {FpgaTop:fpga_top|BrewV1Top:brew|brew_BusIf:bus_if|tc}] -to [get_registers {FpgaTop:fpga_top|FpgaSystem:system|ext_if_tc}] 10
+#
+##set_max_delay -from [get_registers {FpgaTop:fpga_top|BrewV1Top:brew|brew_BusIf:bus_if|data_out_en}] -to [get_registers {FpgaTop:fpga_top|FpgaSystem:system|ext_if_data_out_en}] 10
+#
+#set_min_delay -from [get_registers {*bus_if*n_nren}]  -to [get_registers {*system*ext_if_n_nren}] 10
+#set_min_delay -from [get_registers {*bus_if*dram_ras_a}] -to [get_registers {*system*ext_if_n_ras_a}] 10
+##set_min_delay -from [get_registers {*bus_if*dram_ras_b}] -to [get_registers {*system*ext_if_n_ras_b}] 10
+#set_min_delay -from [get_registers {*bus_if*cas_n_window_a_0 *bus_if*cas_n_window_b_0 *bus_if*nr_n_cas_0}] -to [get_registers {*system*ext_if_n_cas_0}] 10
+#set_min_delay -from [get_registers {*bus_if*cas_n_window_b_1 *bus_if*cas_n_window_c_1 *bus_if*nr_n_cas_1}] -to [get_registers {*system*ext_if_n_cas_1}] 10
+#
+#set_max_delay -from [get_registers {*bus_if*n_nren}]  -to [get_registers {*system*ext_if_n_nren}] 18
+#set_max_delay -from [get_registers {*bus_if*dram_ras_a}] -to [get_registers {*system*ext_if_n_ras_a}] 18
+##set_max_delay -from [get_registers {*bus_if*dram_ras_b}] -to [get_registers {*system*ext_if_n_ras_b}] 18
+#set_max_delay -from [get_registers {*bus_if*cas_n_window_a_0 *bus_if*cas_n_window_b_0 *bus_if*nr_n_cas_0}] -to [get_registers {*system*ext_if_n_cas_0}] 18
+#set_max_delay -from [get_registers {*bus_if*cas_n_window_b_1 *bus_if*cas_n_window_c_1 *bus_if*nr_n_cas_1}] -to [get_registers {*system*ext_if_n_cas_1}] 18
+#
+##        ext_if_bus_en = Reg(self.brew_if.bus_en, clock_port=self.clk2)
+#
+## set_max_skew -from [get_keepers {data_a[*]}] -to [get_keepers {data_b[*]}] -get_skew_value_from_clock_period src_clock_period -skew_value_multiplier 0.8
+#set_max_skew -from [get_keepers { \
+#    *bus_if*data_out_high[*] \
+#    *bus_if*data_out_low[*] \
+#    *bus_if*col_addr* \
+#    *bus_if*row_addr* \
+#    *bus_if*read_not_write \
+#}] -to [get_keepers { \
+#    *system*ext_if_data_out_nr[*] \
+#    *system*ext_if_data_out_r[*] \
+#    *system*ext_if_addr* \
+#    *system*ext_if_n_we
+#}] 5
+#
+## We'll make sure that the CAS/RAS/NREN lines are really kept close to each other.
+#set_max_skew -from [get_keepers { \
+#    *bus_if*n_nren,
+#    *bus_if*dram_ras_a,
+#    *bus_if*dram_ras_b,
+#    *bus_if*cas_n_window_a_0 *bus_if*cas_n_window_b_0 *bus_if*nr_n_cas_0 \
+#    *bus_if*cas_n_window_b_1 *bus_if*cas_n_window_c_1 *bus_if*nr_n_cas_1 \
+#}] -to [get_keepers { \
+#    *system*ext_if_n_nren \
+#    *system*ext_if_n_ras_a \
+#    *system*ext_if_n_ras_b \
+#    *system*ext_if_n_cas_0 \
+#    *system*ext_if_n_cas_1 \
+#}] 2
 
 derive_clock_uncertainty
