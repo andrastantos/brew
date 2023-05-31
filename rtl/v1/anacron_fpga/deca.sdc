@@ -38,25 +38,31 @@ set_clock_groups -asynchronous -group [get_clocks {clk ADC_CLK_10}] -group [get_
 # The problem is that these constraints are applied on the optimized netlist, so registers that get optimized away generate this warning.
 # For now, they're commented out, but that's not a long-term solution.
 
-set_net_delay -from [get_registers {*bus_if*data_out_high[*]}] -to [get_registers {*system*ext_if_data_out_nr[*]}] -max 18
-set_net_delay -from [get_registers {*bus_if*data_out_low[*]}]  -to [get_registers {*system*ext_if_data_out_nr[*]}] -max 18
-set_net_delay -from [get_registers {*bus_if*data_out_high[*]}] -to [get_registers {*system*ext_if_data_out_r[*]}] -max 18
-set_net_delay -from [get_registers {*bus_if*data_out_low[*]}]  -to [get_registers {*system*ext_if_data_out_r[*]}] -max 18
+set_max_delay -from [get_registers {*bus_if*data_out_high[*]}] -to [get_registers {*system*ext_if_data_out_nr[*]}] 10
+set_max_delay -from [get_registers {*bus_if*data_out_low[*]}]  -to [get_registers {*system*ext_if_data_out_nr[*]}] 10
+set_max_delay -from [get_registers {*bus_if*data_out_high[*]}] -to [get_registers {*system*ext_if_data_out_r[*]}] 10
+set_max_delay -from [get_registers {*bus_if*data_out_low[*]}]  -to [get_registers {*system*ext_if_data_out_r[*]}] 10
 
-set_net_delay -from [get_registers {*bus_if*col_addr* *bus_if*row_addr*}] -to [get_registers {*system*ext_if_addr*}] -max 18
+set_max_delay -from [get_registers {*bus_if*col_addr* *bus_if*row_addr*}] -to [get_registers {*system*ext_if_addr*}] 10
 
-set_net_delay -from [get_registers {*bus_if*read_not_write}]  -to [get_registers {*system*ext_if_n_we}] -max 18
+set_max_delay -from [get_registers {*bus_if*read_not_write}]  -to [get_registers {*system*ext_if_n_we}] 10
 
-#set_net_delay -from [get_registers {FpgaTop:fpga_top|BrewV1Top:brew|brew_BusIf:bus_if|n_dack[*]}] -to [get_registers {FpgaTop:fpga_top|FpgaSystem:system|ext_if_n_dack[*]}] -max 18
-#set_net_delay -from [get_registers {FpgaTop:fpga_top|BrewV1Top:brew|brew_BusIf:bus_if|tc}] -to [get_registers {FpgaTop:fpga_top|FpgaSystem:system|ext_if_tc}] -max 18
+#set_max_delay -from [get_registers {FpgaTop:fpga_top|BrewV1Top:brew|brew_BusIf:bus_if|n_dack[*]}] -to [get_registers {FpgaTop:fpga_top|FpgaSystem:system|ext_if_n_dack[*]}] 10
+#set_max_delay -from [get_registers {FpgaTop:fpga_top|BrewV1Top:brew|brew_BusIf:bus_if|tc}] -to [get_registers {FpgaTop:fpga_top|FpgaSystem:system|ext_if_tc}] 10
 
-#set_net_delay -from [get_registers {FpgaTop:fpga_top|BrewV1Top:brew|brew_BusIf:bus_if|data_out_en}] -to [get_registers {FpgaTop:fpga_top|FpgaSystem:system|ext_if_data_out_en}] -max 18
+#set_max_delay -from [get_registers {FpgaTop:fpga_top|BrewV1Top:brew|brew_BusIf:bus_if|data_out_en}] -to [get_registers {FpgaTop:fpga_top|FpgaSystem:system|ext_if_data_out_en}] 10
 
-set_net_delay -from [get_registers {*bus_if*n_nren}]  -to [get_registers {*system*ext_if_n_nren}] -min 18
-set_net_delay -from [get_registers {*bus_if*dram_ras_a}] -to [get_registers {*system*ext_if_n_ras_a}] -min 18
-#set_net_delay -from [get_registers {*bus_if*dram_ras_b}] -to [get_registers {*system*ext_if_n_ras_b}] -min 18
-set_net_delay -from [get_registers {*bus_if*cas_n_window_a_0 *bus_if*cas_n_window_b_0 *bus_if*nr_n_cas_0}] -to [get_registers {*system*ext_if_n_cas_0}] -min 18
-set_net_delay -from [get_registers {*bus_if*cas_n_window_b_1 *bus_if*cas_n_window_c_1 *bus_if*nr_n_cas_1}] -to [get_registers {*system*ext_if_n_cas_1}] -min 18
+set_min_delay -from [get_registers {*bus_if*n_nren}]  -to [get_registers {*system*ext_if_n_nren}] 10
+set_min_delay -from [get_registers {*bus_if*dram_ras_a}] -to [get_registers {*system*ext_if_n_ras_a}] 10
+#set_min_delay -from [get_registers {*bus_if*dram_ras_b}] -to [get_registers {*system*ext_if_n_ras_b}] 10
+set_min_delay -from [get_registers {*bus_if*cas_n_window_a_0 *bus_if*cas_n_window_b_0 *bus_if*nr_n_cas_0}] -to [get_registers {*system*ext_if_n_cas_0}] 10
+set_min_delay -from [get_registers {*bus_if*cas_n_window_b_1 *bus_if*cas_n_window_c_1 *bus_if*nr_n_cas_1}] -to [get_registers {*system*ext_if_n_cas_1}] 10
+
+set_max_delay -from [get_registers {*bus_if*n_nren}]  -to [get_registers {*system*ext_if_n_nren}] 18
+set_max_delay -from [get_registers {*bus_if*dram_ras_a}] -to [get_registers {*system*ext_if_n_ras_a}] 18
+#set_max_delay -from [get_registers {*bus_if*dram_ras_b}] -to [get_registers {*system*ext_if_n_ras_b}] 18
+set_max_delay -from [get_registers {*bus_if*cas_n_window_a_0 *bus_if*cas_n_window_b_0 *bus_if*nr_n_cas_0}] -to [get_registers {*system*ext_if_n_cas_0}] 18
+set_max_delay -from [get_registers {*bus_if*cas_n_window_b_1 *bus_if*cas_n_window_c_1 *bus_if*nr_n_cas_1}] -to [get_registers {*system*ext_if_n_cas_1}] 18
 
 #        ext_if_bus_en = Reg(self.brew_if.bus_en, clock_port=self.clk2)
 
