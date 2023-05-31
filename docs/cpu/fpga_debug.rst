@@ -199,3 +199,43 @@ In this setup I now - again - have hold violations reported on the original 50MH
 Drum-roll please: the program works now. I have blinking LEDs and even serial communication (albeit at 2x the baud-rate that I programmed it to).
 
 So are we there yet? Not quite. This is a nice test, something of a good check-point, but not a solution. What I need is to properly constrain the system so that the arrival times on the CDC are properly managed. I also don't like the internal PLL because that makes the design even more platform specific. Not only that, but I need to use the God awful tooling that comes with Quartus which is ... well, let's just say unpleasant.
+
+This took a while, but I finally created proper constraints. The theory is rather simple:
+
+1. Make sure the clocks on the CPU and SYSTEM side are treated independently.
+2. Create `set_net_delay` constraints for everything that crosses the domains. Relative setup times can be controlled by the `-min` or `-max` parameters. This way data for instance would be at least a few ns earlier then - say - `n_cas`.
+3. Create `set_max_skew` constraints for extra points to keep the relative delays of wires within a bus close enough.
+
+The problems are the following:
+
+1. These constraints are set on the post-map nets, so anything that gets optimized out is generating warnings. Also, things have weird, hard-to-find names.
+2. These constraints are set between registers, not ports. So one has to back-track to the registers within the driving instances in order to know what to set the constraints on. I guess this is one of the reasons that people like to register both inputs and outputs: this way the interface is the one that gets constrained, not the private guts of a module. This, BTW is a ripe area for some automation.
+3. Even with all that, most constraints didn't stick.
+
+For instance this path:
+
+.. image::
+    image/dram_datapath_to_constrain.png
+
+One would think the following 4 constraints should work::
+
+    set_net_delay -from [get_registers {*bus_if*data_out_high[*]}] -to [get_registers {*system*ext_if_data_out_nr[*]}] -max 18
+    set_net_delay -from [get_registers {*bus_if*data_out_low[*]}]  -to [get_registers {*system*ext_if_data_out_nr[*]}] -max 18
+    set_net_delay -from [get_registers {*bus_if*data_out_high[*]}] -to [get_registers {*system*ext_if_data_out_r[*]}] -max 18
+    set_net_delay -from [get_registers {*bus_if*data_out_low[*]}]  -to [get_registers {*system*ext_if_data_out_r[*]}] -max 18
+
+But no::
+
+    No path was found satisfying set_net_delay assignment from "[get_registers {*bus_if*data_out_high[*]}]" to "[get_registers {*system*ext_if_data_out_nr[*]}]".
+    No path was found satisfying set_net_delay assignment from "[get_registers {*bus_if*data_out_low[*]}]" to "[get_registers {*system*ext_if_data_out_nr[*]}]".
+    No path was found satisfying set_net_delay assignment from "[get_registers {*bus_if*data_out_high[*]}]" to "[get_registers {*system*ext_if_data_out_r[*]}]".
+    No path was found satisfying set_net_delay assignment from "[get_registers {*bus_if*data_out_low[*]}]" to "[get_registers {*system*ext_if_data_out_r[*]}]".
+
+So, reading up more on this thing, one item sticks out: all documentation on set_net_delay is coming from Alters site. It appears that set_net_delay is an Altera-specific thing. There are four other, similar commands to consider::
+
+    set_max_delay
+    set_min_delay
+    set_input_delay
+    set_output_delay
+
+So, according to one note set_net_delay is very similar to set_max/min_delay. Let's give it a shot!
