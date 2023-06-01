@@ -5,4 +5,9 @@ g_*/*
 v_*/*
 m_*/*
 i_*/*
+**/db/*
+**/incremental_db/*
+**/*work/*
+**/output_files/*
+**/*.qws
 

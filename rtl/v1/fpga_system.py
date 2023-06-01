@@ -259,7 +259,7 @@ class AddrDecode(GenericModule):
             # TODO: fix this syntax:
             #enable = (self.addr[:size] != base_addr) | (n_cas) | ~self.brew_if.bus_en
             n_enable = (self.addr[self.addr.get_num_bits()-1:size] != base_addr) | (n_cas) | ~self.brew_if.bus_en | self.brew_if.n_nren #| self.rst
-            port <<= n_enable
+            port <<= Reg(n_enable)
             data_mux_selectors.append(~n_enable)
             data_mux_selectors.append(data_port)
             n_wait_selectors.append(~n_enable)
@@ -315,6 +315,25 @@ class FpgaSystem(GenericModule):
         gpio2 = Gpio()
         apb_bridge = ApbBridge()
 
+        ext_if_addr = Reg(self.brew_if.addr, clock_port=self.clk2)
+        ext_if_data_out_r = Reg(self.brew_if.data_out, clock_port=self.clk2)
+        ext_if_data_out_nr = NegReg(self.brew_if.data_out, clock_port=self.clk2)
+        ext_if_data_out_0 = Reg(ext_if_data_out_r, clock_port=self.clk2)
+        ext_if_data_out_1 = Reg(ext_if_data_out_nr, clock_port=self.clk2)
+        ext_if_n_ras_a = Reg(self.brew_if.n_ras_a, clock_port=self.clk2, reset_value_port=1)
+        ext_if_n_ras_b = Reg(self.brew_if.n_ras_b, clock_port=self.clk2, reset_value_port=1)
+        ext_if_n_cas_0 = Reg(self.brew_if.n_cas_0, clock_port=self.clk2, reset_value_port=1)
+        ext_if_n_cas_1 = Reg(self.brew_if.n_cas_1, clock_port=self.clk2, reset_value_port=1)
+        ext_if_addr = Reg(self.brew_if.addr, clock_port=self.clk2)
+        ext_if_n_we = Reg(self.brew_if.n_we, clock_port=self.clk2, reset_value_port=1)
+        ext_if_data_out_en = Reg(self.brew_if.data_out_en, clock_port=self.clk2)
+        ext_if_n_nren = Reg(self.brew_if.n_nren, clock_port=self.clk2, reset_value_port=1)
+        ext_if_n_dack = Reg(self.brew_if.n_dack, clock_port=self.clk2, reset_value_port=1)
+        ext_if_bus_en = Reg(self.brew_if.bus_en, clock_port=self.clk2)
+        ext_if_tc = Reg(self.brew_if.tc, clock_port=self.clk2)
+        #data_in       = Reverse(BrewByte)
+        #n_wait        = Reverse(logic)
+
         decode_input = Wire(ExternalBusIf)
         decode = AddrDecode(
             (
@@ -326,25 +345,25 @@ class FpgaSystem(GenericModule):
         )
 
         self.brew_if.data_in <<= SelectOne(
-            Reg(~self.brew_if.n_ras_a & ~self.brew_if.n_cas_0, clock_port=self.clk2), dram0.data_out,
-            Reg(~self.brew_if.n_ras_a & ~self.brew_if.n_cas_1, clock_port=self.clk2), dram1.data_out,
+            ~ext_if_n_ras_a & ~ext_if_n_cas_0, dram0.data_out,
+            ~ext_if_n_ras_a & ~ext_if_n_cas_1, dram1.data_out,
             default_port = decode_input.data_in
         )
 
         # TODO: This should have blown up as both decode and the select above drives brew_if.data_in...
         #decode.brew_if <<= self.brew_if
-        decode_input.n_ras_a       <<= self.brew_if.n_ras_a
-        decode_input.n_ras_b       <<= self.brew_if.n_ras_b
-        decode_input.n_cas_0       <<= self.brew_if.n_cas_0
-        decode_input.n_cas_1       <<= self.brew_if.n_cas_1
-        decode_input.addr          <<= self.brew_if.addr
-        decode_input.n_we          <<= self.brew_if.n_we
-        decode_input.data_out      <<= self.brew_if.data_out
-        decode_input.data_out_en   <<= self.brew_if.data_out_en
-        decode_input.n_nren        <<= self.brew_if.n_nren
-        decode_input.n_dack        <<= self.brew_if.n_dack
-        decode_input.tc            <<= self.brew_if.tc
-        decode_input.bus_en        <<= self.brew_if.bus_en
+        decode_input.n_ras_a       <<= ext_if_n_ras_a
+        decode_input.n_ras_b       <<= ext_if_n_ras_b
+        decode_input.n_cas_0       <<= ext_if_n_cas_0
+        decode_input.n_cas_1       <<= ext_if_n_cas_1
+        decode_input.addr          <<= ext_if_addr
+        decode_input.n_we          <<= ext_if_n_we
+        decode_input.data_out      <<= ext_if_data_out_0
+        decode_input.data_out_en   <<= ext_if_data_out_en
+        decode_input.n_nren        <<= ext_if_n_nren
+        decode_input.n_dack        <<= ext_if_n_dack
+        decode_input.tc            <<= ext_if_tc
+        decode_input.bus_en        <<= ext_if_bus_en
 
         self.brew_if.n_wait        <<= decode_input.n_wait
 
@@ -353,38 +372,38 @@ class FpgaSystem(GenericModule):
 
         # We support 128kByte of DRAM.
         dram0.clk     <<= self.clk2
-        dram0.addr    <<= self.brew_if.addr[dram_addr_width-1:0]
-        dram0.data_in <<= self.brew_if.data_out
-        dram0.n_ras   <<= self.brew_if.n_ras_a
-        dram0.n_cas   <<= self.brew_if.n_cas_0
-        dram0.n_we    <<= self.brew_if.n_we
+        dram0.addr    <<= ext_if_addr[dram_addr_width-1:0]
+        dram0.data_in <<= ext_if_data_out_0
+        dram0.n_ras   <<= ext_if_n_ras_a
+        dram0.n_cas   <<= ext_if_n_cas_0
+        dram0.n_we    <<= ext_if_n_we
 
         dram1.clk     <<= self.clk2
-        dram1.addr    <<= self.brew_if.addr[dram_addr_width-1:0]
-        dram1.data_in <<= self.brew_if.data_out
-        dram1.n_ras   <<= self.brew_if.n_ras_a
-        dram1.n_cas   <<= self.brew_if.n_cas_1
-        dram1.n_we    <<= self.brew_if.n_we
+        dram1.addr    <<= ext_if_addr[dram_addr_width-1:0]
+        dram1.data_in <<= ext_if_data_out_1
+        dram1.n_ras   <<= ext_if_n_ras_a
+        dram1.n_cas   <<= ext_if_n_cas_1
+        dram1.n_we    <<= ext_if_n_we
 
         # We have 8kB of ROM (SRAM really)
         rom.clk <<= self.clk2
         rom.addr <<= decode.addr[12:0]
         rom.n_ce <<= decode.rom
-        rom.data_in <<= self.brew_if.data_out
-        rom.n_we <<= self.brew_if.n_we
+        rom.data_in <<= ext_if_data_out_0
+        rom.n_we <<= ext_if_n_we
         decode.rom_data_in <<= rom.data_out
 
         gpio.n_ce <<= decode.gpio
-        gpio.n_we <<= self.brew_if.n_we
-        gpio.data_in <<= self.brew_if.data_out
+        gpio.n_we <<= ext_if_n_we
+        gpio.data_in <<= ext_if_data_out_0
         decode.gpio_data_in <<= gpio.data_out
 
         gpio.input_pins <<= self.input_pins
         self.output_pins <<= gpio.output_pins
 
         gpio2.n_ce <<= decode.gpio2
-        gpio2.n_we <<= self.brew_if.n_we
-        gpio2.data_in <<= self.brew_if.data_out
+        gpio2.n_we <<= ext_if_n_we
+        gpio2.data_in <<= ext_if_data_out_0
         decode.gpio2_data_in <<= gpio2.data_out
 
         gpio2.input_pins <<= self.input_pins2
@@ -394,10 +413,10 @@ class FpgaSystem(GenericModule):
         apb_bridge.addr <<= decode.addr[15:0]
 
         apb_bridge.n_ce <<= decode.io_apb
-        apb_bridge.n_we <<= self.brew_if.n_we
+        apb_bridge.n_we <<= ext_if_n_we
         decode.io_apb_n_wait <<= apb_bridge.n_wait
 
-        apb_bridge.data_in <<= self.brew_if.data_out
+        apb_bridge.data_in <<= ext_if_data_out_0
         decode.io_apb_data_in <<= apb_bridge.data_out
 
         self.io_apb_if <<= apb_bridge.apb_out

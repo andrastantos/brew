@@ -13,19 +13,19 @@ module top();
     logic [7:0] output_pins2;
 
     // GPIO3
-	logic [7:0] output_pins3;
-	logic       output_pins3_update;
+    logic [7:0] output_pins3;
+    logic       output_pins3_update;
 
     // GPIO4
-	logic [7:0] output_pins4;
-	logic       output_pins4_update;
+    logic [7:0] output_pins4;
+    logic       output_pins4_update;
 
     // UART
     logic rxd;
-	logic txd;
-	logic cts;
-	logic rts;
-	logic n_tx_en;
+    logic txd;
+    logic cts;
+    logic rts;
+    logic n_tx_en;
 
     FpgaTop dut(.*);
 
@@ -64,8 +64,8 @@ module top();
     end
 
     initial begin
-    	$dumpfile("anacron_fpga.vcd");
-    	$dumpvars(0,top);
+        $dumpfile("anacron_fpga.vcd");
+        $dumpvars(0,top);
         #(10*1000*1000);
         $display("Timeout on simulation");
         $finish;

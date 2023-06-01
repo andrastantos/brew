@@ -1,0 +1,19 @@
+<?xml version="1" encoding="UTF-8"?>
+<!DOCTYPE gowin-fpga-project>
+<Project>
+    <Template>FPGA</Template>
+    <Version>5</Version>
+    <Device name="GW2AR-18C" pn="GW2AR-LV18QN88PFC9/I8">gw2ar18c-016</Device>
+    <FileList>
+        <File path="../apb_gpio.sv" type="file.verilog" enable="1"/>
+        <File path="../apb_uart.sv" type="file.verilog" enable="1"/>
+        <File path="../brew.sv" type="file.verilog" enable="1"/>
+        <File path="../fpga_system.sv" type="file.verilog" enable="1"/>
+        <File path="../fpga_top.sv" type="file.verilog" enable="1"/>
+        <File path="src/gowin_clkdiv/gowin_clkdiv.v" type="file.verilog" enable="1"/>
+        <File path="src/gowin_rpll/gowin_rpll.v" type="file.verilog" enable="1"/>
+        <File path="tang_20k_board_wrapper.sv" type="file.verilog" enable="1"/>
+        <File path="src/tang_20k_top.cst" type="file.cst" enable="1"/>
+        <File path="src/tang_20k_top.sdc" type="file.sdc" enable="1"/>
+    </FileList>
+</Project>

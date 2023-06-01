@@ -103,10 +103,13 @@ class RegFile(Module):
 
         # We have two memory instances, one for each read port. The write ports of
         # these instances are connected together so they get written the same data
-        mem1 = SimpleDualPortMemory(registered_input_a=False, registered_output_a=True, registered_input_b=True, registered_output_b=False, addr_type=BrewRegAddr, data_type=BrewData)
-        mem2 = SimpleDualPortMemory(registered_input_a=False, registered_output_a=True, registered_input_b=True, registered_output_b=False, addr_type=BrewRegAddr, data_type=BrewData)
+        # NOTE: disabling read-new-data behavior for Quartus-es sake.
+        #mem1 = SimpleDualPortMemory(registered_input_a=False, registered_output_a=True, registered_input_b=True, registered_output_b=False, addr_type=BrewRegAddr, data_type=BrewData)
+        #mem2 = SimpleDualPortMemory(registered_input_a=False, registered_output_a=True, registered_input_b=True, registered_output_b=False, addr_type=BrewRegAddr, data_type=BrewData)
+        mem1 = SimpleDualPortMemory(registered_input_a=False, registered_output_a=True, registered_input_b=False, registered_output_b=True, addr_type=BrewRegAddr, data_type=BrewData)
+        mem2 = SimpleDualPortMemory(registered_input_a=False, registered_output_a=True, registered_input_b=False, registered_output_b=True, addr_type=BrewRegAddr, data_type=BrewData)
 
-        # We disable forwarding and wirting to the RF if write.data_en is not asserted.
+        # We disable forwarding and writing to the RF if write.data_en is not asserted.
         # This allows for clearing a reservation without touching the data
         # during (branch/exception recovery).
         mem1.port1_write_en <<= self.write.valid & self.write.data_en
@@ -130,6 +133,13 @@ class RegFile(Module):
         #       *on the same cycle* when the write occurs. It's nice that the memory is
         #       configured as 'read new data', but the address inputs are registered on the
         #       read port; as such, we still incur a one-cycle latency.
+        # NOTE: Quartus at least has a really hard time with 'read new data' configuration of
+        #       the memories. It outputs a note that it generates bypass logic, but the gate
+        #       level simulation shows bad behavior for not even conflicting, but adjacent
+        #       writes. The issue appears to be that write is double-registered and adjacent
+        #       read of the same address conflicts with the write, generating X-es. Not sure
+        #       if this is a simulation issue or a true problem in the operation of the RAMs
+        #       but since we have the bypass logic here anyway, let's not depend on the RAMS.
         mem1.port2_addr <<= read1_addr
         #self.read_rsp.read1_data <<= mem1.port2_data_out
         self.read_rsp.read1_data <<= Select(
@@ -172,7 +182,7 @@ class RegFile(Module):
         rsv_registered = Wire(logic)
         wait_for_rsv_raw = Wire(logic)
         rsv_registered <<= ~req_advance & Reg(Select(
-            rsv_set_valid,
+            rsv_set_valid & ~rsv_registered,
             Select(
                 req_advance,
                 rsv_registered,
@@ -197,8 +207,9 @@ class RegFile(Module):
         #self.read2_rsv_bit <<= Select(read2_addr, *rsv_board_as_bits)
         #self.rsv_rsv_bit   <<= Select(rsv_addr,   *rsv_board_as_bits)
 
-        wait_for_read1 = TIMING_CLOSURE_REG(wait(read1_valid, read1_addr))
-        wait_for_read2 = TIMING_CLOSURE_REG(wait(read2_valid, read2_addr))
+        # If we've registered our reservation and we also have a read of the same register, let's not wait: no one will clear the reservation
+        wait_for_read1 = TIMING_CLOSURE_REG(wait(read1_valid, read1_addr) & ((read1_addr != rsv_addr) | ~rsv_registered))
+        wait_for_read2 = TIMING_CLOSURE_REG(wait(read2_valid, read2_addr) & ((read2_addr != rsv_addr) | ~rsv_registered))
         wait_for_rsv_raw <<= wait(rsv_valid,   rsv_addr)
         wait_for_rsv   = TIMING_CLOSURE_REG(wait_for_rsv_raw & ~rsv_registered)
         wait_for_some = wait_for_read1 | wait_for_read2 | wait_for_rsv

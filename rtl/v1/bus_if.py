@@ -438,8 +438,10 @@ class BusIf(GenericModule):
             (next_state == BusIfStates.dma_first) |
             (next_state == BusIfStates.dma_wait)
         )
-        dram_n_ras_a = ~Reg((dram_ras_active & (dram_bank == dram_bank_swap)) | (next_state == BusIfStates.refresh)) # We re-register the state to remove all glitches
-        dram_n_ras_b = ~Reg((dram_ras_active & (dram_bank != dram_bank_swap)) | (next_state == BusIfStates.refresh)) # We re-register the state to remove all glitches
+        dram_ras_a = Reg((dram_ras_active & (dram_bank == dram_bank_swap)) | (next_state == BusIfStates.refresh)) # We re-register the state to remove all glitches
+        dram_ras_b = Reg((dram_ras_active & (dram_bank != dram_bank_swap)) | (next_state == BusIfStates.refresh)) # We re-register the state to remove all glitches
+        dram_n_ras_a = ~dram_ras_a
+        dram_n_ras_b = ~dram_ras_b
         n_nren = Wire()
         n_nren <<= Reg(
             (next_state != BusIfStates.non_dram_first) & (next_state != BusIfStates.non_dram_wait) & (next_state != BusIfStates.non_dram_dual_first) & (next_state != BusIfStates.non_dram_dual_wait),
@@ -509,6 +511,7 @@ class BusIf(GenericModule):
         self.dram.n_ras_b     <<= dram_n_ras_b
         self.dram.n_cas_0     <<= dram_n_cas_0 & nr_n_cas_0
         self.dram.n_cas_1     <<= dram_n_cas_1 & nr_n_cas_1
+        col_addr_nr = NegReg(col_addr)
         dram_addr = Select(
             (
                 (state == BusIfStates.first) |
@@ -517,7 +520,7 @@ class BusIf(GenericModule):
                 (state == BusIfStates.dma_first) |
                 (state == BusIfStates.refresh)
             ) & self.clk,
-            NegReg(col_addr),
+            col_addr_nr,
             row_addr
         )
         self.dram.addr        <<= dram_addr

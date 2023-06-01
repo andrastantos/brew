@@ -69,6 +69,7 @@ class Pipeline(GenericModule):
     event_execute           = Output(logic)
     event_fetch             = Output(logic)
     event_fetch_drop        = Output()
+    event_inst_word         = Output()
 
     def construct(self, csr_base: int, has_multiply: bool = True, has_shift: bool = True, page_bits: int = 7):
         self.csr_base = csr_base
@@ -111,6 +112,7 @@ class Pipeline(GenericModule):
         fetch_stage.tpc <<= tpc
         fetch_stage.task_mode <<= task_mode
         fetch_stage.do_branch <<= do_branch
+        fetch_stage.break_burst <<= decode_stage.break_fetch_burst
 
         self.event_fetch <<= fetch_stage.event_fetch
         self.event_fetch_drop <<= fetch_stage.event_dropped
@@ -128,10 +130,6 @@ class Pipeline(GenericModule):
         decode_stage.do_branch <<= do_branch
 
         self.event_decode_wait_on_rf <<= rf_req.valid & ~rf_req.ready
-
-        self.event_branch <<= decode_to_exec.exec_unit == op_class.branch & ~decode_to_exec.fetch_av
-        self.event_load <<= (decode_to_exec.exec_unit == op_class.ld_st) & (decode_to_exec.ldst_op == ldst_ops.load) & ~decode_to_exec.fetch_av
-        self.event_store <<= (decode_to_exec.exec_unit == op_class.ld_st) & (decode_to_exec.ldst_op == ldst_ops.store) & ~decode_to_exec.fetch_av
 
         # EXECUTE STAGE
         #############################
@@ -151,7 +149,12 @@ class Pipeline(GenericModule):
         execute_stage.ecause_in     <<= self.ecause
         execute_stage.interrupt     <<= self.interrupt
 
-        self.event_execute <<= decode_to_exec.ready & decode_to_exec.valid & ~decode_to_exec.fetch_av & ~execute_stage.do_branch
+        will_execute = decode_to_exec.ready & decode_to_exec.valid & ~decode_to_exec.fetch_av & ~execute_stage.do_branch
+        self.event_branch     <<= will_execute & (decode_to_exec.exec_unit == op_class.branch)
+        self.event_load       <<= will_execute & (decode_to_exec.exec_unit == op_class.ld_st) & (decode_to_exec.ldst_op == ldst_ops.load)
+        self.event_store      <<= will_execute & (decode_to_exec.exec_unit == op_class.ld_st) & (decode_to_exec.ldst_op == ldst_ops.store)
+        self.event_execute    <<= will_execute
+        self.event_inst_word  <<= Select(will_execute, 0, decode_to_exec.inst_len+1)
 
         spc          <<= Reg(execute_stage.spc_out)
         tpc          <<= Reg(execute_stage.tpc_out)

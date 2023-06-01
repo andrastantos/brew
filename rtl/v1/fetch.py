@@ -96,8 +96,10 @@ class FetchQueueIf(ReadyValid):
     data = Unsigned(16)
     av = logic
 
-fetch_queue_length = 16
-fetch_threshold = (fetch_queue_length+1)//2
+#fetch_queue_length = 16
+#fetch_threshold = (fetch_queue_length+1)//2
+fetch_queue_length = 11
+fetch_threshold = 8
 QueuePointerType = Unsigned(fetch_queue_length.bit_length())
 
 def truncate_queue_ptr(ptr):
@@ -137,13 +139,16 @@ class InstBuffer(GenericModule):
     tpc  = Input(BrewInstAddr)
     task_mode  = Input(logic)
     do_branch = Input(logic) # do_branch is active for one cycle only; in the same cycle the new spc/tpc/task_mode values are available
+    break_burst = Input(logic) # active for one cycle, to break any progressing burst. Doesn't kill the queue or drop outstanding requests, simply stops requesting more...
 
     # Events
     event_fetch = Output(logic)
     event_drop = Output(logic)
 
-    def construct(self, page_bits: int = 7):
+    def construct(self, page_bits: int = 7, break_on_branch_early: bool = False, use_break_burst: bool = True):
         self.page_bits = page_bits # 256 bytes, but we count in 16-bit words
+        self.break_on_branch_early = break_on_branch_early
+        self.use_break_burst = use_break_burst
 
     def body(self):
         def truncate_addr(a):
@@ -183,7 +188,6 @@ class InstBuffer(GenericModule):
         class InstBufferStates(Enum):
             idle = 0
             request = 1
-            flushing = 2
 
         state = Wire()
         next_state = Wire()
@@ -204,26 +208,13 @@ class InstBuffer(GenericModule):
         state <<= self.fsm.state
         next_state <<= self.fsm.next_state
 
-        # branch_req will remain high until our request is accepted by the bus_if
-        # NOTE: Acutally, I don't think that's necessary for two reasons:
-        # 1. If there's not active request going on, we can cancel immediately.
-        # 2. The branch request will clear the instruction queue, so queue_free_cnt
-        #    will soon be at it's maximum value, triggering a new request, even if
-        #    start_new_request would otherwise go inactive
-        branch_req = Wire(logic)
-        branch_req <<= self.do_branch
-        #branch_req <<= self.do_branch | Reg(
-        #    Select(
-        #        advance_request,
-        #        Select(
-        #            self.do_branch,
-        #            branch_req,
-        #            1
-        #        ),
-        #        0
-        #    )
-        #)
+        fetch_page = fetch_addr[30:self.page_bits]
+        branch_page = branch_target[30:self.page_bits]
+        xor_page = fetch_page ^ branch_page
+        out_of_page_branch = self.do_branch & (xor_page != 0)
+
         outstanding_request = Wire(Unsigned(2))
+        drop_count = Wire(Unsigned(2))
         next_outstanding_request = SelectOne(
             advance_request &  advance_response, outstanding_request,
             advance_request & ~advance_response, (outstanding_request+1)[1:0],
@@ -231,21 +222,49 @@ class InstBuffer(GenericModule):
             ~advance_request & ~advance_response, outstanding_request,
         )
         outstanding_request <<= Reg(next_outstanding_request)
+        drop_count <<= Reg(Select(
+            self.do_branch,
+            Select(
+                drop_count == 0,
+                Unsigned(2)(drop_count - advance_response),
+                0
+            ),
+            next_outstanding_request
+        ))
 
 
         # We have to make sure that we only start a new burst if we know for sure the queue can take all the responses,
         # including all the outstanding ones.
-        start_new_request = (
-            ((((self.queue_free_cnt > fetch_threshold + next_outstanding_request) & ~branch_req) | (branch_req & (next_outstanding_request == 0))) & (state == InstBufferStates.idle)) |
-            ((state == InstBufferStates.flushing) & (next_outstanding_request == 0)) |
-            ((state == InstBufferStates.request) & branch_req & (next_outstanding_request == 0))
-        )
+        # We need to delay out_of_page_branch to align with the request address, which is delayed
+        start_new_request = (self.queue_free_cnt > fetch_threshold + next_outstanding_request) | Reg(out_of_page_branch)
+
+        if self.use_break_burst:
+            if self.break_on_branch_early:
+                field_a = self.bus_if_response.data[ 3: 0]
+                field_b = self.bus_if_response.data[ 4: 7]
+                field_c = self.bus_if_response.data[11: 8]
+                field_d = self.bus_if_response.data[15:12]
+                field_a_is_f = field_a == 0xf
+                field_b_is_f = field_b == 0xf
+                field_c_is_f = field_c == 0xf
+                field_d_is_f = field_d == 0xf
+                could_be_branch = (field_d_is_f & ~field_c_is_f) # Catches all the conditional branches
+                break_burst = advance_response & could_be_branch
+            else:
+                break_burst = self.break_burst
+        else:
+            break_burst = 0
 
         req_len = Wire(QueuePointerType)
         req_len <<= Reg(
             Select(
                 start_new_request,
-                Select(advance_request, req_len, Select(req_len > 0, 0, truncate_queue_ptr(req_len - 1))), # No new request: simply decrement
+                Select(
+                    break_burst,
+                    Select(advance_request, req_len, Select(req_len > 0, 0, truncate_queue_ptr(req_len - 1))), # No new request: simply decrement
+                    0
+                ),
+                # TODO: I think this could be just 'fetch_threshold', but I don't want to make the change without extensive test coverage
                 Select(
                     self.do_branch,
                     # If we don't have a branch, we need to imit fetch burst length to fetch_threshold (to be good citizens on the bus).
@@ -267,29 +286,25 @@ class InstBuffer(GenericModule):
             )
         )
 
-        self.bus_if_request.valid           <<= (state == InstBufferStates.request) & (~fetch_page_limit)
+        self.bus_if_request.valid           <<= (state == InstBufferStates.request) & ~fetch_page_limit & ~out_of_page_branch
         self.bus_if_request.read_not_write  <<= 1
         self.bus_if_request.byte_en         <<= 3
         self.bus_if_request.addr            <<= fetch_addr[BrewBusAddr.length-1:0]
         self.bus_if_request.data            <<= None
 
-        self.fsm.add_transition(InstBufferStates.idle,         start_new_request,              InstBufferStates.request)
-        self.fsm.add_transition(InstBufferStates.idle,         branch_req & (next_outstanding_request != 0),  InstBufferStates.flushing)
-        self.fsm.add_transition(InstBufferStates.request,     ~branch_req & (~self.bus_if_request.valid | (req_len == 0)),  InstBufferStates.idle)
-        self.fsm.add_transition(InstBufferStates.request,      branch_req & (next_outstanding_request != 0),  InstBufferStates.flushing)
-        self.fsm.add_transition(InstBufferStates.request,      branch_req & (next_outstanding_request == 0),  InstBufferStates.request)
-        self.fsm.add_transition(InstBufferStates.flushing,     (next_outstanding_request == 0),  InstBufferStates.request)
-
+        self.fsm.add_transition(InstBufferStates.idle,         start_new_request,                            InstBufferStates.request)
+        self.fsm.add_transition(InstBufferStates.request,      fetch_page_limit | (req_len == 0),  InstBufferStates.idle)
 
         # The response interface is almost completely a pass-through. All we need to do is to handle the AV flag.
         self.queue.data <<= self.bus_if_response.data
         self.queue.av <<= req_av
-        self.queue.valid <<= self.bus_if_response.valid & (state != InstBufferStates.flushing)
+        self.queue.valid <<=  self.bus_if_response.valid & (drop_count == 0) & ~self.do_branch
         #AssertOnClk(
         #    state != InstBufferStates.idle | self.queue.ready | (state != InstBufferStates.flush)
         #)
-        self.event_drop <<= self.bus_if_response.valid & (state == InstBufferStates.flushing)
+        self.event_drop <<= self.bus_if_response.valid & (drop_count != 0)
         self.event_fetch <<= self.bus_if_response.valid
+
 
 # A simple FIFO with some extra sprinkles to handle bursts and flushing. It sits between the instruction buffer and fetch
 class InstQueue(Module):
@@ -309,23 +324,24 @@ class InstQueue(Module):
     event_queue_flush = Output(QueuePointerType) # This is strange: in a single clock we drop a bunch of items in the queue.
 
     def body(self):
+        #fifo = ZeroDelayFifo(depth=fetch_queue_length)
         fifo = Fifo(depth=fetch_queue_length)
         self.assemble <<= fifo(self.inst, clear = self.do_branch)
 
-        self.empty_cnt = Wire(QueuePointerType)
+        empty_cnt = Wire(QueuePointerType)
         dec = self.inst.ready & self.inst.valid
         inc = self.assemble.ready & self.assemble.valid
-        self.empty_cnt <<= Reg(
+        empty_cnt <<= Reg(
             Select(
                 self.do_branch,
-                truncate_queue_ptr(self.empty_cnt + inc - dec),
+                truncate_queue_ptr(empty_cnt + inc - dec),
                 fetch_queue_length
             ),
             reset_value_port = fetch_queue_length
         )
-        self.queue_free_cnt <<= self.empty_cnt
+        self.queue_free_cnt <<= empty_cnt
 
-        self.event_queue_flush <<= Select(self.do_branch, 0, QueuePointerType(fetch_queue_length - self.queue_free_cnt))
+        self.event_queue_flush <<= Select(self.do_branch, 0, QueuePointerType(fetch_queue_length - empty_cnt))
 
 class InstAssemble(Module):
     clk = ClkPort()
@@ -492,6 +508,7 @@ class FetchStage(GenericModule):
     tpc  = Input(BrewInstAddr)
     task_mode  = Input(logic)
     do_branch = Input(logic)
+    break_burst = Input(logic) # active for one cycle, to break any progressing burst. Doesn't kill the queue or drop outstanding requests, simply stops requesting more...
 
     # Events
     event_fetch = Output(logic)
@@ -517,6 +534,7 @@ class FetchStage(GenericModule):
         inst_buf.tpc <<= self.tpc
         inst_buf.task_mode <<= self.task_mode
         inst_buf.do_branch <<= self.do_branch
+        inst_buf.break_burst <<= self.break_burst
 
         inst_queue.do_branch <<= self.do_branch
 
@@ -814,6 +832,7 @@ def sim():
             self.dut.tpc <<= self.tpc
             self.dut.task_mode <<= self.task_mode
             self.dut.do_branch <<= self.do_branch
+            self.dut.break_burst <<= 0
 
             self.mem_base <<= self.sideband_emulator.mem_base
             self.mem_limit <<= self.sideband_emulator.mem_limit

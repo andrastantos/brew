@@ -154,6 +154,19 @@ class MemoryStage(GenericModule):
         # Pending is set for 32-bit transfers, until the first response is back
         pending = Wire(logic)
         pending <<= Reg(Select((self.input_port.access_len == access_len_32) & ~is_csr & input_advance & self.input_port.read_not_write, Select(bus_response_advance, pending, 0), 1))
+        ##### # We need to delay pending by one cycle after the input is accepted due to the following reason:
+        ##### # Response comes back a cycle *after* bus_if accepts the subsequent request. Because of that,
+        ##### # if there are back-to-back reads, where the first is 8- or 16-bit long and the next one is 32-bit long,
+        ##### # we would think that the response to the first read is the first response for the 32-bit read and would
+        ##### # not issue the result towards the register-file
+        ##### #
+        ##### # !!!IMPORTANT!!!
+        ##### # This logic of course only applies if bus_if has at least two cycles of latency. This is true
+        ##### # now, but will it be forever? Maybe not once caches are involved.
+        ##### pending = Wire(logic)
+        ##### pending_set = Reg((self.input_port.access_len == access_len_32) & ~is_csr & input_advance & self.input_port.read_not_write)
+        ##### pending_clr = bus_response_advance
+        ##### pending <<= Reg(Select(pending_set, Select(pending_clr, pending, 0),1))
         # Gap goes active for one cycle after all requests are sent to ensure proper burst termination between back-to-back requests
         gap = Wire(logic)
         gap <<= Reg(

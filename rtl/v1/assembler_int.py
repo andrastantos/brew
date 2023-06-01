@@ -273,14 +273,14 @@ class BrewAssembler(object):
     def if_r_clrb(self,  rB = None, bit = None, imm = None): return (_inst(0xf, _b(bit), _r(rB), 0xf), *_i(imm))
 
     def mem32_r_plus_t_eq_r(self, rA = None, imm = None, rD = None):
-        if rA is None: rA = randint(0,1)
-        assert rA < 2
-        field_ba = (_T(imm) << 1 | rA) & 0xff
+        if rA is None: rA = randint(0,1) + 12
+        assert rA in (12,13)
+        field_ba = (_T(imm) << 1 | (rA & 1)) & 0xff
         return (_inst(_r(rD), 0xc, (field_ba >> 4) & 0xf, field_ba & 0xf),)
     def r_eq_mem32_r_plus_t(self, rD = None, rA = None, imm = None):
-        if rA is None: rA = randint(0,1)
-        assert rA < 2
-        field_ba = (_T(imm) << 1 | rA) & 0xff
+        if rA is None: rA = randint(0,1) + 12
+        assert rA in (12,13)
+        field_ba = (_T(imm) << 1 | (rA & 1)) & 0xff
         return (_inst(_r(rD), 0xd, (field_ba >> 4) & 0xf, field_ba & 0xf),)
     def r_eq_mem8_r(self, rD = None, rA = None): return (_inst(_r(rD), 0xe, 0x4, _r(rA)),)
     def r_eq_mem16_r(self, rD = None, rA = None): return (_inst(_r(rD), 0xe, 0x5, _r(rA)),)

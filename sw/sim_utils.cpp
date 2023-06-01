@@ -63,7 +63,7 @@ void sim_uart_write_dec(unsigned int value) {
 		++idx;
 		if (idx > sizeof(digits)) break;
 	}
-	while (idx >= 0) {
+	while (idx > 0) {
 		sim_uart_write_char(char('0'+digits[--idx]));
 	}
 }

@@ -1,0 +1,581 @@
+[*]
+[*] GTKWave Analyzer v3.3.104 (w)1999-2020 BSI
+[*] Sat May 27 17:17:51 2023
+[*]
+[dumpfile] "/home/tantos/brew/rtl/v1/anacron_fpga/anacron_fpga_gate_level.vcd"
+[dumpfile_mtime] "Sat May 27 17:17:51 2023"
+[dumpfile_size] 123953152
+[savefile] "/home/tantos/brew/rtl/v1/anacron_fpga/anacron_fpga_gate_level.gtkw"
+[timestart] 0
+[size] 1920 990
+[pos] -1 -1
+*-26.336681 15800 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] top.
+[treeopen] top.dut.
+[treeopen] top.dut.fpga_top.
+[treeopen] top.dut.fpga_top.brew.
+[treeopen] top.dut.fpga_top.brew.pipeline.
+[treeopen] top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.
+[treeopen] top.dut.fpga_top.brew.pipeline.reg_file.
+[treeopen] top.dut.fpga_top.brew.pipeline.reg_file.mem1.
+[treeopen] top.dut.fpga_top.brew.pipeline.reg_file.mem1.mem_rtl_0.
+[treeopen] top.dut.fpga_top.brew.pipeline.reg_file.mem1.mem_rtl_0.auto_generated.
+[treeopen] top.dut.fpga_top.brew.pipeline.reg_file.mem1.mem_rtl_0.auto_generated.ram_block1a0.
+[treeopen] top.dut.fpga_top.system.
+[treeopen] top.dut.fpga_top.system.decode.
+[treeopen] top.dut.fpga_top.system.dram0.mem.
+[treeopen] top.dut.fpga_top.system.dram1.
+[treeopen] top.dut.~GND.
+[sst_width] 417
+[signals_width] 398
+[sst_expanded] 1
+[sst_vpaned_height] 590
+@23
+top.LED[7:0]
+@28
+top.uart_txd
+top.dut.fpga_top.uart1.txd
+@c00022
+#{top.dut.fpga_top.brew.dram_addr_[10:0]} top.dut.fpga_top.brew.dram_addr_10 top.dut.fpga_top.brew.dram_addr_9 top.dut.fpga_top.brew.dram_addr_8 top.dut.fpga_top.brew.dram_addr_7 top.dut.fpga_top.brew.dram_addr_6 top.dut.fpga_top.brew.dram_addr_5 top.dut.fpga_top.brew.dram_addr_4 top.dut.fpga_top.brew.dram_addr_3 top.dut.fpga_top.brew.dram_addr_2 top.dut.fpga_top.brew.dram_addr_1 top.dut.fpga_top.brew.dram_addr_0
+@28
+top.dut.fpga_top.brew.dram_addr_0
+top.dut.fpga_top.brew.dram_addr_1
+top.dut.fpga_top.brew.dram_addr_2
+top.dut.fpga_top.brew.dram_addr_3
+top.dut.fpga_top.brew.dram_addr_4
+top.dut.fpga_top.brew.dram_addr_5
+top.dut.fpga_top.brew.dram_addr_6
+top.dut.fpga_top.brew.dram_addr_7
+top.dut.fpga_top.brew.dram_addr_8
+top.dut.fpga_top.brew.dram_addr_9
+top.dut.fpga_top.brew.dram_addr_10
+@1401200
+-group_end
+@28
+top.dut.fpga_top.brew.dram_n_cas_0
+top.dut.fpga_top.brew.dram_n_cas_1
+@c00022
+#{RESP_DATA} top.dut.fpga_top.brew.bus_if.resp_data~16_combout top.dut.fpga_top.brew.bus_if.resp_data~15_combout top.dut.fpga_top.brew.bus_if.resp_data~14_combout top.dut.fpga_top.brew.bus_if.resp_data~13_combout top.dut.fpga_top.brew.bus_if.resp_data~12_combout top.dut.fpga_top.brew.bus_if.resp_data~11_combout top.dut.fpga_top.brew.bus_if.resp_data~10_combout top.dut.fpga_top.brew.bus_if.resp_data~9_combout top.dut.fpga_top.brew.bus_if.resp_data~8_combout top.dut.fpga_top.brew.bus_if.resp_data~7_combout top.dut.fpga_top.brew.bus_if.resp_data~6_combout top.dut.fpga_top.brew.bus_if.resp_data~5_combout top.dut.fpga_top.brew.bus_if.resp_data~4_combout top.dut.fpga_top.brew.bus_if.resp_data~3_combout top.dut.fpga_top.brew.bus_if.resp_data~2_combout top.dut.fpga_top.brew.bus_if.resp_data~1_combout
+@28
+top.dut.fpga_top.brew.bus_if.resp_data~1_combout
+top.dut.fpga_top.brew.bus_if.resp_data~2_combout
+top.dut.fpga_top.brew.bus_if.resp_data~3_combout
+top.dut.fpga_top.brew.bus_if.resp_data~4_combout
+top.dut.fpga_top.brew.bus_if.resp_data~5_combout
+top.dut.fpga_top.brew.bus_if.resp_data~6_combout
+top.dut.fpga_top.brew.bus_if.resp_data~7_combout
+top.dut.fpga_top.brew.bus_if.resp_data~8_combout
+top.dut.fpga_top.brew.bus_if.resp_data~9_combout
+top.dut.fpga_top.brew.bus_if.resp_data~10_combout
+top.dut.fpga_top.brew.bus_if.resp_data~11_combout
+top.dut.fpga_top.brew.bus_if.resp_data~12_combout
+top.dut.fpga_top.brew.bus_if.resp_data~13_combout
+top.dut.fpga_top.brew.bus_if.resp_data~14_combout
+top.dut.fpga_top.brew.bus_if.resp_data~15_combout
+top.dut.fpga_top.brew.bus_if.resp_data~16_combout
+@1401200
+-group_end
+@c00022
+#{top.dut.fpga_top.system.dram0.mem.result_node_[7:0]} top.dut.fpga_top.system.dram0.mem.result_node_7 top.dut.fpga_top.system.dram0.mem.result_node_6 top.dut.fpga_top.system.dram0.mem.result_node_5 top.dut.fpga_top.system.dram0.mem.result_node_4 top.dut.fpga_top.system.dram0.mem.result_node_3 top.dut.fpga_top.system.dram0.mem.result_node_2 top.dut.fpga_top.system.dram0.mem.result_node_1 top.dut.fpga_top.system.dram0.mem.result_node_0
+@28
+top.dut.fpga_top.system.dram0.mem.result_node_0
+top.dut.fpga_top.system.dram0.mem.result_node_1
+top.dut.fpga_top.system.dram0.mem.result_node_2
+top.dut.fpga_top.system.dram0.mem.result_node_3
+top.dut.fpga_top.system.dram0.mem.result_node_4
+top.dut.fpga_top.system.dram0.mem.result_node_5
+top.dut.fpga_top.system.dram0.mem.result_node_6
+top.dut.fpga_top.system.dram0.mem.result_node_7
+@1401200
+-group_end
+@c00022
+#{top.dut.fpga_top.system.dram1.mem.result_node_[7:0]} top.dut.fpga_top.system.dram1.mem.result_node_7 top.dut.fpga_top.system.dram1.mem.result_node_6 top.dut.fpga_top.system.dram1.mem.result_node_5 top.dut.fpga_top.system.dram1.mem.result_node_4 top.dut.fpga_top.system.dram1.mem.result_node_3 top.dut.fpga_top.system.dram1.mem.result_node_2 top.dut.fpga_top.system.dram1.mem.result_node_1 top.dut.fpga_top.system.dram1.mem.result_node_0
+@28
+top.dut.fpga_top.system.dram1.mem.result_node_0
+top.dut.fpga_top.system.dram1.mem.result_node_1
+top.dut.fpga_top.system.dram1.mem.result_node_2
+top.dut.fpga_top.system.dram1.mem.result_node_3
+top.dut.fpga_top.system.dram1.mem.result_node_4
+top.dut.fpga_top.system.dram1.mem.result_node_5
+top.dut.fpga_top.system.dram1.mem.result_node_6
+top.dut.fpga_top.system.dram1.mem.result_node_7
+@1401200
+-group_end
+@28
+top.dut.ADC_CLK_10
+@c00022
+#{top.dut.fpga_top.brew.pipeline.ecause[10:0]} top.dut.fpga_top.brew.pipeline.ecause[10].q top.dut.fpga_top.brew.pipeline.ecause[9].q top.dut.fpga_top.brew.pipeline.ecause[8].q top.dut.fpga_top.brew.pipeline.ecause[7].q top.dut.fpga_top.brew.pipeline.ecause[6].q top.dut.fpga_top.brew.pipeline.ecause[5].q top.dut.fpga_top.brew.pipeline.ecause[4].q top.dut.fpga_top.brew.pipeline.ecause[3].q top.dut.fpga_top.brew.pipeline.ecause[2].q top.dut.fpga_top.brew.pipeline.ecause[1].q top.dut.fpga_top.brew.pipeline.ecause[0].q
+@28
+top.dut.fpga_top.brew.pipeline.ecause[0].q
+top.dut.fpga_top.brew.pipeline.ecause[1].q
+top.dut.fpga_top.brew.pipeline.ecause[2].q
+top.dut.fpga_top.brew.pipeline.ecause[3].q
+top.dut.fpga_top.brew.pipeline.ecause[4].q
+top.dut.fpga_top.brew.pipeline.ecause[5].q
+top.dut.fpga_top.brew.pipeline.ecause[6].q
+top.dut.fpga_top.brew.pipeline.ecause[7].q
+top.dut.fpga_top.brew.pipeline.ecause[8].q
+top.dut.fpga_top.brew.pipeline.ecause[9].q
+top.dut.fpga_top.brew.pipeline.ecause[10].q
+@1401200
+-group_end
+@800200
+-INST_ASSEMBLE
+@c00022
+#{top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[15:0]} top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[15].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[14].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[13].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[12].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[11].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[10].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[9].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[8].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[7].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[6].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[5].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[4].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[3].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[2].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[1].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[0].q
+@28
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[0].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[1].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[2].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[3].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[4].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[5].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[6].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[7].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[8].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[9].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[10].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[11].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[12].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[13].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[14].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_0[15].q
+@1401200
+-group_end
+@c00022
+#{top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[15:0]} top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[15].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[14].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[13].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[12].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[11].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[10].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[9].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[8].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[7].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[6].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[5].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[4].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[3].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[2].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[1].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[0].q
+@28
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[0].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[1].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[2].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[3].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[4].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[5].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[6].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[7].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[8].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[9].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[10].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[11].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[12].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[13].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[14].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_1[15].q
+@1401200
+-group_end
+@c00022
+#{top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[15:0]} top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[15].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[14].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[13].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[12].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[11].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[10].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[9].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[8].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[7].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[6].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[5].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[4].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[3].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[2].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[1].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[0].q
+@28
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[0].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[1].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[2].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[3].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[4].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[5].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[6].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[7].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[8].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[9].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[10].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[11].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[12].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[13].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[14].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_reg_2[15].q
+@1401200
+-group_end
+@1000200
+-INST_ASSEMBLE
+@28
++{top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_buf_ready} top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_buf_ready.cout
+@c00024
+#{top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_len_reg[1:0]} top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_len_reg[1].q top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_len_reg[0].q
+@28
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_len_reg[0].q
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.inst_len_reg[1].q
+@1401200
+-group_end
+@28
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_assemble.decode_fsm.empty
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.empty_cnt_0
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.empty_cnt_1
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.empty_cnt_2
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.empty_cnt_3
+@c00022
+#{top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_[15:0]} top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_15 top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_14 top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_13 top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_12 top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_11 top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_10 top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_9 top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_8 top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_7 top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_6 top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_5 top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_4 top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_3 top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_2 top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_1 top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_0
+@28
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_0
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_1
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_2
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_3
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_4
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_5
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_6
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_7
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_8
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_9
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_10
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_11
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_12
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_13
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_14
+top.dut.fpga_top.brew.pipeline.fetch_stage.inst_queue.resp_data_15
+@1401200
+-group_end
+@c00022
+#{top.dut.fpga_top.brew.pipeline.spc[30:0]} top.dut.fpga_top.brew.pipeline.spc[30].q top.dut.fpga_top.brew.pipeline.spc[29].q top.dut.fpga_top.brew.pipeline.spc[28].q top.dut.fpga_top.brew.pipeline.spc[27].q top.dut.fpga_top.brew.pipeline.spc[26].q top.dut.fpga_top.brew.pipeline.spc[25].q top.dut.fpga_top.brew.pipeline.spc[24].q top.dut.fpga_top.brew.pipeline.spc[23].q top.dut.fpga_top.brew.pipeline.spc[22].q top.dut.fpga_top.brew.pipeline.spc[21].q top.dut.fpga_top.brew.pipeline.spc[20].q top.dut.fpga_top.brew.pipeline.spc[19].q top.dut.fpga_top.brew.pipeline.spc[18].q top.dut.fpga_top.brew.pipeline.spc[17].q top.dut.fpga_top.brew.pipeline.spc[16].q top.dut.fpga_top.brew.pipeline.spc[15].q top.dut.fpga_top.brew.pipeline.spc[14].q top.dut.fpga_top.brew.pipeline.spc[13].q top.dut.fpga_top.brew.pipeline.spc[12].q top.dut.fpga_top.brew.pipeline.spc[11].q top.dut.fpga_top.brew.pipeline.spc[10].q top.dut.fpga_top.brew.pipeline.spc[9].q top.dut.fpga_top.brew.pipeline.spc[8].q top.dut.fpga_top.brew.pipeline.spc[7].q top.dut.fpga_top.brew.pipeline.spc[6].q top.dut.fpga_top.brew.pipeline.spc[5].q top.dut.fpga_top.brew.pipeline.spc[4].q top.dut.fpga_top.brew.pipeline.spc[3].q top.dut.fpga_top.brew.pipeline.spc[2].q top.dut.fpga_top.brew.pipeline.spc[1].q top.dut.fpga_top.brew.pipeline.spc[0].q
+@28
+top.dut.fpga_top.brew.pipeline.spc[0].q
+top.dut.fpga_top.brew.pipeline.spc[1].q
+top.dut.fpga_top.brew.pipeline.spc[2].q
+top.dut.fpga_top.brew.pipeline.spc[3].q
+top.dut.fpga_top.brew.pipeline.spc[4].q
+top.dut.fpga_top.brew.pipeline.spc[5].q
+top.dut.fpga_top.brew.pipeline.spc[6].q
+top.dut.fpga_top.brew.pipeline.spc[7].q
+top.dut.fpga_top.brew.pipeline.spc[8].q
+top.dut.fpga_top.brew.pipeline.spc[9].q
+top.dut.fpga_top.brew.pipeline.spc[10].q
+top.dut.fpga_top.brew.pipeline.spc[11].q
+top.dut.fpga_top.brew.pipeline.spc[12].q
+top.dut.fpga_top.brew.pipeline.spc[13].q
+top.dut.fpga_top.brew.pipeline.spc[14].q
+top.dut.fpga_top.brew.pipeline.spc[15].q
+top.dut.fpga_top.brew.pipeline.spc[16].q
+top.dut.fpga_top.brew.pipeline.spc[17].q
+top.dut.fpga_top.brew.pipeline.spc[18].q
+top.dut.fpga_top.brew.pipeline.spc[19].q
+top.dut.fpga_top.brew.pipeline.spc[20].q
+top.dut.fpga_top.brew.pipeline.spc[21].q
+top.dut.fpga_top.brew.pipeline.spc[22].q
+top.dut.fpga_top.brew.pipeline.spc[23].q
+top.dut.fpga_top.brew.pipeline.spc[24].q
+top.dut.fpga_top.brew.pipeline.spc[25].q
+top.dut.fpga_top.brew.pipeline.spc[26].q
+top.dut.fpga_top.brew.pipeline.spc[27].q
+top.dut.fpga_top.brew.pipeline.spc[28].q
+top.dut.fpga_top.brew.pipeline.spc[29].q
+top.dut.fpga_top.brew.pipeline.spc[30].q
+@1401200
+-group_end
+@800200
+-DECODE
+@c00028
+#{top.dut.fpga_top.brew.pipeline.decode_stage.break_fetch_burst~0} top.dut.fpga_top.brew.pipeline.decode_stage.break_fetch_burst~0.cout
+@28
+top.dut.fpga_top.brew.pipeline.decode_stage.break_fetch_burst~0.cout
+@1401200
+-group_end
+@c00024
+#{top.dut.fpga_top.brew.pipeline.decode_stage.output_port_alu_op[2:0]} top.dut.fpga_top.brew.pipeline.decode_stage.output_port_alu_op[2].q top.dut.fpga_top.brew.pipeline.decode_stage.output_port_alu_op[1].q top.dut.fpga_top.brew.pipeline.decode_stage.output_port_alu_op[0].q
+@28
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_alu_op[0].q
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_alu_op[1].q
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_alu_op[2].q
+@1401200
+-group_end
+@c00024
+#{top.dut.fpga_top.brew.pipeline.decode_stage.output_port_exec_unit[2:0]} top.dut.fpga_top.brew.pipeline.decode_stage.output_port_exec_unit[2].q top.dut.fpga_top.brew.pipeline.decode_stage.output_port_exec_unit[1].q top.dut.fpga_top.brew.pipeline.decode_stage.output_port_exec_unit[0].q
+@28
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_exec_unit[0].q
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_exec_unit[1].q
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_exec_unit[2].q
+@1401200
+-group_end
+@c00024
+#{top.dut.fpga_top.brew.pipeline.decode_stage.output_port_branch_op[3:0]} top.dut.fpga_top.brew.pipeline.decode_stage.output_port_branch_op[3].q top.dut.fpga_top.brew.pipeline.decode_stage.output_port_branch_op[2].q top.dut.fpga_top.brew.pipeline.decode_stage.output_port_branch_op[1].q top.dut.fpga_top.brew.pipeline.decode_stage.output_port_branch_op[0].q
+@28
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_branch_op[0].q
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_branch_op[1].q
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_branch_op[2].q
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_branch_op[3].q
+@1401200
+-group_end
+@1000200
+-DECODE
+@28
++{top.dut.fpga_top.brew.pipeline.reg_file.req_advance} top.dut.fpga_top.brew.pipeline.reg_file.req_advance.cout
+@800200
+-REG_FILE_OUT_BUF_FULL
+@28
+top.dut.fpga_top.brew.pipeline.reg_file.out_buf_full.q
+top.dut.fpga_top.brew.pipeline.reg_file.out_buf_full.d
+@1000200
+-REG_FILE_OUT_BUF_FULL
+@800200
+-s1_was_branch
+@28
+top.dut.fpga_top.brew.pipeline.execute_stage.s1_was_branch.d
+top.dut.fpga_top.brew.pipeline.execute_stage.s1_was_branch.q
+@1000200
+-s1_was_branch
+@c00022
+#{top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_[31:0]} top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_31 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_30 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_29 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_28 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_27 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_26 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_25 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_24 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_23 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_22 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_21 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_20 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_19 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_18 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_17 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_16 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_15 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_14 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_13 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_12 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_11 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_10 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_9 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_8 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_7 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_6 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_5 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_4 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_3 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_2 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_1 top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_0
+@28
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_0
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_1
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_2
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_3
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_4
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_5
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_6
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_7
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_8
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_9
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_10
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_11
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_12
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_13
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_14
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_15
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_16
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_17
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_18
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_19
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_20
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_21
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_22
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_23
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_24
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_25
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_26
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_27
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_28
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_29
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_30
+top.dut.fpga_top.brew.pipeline.decode_stage.output_port_op_a_31
+@1401200
+-group_end
+@800200
+-EXEC_OUT
+@c00022
+#{top.dut.fpga_top.brew.pipeline.execute_stage.output_port_result_reg_addr_[3:0]} top.dut.fpga_top.brew.pipeline.execute_stage.output_port_result_reg_addr_3 top.dut.fpga_top.brew.pipeline.execute_stage.output_port_result_reg_addr_2 top.dut.fpga_top.brew.pipeline.execute_stage.output_port_result_reg_addr_1 top.dut.fpga_top.brew.pipeline.execute_stage.output_port_result_reg_addr_0
+@28
+top.dut.fpga_top.brew.pipeline.execute_stage.output_port_result_reg_addr_0
+top.dut.fpga_top.brew.pipeline.execute_stage.output_port_result_reg_addr_1
+top.dut.fpga_top.brew.pipeline.execute_stage.output_port_result_reg_addr_2
+top.dut.fpga_top.brew.pipeline.execute_stage.output_port_result_reg_addr_3
+@1401200
+-group_end
+@28
+top.dut.fpga_top.brew.pipeline.execute_stage.output_port_result_reg_addr_valid
+top.dut.fpga_top.brew.pipeline.execute_stage.output_port_valid
+@c00022
+#{top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_[15:0]} top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_15 top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_14 top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_13 top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_12 top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_11 top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_10 top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_9 top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_8 top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_7 top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_6 top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_5 top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_4 top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_3 top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_2 top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_1 top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_0
+@28
+top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_0
+top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_1
+top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_2
+top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_3
+top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_4
+top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_5
+top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_6
+top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_7
+top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_8
+top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_9
+top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_10
+top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_11
+top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_12
+top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_13
+top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_14
+top.dut.fpga_top.brew.pipeline.execute_stage.output_port_data_l_15
+@1401200
+-group_end
+@1000200
+-EXEC_OUT
+@800200
+-REG_FILE
+@c00022
+#{top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_[31:0]} top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_31 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_30 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_29 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_28 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_27 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_26 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_25 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_24 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_23 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_22 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_21 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_20 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_19 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_18 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_17 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_16 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_15 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_14 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_13 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_12 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_11 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_10 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_9 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_8 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_7 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_6 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_5 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_4 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_3 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_2 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_1 top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_0
+@28
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_0
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_1
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_2
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_3
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_4
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_5
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_6
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_7
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_8
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_9
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_10
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_11
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_12
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_13
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_14
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_15
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_16
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_17
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_18
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_19
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_20
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_21
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_22
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_23
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_24
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_25
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_26
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_27
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_28
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_29
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_30
+top.dut.fpga_top.brew.pipeline.reg_file.write_data_d_31
+@1401200
+-group_end
+@c00022
+#{reg_file_mem_0_read_addr} top.dut.fpga_top.brew.pipeline.reg_file.mem1.read1_addr_3 top.dut.fpga_top.brew.pipeline.reg_file.mem1.read1_addr_2 top.dut.fpga_top.brew.pipeline.reg_file.mem1.read1_addr_1 top.dut.fpga_top.brew.pipeline.reg_file.mem1.read1_addr_0
+@28
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.read1_addr_0
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.read1_addr_1
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.read1_addr_2
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.read1_addr_3
+@1401200
+-group_end
+@c00022
+#{reg_file_mem_0_output} top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_31 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_30 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_29 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_28 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_27 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_26 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_25 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_24 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_23 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_22 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_21 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_20 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_19 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_18 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_17 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_16 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_15 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_14 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_13 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_12 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_11 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_10 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_9 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_8 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_addr_3 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_addr_2 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_addr_1 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_addr_0
+@28
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_addr_0
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_addr_1
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_addr_2
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_addr_3
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_8
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_9
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_10
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_11
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_12
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_13
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_14
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_15
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_16
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_17
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_18
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_19
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_20
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_21
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_22
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_23
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_24
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_25
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_26
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_27
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_28
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_29
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_30
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_31
+@1401200
+-group_end
+@28
+top.dut.fpga_top.brew.pipeline.reg_file.output_port_data_l_0
++{top.dut.fpga_top.brew.pipeline.reg_file.rsv_valid} top.dut.fpga_top.brew.pipeline.reg_file.rsv_valid~0.cout
+@c00022
+#{top.dut.fpga_top.brew.pipeline.reg_file.rsv_addr_[3:0]} top.dut.fpga_top.brew.pipeline.reg_file.rsv_addr_3 top.dut.fpga_top.brew.pipeline.reg_file.rsv_addr_2 top.dut.fpga_top.brew.pipeline.reg_file.rsv_addr_1 top.dut.fpga_top.brew.pipeline.reg_file.rsv_addr_0
+@28
+top.dut.fpga_top.brew.pipeline.reg_file.rsv_addr_0
+top.dut.fpga_top.brew.pipeline.reg_file.rsv_addr_1
+top.dut.fpga_top.brew.pipeline.reg_file.rsv_addr_2
+top.dut.fpga_top.brew.pipeline.reg_file.rsv_addr_3
+@1401200
+-group_end
+@28
+top.dut.fpga_top.brew.pipeline.reg_file.rsv_set_valid~0_combout
+top.dut.fpga_top.brew.pipeline.reg_file.rsv_clr_valid~0_combout
+top.dut.fpga_top.brew.pipeline.reg_file.rsv_registered~0_combout
+@c00022
++{mem1_read1_addr_[3:0]} #{top.dut.fpga_top.brew.pipeline.reg_file.mem1.read1_addr_[3:0]} top.dut.fpga_top.brew.pipeline.reg_file.mem1.read1_addr_3 top.dut.fpga_top.brew.pipeline.reg_file.mem1.read1_addr_2 top.dut.fpga_top.brew.pipeline.reg_file.mem1.read1_addr_1 top.dut.fpga_top.brew.pipeline.reg_file.mem1.read1_addr_0
+@28
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.read1_addr_0
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.read1_addr_1
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.read1_addr_2
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.read1_addr_3
+@1401200
+-group_end
+@1001200
+-group_end
+@c00022
++{mem1_read_data[31:0]} #{top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a[31:0]} top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a31 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a30 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a29 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a28 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a27 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a26 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a25 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a24 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a23 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a22 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a21 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a20 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a19 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a18 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a17 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a16 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a15 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a14 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a13 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a12 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a11 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a10 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a9 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a8 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a7 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a6 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a5 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a4 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a3 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a2 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a1 top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a0
+@28
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a0
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a1
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a2
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a3
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a4
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a5
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a6
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a7
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a8
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a9
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a10
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a11
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a12
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a13
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a14
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a15
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a16
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a17
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a18
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a19
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a20
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a21
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a22
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a23
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a24
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a25
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a26
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a27
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a28
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a29
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a30
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.ram_block1a31
+@1401200
+-group_end
+@28
++{mem1_we_d} top.dut.fpga_top.brew.pipeline.reg_file.mem1.mem_rtl_0|auto_generated|ram_block1a0.we_a_register.d[0]
++{mem1_we_q} top.dut.fpga_top.brew.pipeline.reg_file.mem1.mem_rtl_0|auto_generated|ram_block1a0.we_a_register.q[0]
+@c00022
++{mem1_write_addr[3:0]} #{top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_addr_[3:0]} top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_addr_3 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_addr_2 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_addr_1 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_addr_0
+@28
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_addr_0
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_addr_1
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_addr_2
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_addr_3
+@1401200
+-group_end
+@c00022
+#{mem1_write_data[31:0]} top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_31 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_30 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_29 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_28 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_27 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_26 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_25 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_24 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_23 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_22 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_21 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_20 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_19 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_18 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_17 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_16 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_15 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_14 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_13 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_12 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_11 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_10 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_9 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_8 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_l_7 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_l_6 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_l_5 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_l_4 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_l_3 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_l_2 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_l_1 top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_l_0
+@28
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_l_0
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_l_1
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_l_2
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_l_3
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_l_4
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_l_5
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_l_6
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_l_7
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_8
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_9
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_10
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_11
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_12
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_13
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_14
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_15
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_16
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_17
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_18
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_19
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_20
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_21
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_22
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_23
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_24
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_25
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_26
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_27
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_28
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_29
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_30
+top.dut.fpga_top.brew.pipeline.reg_file.mem1.output_port_data_31
+@1401200
+-group_end
+[pattern_trace] 1
+[pattern_trace] 0

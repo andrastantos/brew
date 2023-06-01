@@ -646,6 +646,9 @@ class ExecuteStage(GenericModule):
 
         s2_result_reg_addr_valid = Reg(s1_result_reg_addr_valid, clock_en = stage_2_reg_en)
         self.output_port.valid <<= stage_2_valid & s2_result_reg_addr_valid & (Reg(stage_2_reg_en) | s2_mem_output.valid)
+        # TODO: I'm not sure if we need these delayed versions for write-back
+        #s2_result_reg_addr = Reg(s1_result_reg_addr, clock_en = stage_2_reg_en)
+        #ldst_result_reg_addr = Reg(s1_result_reg_addr, clock_en = mem_input.ready)
 
         s2_exec_unit <<= Reg(s1_exec_unit, clock_en = stage_2_reg_en)
         s2_ldst_op <<= Reg(s1_ldst_op, clock_en = stage_2_reg_en)
@@ -653,6 +656,7 @@ class ExecuteStage(GenericModule):
         self.output_port.data_l <<= Select(s2_exec_unit == op_class.ld_st, Reg(result[15: 0], clock_en = stage_2_reg_en), s2_mem_output.data_l)
         self.output_port.data_h <<= Select(s2_exec_unit == op_class.ld_st, Reg(result[31:16], clock_en = stage_2_reg_en), s2_mem_output.data_h)
         self.output_port.data_en <<= Reg(~branch_output.do_branch, clock_en = stage_2_reg_en)
+        #self.output_port.addr <<= Select(s2_exec_unit == op_class.ld_st, s2_result_reg_addr, ldst_result_reg_addr)
         self.output_port.addr <<= Reg(s1_result_reg_addr, clock_en = stage_2_reg_en)
         self.output_port.do_bse <<= Reg(s1_do_bse, clock_en = stage_2_reg_en)
         self.output_port.do_wse <<= Reg(s1_do_wse, clock_en = stage_2_reg_en)

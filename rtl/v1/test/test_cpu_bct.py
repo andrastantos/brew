@@ -727,7 +727,7 @@ def test_ldst(top):
     Test load-store operations
     """
 
-    top.set_timeout(6000)
+    top.set_timeout(10000)
 
     data_base = 0x80002000
 
@@ -923,17 +923,17 @@ def test_ldst(top):
 
     load_reg("$r10", 0x01234567)
     load_reg("$r11", 0x89abcdef)
-    load_reg("$r0", data_base)
-    load_reg("$r1", data_base+4)
+    load_reg("$r12", data_base)
+    load_reg("$r13", data_base+4)
 
-    mem32_r_plus_t_eq_r("$r0", 0, "$r2")
-    mem32_r_plus_t_eq_r("$r1", 0, "$r2")
-    mem32_r_plus_t_eq_r("$r0", 4, "$r11")
-    mem32_r_plus_t_eq_r("$r1", -4, "$r10")
-    r_eq_mem32_r_plus_t("$r5", "$r0", 4)
-    r_eq_mem32_r_plus_t("$r6", "$r1", -4)
-    r_eq_mem32_r_plus_t("$r7", "$r0", 0)
-    r_eq_mem32_r_plus_t("$r8", "$r1", 0)
+    mem32_r_plus_t_eq_r("$r12", 0, "$r2")
+    mem32_r_plus_t_eq_r("$r13", 0, "$r2")
+    mem32_r_plus_t_eq_r("$r12", 4, "$r11")
+    mem32_r_plus_t_eq_r("$r13", -4, "$r10")
+    r_eq_mem32_r_plus_t("$r5", "$r12", 4)
+    r_eq_mem32_r_plus_t("$r6", "$r13", -4)
+    r_eq_mem32_r_plus_t("$r7", "$r12", 0)
+    r_eq_mem32_r_plus_t("$r8", "$r13", 0)
 
     check_reg("$r5", 0x89abcdef)
     check_reg("$r6", 0x01234567)
@@ -949,9 +949,20 @@ def test_ldst(top):
 
 if __name__ == "__main__":
     prep_test(top)
+    #test_1()
+    #test_2()
     #test_3()
+    #test_4()
+    #test_5()
+    #test_framework()
+    #test_alu_rr()
+    #test_alu_Ir()
+    #test_alu_ir()
+    #test_alu_r()
+    #test_branch_zc()
+    #test_branch_rc()
+    #test_branch_bit()
     test_ldst()
-
 
 if "pytest" in sys.modules:
     prep_test(top)
