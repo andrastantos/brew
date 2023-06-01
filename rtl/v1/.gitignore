@@ -9,4 +9,5 @@ i_*/*
 **/incremental_db/*
 **/*work/*
 **/output_files/*
+**/*.qws
 
