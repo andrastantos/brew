@@ -9,22 +9,26 @@ Prerequisites:
   libmpfr-dev
   libisl-dev
 
-TARGET=brew-none-elf
-or
 TARGET=brew-linux-newlib
+or
+TARGET=brew-none-elf
 PREFIX=~/brew-toolset
 export PATH=$PATH:$PREFIX/bin
+# for cygwin:
+export BREW_BLD_EXTRA="--build=x86_64-w64-cygwin --host=x86_64-w64-cygwin"
+# for mingw:
+export BREW_BLD_EXTRA="--build=x86_64-w64-mingw32 --host=x86_64-w64-mingw32"
 
 1. binutils:
   mkdir brew-binutils-build
   cd brew-binutils-build
-  ../brew-binutils-gdb/configure --target=$TARGET --prefix=$PREFIX --no-recursion --enable-sim-profile=yes
+  ../brew-binutils-gdb/configure --target=$TARGET --prefix=$PREFIX --no-recursion --enable-sim-profile=yes $BREW_BLD_EXTRA
   make
   make install
 2. gcc phase 1:
   mkdir brew-gcc-build1
   cd brew-gcc-build1
-  ../brew-gcc/configure --target=$TARGET --prefix=$PREFIX --enable-languages=c --without-headers --with-newlib --disable-shared --disable-libssp --disable-threads --disable-libgomp --disable-libatomic
+  ../brew-gcc/configure --target=$TARGET --prefix=$PREFIX --enable-languages=c --without-headers --with-newlib --disable-shared --disable-libssp --disable-threads --disable-libgomp --disable-libatomic $BREW_BLD_EXTRA
   make
   make install
 3. newlib
@@ -37,7 +41,7 @@ export PATH=$PATH:$PREFIX/bin
 4. gcc phase 2:
   mkdir brew-gcc-build
   cd brew-gcc-build
-  ../brew-gcc/configure --target=$TARGET --prefix=$PREFIX --enable-languages="c,c++" --without-headers --with-newlib --disable-shared --disable-libssp --disable-threads --disable-libgomp --disable-libatomic
+  ../brew-gcc/configure --target=$TARGET --prefix=$PREFIX --enable-languages="c,c++" --without-headers --with-newlib --disable-shared --disable-libssp --disable-threads --disable-libgomp --disable-libatomic  $BREW_BLD_EXTRA
   make
   make install
 
