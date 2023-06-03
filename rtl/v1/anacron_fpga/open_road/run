@@ -1,0 +1,3 @@
+#!/bin/bash
+cd ~/Work/vlsi/tools/OpenROAD-flow-scripts/flow
+make DESIGN_CONFIG=~/brew/rtl/v1/anacron_fpga/open_road/config.mk
