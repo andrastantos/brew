@@ -3,11 +3,16 @@ HOW TO BUILD THE TOOLSET?
 
 Prerequisites:
 
-  dejagnu
-  autogen
-  libmpc-dev
-  libmpfr-dev
-  libisl-dev
+  sudo apt install \
+    texinfo \
+    bison \
+    yacc \
+    flex \
+    dejagnu \
+    autogen \
+    libmpc-dev \
+    libmpfr-dev \
+    libisl-dev
 
 TARGET=brew-none-elf
 or
