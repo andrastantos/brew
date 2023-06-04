@@ -3,35 +3,35 @@ CPU (the story)
 
 For the anachronistic computer, we need a properly anachronistic processor. As it turns out, I just have the design! I have been toying around with an instruction set design lately: the BREW architecture.
 
-What is BREW you might ask? It's my attempt at a RISC-like architecture. I had a few ideas that have been rattling around in my cranium for years, but have always put it off as too crazy a project to endevour on. You see, there are way too many ISAs in the wild already, why should I inflict another one on the world? Plus, it's not exactly trivial to lift an ISA off the ground: one needs an assembler. A linker. A C compiler, runtime libraries, a debugger, a simulator. Ideally other languages, such as C++ as well. This was a daunting list that terrified my. About a year ago, I said, what the hack, why don't I give it a shot? As it turns out, porting GCC (and binutils) to a new target wasn't all that difficult. In a couple of months I had pretty much all of the above accomplished. Except for GDB, the debugger. That I still didn't get around. This experience also allowed me to run some benchmarks (on an instruction-set simulator) and realize that my instruction set sucked in so many ways. I ended up re-writing the ISA three times, following up with all the toolset changes. At the end of the process though, I ended up with an ISA that was better in code-density then RISC-V, better then ARM, almost as good as THUMB.
+What is BREW you might ask? It's my attempt at a RISC-like processor. I had a few ideas that have been rattling around in my cranium for years, but have always put it off as too crazy a project to embark upon. You see, there are way too many ISAs in the wild already, why should I inflict another one on the world? Plus, it's not exactly trivial to lift an ISA off the ground: one needs an assembler. A linker. A C compiler, runtime libraries, a debugger, a simulator. Ideally other languages, such as C++ as well. This was a daunting list that terrified me. About a year ago, I said, what the hack, why don't I give it a shot? As it turns out, porting GCC (and binutils) to a new target wasn't all that difficult. In a couple of months I had pretty much all of the above accomplished. Except for GDB, the debugger. That, I still didn't get around. This experience also allowed me to run some benchmarks (on an instruction-set simulator) and realize that my instruction set sucked in so many ways. I ended up re-writing the ISA three times, following up with all the toolset changes. At the end of the process though, I ended up with an ISA that was better in code-density then RISC-V, better then ARM, almost as good as THUMB.
 
 So, what does this processor look like? It's a 32-bit processor, and as I said, it's RISC-like. There are a few (nowadays) unusual features, so let's get through them!
 
 Instruction size
 ~~~~~~~~~~~~~~~~
 
-My ISA violates (at least) one of the main tenants of RISC: the instructions are of a variable length. The base instruction set is 16-bits long, but that doesn't allow for room for (almost any) immediate values. This is a problem for almost all 32-bit ISA designs: if you want to be able to store 32-bit constants right in the instruction stream, you obviously need more than 32-bits per instructions to do so. If you don't, then, well, how do you describe 32-bit constants? You have two options and various RISC implementations do both: you either use multiple instructions to assemble a constant (for instance load the lower 16-bit, then the upper), or put the values somewhere in memory instead in the instruction stream and get them using a load instruction.
+My ISA violates (at least) one of the main tenets of RISC: the instructions are of a variable length. The base instruction set is 16-bits long, but that doesn't allow room for (almost any) immediate values. This is a problem for all 32-bit ISA designs: if you want to be able to store 32-bit constants right in the instruction stream, you obviously need more than 32-bits per instructions to do so. If you don't, then, well, how do you describe 32-bit constants? You have two options and various RISC implementations do both: you either use multiple instructions to assemble a constant (for instance load the lower 16-bit, then the upper), or put the values somewhere in memory instead of the instruction stream and get them using a load instruction.
 
-I didn't want to do either: multiple instructions seem wasteful (you end up using 64-bits of instruction space at least, provided you instructions are 32-bit long) and using loads is slow; using the pre-fetcher to get consecutive data for the instruction stream is about as efficient as you can get to interface to memory.
+I didn't want to do either: multiple instructions seem wasteful and using loads is slow. In the first case you burn a lot of extra bits for describing two instructions. In the second, the instruction pre-fetcher is pretty much the most efficient way of getting data from memory.
 
-Given these considerations, I decided that constants must be part of the instructions and there must be a way to store 32-bit constants right then and there. That however means that some of my instructions are going to be longer than 32 bits, the next logical value being 48 bits. So, I ended up with three instruction lengths:
+Given these considerations, I decided that constants must be part of the instructions and there must be a way to store 32-bit constants directly. That however means that some of my instructions are going to be longer than 32 bits, the next logical value being 48 bits. So, I ended up with three instruction lengths:
 
 1. 16-bit instructions for everything not involving immediate constants
 2. 32-bit instructions where a 16-bit immediate is sufficient
 3. 48-bit instructions where a full 32-bit immediate is required
 
-After experimentation, this picture got muddled a bit: I realized that there is good value in encoding really small immediates in 16-bit instructions, at least for certain often used operations.
+After experimentation, this picture got muddled a bit: I realized that there is good value in encoding really small constants in 16-bit instructions, at least for certain often used operations.
 
 Registers and their encoding
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-The ISA follows the traditional 3-register addressing of almost all modern RISC processors: there is a destination register and (up to) two source registers, each being described by individual fields in the instruction set. There are a total of 15 general-purpose registers, $r0 through $r14. So, an addition can be described as: `$r3 <- $r10 + $r12` for instance (yes, the assembly is algebraic, you don't have to learn a bunch of cryptic mnemonics).
+The ISA follows the traditional 3-register addressing of almost all modern RISC processors: there is a destination register and (up to) two source registers, each being described by individual fields in the instruction set. There are a total of 15 general-purpose registers, $r0 through $r14. An addition can be described as: `$r3 <- $r10 + $r12` for instance (yes, the assembly is algebraic, you don't have to learn a bunch of cryptic mnemonics).
 
 You probably have two questions at this point: Why 15 and how can this ever work?
 
-To describe one of 15 registers, one needs 4 bits. Three such register indices need 12 bits. I have only 16 bits for an instruction, so that should mean I can have only 16 instructions? That's surely insufficient. Indeed it is. But I don't have 16 registers, only 15. That means, that in each of the three register-index fields, I can have a special value (I've used 0xf) to denote an alternate behavior. Originally the idea was that an 0xf in a register index field means that the operand value should come from the immediate field after the instruction, instead of a register (see how variable instruction-length would come to be?) but later this idea got muddled quite a bit.
+To describe one of 15 registers, one needs 4 bits. Three such register indices need 12 bits. I have only 16 bits for an instruction, so that should mean I can have only 16 different instructions? That's surely insufficient. Indeed it is. But I don't have 16 registers, only 15. That means, that in each of the three register-index fields, I can have a special value (I've used 0xf) to denote some alternate behavior. Originally the idea was that an 0xf in a register index field would mean an immediate operand. Later this idea got quite a bit more complicated.
 
-One way to look at this is that these '0xf' fields 'escape' into an alternate instruction decode plane, allowing for more operations. For instance, if the destination register field is set to '0xf', that surely shouldn't mean that the destination is an immediate field after the instruction. That value could be used to decode conditional branches for instance.
+One way to look at this is that these '0xf' fields 'escape' into an alternate instruction decode plane, allowing for more operations. For instance, if the destination register field is set to '0xf', that surely shouldn't mean that the destination is an immediate. That space could be used to decode conditional branches for instance.
 
 In the end, the 16-bit instruction is broken up into four 4-bit fields::
 
@@ -41,12 +41,12 @@ In the end, the 16-bit instruction is broken up into four 4-bit fields::
 
 FIELD_E, if exists is the 16- or 32-bit immediate, following these fields.
 
-Normally, FIELD_D denotes the destination register index, while FIELD_B and FIELD_A describes the source operand registers. As I said, things are more complicated than this, bit it gives you the basic idea.
+Normally, FIELD_D denotes the destination register index, while FIELD_B and FIELD_A describes the two source operand registers. As I said, things are more complicated than this, bit it gives you the basic idea.
 
 Program counter is not a register
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Many many RISC architectures put the program counter into one of the general purpose register slots. Index 0 is a common choice. I started out that way as well, but soon realized that many instructions just don't make sense on the PC (why would you ever want to XOR the PC with another register, or store the resultant value of a multiply in the PC?). Other instructions mostly make sense only with the PC and not with any other general-purpose register.
+Many many RISC architectures put the program counter into one of the general purpose register slots. Index 0 is a common choice. I started out that way as well, but soon realized that many operations just don't make sense on the PC (why would you ever want to XOR the PC with another register?). Other instructions make sense *only* with the PC and not with any other general-purpose register.
 
 The actual processor implementation also needs to treat PC differently from other registers: it is modified by every instruction, you might need a 'copy' of it in the pre-fetch unit; you have to be careful with it when it comes to exceptions, etc. You also want to be able to easily identify branch instructions (anything that can change program order) if you ever want branch-prediction.
 
@@ -57,58 +57,56 @@ Overall, I thought it is just better practice to have dedicated instructions for
 Interrupts
 ~~~~~~~~~~
 
-While working on <<<<<<<<<< ADD LINK >>>>>>>>>> the Cray simulator, I came across an interesting implementation idea, one that I haven't seen in any modern processor: these machines didn't have an interrupt vector; they had different execution contexts. Crays had a way to save and load (almost) all registers when an interrupt occurred, changing the execution context automatically. I didn't go as far as these supercomputers did. I opted for just maintaining two PCs for two contexts: $spc for a context I call the SCHEDULER and another ($tpc) for the TASK context. PC (or $pc) is just a reference to one or the other, depending on the execution context. The operation is the following:
+While working on the `Cray simulator <http://www.modularcircuits.com/blog/articles/the-cray-files/>`_, I came across an interesting implementation idea, one that I haven't seen in any modern processor: these machines didn't have an interrupt vector; they had different execution contexts. Crays had a way to save and load (almost) all registers when an interrupt occurred, changing the execution context automatically. I didn't go as far as these supercomputers did. I opted for just maintaining two PCs for two contexts: `$spc` for a context I call the SCHEDULER and another (`$tpc`) for the TASK context. PC (or `$pc`) is just a reference to one or the other, depending on the execution context. The operation is the following:
 
-In SCHEDULER mode, interrupts are *always* disabled. You can't enable them. Period. There is a special instruction, that takes you into TASK mode (stm). This instruction simply sets the execution context to TASK mode, so execution continues from the current $tpc.
+In SCHEDULER mode, interrupts are *always* disabled. You can't enable them. Period. There is a special instruction, that takes you into TASK mode (`stm`). This instruction simply sets the execution context to TASK mode, so execution continues from the current `$tpc`.
 
-In TASK mode, interrupts are *always* enabled. You can't disable them. Period. Whenever an interrupt occurs, the processor switches back to SCHEDULER mode and continues from wherever $spc points to.
+In TASK mode, interrupts are *always* enabled. You can't disable them. Period. Whenever an interrupt occurs, the processor switches back to SCHEDULER mode and continues from wherever `$spc` points to.
 
-This is very confusing at first, because it appears that interrupts just get the processor to start execution from a seemingly random place. To understand what's going you have to think about how we entered TASK mode to begin with. The only way to enter TASK mode is to execute the `stm` instruction. Where does $spc point to when TASK mode execution starts? After this instruction. So, when the processor returns to SCHEDULER mode, it continues execution *after* the `stm` instruction. Pretty neat: `stm` works almost as a procedure call and TASK mode 'returns', whenever there's an event needing the attention of the SCHEDULER.
+This is very confusing at first, because it appears that interrupts just get the processor to start execution from a seemingly random place. To understand what's going you have to think about how we entered TASK mode to begin with. The only way to enter TASK mode is to execute the `stm` instruction. Where does `$spc` point to when TASK mode execution starts? After this `stm` instruction. So, when the processor returns to SCHEDULER mode, it continues execution *after* the `stm` instruction. Pretty neat: `stm` works almost as a procedure call and TASK mode 'returns', whenever there's an event needing the attention of the SCHEDULER.
 
 In practice, the SCHEDULER mode code is nothing but a ... well ... scheduler loop: it figures out the reason for the interrupt, finds the handler task for it, and enters TASK mode to 'call' then handler. This could involve switching to a different process (in the case of a timer interrupt in a multi-tasking machine) or entering for instance the keyboard driver in case of a keyboard interrupt. It's a very natural way of writing such code.
 
 Exceptions and SW-generated interrupts (system calls, software break-points, what not) handled the same way: the TASK mode process is simply interrupted and execution is returned to SCHEDULER mode.
 
-<<<<<<<<< ADD SIMPLE CODE FOR SCHEDULER MODE >>>>>>>>>
-
-There of course needs to be a way to setup a task: there are instructions that can manipulate $tpc directly (as opposed to branch operations with work on $pc, which could be an alias to either $tpc or $spc).
+There of course needs to be a way to setup a task: there are instructions that can manipulate `$tpc` specifically. This is different from branch operations which work on `$pc`, that is the program counter of the executing context. These `$tpc` manipulation instructions of course also turn into branches if the processor happens to be in TASK mode, but they don't change execution order, if executed in SCHEDULER mode.
 
 Privileged instructions
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-There are none! Normally, a processor would have several instructions that can only be executed in a privileged context. These include manipulating sensitive machine state, or changing things that could impact the OS-es ability to take control of the system, such as disabling interrupts.
+There are none. Normally, a processor would have several instructions that can only be executed in a privileged context. These include manipulating sensitive machine state, or changing things that could impact the OS-es ability to take control of the system, such as disabling interrupts.
 
-In the BREW architecture SCHEDULER mode is assumed to have all the rights in the world: it can do anything. It's TASK mode that is limited, in particular, it's various processes in TASK mode that should have controlled ability to influence each other or the SCHEDULER mode process.
+In the BREW architecture SCHEDULER mode is assumed to have all the rights in the world: it can do anything. It's TASK mode that is limited. In particular, it's various processes in TASK mode that should have controlled ability to influence each other or the SCHEDULER mode environment.
 
-There are two main avenues of interference that needs to be blocked. First: no TASK mode process should be able to influence the execution (the $tpc) of any other TASK mode process. Second, no TASK mode process should be able to influence the execution (the $spc) of SCHEDULER mode.
+There are two main avenues of interference that needs to be controlled. First: no TASK mode process should be able to influence the execution (the `$tpc`) of any other TASK mode process. Second, no TASK mode process should be able to influence the execution (the `$spc`) of SCHEDULER mode.
 
-Both of these requirements are easily satisfied: there's just one $tpc that the SCHEDULER swaps in and out when it changes TASK mode execution context. Unless a TASK mode process can modify the storage location where the SCHEDULER stores another processes $tpc (which is an access right issue, discussed in a minute) there's no way for such influence to occur. A TASK mode process also can't modify $spc, simply because there is no instruction to do so: instructions can modify $tpc or $pc. For a TASK mode process $pc *is* $tpc, so there's no instruction to touch $spc. For the SCHEDULER mode process, $pc is an alias of $spc, so it can modify either that or $tpc.
+Both of these requirements are easily satisfied: there is just one `$tpc`. All other TASK mode processes have their context saved and restored by the SCHEDULER, so as long as that task state storage is not accessible to the TASK, it won't be able to influence it's content.
 
-It's feels wholesome that all instructions execute the same way with the same semantics in both TASK and SCHEDULER mode. It's this slight asymmetry in the instruction set (that there are instructions directly manipulating $tpc, but there are none to do the same with $spc) that makes all the difference.
+A TASK mode process also can't modify `$spc`, simply because there is no instruction to do so: instructions can modify `$tpc` or `$pc`. For a TASK mode process `$pc` *is* `$tpc`.
+
+I like the idea that all instructions execute the same way with the same semantics in both TASK and SCHEDULER mode. There is merely this slight asymmetry in the instruction set that makes all the difference.
 
 Access rights
 ~~~~~~~~~~~~~
 
 Now, on to access rights. The processor architecture doesn't really define any memory protection scheme, all it really does is to make sure that everything goes through whatever this external protection logic is. This includes CPU-specific CSR registers.
 
-While the canonical way of dealing with access rights and protections is through a paging MMU, the first implementation of BREW doesn't have enough silicon area (remember, we try to work with 1.5um silicon process) to implement that. Thus, a much simpler protection scheme is used:
+While the canonical way of dealing with access rights and protections is through a paging MMU, the implementation of BREW for Anacron doesn't have enough silicon area (remember, we try to work with 1.5um silicon process) to implement that. Thus, a much simpler protection scheme is used:
 
-In TASK mode, every memory access is offset by a `base` register and checked against a `limit` register. This sets up a single, contiguous window in physical memory, that a the process can access. Anything below the `base` is inaccessible (no negative addresses are supported) and anything above the `limit` would generate an access violation exception. In reality, the situation is a bit more complicated: there are a pair of `base` and `limit` registers: one for instruction fetches and one for everything else.
+In TASK mode, every memory access is offset by a `base` register and checked against a `limit` register. This sets up a contiguous window in physical memory, that a the process can access. There is one such window for instructions and another for data. Anything below the `base` is inaccessible (no negative addresses are supported) and anything above the `limit` would generate an access violation exception.
 
 In SCHEDULER mode, these registers are simply assumed to be 0, giving access to the whole physical address space without translation.
 
-The aforementioned `base` and `limit` registers are implemented as CSRs. CSRs are mapped into the physical address space, starting 0x4000_0000, between ROMs and I/O (0x0000_0000) and DRAM (0x8000_0000). This region is normally not used by user code: they interact with HW (I/O) using drivers, don't have code in ROM so, they can have the `base` set to somewhere in DRAM.
-
-Such a simple scheme has limitations. It is sufficient to protect user-mode processes from one another. However, drivers and OS components (which also run in TASK mode, but need access to certain I/Os and CSRs; they could also be partially in ROM) need compete open access to every HW resource: there's no way to be more granular about permissions. This is a problem in that drivers can crash the system.
+Such a simple scheme has limitations. It is sufficient to protect user-mode processes from one another and SCHEDULER mode from user-mode processes. However, drivers and OS components will need complete open access to every HW resource: there's no way to be more granular about permissions. This is a problem, but an acceptable compromise, I decided.
 
 Stack operations
 ~~~~~~~~~~~~~~~~
 
-Most processors, in fact, all processors I know of have special instructions for stack management: you can push and pop values off of a stack, call subroutines (in which case the PC gets pushed on the stack) and return from them (when you pop the PC from the stack). The problem with these operations is that they (the pops at least) modify two registers at the same time: the stack pointer and the register they popped.
+Most processors, in fact, all processors I know of have special instructions for stack management: you can push and pop values off of a stack, call subroutines (in which case the PC gets pushed on the stack) and return from them. The problem with these operations is that they (the pops at least) modify two registers at the same time: the stack pointer and the register they popped.
 
-The BREW implementation allows *strictly* up to two register reads and a single register write per instruction. This setup allows for a single write port into the register file, something that's crucial if we wanted to use RAMs instead of flops for implementation (either in FPGAs or in an ASIC).
+The BREW implementation allows up to two register reads and a *single* register write per instruction. This restriction is crucial if we wanted to use RAMs instead of flops for register-file implementation (either in FPGAs or in an ASIC).
 
-So, the solution is that there are no stack operations in BREW. This makes subroutine calls and returns a little bit more expensive then they would otherwise be, but only slightly. Under normal circumstances on a RISC processor, the caller has to:
+The consequence? There are no stack operations in BREW. This makes subroutine calls and returns a little bit more expensive then they would otherwise be, but only slightly. Under normal circumstances, the caller has to:
 
 1. Save important caller-saved registers on the stack
 2. Put argument values on the stack
@@ -122,16 +120,14 @@ At this point, the callee:
 
 On return the reverse needs to happen. This is several instructions and clock cycles, especially on a machine without (efficient) caches.
 
-If no pushes and pulls are supported, really the only thing that needs to be included is a single, manual modification of the stack pointer. That's one extra instruction in the long instruction stream, something that doesn't touch memory and thus significantly faster then what's already there.
+If no pushes and pulls are supported, really the only thing that needs to be included in the above list is the manual modification of the stack pointer. That's one extra instruction in the long instruction stream, something that doesn't touch memory, so comparatively light-weight.
 
-I suppose one other thing that stack-operations help with is the automatic addressing. The BREW processor has register-offset indirect addressing for every load/store operation kind, which not only helps with subroutine calls but also very important for local variables as well as struct-member accesses. Supporting this is much better bang for the buck then the stack operations and either their multi-cycle behavior or second write port.
-
-There are special, 16-bit load/store instructions that work with `$r0` and `$r1` as their base-register. These instructions, combined with the ABI that designates these two registers as the stack and frame pointer respectively makes code very compact, almost as compact as the ARM THUMB ISA. (Note that THUMB only supports 8 general purpose registers, we have 14, so we can handle register pressure better and generate less spills into the stack.)
+There are special, 16-bit load/store instructions that work with `$r12` and `$r13` as their base-register. These instructions, combined with the ABI that designates these two registers as the stack and frame pointer respectively makes code very compact, almost as compact as the ARM THUMB ISA. (Note that THUMB only supports 8 general purpose registers, we have 14, so we can handle register pressure better and generate less spills into the stack.)
 
 Unimplemented features
 ~~~~~~~~~~~~~~~~~~~~~~
 
-There are several features of the original BREW concept that the current implementation doesn't support. These are either things that I deemed too complex for the target technology (and era) or things that I'm on the fence on at the moment.
+There are several features of the original BREW concept that the Anacron implementation doesn't support. These are either things that I deemed too complex for the target technology (and era) or things that I'm on the fence on at the moment.
 
 Memory model operations
 -----------------------
@@ -151,18 +147,20 @@ This is a new idea that I'm toying with: would it be too difficult to add a pair
 Register Types
 --------------
 
-This is probably the most controversial feature of BREW, something that I haven't seen in any other processor (maybe for good reasons). The idea is that along with every register value, the processor maintains the type of the data stored in that register. This type can be set by a set of instructions and - crucially - used by the processor to determine the semantics of various operations. For instance, the operation `$r4 <- $r5 + $r6` could mean an integer addition if `$r5` and `$r6` hold integer values, but the same bit-pattern can mean a floating-point addition if the source operand types set as such. There are many many corner-cases to be ironed out (what if `$r5` is a float and `$r6` is an integer?) but that is mostly just a set of decisions to be made.
+This is probably the most controversial feature of BREW, something that I haven't seen in any other processor (maybe for good reasons). The idea is that along every register value, the processor maintains the type of the data stored in that register. This type can be set by a set of instructions and - crucially - used by the processor to determine the semantics of various operations. For instance, the operation `$r4 <- $r5 + $r6` could mean an integer addition if `$r5` and `$r6` hold integer values, but the same bit-pattern can mean a floating-point addition if the source operand types set as such. There are many many corner-cases to be ironed out (what if `$r5` is a float and `$r6` is an integer?) but that is mostly a question of policy.
 
-Another big problem is that now on function entry/return not only register values, but their types will need to be saved and restored. I have instructions that can handle this, but the previously mentioned multiple load-store operations would shine in this aspect: they can handle the type load/store aspect right then and there.
+Another big problem is that now on function entry/return not only register values, but their types will need to be saved and restored. I have instructions that can handle this, but the previously mentioned multiple load-store operations would shine in this aspect: they can handle the type load/store aspect right then and there. A similar save/restore concept needs to be employed during task-switching adding extra time it takes to swap the execution context.
 
-Yet another problem is compiler support: I don't know how to explain this behavior to GCC: that it can use *any* register as a floating-point one, but really shouldn't: it should try to group operations and register-assignments by type: type-changes are extra instructions, so should be avoided. But now, the register-allocator would need to be type-aware.
+Yet another problem is compiler support: I don't know how to explain this behavior to GCC. How to tell it that it can use *any* register as a floating-point one, but really should not: it should try to group operations and register-assignments by type: type-changes are extra instructions, so should be avoided. This means though that the register-allocator would need to be type-aware.
 
-Finally, there's the question of how to build a high(er) performance processor with this feature? You see, the problem is that the execution-unit selection can't be done until the source operand types are known. This on the surface would mean that out-of-order execution would be really difficult. The saving-grace though is this: the result type of an operation is known right when the source operand types are determined. So, even though the *values* of the registers might come several clock cycles later, the *type* of those values can be known immediately and scheduling of operations to execution units (and queues) can continue. The complexity of
+Finally, there's the question of how to build a high(er) performance processor with this feature? You see, the problem is that the execution-unit selection can't be done until the source operand types are known. This on the surface would mean that out-of-order execution would be really difficult. The saving-grace though is this: the result type of an operation is known right when the source operand types are determined. So, even though the *value* of the result might come several clock cycles later, the *type* of said result can be known immediately and scheduling of operations to execution units (and queues) can continue.
 
 Extension groups
 ----------------
 
 There are several holes in the instruction set, that can be used to extend the ISA in the future. Some of these are already called for for more complex operations (linear interpolation is one example).
+
+
 
 
 
@@ -407,15 +405,16 @@ Synthesis results
 
 Now that the V1 design is more or less complete, here are some stats:
 
-Using the OpenRoad toolchain and sky130hd PDK, the core area is 0.16mm^2.
+Using the OpenRoad toolchain and sky130hd PDK, the core area is 0.176mm^2.
 
 ============== =============    ========  ==========================================================================================
 Core die area   Fmax             Node      Comparison (source: https://en.wikipedia.org/wiki/Transistor_count#Transistor_density)
 ============== =============    ========  ==========================================================================================
-0.16mm^2        100MHz           130nm
-21mm^2          8.6MHz           1.5um     49mm^2 for 80286
-36mm^2          6.5MHz           2um
-85mm^2          4.3MHz           3um       60mm^2 for 80186; 33mm^2 for 8088
+0.176mm^2       100MHz           130nm
+0.148mm^2                        130nm     without multiplier and shifter
+23mm^2          8.6MHz           1.5um     49mm^2 for 80286
+41mm^2          6.5MHz           2um
+93mm^2          4.3MHz           3um       60mm^2 for 80186; 33mm^2 for 8088
 ============== =============    ========  ==========================================================================================
 
 According to http://www.bitsavers.org/components/rockwell/Trends_in_Microcomputer_Technology_1977.pdf people estimated 40,000mil^2 (62mm^2) dies to be economical in the early '80s. This is to say, that this processor would be rather cheap, if manufactured in 1.5 or 2u process nodes. 3u is not really feasible not just for die-size, but for speed reasons as well: 8-10MHz processors all only appeared in the 1.5u node. 3u node manufacturing tapped out at around 5MHz; too slow for our needs.
@@ -426,7 +425,7 @@ IO cells are apparently missing from the sky130 PDK. The gf180 PDF has them. Her
 
 https://gf180mcu-pdk.readthedocs.io/en/latest/IPs/IO/gf180mcu_fd_io/features.html#cell-dimensions
 
-Bond-pad guidlines are here:
+Bond-pad guidelines are here:
 
 https://gf180mcu-pdk.readthedocs.io/en/latest/physical_verification/design_manual/drm_09_2.html
 
@@ -450,4 +449,4 @@ It's size is 0.534mm^2, closes timing at about 80MHz. Back-scaling it to 1.5u, g
 
 Taking all of this, gives us 71mm^2 for this 32kbit SRAM or 0.00217mm^2/bit.
 
-What if we wanted to add a 1kByte ICache to the system? That would take 17.78mm^2, just for the SRAM array. In other words, we can expect our die-area to double even with a single kB of ICache. So, no ICache for sure!
+What if we wanted to add a 1kByte ICache to the system? That would take 17.78mm^2, just for the SRAM array. In other words, we can expect our die-area to double even with a single 1kB of ICache. So, no ICache for sure!
