@@ -1,3 +1,0 @@
-#!/bin/sh
-iverilog -g2012 brew.sv apb_gpio.sv apb_uart.sv fpga_system.sv fpga_top.sv sim_top.sv -o anacron_fpga || exit 1
-./anacron_fpga

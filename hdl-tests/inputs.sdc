@@ -1,1 +1,0 @@
-#set_input_delay -clock { clk } -add_delay 5 [get_ports {insn[*] rst}]
