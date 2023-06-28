@@ -89,14 +89,14 @@ Exception handling returns are in :code:`$r4`...:code:`$r7` (described in :code:
 Syscalls
 --------
 
-Syscalls follow the same calling convention as function calls do, except that :code:`$r3` contains a syscall-dependent pointer (usually pointer to errno). The :code:`SYSCALL` instruction is used to transfer control to the executive. The syscall number is stored as a 16-bit code after the SYSCALL instruction, in the instruction-stream. Upon entering scheduler mode, :code:`$tpc` points to the current instruction, which is to say, it points to the :code:`SYSCALL`. The scheduler needs to increment :code:`$tpc` by 4 before returning execution to task mode.
+Syscalls follow the same calling convention as function calls do, except that :code:`$lr` contains a syscall-dependent pointer (usually pointer to errno). The :code:`SYSCALL` instruction is used to transfer control to the executive. The syscall number is stored as a 16-bit code after the SYSCALL instruction, in the instruction-stream. Upon entering SCHEDULER mode, :code:`$tpc` points to the current instruction, which is to say, it points to the :code:`SYSCALL`. The SCHEDULER needs to increment :code:`$tpc` by 4 before returning execution to task mode.
 
 .. note:: syscall number is 16-bit instead of 32 so there won't be any alignment problems reading it.
 
 Stack layout
 ------------
 
-Stack management is also the responsibility of SW: there are no instructions that define or constrain the way the stack is organized. However, there are special load/store instructions with very compact encodings that use :code:`$r0` (a.k.a. :code:`$sp`) and :code:`$r1` (a.k.a. :code:`$fp`), so any reasonable ABI would use these two registers for stack management.
+Stack management is also the responsibility of SW: there are no instructions that define or constrain the way the stack is organized. However, there are special load/store instructions with very compact encodings that use :code:`$r12` (a.k.a. :code:`$sp`) and :code:`$r13` (a.k.a. :code:`$fp`), so any reasonable ABI would use these two registers for stack management.
 
 Stack is pre-decrement for push, and post-increment for pop. This means that :code:`$sp` points to the last valid value.
 
@@ -146,8 +146,8 @@ This template is first copied to a memory buffer, :code:`.Lstatic_chain` and :co
 .. todo::
   Trampoline should deal with cache-invalidation, but I don't think it does at the moment.
 
-User code memory layout
------------------------
+User code memory layout in MMU-based systems
+--------------------------------------------
 
 - Page 0 is reserved (to catch NULL-ptr dereference)
 - Entry point is at 0x1000
@@ -199,3 +199,4 @@ With that, right now I'm using :code:`$r13` and :code:`$r14` for :code:`EH_RETUR
     structure return values so it is likely to be available.  */
     #define REG_ALLOC_ORDER \
         {9, 13, 12, 11, 10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 14, 15, 17, 16, 18, 19, 20}
+
