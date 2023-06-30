@@ -1,5 +1,5 @@
-Load-reserve/store-release implementation
-=========================================
+Appendix B: Load-reserve/store-release implementation
+=====================================================
 
 These synchronization primitives are chosen over other variants due to AXI4 having direct support for them through its `exclusive access <https://developer.arm.com/documentation/102202/0200/Atomic-accesses>`_ transactions.
 

@@ -11,17 +11,16 @@ Brew Processor
    :caption: Contents:
 
    introduction
+   basic_concepts
    isa
    isa_details
+   abi
+   decode
    interpolation
    lr-sr
-   abi
-   system
-   uarch
-   decode
    competition
-   todo
    gpu
+   todo
 
 Todos
 =====

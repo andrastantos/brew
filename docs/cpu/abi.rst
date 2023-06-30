@@ -1,8 +1,8 @@
 ABI
 ===
 
-Regiser Use Conventions
------------------------
+Register Use Conventions
+------------------------
 
 The following register usage is defined:
 

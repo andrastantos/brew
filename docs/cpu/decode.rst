@@ -30,7 +30,7 @@ If timing closure is an issue, the expression can be simplified by removing the 
 
 Term 3 has an XOR at the very end (:code:`(FIELD_B & 1 != FIELD_A & 1)`). This term can be decomposed into 2 4-term AND expressions, for essentially 0x20ef and 0x20fe (plus the 0x3... variants).
 
-In essense the critical path is a 16-bit compare followed by 6-way OR (for the full term) or a 15-bit compare followed by a 4-way OR (for the simplified term).
+In essence the critical path is a 16-bit compare followed by 6-way OR (for the full term) or a 15-bit compare followed by a 4-way OR (for the simplified term).
 
 .. note::
   It seems that Cyclone V has 5-bit LUTs. That would mean that one can compare 15 bits in 3 LUTs. Then, another LUT could be used to generate a single output bit. That is to say a 15-bit comparator has a 2-LUT latency. The 4 comparators can be combined in a

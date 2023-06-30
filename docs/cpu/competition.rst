@@ -1,5 +1,7 @@
-Comparing to the competition
-============================
+Appendix C: Comparing to the competition
+========================================
+
+.. todo:: This needs updating to the latest stats!
 
 Linpack.o: 3411 assembly lines, 6640 bytes of code. That's pretty close to 16-bits per instruction. And that's before the spill/reload optimizations. That alone would save 774 words or 1584 bytes. That would make the code segment 5056 bytes long, so below 16 bits per instruction (which of course must be a measurement error, I can't average below 16.)
 

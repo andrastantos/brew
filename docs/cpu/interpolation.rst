@@ -1,12 +1,10 @@
-Interpolation
--------------
+Appendix A: Interpolation
+=========================
 
-I'm actually not sure at all what I wanted the interpolation instruction to do anymore.
-
-The simulation just throws an exception and this old description below describes something woefully complex.
+.. todo::  I'm actually not sure at all what I wanted the interpolation instruction to do anymore. The simulation just throws an exception and this old description below describes something woefully complex.
 
 2D interpolation
-~~~~~~~~~~~~~~~~
+----------------
 
 Inputs:
 
@@ -47,7 +45,7 @@ At the same time, maybe other operations could also benefit from looking at the 
 Maybe even multi-cycle, instead of fully pipelined?
 
 1D interpolation
-~~~~~~~~~~~~~~~~
+----------------
 
 Inputs:
 
