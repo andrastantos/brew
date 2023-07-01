@@ -33,3 +33,8 @@ Toolchain
 
 .. todo:: we need a predefined macro for -msoft-float
 
+
+Multiple Load-Stores
+--------------------
+
+This is a new idea that I'm toying with: would it be too difficult to add a pair of (multi-cycle) instructions that could load and store any combination of registers? This goes against the RISC approach, it's clearly a complex concept. However, ARM has it and for good reason: it collapses function prologs and epilogs, results in very compact code and - if implemented properly - results in pretty nice memory access patterns with high efficiencies. I have found a right-sized hole in the instruction space to fit these instructions in, but the implementation complexity is rather high. I'm not yet sure if it's worth to have them, I probably need to model it first.
