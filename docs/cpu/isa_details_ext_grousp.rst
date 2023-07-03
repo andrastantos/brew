@@ -174,63 +174,17 @@ Lane prediction operation. The type of the operation is determined by the type o
 
 
 
+$rD <- interpolate $rA, $rB
+---------------------------------
 
-Extension groups
-----------------
+*Instruction code*: 0xfff1 0x.0..
 
-Extension groups allow for extending the instruction set by utilizing otherwise unused portions of the 16-bit instruction code-space, followed by a second 16-bit instruction code. These extension groups allow for expressing seldom used or specialized instructions while not impacting the compactness of the base ISA.
+*Exceptions*: None
 
-Lane predicate generation group
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*Type variants*: Yes
 
-::
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 0 | 0 | 0 | 0 |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |    FIELD_C    |    FIELD_B    |    FIELD_A    |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-=========================  ========================    ==================
-Instruction code           Assembly                    Operation
-=========================  ========================    ==================
-0xfff0 0x.00.              $rD <- $rA == 0
-0xfff0 0x.01.              $rD <- $rA != 0
-0xfff0 0x.02.              $rD <- $rA < 0                signed compare
-0xfff0 0x.03.              $rD <- $rA >= 0               signed compare
-0xfff0 0x.04.              $rD <- $rA > 0                signed compare
-0xfff0 0x.05.              $rD <- $rA <= 0               signed compare
-0xfff0 0x.1..              $rD <- $rB == $rA
-0xfff0 0x.2..              $rD <- $rB != $rA
-0xfff0 0x.3..              $rD <- signed $rB < $rA       signed compare
-0xfff0 0x.4..              $rD <- signed $rB >= $rA      signed compare
-0xfff0 0x.5..              $rD <- $rB < $rA
-0xfff0 0x.6..              $rD <- $rB >= $rA
-=========================  ========================    ==================
-
-These instructions perform lane-wise comparisons of the prescribed type. The result (0 for FALSE, 1 for TRUE) is replicated across the length of each lane (8- 16- or 32-times) and placed in the destination register.
-
-Linear interpolation group
-~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-::
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 0 | 0 | 0 | 1 |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |    FIELD_C    |    FIELD_B    |    FIELD_A    |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-=========================  ============================  ==================
-Instruction code           Assembly                      Operation
-=========================  ============================  ==================
-0xfff1 0x.0..              $rD <- interpolate $rA, $rB
-=========================  ============================  ==================
-
+Description
+~~~~~~~~~~~
 This instruction performs linear interpolation between adjacent lanes of $rA using the value of $rB as a fractional 32-bit value.
 
 A 2-lane operation is as follows::
@@ -245,9 +199,20 @@ A 4-lane operation is as follows::
   $rD(3) <- $rA(3) *    $rB  + $rA(4) * (1-$rB)
   $rD(4) <- $rA(3) * (1-$rB) + $rA(4) *    $rB
 
+In the above the indices of the registers denote lane indices. For floating-point or scalar types an invalid instruction exception is thrown. The type of the operation and the destination type is determined by the type of :code:`$rA`.
 
-Scaled multiply group
-~~~~~~~~~~~~~~~~~~~~~
+
+$rD <- full $rA * $rB >>> VALUE
+-----------------------------------
+
+*Instruction code*: 0xff0* 0x.0.. or 0xff1* 0x.0..
+
+*Exceptions*: None
+
+*Type variants*: Yes
+
+Description
+~~~~~~~~~~~
 
 ::
 
