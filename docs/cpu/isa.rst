@@ -175,7 +175,7 @@ Mode change and power management group
 Instruction code   Assembly    Operation
 =================  ========    ==================
 0x8000             STM         Enters TASK mode, enables interrupts; $spc points to the NEXT instruction
-0x9000             WOI         Wake on interrupt
+0x9000             WOI         Wake on interrupt. Waits for interrupt in both TASK and SCHEDULER mode
 0xa000             SII
 0xb000             SII
 0xc000             SII
@@ -291,7 +291,7 @@ Instruction code   Assembly                    Operation
 0x.0b.             $rD <- sum $rA              Reduction sum [#note-x.0b.]_
 0x.0c.             type $rD <- $rA             Sets type of $rD as denoted by $rA [#note0xX0cX]_
 0x.0d.             $rD <- type $rA             Loads type value of $rA into $rD
-0x.0e.             type $rD <- type FIELD_A    Sets type of $rD
+0x.0e.             type $rD <- FIELD_A         Sets type of $rD
 =================  ========================    ==================
 
 .. [#note0xX01X] FIELD_A is one-s complement; range is -7...7
@@ -349,8 +349,8 @@ Instruction code   Assembly                    Operation
 .. note:: Output type is the type of $rA
 
 .. note:: Pseudo instructions
-  NOP: encodes to 0x2222, which is $r2 = $r2 | $r2
-  $rD = $rS: encodes to 0xD2SS
+  NOP: encodes to 0x2222, which is $r2 <- $r2 | $r2
+  $rD <- $rS: encodes to 0xD2SS
 
 Load immediate group
 ~~~~~~~~~~~~~~~~~~~~
@@ -532,15 +532,16 @@ Instruction code           Assembly                                           Op
 0xf07. 0x****              SII
 0xf08. 0x****              if all $rA == 0  $pc <- $pc + unmunge(FIELD_E)
 0xf09. 0x****              if all $rA != 0  $pc <- $pc + unmunge(FIELD_E)
+0xf0a. 0x****              if all $rA < 0   $pc <- $pc + unmunge(FIELD_E)     signed compare
 0xf0b. 0x****              if all $rA >= 0  $pc <- $pc + unmunge(FIELD_E)     signed compare
 0xf0c. 0x****              if all $rA > 0   $pc <- $pc + unmunge(FIELD_E)     signed compare
 0xf0d. 0x****              if all $rA <= 0  $pc <- $pc + unmunge(FIELD_E)     signed compare
-0xf0a. 0x****              if all $rA < 0   $pc <- $pc + unmunge(FIELD_E)     signed compare
 0xf0e. 0x****              SII
 =========================  ===============================================    ==================
 
 .. note::
   For scalar types, FIELD_C MSB (inst[15]) is irrelevant; In other words, any/all selection doesn't matter
+
 .. note:: unmunge: replicate LSB to bit positions [31:16], replace LSB with 0.
 
 Conditional branch group
@@ -585,10 +586,14 @@ Instruction code           Assembly                                             
   Maybe we can do lane-replication in case of lane-count mismatch? After all, these are using the ALUs, the same way as binary ops do...
 
 PSEUDO OPS:
-    if signed $rB >= $rA $pc <- $pc + unmunge(OFFSET)
-    if signed $rB < $rA  $pc <- $pc + unmunge(OFFSET)
-    if $rB >= $rA   $pc <- $pc + unmunge(OFFSET)
-    if $rB < $rA    $pc <- $pc + unmunge(OFFSET)
+    if any signed $rB >= $rA $pc <- $pc + unmunge(OFFSET)
+    if any signed $rB < $rA  $pc <- $pc + unmunge(OFFSET)
+    if any $rB >= $rA   $pc <- $pc + unmunge(OFFSET)
+    if any $rB < $rA    $pc <- $pc + unmunge(OFFSET)
+    if all signed $rB >= $rA $pc <- $pc + unmunge(OFFSET)
+    if all signed $rB < $rA  $pc <- $pc + unmunge(OFFSET)
+    if all $rB >= $rA   $pc <- $pc + unmunge(OFFSET)
+    if all $rB < $rA    $pc <- $pc + unmunge(OFFSET)
 
 .. note:: unmunge: replicate LSB to bit positions [31:16], replace LSB with 0.
 
@@ -627,7 +632,7 @@ Instruction code           Assembly                                             
 
 .. note:: unmunge: replicate LSB to bit positions [31:16], replace LSB with 0.
 
-.. note:: some bit-offsets for certain lane configurations are meaningless. In those cases, the bits to be compared are assumed to be 0.
+.. note:: The type of $rA is ignored.
 
 Bit-clear-test conditional branch group
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -664,28 +669,28 @@ Instruction code           Assembly                                             
 
 .. note:: unmunge: replicate LSB to bit positions [31:16], replace LSB with 0.
 
-.. note:: some bit-offsets for certain lane configurations are meaningless. In those cases, the bits to be compared are assumed to be 0.
+.. note:: The type of $rA is ignored.
 
 Stack group
 ~~~~~~~~~~~
 
-While stack operations (as in push/pull) are not supported by the ISA, special load/store instructions are provided with small offsets and $r0 ($sp) and $r1 ($lr) as the base register to support compact form of common stack-load and store- operations. The supported offset range us -256 to +252 bytes.
+While stack operations (as in push/pull) are not supported by the ISA, special load/store instructions are provided with small offsets and $r12 ($fp) and $r13 ($sp) as the base register to support compact form of common stack-load and store- operations. The supported offset range us -256 to +252 bytes.
 
 ::
 
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |    FIELD_C    |            OFS            | A |
+  |    FIELD_D    |    FIELD_C    |            OFS            | S |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 ==================  ============================    ==================
 Instruction code    Assembly                        Operation
 ==================  ============================    ==================
-0x.c**              MEM[$rA,tiny OFS*4] <- $rD      Store $rD in memory
-0x.d**              $rD <- MEM[$rA,tiny OFS*4]      Load $rD from memory
+0x.c**              MEM[$rS + tiny OFS*4] <- $rD    Store $rD in memory
+0x.d**              $rD <- MEM[$rS + tiny OFS*4]    Load $rD from memory
 ==================  ============================    ==================
 
 .. warning::
-  The encoding of field-A is special: A=0 denotes $r12, A=1 denotes $r13
+  The encoding of field S is special: A=0 denotes $r12, A=1 denotes $r13
 
 .. note::
   the existence of these ops complicate memory op decode as well as operation size decode, but save a *huge* amount of code-space, allowing almost all register spills and fills to be done in two bytes.
@@ -699,14 +704,14 @@ Indirect type load/store group
   |    FIELD_D    |       e       |    FIELD_B    |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-==================  ======================================    ==================
-Instruction code    Assembly                                  Operation
-==================  ======================================    ==================
-0x.e0.              type $r0...$r7  <- MEM[$rD, FIELD_A*4]
-0x.e1.              type $r8...$r14 <- MEM[$rD, FIELD_A*4]
-0x.e2.              MEM[$rD, FIELD_A*4] <- type $r0...$r7
-0x.e3.              MEM[$rD, FIELD_A*4] <- type $r8...$r14
-==================  ======================================    ==================
+==================  =======================================    ==================
+Instruction code    Assembly                                   Operation
+==================  =======================================    ==================
+0x.e0.              type $r0...$r7  <- MEM[$rD + FIELD_A*4]
+0x.e1.              type $r8...$r14 <- MEM[$rD + FIELD_A*4]
+0x.e2.              MEM[$rD + FIELD_A*4] <- type $r0...$r7
+0x.e3.              MEM[$rD + FIELD_A*4] <- type $r8...$r14
+==================  =======================================    ==================
 
 .. note::
   FIELD_A is ones-complement coded
@@ -726,11 +731,11 @@ Instruction code    Assembly                        Operation
 0x.e4.              $rD <- MEM8[$rA]                8-bit unsigned load from MEM[$rA] into $rD
 0x.e5.              $rD <- MEM16[$rA]               16-bit unsigned load from MEM[$rA] into $rD
 0x.e6.              $rD <- MEM[32][$rA]             32-bit load from MEM[$rA] into $rD
-0x.e7.              $rD <- MEMLL[32][$rA]           32-bit unsigned load-reserve (exclusive load)
+0x.e7.              $rD <- MEMLL[32][$rA]           32-bit unsigned load-lock (exclusive load)
 0x.e8.              MEM8[$rA] <- $rD                8-bit store to MEM[$rA] from $rD
 0x.e9.              MEM16[$rA] <- $rD               16-bit store to MEM[$rA] from $rD
 0x.ea.              MEM[32][$rA] <- $rD             32-bit store to MEM[$rA] from $rD
-0x.eb.              MEMSR[32][$rA] <- $rD           32-bit store-release (exclusive store)
+0x.eb.              MEMSC[32][$rA] <- $rD           32-bit store-conditional (exclusive store)
 0x.ec.              $rD <- SMEM8[$rA]               8-bit signed load from MEM[$rA] into $rD
 0x.ed.              $rD <- SMEM16[$rA]              16-bit signed load from MEM[$rA] into $rD
 ==================  ============================    ==================
@@ -772,16 +777,16 @@ Offset-indirect type load/store group
   |                         FIELD_E                               |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-==================  ======================================    ==================
-Instruction code    Assembly                                  Operation
-==================  ======================================    ==================
-0x.f0. 0x****       type $r0...$r7  <- MEM[$rD, FIELD_A*4]    with FIELD_E as mask
-0x.f1. 0x****       type $r8...$r14 <- MEM[$rD, FIELD_A*4]    with FIELD_E as mask
+==================  =======================================    ==================
+Instruction code    Assembly                                   Operation
+==================  =======================================    ==================
+0x.f0. 0x****       type $r0...$r7  <- MEM[$rD + FIELD_A*4]    with FIELD_E as mask
+0x.f1. 0x****       type $r8...$r14 <- MEM[$rD + FIELD_A*4]    with FIELD_E as mask
 vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv NOTE NOTE NOTE THESE ARE CHANGED!!!!! TO BE CHECKED WITH COMPILER/ASSEMBLER!!!!!!!
 0x*f2* 0x****       Store multiple offset: {FIELD_D[3:1], FIELD_A} * 4, destination is FIELD_D[0], FIELD_E[15]: include types; FIELD_E[14:0]: register mask
 0x*f3* 0x****       Load multiple  offset: {FIELD_D[3:1], FIELD_A} * 4, destination is FIELD_D[0], FIELD_E[15]: include types; FIELD_E[14:0]: register mask
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ NOTE NOTE NOTE THESE ARE CHANGED!!!!! TO BE CHECKED WITH COMPILER/ASSEMBLER!!!!!!!
-==================  ======================================    ==================
+==================  =======================================    ==================
 
 .. note::
   FIELD_A is ones-complement coded
@@ -809,11 +814,11 @@ Instruction code    Assembly                                Operation
 0x.f4. 0x****       $rD <- MEM8[$rA+FIELD_E]                8-bit unsigned load from MEM[$rA+FIELD_E] into $rD
 0x.f5. 0x****       $rD <- MEM16[$rA+FIELD_E]               16-bit unsigned load from MEM[$rA+FIELD_E] into $rD
 0x.f6. 0x****       $rD <- MEM[32][$rA+FIELD_E]             32-bit load from MEM[$rA+FIELD_E] into $rD
-0x.f7. 0x****       $rD <- MEMLL[32][$rA+FIELD_E]           32-bit unsigned load-reserve (exclusive load)
+0x.f7. 0x****       $rD <- MEMLL[32][$rA+FIELD_E]           32-bit unsigned load-lock (exclusive load)
 0x.f8. 0x****       MEM8[$rA+FIELD_E] <- $rD                8-bit store to MEM[$rA+FIELD_E] from $rD
 0x.f9. 0x****       MEM16[$rA+FIELD_E] <- $rD               16-bit store to MEM[$rA+FIELD_E] from $rD
 0x.fa. 0x****       MEM[32][$rA+FIELD_E] <- $rD             32-bit store to MEM[$rA+FIELD_E] from $rD
-0x.fb. 0x****       MEMSR[32][$rA+FIELD_E] <- $rD           32-bit store-release (exclusive store)
+0x.fb. 0x****       MEMSC[32][$rA+FIELD_E] <- $rD           32-bit store-conditional (exclusive store)
 0x.fc. 0x****       $rD <- SMEM8[$rA+FIELD_E]               8-bit signed load from MEM[$rA+FIELD_E] into $rD
 0x.fd. 0x****       $rD <- SMEM16[$rA+FIELD_E]              16-bit signed load from MEM[$rA+FIELD_E] into $rD
 ==================  ====================================    ==================
@@ -874,11 +879,11 @@ vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv NOTE NOTE NOTE THESE ARE CHANGED!!!!! TO BE CHEC
 0x.f4f 0x**** 0x****       $rD <- MEM8[FIELD_E]        8-bit unsigned load from MEM[FIELD_E] into $rD
 0x.f5f 0x**** 0x****       $rD <- MEM16[FIELD_E]       16-bit unsigned load from MEM[FIELD_E] into $rD
 0x.f6f 0x**** 0x****       $rD <- MEM[32][FIELD_E]     32-bit load from MEM[FIELD_E] into $rD
-0x.f7f 0x**** 0x****       $rD <- MEMLL[32][FIELD_E]   32-bit unsigned load-reserve (exclusive load)
+0x.f7f 0x**** 0x****       $rD <- MEMLL[32][FIELD_E]   32-bit unsigned load-lock (exclusive load)
 0x.f8f 0x**** 0x****       MEM8[FIELD_E] <- $rD        8-bit store to MEM[FIELD_E] from $rD
 0x.f9f 0x**** 0x****       MEM16[FIELD_E] <- $rD       16-bit store to MEM[FIELD_E] from $rD
 0x.faf 0x**** 0x****       MEM[32][FIELD_E] <- $rD     32-bit store to MEM[FIELD_E] from $rD
-0x.fbf 0x**** 0x****       MEMSR[32][FIELD_E] <- $rD   32-bit store-release (exclusive store)
+0x.fbf 0x**** 0x****       MEMSC[32][FIELD_E] <- $rD   32-bit store-conditional (exclusive store)
 0x.fcf 0x**** 0x****       $rD <- SMEM8[FIELD_E]       8-bit signed load from MEM[FIELD_E] into $rD
 0x.fdf 0x**** 0x****       $rD <- SMEM16[FIELD_E]      16-bit signed load from MEM[FIELD_E] into $rD
 =========================  ==========================  ==================

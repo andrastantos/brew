@@ -89,9 +89,9 @@ Exception handling returns are in :code:`$r4`...:code:`$r7` (described in :code:
 Syscalls
 --------
 
-Syscalls follow the same calling convention as function calls do, except that :code:`$lr` contains a syscall-dependent pointer (usually pointer to errno). The :code:`SYSCALL` instruction is used to transfer control to the executive. The syscall number is stored as a 16-bit code after the SYSCALL instruction, in the instruction-stream. Upon entering SCHEDULER mode, :code:`$tpc` points to the current instruction, which is to say, it points to the :code:`SYSCALL`. The SCHEDULER needs to increment :code:`$tpc` by 4 before returning execution to task mode.
+Syscalls follow the same calling convention as function calls do, except that :code:`$lr` contains a syscall-dependent pointer (usually pointer to errno). The :code:`syscall` instruction is used to transfer control to the executive. The syscall number is stored as a 16-bit code after the :code:`syscall` instruction, in the instruction-stream. Upon entering SCHEDULER mode, :code:`$tpc` points to the current instruction, which is to say, it points to :code:`syscall`. The SCHEDULER needs to increment :code:`$tpc` by 4 before returning execution to task mode.
 
-.. note:: syscall number is 16-bit instead of 32 so there won't be any alignment problems reading it.
+.. note:: syscall number is 16-bit so there won't be any alignment problems reading it.
 
 Stack layout
 ------------
@@ -158,8 +158,8 @@ User code memory layout in MMU-based systems
   This is set in :code:`interp.c` in :code:`sim_open` as the highest addressable memory address. This is also defined in the linker scripts through the :code:`.stack` section, which
   is ultimately set in :code:`ld/emulparams/elf32brew.sh`.
 
-Exceptions
-----------
+C++ Exceptions
+--------------
 
 The documentation is wrong in several key points.
 
