@@ -1,5 +1,8 @@
+Appendix D: Implementation Notes
+================================
+
 Instruction Decode
-==================
+------------------
 
 Instruction encoding is such that the following condition can be used to determine if the FIELD_E is needed::
 
@@ -15,7 +18,7 @@ The size of FIELD_E == 16 if::
 .. _branch_id_expression:
 
 Branch Identification
-=====================
+---------------------
 
 Branches can be identified by::
 

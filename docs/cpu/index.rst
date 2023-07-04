@@ -12,14 +12,17 @@ Brew Processor
 
    introduction
    basic_concepts
+   registers
+   inst_encodings
    isa
+   memory_model
    isa_details
    abi
    decode
    interpolation
-   lr-sr
    competition
    gpu
+   hw_impl_notes
    todo
 
 Todos

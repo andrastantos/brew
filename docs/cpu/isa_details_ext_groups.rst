@@ -205,7 +205,18 @@ In the above the indices of the registers denote lane indices. For floating-poin
 $rD <- full $rA * $rB >>> VALUE
 -----------------------------------
 
-*Instruction code*: 0xff0* 0x.0.. or 0xff1* 0x.0..
+*Instruction code*: 0xfff4 0x.*..; 0xfff5 0x.*..; 0xfff6 0x.*..; 0xfff7 0x.*..;
+
+::
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 0 | 1 | FLD_F |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |    FIELD_C    |    FIELD_B    |    FIELD_A    |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
 
 *Exceptions*: None
 
@@ -214,27 +225,39 @@ $rD <- full $rA * $rB >>> VALUE
 Description
 ~~~~~~~~~~~
 
+A scaled multiply operation. The result of the 64-bit product of :code:`$rA` and :code:`$rB` is arithmetically shifted to the left before being stored in the result register. The bottom 4 bits of VALUE is stored in FIELD_C, the top 2 bits in FLD_F. The type of the operation is determined by the type of :code:`$rA`. :code:`$rB` is ignored and is assumed to be of the same type. If the type denotes a floating-point type, an invalid instruction exception is thrown. The result type is the type of the operation.
+
+.. todo::
+  This is not how BINUTILS is coded up at the moment. We need to follow-up with the changes there.
+
+$rD <- full $rA * $rB >> VALUE
+-----------------------------------
+
+*Instruction code*: 0xfff8 0x.*..; 0xfff9 0x.*..; 0xfffa 0x.*..; 0xfffb 0x.*..;
+
 ::
 
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 0 | 0 | 0 |      FIELD_F      |
+  | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 0 | FLD_F |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   |    FIELD_D    |    FIELD_C    |    FIELD_B    |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-=========================  ==================================  ==================
-Instruction code           Assembly                            Operation
-=========================  ==================================  ==================
-0xff0* 0x.0..              $rD <- full $rA * $rB >>> FIELD_F
-0xff1* 0x.0..              $rD <- full $rA * $rB >>> FIELD_F
-0xff0* 0x.1..              $rD <- full $rA * $rB >> FIELD_F
-0xff1* 0x.1..              $rD <- full $rA * $rB >> FIELD_F
-=========================  ==================================  ==================
+
+*Exceptions*: None
+
+*Type variants*: Yes
+
+Description
+~~~~~~~~~~~
+
+A scaled multiply operation. The result of the 64-bit product of :code:`$rA` and :code:`$rB` is logically shifted to the left before being stored in the result register. The bottom 4 bits of VALUE is stored in FIELD_C, the top 2 bits in FLD_F. The type of the operation is determined by the type of :code:`$rA`. :code:`$rB` is ignored and is assumed to be of the same type. If the type denotes a floating-point type, an invalid instruction exception is thrown. The result type is the type of the operation.
 
 .. todo::
-  This group can be implemented in the 0xfff. style in the following way: 0xfff8/0xfff9: arithmetic shift by FIELD_C[+32], 0xfffa/0xfffb: logical shift by FIELD_C[+32]. That would free up this whole extension group and result in a much more compact encoding, but the binutils is not built this way at the moment.
+  This is not how BINUTILS is coded up at the moment. We need to follow-up with the changes there.
+
 
 Prefix instructions
 -------------------

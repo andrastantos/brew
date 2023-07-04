@@ -1,4 +1,4 @@
-Appendix D: GPU variant
+Appendix E: GPU variant
 =======================
 
 A variant of the Brew ISA can be used to implement GPUs as well.

@@ -1,129 +1,5 @@
-Instruction Set
-===============
-
-
-Encoding overview
------------------
-
-There are three encoding variants:
-
-16-bit instructions::
-
-    +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-    |    FIELD_D    |    FIELD_C    |    FIELD_B    |    FIELD_A    |
-    +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-32-bit instructions::
-
-    +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-    |    FIELD_D    |    FIELD_C    |    FIELD_B    |    FIELD_A    |
-    +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-    +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-    |                         FIELD_E                               |
-    +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-48-bit instructions::
-
-    +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-    |    FIELD_D    |    FIELD_C    |    FIELD_B    |    FIELD_A    |
-    +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-    +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+-...
-    |                         FIELD_E  lower 16 bits              ...
-    +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+-...
-
-    ...-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-    ...                       FIELD_E   upper 16 bits               |
-    ...-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-FIELD_D:
-  normally contains the register index of the [D]estination
-FIELD_C:
-  normally contains the instruction op-[C]ode
-FIELD_B:
-  normally contains the register index of the second operand (operand [B])
-FIELD_A:
-  normally contains the register index of the first operand (operand [A])
-FIELD_E:
-  normally contains an immediate or a memory offset
-
-The whole 16 bit instruction is referred to as the INST.
-
-The '[]' operator represents sub-fields in verilog notation.
-
-The '{}' operator represents concatenation in verilog notation.
-
-The ':' operator represents range (when that context make sense)
-
-Register indexes:
-
-===========    =============
-Filed value    Register name
-===========    =============
-0x0            $r0
-0x1            $r1
-0x2            $r2
-0x3            $r3
-0x4            $r4
-0x5            $r5
-0x6            $r6
-0x7            $r7
-0x8            $r8
-0x9            $r9
-0xa            $r10
-0xb            $r11
-0xc            $r12
-0xd            $r13
-0xe            $r14
-0xf            reserved
-===========    =============
-
-Register aliases:
-    $sp:  alias to $r12
-    $fp:  alias to $r13
-    $lr:  alias to $r14
-
-.. note::
-  Aliases have (almost) nothing to do with HW and only make assembly unambiguous and/or easier to read. The only exception is that the ISA supports compact load-store operations with $r12 and $r13 as their base registers. There's no functional difference between these compact and the full-format load/store operations, but the intent is that by using these instructions to access stack-local variables allows much more compact code-size (close to ARM THUMB compactness).
-
-Special registers:
-
-$pc:
- denotes the current-context program counter, the pointer to the currently executing instruction.
-
-$tpc:
- denotes the task-mode program counter. If the current execution context is TASK mode, $tpc is the same as $pc. In SCHEDULER mode, it's not.
-
-.. note:: $pc and $tpc are 31-bit registers: the LSB is ignored on write and always reads as 0.
-
-Register Types
---------------
-
-The type of the data held in a register is stored as side-band information next to the register data. The meaning of various instruction opcodes depend on the register types they operate on.
-
-.. note::
-  Since compilers (at least GCC) don't differentiate between signed and unsigned integer types, the HW doesn't do that either. This means that certain integer operations have a signed and an unsigned version.
-
-There are up to 15 register types supported by the ISA, but only the following are in defined at the moment:
-
-==========    =========   ==========
-Type code     Type        Note
-==========    =========   ==========
-0x0           INT32       32-bit integer: this is the default type of all registers after reset
-0x1           INT16X2     2-way 16-bit integer vector
-0x2           INT8X4      4-way 8-bit integer vector
-0x3           UINT16X2S   Unsigned, saturated version on INT16X2
-0x4           SINT16X2S   Signed, saturated version on INT16X2
-0x5           UINT8X4S    Unsigned, saturated version on INT8X4
-0x6           SINT8X4S    Signed, saturated version on INT8X4
-0x8           FP32        32-bit float
-0x9           FP16X2      2-way 16-bit float vector
-0xf           mask        prevents target type changes during type ... <- ... type operations
-==========    =========   ==========
-
 Instruction Set Summary
------------------------
+=======================
 
 In the following tables
 
@@ -135,7 +11,7 @@ In the following tables
 Instructions are fully decoded. Any instruction not explicitly mentioned in the tables below generate an 'invalid instruction exception' and is functionally equivalent to the SII instruction.
 
 Exception group
-~~~~~~~~~~~~~~~
+---------------
 
 ::
 
@@ -162,7 +38,7 @@ Instruction code   Assembly    Alternative       Operation
   The toolset might still think SII is 0x6000 and HWI is 0x7000! Need to follow-up
 
 Mode change and power management group
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------------------
 
 ::
 
@@ -176,7 +52,7 @@ Instruction code   Assembly    Operation
 =================  ========    ==================
 0x8000             STM         Enters TASK mode, enables interrupts; $spc points to the NEXT instruction
 0x9000             WOI         Wake on interrupt. Waits for interrupt in both TASK and SCHEDULER mode
-0xa000             SII
+0xa000             PFLUSH      Flushes the pipeline
 0xb000             SII
 0xc000             SII
 0xd000             SII
@@ -184,7 +60,7 @@ Instruction code   Assembly    Operation
 =================  ========    ==================
 
 Atomic group
-~~~~~~~~~~~~
+------------
 
 ::
 
@@ -234,7 +110,7 @@ Bit-field    Meaning
   Depending on the implementation, some or all of these fence operations might be no-ops. Care should be taken to ensure proper fence behavior for writes that leave in-order but have their side-effects out-of-order due to latency-differences through the interconnect.
 
 PC manipulation group
-~~~~~~~~~~~~~~~~~~~~~
+---------------------
 
 ::
 
@@ -267,7 +143,7 @@ Instruction code   Assembly       Operation
   We might want to shift encoding to 0x.004 ... 0x.007 to make the branch predictors job easier at recognizing this class.
 
 Unary group
-~~~~~~~~~~~
+-----------
 
 ::
 
@@ -307,7 +183,7 @@ Instruction code   Assembly                    Operation
   We only have reduction sum. Is there any other *really* important reduction op we need?
 
 Binary ALU group
-~~~~~~~~~~~~~~~~
+----------------
 
 ::
 
@@ -353,7 +229,7 @@ Instruction code   Assembly                    Operation
   $rD <- $rS: encodes to 0xD2SS
 
 Load immediate group
-~~~~~~~~~~~~~~~~~~~~
+--------------------
 
 ::
 
@@ -389,7 +265,7 @@ Instruction code           Assembly                    Operation
   Types for each register are encoded in 4-bit nibbles. Lowest 4 bits determine the type of the lowest indexed register. Highest 4 bits determine the type of the highest indexed register.
 
 Constant ALU group
-~~~~~~~~~~~~~~~~~~
+------------------
 
 ::
 
@@ -430,7 +306,7 @@ Instruction code           Assembly                    Operation
   << and >> operations where opB is constant can be expressed by multiplies. Because of that, these operations only have one form. This does mean though, that the constant needed for certain shifts is larger than what would normally be required (i.e. 32-bit instead of 16).
 
 Short load immediate group
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------
 
 ::
 
@@ -457,7 +333,7 @@ Instruction code           Assembly                    Operation
   Destination type is not changed.
 
 Short constant ALU group
-~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------
 
 ::
 
@@ -507,7 +383,7 @@ Instruction code           Assembly                             Operation
   Sign-extending a 16-bit constant, then treating it as a float almost certainly don't make any sense.
 
 Zero-compare conditional branch group
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------------------
 
 ::
 
@@ -545,7 +421,7 @@ Instruction code           Assembly                                           Op
 .. note:: unmunge: replicate LSB to bit positions [31:16], replace LSB with 0.
 
 Conditional branch group
-~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------
 
 ::
 
@@ -598,7 +474,7 @@ PSEUDO OPS:
 .. note:: unmunge: replicate LSB to bit positions [31:16], replace LSB with 0.
 
 Bit-set-test conditional branch group
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------------------
 
 ::
 
@@ -635,7 +511,7 @@ Instruction code           Assembly                                             
 .. note:: The type of $rA is ignored.
 
 Bit-clear-test conditional branch group
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+---------------------------------------
 
 ::
 
@@ -672,7 +548,7 @@ Instruction code           Assembly                                             
 .. note:: The type of $rA is ignored.
 
 Stack group
-~~~~~~~~~~~
+-----------
 
 While stack operations (as in push/pull) are not supported by the ISA, special load/store instructions are provided with small offsets and $r12 ($fp) and $r13 ($sp) as the base register to support compact form of common stack-load and store- operations. The supported offset range us -256 to +252 bytes.
 
@@ -696,7 +572,7 @@ Instruction code    Assembly                        Operation
   the existence of these ops complicate memory op decode as well as operation size decode, but save a *huge* amount of code-space, allowing almost all register spills and fills to be done in two bytes.
 
 Indirect type load/store group
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------------
 
 ::
 
@@ -717,7 +593,7 @@ Instruction code    Assembly                                   Operation
   FIELD_A is ones-complement coded
 
 Indirect load/Store group
-~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------
 
 ::
 
@@ -745,7 +621,7 @@ Instruction code    Assembly                        Operation
 
 
 Indirect jump group
-~~~~~~~~~~~~~~~~~~~
+-------------------
 
 ::
 
@@ -765,7 +641,7 @@ Instruction code    Assembly                        Operation
   Cache invalidation applies to all caches and to all levels of caches: L1D L1I; L2, if exists. System-level caches (L3) are not invalidated. In a multi-processor system, only local caches (caches that are in the path-to-memory for the core executing the instruction) are invalidated.
 
 Offset-indirect type load/store group
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------------------
 
 ::
 
@@ -796,7 +672,7 @@ vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv NOTE NOTE NOTE THESE ARE CHANGED!!!!! TO BE CHEC
   A 32-bit value is loaded from memory and is used to set the types. Ignored types are 'stepped over', their bits in memory are still occupied.
 
 Offset-indirect load/store group
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------------
 
 ::
 
@@ -827,7 +703,7 @@ Instruction code    Assembly                                Operation
 .. note:: Loads don't change the type of a register.
 
 Offset-indirect jump group
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------
 
 ::
 
@@ -853,7 +729,7 @@ Instruction code    Assembly                                Operation
 .. note:: FIELD_E is sign-extended before addition
 
 Absolute load/store group
-~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------
 
 ::
 
@@ -891,7 +767,7 @@ vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv NOTE NOTE NOTE THESE ARE CHANGED!!!!! TO BE CHEC
 .. note:: Loads don't change the type of a register.
 
 Absolute jump group
-~~~~~~~~~~~~~~~~~~~
+-------------------
 
 ::
 
@@ -995,24 +871,28 @@ Scaled multiply group
 ::
 
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 0 | 0 | 0 |      FIELD_F      |
+  | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 0 | 1 | FLD_F |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   |    FIELD_D    |    FIELD_C    |    FIELD_B    |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-=========================  ==================================  ==================
-Instruction code           Assembly                            Operation
-=========================  ==================================  ==================
-0xff0* 0x.0..              $rD <- full $rA * $rB >>> FIELD_F
-0xff1* 0x.0..              $rD <- full $rA * $rB >>> FIELD_F
-0xff0* 0x.1..              $rD <- full $rA * $rB >> FIELD_F
-0xff1* 0x.1..              $rD <- full $rA * $rB >> FIELD_F
-=========================  ==================================  ==================
+=========================  =========================================  ==================
+Instruction code           Assembly                                   Operation
+=========================  =========================================  ==================
+0xfff4 0x.*..              $rD <- full $rA * $rB >>> FIELD_C + 0
+0xfff5 0x.*..              $rD <- full $rA * $rB >>> FIELD_C + 8
+0xfff6 0x.*..              $rD <- full $rA * $rB >>> FIELD_C + 16
+0xfff7 0x.*..              $rD <- full $rA * $rB >>> FIELD_C + 32
+0xfff8 0x.*..              $rD <- full $rA * $rB >> FIELD_C + 0
+0xfff9 0x.*..              $rD <- full $rA * $rB >> FIELD_C + 8
+0xfffa 0x.*..              $rD <- full $rA * $rB >> FIELD_C + 16
+0xfffb 0x.*..              $rD <- full $rA * $rB >> FIELD_C + 32
+=========================  =========================================  ==================
 
 .. todo::
-  This group can be implemented in the 0xfff. style in the following way: 0xfff8/0xfff9: arithmetic shift by FIELD_C[+32], 0xfffa/0xfffb: logical shift by FIELD_C[+32]. That would free up this whole extension group and result in a much more compact encoding, but the binutils is not built this way at the moment.
+  This is not how BINUTILS is coded up at the moment. We need to follow-up with the changes there.
 
 Prefix instructions
 -------------------
@@ -1026,7 +906,7 @@ Prefix instructions can precede any other instruction to modify their behavior.
   *Interrupt behavior*: If an interrupt is handled during the execution of a prefixed instruction, $tpc points to the (first) prefix instruction after entering SCHEDULER mode. None of the side-effects of the prefixed instruction take effect. If any of the side-effects of the prefixed instruction have taken effect, the whole instruction must be carried to completion and $tpc points to the subsequent instruction after entering SCHEDULER mode. In other words, under no circumstances can $tpc point anywhere between the first prefix and it's corresponding instruction when entering SCHEDULER mode.
 
 .. note::
-  *Prefix concatenation*: Every processor implementation has a maximum instruction length it supports. In this version of the spec, it's 64 bits. So, if the instruction (pre-)decode stage finds an instruction longer then that maximum, it raises an invalid instruction exception (or more precisely, it replaces the decoded instruction with that of the SII instruction. Without this provision it would be possible to create arbitrarily long instruction sequences in TASK mode. That in turn would prevent interrupts from being raised, effectively locking up the system (at least up to the point of exhausting the addressable RAM space).
+  *Prefix concatenation*: Every processor implementation has a maximum instruction length it supports. In this version of the spec, it's 64 bits. If an instruction with all its prefixes exceeds this limit, the processor raises an invalid instruction exception, with $tpc pointing to the first prefix instruction. Without this provision it would be possible to create arbitrarily long instruction sequences in TASK mode. That in turn would prevent interrupts from being raised, effectively locking up the system (at least up to the point of exhausting the addressable RAM space). The ISA puts further restrictions on what prefix instructions can be cascaded. As a general rule, prefixes of the same kind can appear only once in a prefix cascade.
 
 Type override
 ~~~~~~~~~~~~~
@@ -1036,12 +916,10 @@ This prefix instruction allows for the changing the way the subsequent operation
 ::
 
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |     TYPE_A    | 1 | 1 | 1 | D | 1 | 1 | 1 | 1 |    TYPE_B     | ...
+  |     TYPE_A    | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |    TYPE_B     | ...
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-Type override for $rA (TYPE_A) and $rB (TYPE_B). If D is set, $rD type is written
-back into the register file. If cleared, $rD's type is not changed.
-
+Type override for $rA (TYPE_A) and $rB (TYPE_B).
 
 Unused instruction groups
 -------------------------
@@ -1134,9 +1012,4 @@ All of the following instruction groups are explicitly reserved for future use. 
 
 .. note::
   if FIELD_D == 0x2 and FIELD_B == 0xe, the branch predictor is allowed to treat this instruction code as a conditional branch.
-
-Cache invalidation
-==================
-
-There are instructions to invalidate individual data-, instruction- and L2 cache lines. These are encoded in the various load/store groups. There is no way to distinguish which cache we intend to invalidate. There is also no instruction provided for complete cache invalidation: this functionality is to be provided through memory-mapped CSRs.
 

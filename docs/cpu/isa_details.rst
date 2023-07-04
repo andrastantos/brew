@@ -138,7 +138,6 @@ WOI
 
 *Instruction code*: 0x9000
 
-
 *Exceptions*: HWI
 
 *Type variants*: No
@@ -147,6 +146,22 @@ Description
 ~~~~~~~~~~~
 
 Wake-on-interrupt. The processor enters a low-power state and waits for an interrupt. When an interrupt occurs, the processor continues execution. This operation waits for an interrupt, even if executed in SCHEDULER mode. In TASK mode, of course once execution is resumed, the processor switches to SCHEDULER mode, due to the pending interrupt.
+
+PFLUSH
+------
+
+*Instruction code*: 0xa000
+
+*Exceptions*: None
+
+*Type variants*: No
+
+Description
+~~~~~~~~~~~
+
+This instruction flushes the internal pipeline. Subsequent instructions must be fetched anew from at least L1 instruction cache. This instruction can be used to enforce proper operation for self-modifying code or for instance when a new executable image is loaded from storage.
+
+.. todo:: PFLUSH is not implemented anywhere. Not in BINUTILS, not in Espresso.
 
 FENCE_*
 ------
@@ -1471,6 +1486,8 @@ Description
 ~~~~~~~~~~~
 Invalidates any data- or instruction-cache lines that contain the logical address corresponding to the value of :code:`$rA`. Cache invalidation applies to both L1 and L2 level caches. System-level caches (L3) are not invalidated. In a multi-processor system, only local caches (caches that are in the path-to-memory for the core executing the instruction) are invalidated.
 
+Dirty lines in data-caches are flushed to memory as they are invalidated.
+
 The implementation is not allowed to throw exceptions even if the memory location violates access permissions. In these cases, the invalidation request is silently ignored.
 
 
@@ -1513,7 +1530,7 @@ The implementation is allowed to throw exceptions if the memory access violates 
 
 
 
-INV[32][$rA + VALUE]
+INV[$rA + VALUE]
 ---------------------
 
 *Instruction code*: 0x1fe. 0x****
@@ -1527,6 +1544,8 @@ Description
 Invalidates any data- or instruction-cache lines that contain the logical address corresponding to the value of :code:`$rA + VALUE`. Cache invalidation applies to both L1 and L2 level caches. System-level caches (L3) are not invalidated. In a multi-processor system, only local caches (caches that are in the path-to-memory for the core executing the instruction) are invalidated.
 
 The value of FIELD_E is computed by truncating VALUE to 16 bits. The implementation sign-extend the value of FIELD_E prior to addition to the base register :code:`$rA`. Thus an offset range of -32768 to 32767 is supported.
+
+Dirty lines in data-caches are flushed to memory as they are invalidated.
 
 The implementation is not allowed to throw exceptions even if the memory location violates access permissions. In these cases, the invalidation request is silently ignored.
 
@@ -1572,7 +1591,7 @@ The implementation is allowed to throw exceptions if the memory access violates 
 
 
 
-INV[32][VALUE]
+INV[VALUE]
 ---------------------
 
 *Instruction code*: 0x1fef 0x**** 0x****
@@ -1586,6 +1605,8 @@ Description
 Invalidates any data- or instruction-cache lines that contain the logical address :code:`VALUE`. Cache invalidation applies to both L1 and L2 level caches. System-level caches (L3) are not invalidated. In a multi-processor system, only local caches (caches that are in the path-to-memory for the core executing the instruction) are invalidated.
 
 FIELD_E simply stores VALUE.
+
+Dirty lines in data-caches are flushed to memory as they are invalidated.
 
 The implementation is not allowed to throw exceptions even if the memory location violates access permissions. In these cases, the invalidation request is silently ignored.
 
@@ -1796,7 +1817,7 @@ The implementation is allowed to throw exceptions if the memory access violates 
 
 
 
-MEMSC[32][$rA] <- $rb
+MEMSC[32][$rA] <- $rD
 ---------------------------------------------
 
 *Instruction code*: 0x.e9.
@@ -1814,7 +1835,9 @@ MEMSC[32][$rA] <- $rb
 
 Description
 ~~~~~~~~~~~
-The value of :code:`$rD` is stored in the memory location pointed to by :code:`$rA`, if and only if a still valid load-lock exists for the same address for the same processor. If such a lock is not found, the store silently fails and no memory update is performed.
+The value of :code:`$rD` is stored in the memory location pointed to by :code:`$rA`, if and only if a still valid load-lock exists for the same address for the same processor. If such a lock is not found, the store fails and no memory update is performed.
+
+The value of :code:`$rD` is set to 0 if the store succeeded and to non-zero if it failed. The actual non-zero value is implementation-defined and is not required to be constant, only that it is never zero. The type of :code:`$rD` is not changed.
 
 The implementation is allowed to throw exceptions if the memory access violates access permissions. If the resulting memory reference is not aligned to a 32-bit word boundary, an unaligned access exception is thrown. In case of an exception, neither the existence of a lock nor the value stored in memory is altered.
 
@@ -1950,3 +1973,8 @@ vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv NOTE NOTE NOTE THESE ARE CHANGED!!!!! TO BE CHEC
 =========================  ==========================  ==================
 
 .. note:: Loads don't change the type of a register.
+
+
+.. include:: isa_details_binary_alu.rst
+.. include:: isa_details_ext_groups.rst
+.. include:: isa_details_prefix_groups.rst
