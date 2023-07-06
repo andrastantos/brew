@@ -13,8 +13,17 @@ Instructions are fully decoded. Any instruction not explicitly mentioned in the 
 Exception group
 ---------------
 
-::
+.. wavedrom::
 
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "0",         "bits": 4 },
+      { "name": "0",         "bits": 4 },
+      { "name": "0",         "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+  ]}
+
+..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   |    FIELD_D    |       0       |       0       |       0       |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -40,8 +49,17 @@ Instruction code   Assembly    Alternative       Operation
 Mode change and power management group
 --------------------------------------
 
-::
+.. wavedrom::
 
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "0",         "bits": 4 },
+      { "name": "0",         "bits": 4 },
+      { "name": "0",         "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+  ]}
+
+..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   |    FIELD_D    |       0       |       0       |       0       |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -62,8 +80,20 @@ Instruction code   Assembly    Operation
 Atomic group
 ------------
 
-::
+.. wavedrom::
 
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "1",         "bits": 4 },
+      { "name": "0",         "bits": 4 },
+      { "name": "0",         "bits": 4 },
+      { "name": "RB",        "bits": 1 },
+      { "name": "WB",        "bits": 1 },
+      { "name": "RA",        "bits": 1 },
+      { "name": "WA",        "bits": 1 },
+  ]}
+
+..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   |    FIELD_D    |       0       |       0       |       1       |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -112,8 +142,18 @@ Bit-field    Meaning
 PC manipulation group
 ---------------------
 
-::
+.. wavedrom::
 
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_A",   "bits": 4, attr: "op kind" },
+      { "name": "0",         "bits": 4 },
+      { "name": "0",         "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ]}
+
+
+..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   |    FIELD_D    |       0       |       0       |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -145,8 +185,18 @@ Instruction code   Assembly       Operation
 Unary group
 -----------
 
-::
+.. wavedrom::
 
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
+      { "name": "FIELD_B",   "bits": 4, attr: "op kind" },
+      { "name": "0",         "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ]}
+
+
+..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   |    FIELD_D    |       0       |    FIELD_B    |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -185,8 +235,18 @@ Instruction code   Assembly                    Operation
 Binary ALU group
 ----------------
 
-::
+.. wavedrom::
 
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
+      { "name": "FIELD_B",   "bits": 4, attr: "$rB" },
+      { "name": "FIELD_C",   "bits": 4, attr: "op kind" },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ]}
+
+
+..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   |    FIELD_D    |    FIELD_C    |    FIELD_B    |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -231,10 +291,65 @@ Instruction code   Assembly                    Operation
 Load immediate group
 --------------------
 
-::
+.. wavedrom::
 
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "0",         "bits": 4 },
+      { "name": "0",         "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E lower 16 bits", "bits": 16 },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E upper 16 bits", "bits": 16 },
+  ]
+  }
+
+or
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "e",         "bits": 4 },
+      { "name": "0",         "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E lower 16 bits", "bits": 16 },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E upper 16 bits", "bits": 16 },
+  ]
+  }
+
+..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |    FIELD_C    |    FIELD_B    |       f       |
+  |    FIELD_D    |       0       |    FIELD_B    |       f       |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+-...
@@ -267,8 +382,34 @@ Instruction code           Assembly                    Operation
 Constant ALU group
 ------------------
 
-::
+.. wavedrom::
 
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_B",   "bits": 4, attr: "$rB" },
+      { "name": "FIELD_C",   "bits": 4, attr: "op kind" },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E lower 16 bits", "bits": 16 },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E upper 16 bits", "bits": 16 },
+  ]
+  }
+
+..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   |    FIELD_D    |    FIELD_C    |    FIELD_B    |       f       |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -308,8 +449,47 @@ Instruction code           Assembly                    Operation
 Short load immediate group
 --------------------------
 
-::
+.. wavedrom::
 
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "0",         "bits": 4 },
+      { "name": "f",         "bits": 4 },
+      { "name": "0",         "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16 },
+  ],
+  }
+
+or
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "e",         "bits": 4 },
+      { "name": "f",         "bits": 4 },
+      { "name": "0",         "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16 },
+  ],
+  }
+
+..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   |    FIELD_D    |    FIELD_C    |       f       |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -335,8 +515,26 @@ Instruction code           Assembly                    Operation
 Short constant ALU group
 ------------------------
 
-::
+.. wavedrom::
 
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_C",   "bits": 4, attr: "op kind" },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16 },
+  ],
+  }
+
+..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   |    FIELD_D    |    FIELD_C    |       f       |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -385,8 +583,26 @@ Instruction code           Assembly                             Operation
 Zero-compare conditional branch group
 -------------------------------------
 
-::
+.. wavedrom::
 
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
+      { "name": "FIELD_B",   "bits": 4, attr: "op kind" },
+      { "name": "0",         "bits": 4 },
+      { "name": "f",         "bits": 4 },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16 },
+  ],
+  }
+
+..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   |       f       |    FIELD_C    |    FIELD_B    |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -423,8 +639,26 @@ Instruction code           Assembly                                           Op
 Conditional branch group
 ------------------------
 
-::
+.. wavedrom::
 
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
+      { "name": "FIELD_B",   "bits": 4, attr: "$rB" },
+      { "name": "FIELD_C",   "bits": 4, attr: "op kind" },
+      { "name": "f",         "bits": 4 },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16 },
+  ],
+  }
+
+..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   |       f       |    FIELD_C    |    FIELD_B    |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -476,8 +710,26 @@ PSEUDO OPS:
 Bit-set-test conditional branch group
 -------------------------------------
 
-::
+.. wavedrom::
 
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_C",   "bits": 4, attr: "bit sel" },
+      { "name": "f",         "bits": 4 },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16 },
+  ],
+  }
+
+..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   |       f       |    FIELD_C    |       f       |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -513,8 +765,26 @@ Instruction code           Assembly                                             
 Bit-clear-test conditional branch group
 ---------------------------------------
 
-::
+.. wavedrom::
 
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_B",   "bits": 4, attr: "$rB" },
+      { "name": "FIELD_C",   "bits": 4, attr: "bit sel" },
+      { "name": "f",         "bits": 4 },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16 },
+  ],
+  }
+
+..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   |       f       |    FIELD_C    |    FIELD_B    |       f       |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -552,8 +822,18 @@ Stack group
 
 While stack operations (as in push/pull) are not supported by the ISA, special load/store instructions are provided with small offsets and $r12 ($fp) and $r13 ($sp) as the base register to support compact form of common stack-load and store- operations. The supported offset range us -256 to +252 bytes.
 
-::
+.. wavedrom::
 
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "S",         "bits": 1, attr: "$rS" },
+      { "name": "OFS",       "bits": 7, attr: "offset" },
+      { "name": "FIELD_C",   "bits": 4, attr: "op kind" },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ],
+  }
+
+..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   |    FIELD_D    |    FIELD_C    |            OFS            | S |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -574,8 +854,18 @@ Instruction code    Assembly                        Operation
 Indirect type load/store group
 ------------------------------
 
-::
+.. wavedrom::
 
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_A",   "bits": 4, attr: "offset" },
+      { "name": "FIELD_B",   "bits": 4, attr: "op kind" },
+      { "name": "e",         "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ],
+  }
+
+..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   |    FIELD_D    |       e       |    FIELD_B    |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -595,8 +885,18 @@ Instruction code    Assembly                                   Operation
 Indirect load/Store group
 -------------------------
 
-::
+.. wavedrom::
 
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
+      { "name": "FIELD_B",   "bits": 4, attr: "op kind" },
+      { "name": "e",         "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ],
+  }
+
+..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   |    FIELD_D    |       e       |    FIELD_B    |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -623,8 +923,18 @@ Instruction code    Assembly                        Operation
 Indirect jump group
 -------------------
 
-::
+.. wavedrom::
 
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
+      { "name": "e",         "bits": 4 },
+      { "name": "e",         "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+  ],
+  }
+
+..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   |    FIELD_D    |       e       |    FIELD_B    |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -643,8 +953,26 @@ Instruction code    Assembly                        Operation
 Offset-indirect type load/store group
 -------------------------------------
 
-::
+.. wavedrom::
 
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_A",   "bits": 4, attr: "offset" },
+      { "name": "FIELD_B",   "bits": 4, attr: "op kind" },
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16 },
+  ],
+  }
+
+..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   |    FIELD_D    |       f       |    FIELD_B    |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -658,24 +986,116 @@ Instruction code    Assembly                                   Operation
 ==================  =======================================    ==================
 0x.f0. 0x****       type $r0...$r7  <- MEM[$rD + FIELD_A*4]    with FIELD_E as mask
 0x.f1. 0x****       type $r8...$r14 <- MEM[$rD + FIELD_A*4]    with FIELD_E as mask
-vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv NOTE NOTE NOTE THESE ARE CHANGED!!!!! TO BE CHECKED WITH COMPILER/ASSEMBLER!!!!!!!
-0x*f2* 0x****       Store multiple offset: {FIELD_D[3:1], FIELD_A} * 4, destination is FIELD_D[0], FIELD_E[15]: include types; FIELD_E[14:0]: register mask
-0x*f3* 0x****       Load multiple  offset: {FIELD_D[3:1], FIELD_A} * 4, destination is FIELD_D[0], FIELD_E[15]: include types; FIELD_E[14:0]: register mask
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ NOTE NOTE NOTE THESE ARE CHANGED!!!!! TO BE CHECKED WITH COMPILER/ASSEMBLER!!!!!!!
 ==================  =======================================    ==================
 
 .. note::
   FIELD_A is ones-complement coded
+
 .. note::
   FIELD_E is used as an 8-bit mask: 1 denotes setting the type for a register, 0 denotes leaving the type unchanged. LSB corresponds to the lowest order register, bit-8 to the highest order. The upper byte of FIELD_E is ignored.
+
 .. note::
   A 32-bit value is loaded from memory and is used to set the types. Ignored types are 'stepped over', their bits in memory are still occupied.
+
+Load/store multiple group
+-------------------------------------
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_C",   "bits": 4, attr: "op kind" },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E lower 16 bits", "bits": 16, attr: "register mask"},
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E upper 16 bits", "bits": 16, attr: "type mask" },
+  ]
+  }
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |    FIELD_C    |       f       |       f       |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+-...
+  |                         FIELD_E  lower 16 bits              ...
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+-...
+
+  ...-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  ...                       FIELD_E   upper 16 bits               |
+  ...-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  FIELD_C != 0xc; FIELD_C != 0xd;
+
+=========================  =======================================    ==================
+Instruction code           Assembly                                   Operation
+=========================  =======================================    ==================
+0x.0ff 0x**** 0x****       $r0...$r14 <- MEM[$rD +]                   load any combination of registers with FIELD_E as mask, incrementing
+0x.1ff 0x**** 0x****       MEM[$rD +] <- $r0...$r14                   store any combination of registers with FIELD_E as mask, incrementing
+0x.2ff 0x**** 0x****       $r0...$r14 <- MEM[$rD -]                   load any combination of registers with FIELD_E as mask, decrementing
+0x.3ff 0x**** 0x****       MEM[$rD -] <- $r0...$r14                   store any combination of registers with FIELD_E as mask, decrementing
+=========================  =======================================    ==================
+
+This is a multi-cycle instruction. For store instructions, the memory address is incremented/decremented for every register that's marked for storage. After that, the type info is stored for every register that's marked for type storage. If no register is marked for type storage in the $r0...$r7 region, the first type WORD is not stored. If no register is marked for type storage in the $r8...$r14 region, the second type WORD is not stored. Otherwise, skipped types are replaced by 0xf.
+
+For load instructions, the reverse happens: for every marked load, the address is (post) incremented/decremented after loading. Types are loaded as needed (skipping type WORDs if none of the corresponding types are marked for load). Individual types are not updated if their associated field is 0xf upon load.
+
+For a load multiple where the base register is marked for load, the implementation must ensure that the new register value only takes effect after the operation fully completes.
+
+*Exception behavior*: If a exception (due to access violation during memory access) is raised, $tpc points to the load/store multiple instruction. It however is generally not guaranteed that no loads or stores have been performed. Consequently, some of the side-effects might have already taken place and the exception handler is in no position to know which ones. It is however safe to assume that the operation can be retried, as long as the following conditions are met:
+
+* Address translation after the retry generates the same physical addresses for store multiple operations
+* The target address is in regular memory as opposed to I/O or CSR space
+
+The requirement to be able to retry means that if the base register is part of the set of registers to be loaded, it's value can only change after it is determined that no more exceptions can fire. This can be achieved by loading the base register last (i.e. not loading registers in order), or load the value into a temporary storage and update the base register as the last step.
+
+.. note::
+
+  Implementing these instructions is complicated. It requires some sort of sequencer in the pipeline and breaks the basic construct of a RISC ISA. It also complicates exception handling.
+
+.. todo::
+
+  These instructions are not supported by the toolset, or Espresso.
+
 
 Offset-indirect load/store group
 --------------------------------
 
-::
+.. wavedrom::
 
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
+      { "name": "FIELD_B",   "bits": 4, attr: "op kind" },
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16 },
+  ],
+  }
+
+..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   |    FIELD_D    |       f       |    FIELD_B    |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -705,8 +1125,26 @@ Instruction code    Assembly                                Operation
 Offset-indirect jump group
 --------------------------
 
-::
+.. wavedrom::
 
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
+      { "name": "e",         "bits": 4 },
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16 },
+  ],
+  }
+
+..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   |    FIELD_D    |       f       |    FIELD_B    |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -731,8 +1169,34 @@ Instruction code    Assembly                                Operation
 Absolute load/store group
 -------------------------
 
-::
+.. wavedrom::
 
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_B",   "bits": 4, attr: "op kind" },
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E lower 16 bits", "bits": 16 },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E upper 16 bits", "bits": 16 },
+  ]
+  }
+
+..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   |    FIELD_D    |       f       |    FIELD_B    |       f       |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -748,10 +1212,6 @@ Absolute load/store group
 =========================  ==========================  ==================
 Instruction code           Assembly                    Operation
 =========================  ==========================  ==================
-vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv NOTE NOTE NOTE THESE ARE CHANGED!!!!! TO BE CHECKED WITH COMPILER/ASSEMBLER!!!!!!!
-0x.f2f 0x****              see store multiple
-0x.f3f 0x****              see load multiple
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ NOTE NOTE NOTE THESE ARE CHANGED!!!!! TO BE CHECKED WITH COMPILER/ASSEMBLER!!!!!!!
 0x.f4f 0x**** 0x****       $rD <- MEM8[FIELD_E]        8-bit unsigned load from MEM[FIELD_E] into $rD
 0x.f5f 0x**** 0x****       $rD <- MEM16[FIELD_E]       16-bit unsigned load from MEM[FIELD_E] into $rD
 0x.f6f 0x**** 0x****       $rD <- MEM[32][FIELD_E]     32-bit load from MEM[FIELD_E] into $rD
@@ -769,8 +1229,34 @@ vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv NOTE NOTE NOTE THESE ARE CHANGED!!!!! TO BE CHEC
 Absolute jump group
 -------------------
 
-::
+.. wavedrom::
 
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "e",         "bits": 4 },
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E lower 16 bits", "bits": 16 },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E upper 16 bits", "bits": 16 },
+  ]
+  }
+
+..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   |    FIELD_D    |       f       |    FIELD_B    |       f       |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -799,17 +1285,38 @@ Extension groups
 
 Extension groups allow for extending the instruction set by utilizing otherwise unused portions of the 16-bit instruction code-space, followed by a second 16-bit instruction code. These extension groups allow for expressing seldom used or specialized instructions while not impacting the compactness of the base ISA.
 
-Lane predicate generation group
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Zero compare lane predication group
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-::
+.. wavedrom::
 
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "0",         "bits": 4 },
+      { "name": "f",         "bits": 4 },
+      { "name": "f",         "bits": 4 },
+      { "name": "f",         "bits": 4 },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_A",   "bits": 4, attr: "$rD" },
+      { "name": "0",         "bits": 4 },
+      { "name": "FIELD_C",   "bits": 4, attr: "op kind" },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rA" },
+  ],
+  }
+
+..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 0 | 0 | 0 | 0 |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |    FIELD_C    |    FIELD_B    |    FIELD_A    |
+  |    FIELD_D    |       0       |    FIELD_B    |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 =========================  ========================    ==================
@@ -821,6 +1328,47 @@ Instruction code           Assembly                    Operation
 0xfff0 0x.03.              $rD <- $rA >= 0               signed compare
 0xfff0 0x.04.              $rD <- $rA > 0                signed compare
 0xfff0 0x.05.              $rD <- $rA <= 0               signed compare
+=========================  ========================    ==================
+
+These instructions perform lane-wise comparisons of the prescribed type. The result (0 for FALSE, 1 for TRUE) is replicated across the length of each lane (8- 16- or 32-times) and placed in the destination register.
+
+Lane predication group
+~~~~~~~~~~~~~~~~~~~~~~
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "0",         "bits": 4 },
+      { "name": "f",         "bits": 4 },
+      { "name": "f",         "bits": 4 },
+      { "name": "f",         "bits": 4 },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
+      { "name": "FIELD_B",   "bits": 4, attr: "$rB" },
+      { "name": "FIELD_C",   "bits": 4, attr: "op kind" },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ],
+  }
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 0 | 0 | 0 | 0 |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |    FIELD_C    |    FIELD_B    |    FIELD_A    |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+=========================  ========================    ==================
+Instruction code           Assembly                    Operation
+=========================  ========================    ==================
 0xfff0 0x.1..              $rD <- $rB == $rA
 0xfff0 0x.2..              $rD <- $rB != $rA
 0xfff0 0x.3..              $rD <- signed $rB < $rA       signed compare
@@ -834,8 +1382,29 @@ These instructions perform lane-wise comparisons of the prescribed type. The res
 Linear interpolation group
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-::
+.. wavedrom::
 
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "1",         "bits": 4 },
+      { "name": "f",         "bits": 4 },
+      { "name": "f",         "bits": 4 },
+      { "name": "f",         "bits": 4 },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
+      { "name": "0",         "bits": 4 },
+      { "name": "FIELD_C",   "bits": 4, attr: "$rB" },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ],
+  }
+
+..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 0 | 0 | 0 | 1 |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -868,8 +1437,30 @@ A 4-lane operation is as follows::
 Scaled multiply group
 ~~~~~~~~~~~~~~~~~~~~~
 
-::
 
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FLD_F",     "bits": 2, attr: "shift" },
+      { "name": "1",         "bits": 2 },
+      { "name": "f",         "bits": 4 },
+      { "name": "0",         "bits": 4 },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
+      { "name": "FIELD_B",   "bits": 4, attr: "$rB" },
+      { "name": "FIELD_C",   "bits": 4, attr: "shift" },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ],
+  }
+
+..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 0 | 1 | FLD_F |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -913,103 +1504,27 @@ Type override
 
 This prefix instruction allows for the changing the way the subsequent operation interprets source operand types. It doesn't actually change the source register types. It also allows for explicit control of whether the destination type is written or not.
 
-::
+.. wavedrom::
 
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "TYPE_A",    "bits": 4, attr: "type override A" },
+      { "name": "f",         "bits": 4 },
+      { "name": "f",         "bits": 4 },
+      { "name": "TYPE_B",    "bits": 4, attr: "type override B" },
+  ],
+  }
+
+..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
   |     TYPE_A    | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |    TYPE_B     | ...
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
+=========================  ===========================================================
+Instruction code           Operation
+=========================  ===========================================================
+0x.ff.                     Type override for $rA (TYPE_A) and $rB (TYPE_B).
+=========================  ===========================================================
+
 Type override for $rA (TYPE_A) and $rB (TYPE_B).
-
-Unused instruction groups
--------------------------
-
-All of the following instruction groups are explicitly reserved for future use. All processor implementations must raise an invalid instruction exception upon encountering them. The instruction size is shown as guidance for future uses: a simple instruction size decode logic would identify these groups as the shown size. It is not guaranteed that they are going to be used in such a fashion nor does it really matter for processor implementations following this version of the ISA specification.
-
-::
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  | 1 | 1 | 1 | 1 |    FIELD_C    | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |                         FIELD_E                               |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-.. note:: FIELD_C != 0xf
-.. note::
-  The branch predictor is allowed to treat this group as a conditional branch
-
-::
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |                         FIELD_E                               |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-::
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |    FIELD_B    | 1 | 1 | 1 | 1 |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |                         FIELD_E                               |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-.. note:: FIELD_B != 0xf
-
-::
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |    FIELD_C    | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+-...
-  |                         FIELD_E  lower 16 bits              ...
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+-...
-
-  ...-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  ...                       FIELD_E   upper 16 bits               |
-  ...-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-.. note:: FIELD_C != 0xc; FIELD_C != 0xd; FIELD_C != 0xf; FIELD_D != 0xf
-
-::
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+-...
-  |                         FIELD_E  lower 16 bits              ...
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+-...
-
-  ...-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  ...                       FIELD_E   upper 16 bits               |
-  ...-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-.. note:: FIELD_D != 0xf
-
-::
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    | 1 | 1 | 1 | 0 |    FIELD_B    | 1 | 1 | 1 | 1 |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+-...
-  |                         FIELD_E  lower 16 bits              ...
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+-...
-
-  ...-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  ...                       FIELD_E   upper 16 bits               |
-  ...-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-.. note:: FIELD_D != 0xf; FIELD_B != 0xf
-
-.. note::
-  if FIELD_D == 0x2 and FIELD_B == 0xe, the branch predictor is allowed to treat this instruction code as a conditional branch.
 

@@ -1,4 +1,4 @@
-Appendix C: Comparing to the competition
+Appendix B: Comparing to the competition
 ========================================
 
 .. todo:: This needs updating to the latest stats!

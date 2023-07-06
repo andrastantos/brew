@@ -19,10 +19,11 @@ Brew Processor
    isa_details
    abi
    decode
-   interpolation
-   competition
-   gpu
    hw_impl_notes
+   system_sw
+   competition
+   interpolation
+   gpu
    todo
 
 Todos

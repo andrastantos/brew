@@ -69,5 +69,10 @@ source_suffix = {
     '.md': 'markdown',
 }
 
+# - Config for wavedrom ------------------------------------------------------
+#wavedrom_html_jsinline = False
+# We need either this, or: npm i wavedrom-cli -g
+#render_using_wavedrompy = True
+
 from docutils import nodes
 

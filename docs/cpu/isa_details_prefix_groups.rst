@@ -1,5 +1,5 @@
-Type overrides (INT32) (INT16X2) (INT8X4) (UINT16X2S) (SINT16X2S) (UINT8X4S) (SINT8X4S) (FP32) (FP16X2) ()
--------------------------------------------------------------------------------------------------------------
+Type overrides (<type>)
+-----------------------
 
 *Instruction code*: 0x.ff.
 
@@ -16,6 +16,8 @@ In assembly, any appearance of an operand register can be prefixed with a type o
     $r4 <- (INT16X2) $r6 * $r7
     $r4 <- (INT32) $r6 + (FP32) $r7
     if any (INT8X4) $r7 > 0 $pc <- $pc + 10
+
+The following types are supported: (INT32) (INT16X2) (INT8X4) (UINT16X2S) (SINT16X2S) (UINT8X4S) (SINT8X4S) (FP32) (FP16X2)
 
 In all of these cases the type of the operand is overwritten to the given type. Type overrides cannot be provided to constants. For instance the following syntax is invalid::
 

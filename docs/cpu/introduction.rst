@@ -3,9 +3,9 @@ Introduction
 
 Brew (as in home-brew) is an Instruction Set Architecture to explore a few ideas that have been rattling in my head for a while. It is a RISC-style design at its heart with a few twists.
 
-It is a 32-bit data-path design with variable instruction length. The smallest instructions is 16-bits long, the largest (without extension groups) 48 bits. For an common instruction sequence, the average instruction length is around 24 bits.
+It is a 32-bit data-path design with variable instruction length. The smallest instructions is 16-bits long, the largest (without prefix groups) 48 bits. For an common instruction sequence, the average instruction length is around 24 bits.
 
-The ISA defines 14 general purpose registers plus a pair of program counters.
+The ISA defines 15 general purpose registers plus a pair of program counters.
 
 Each register has a type associated with it. This type is set and propagated by instructions. They can be loaded and saved to memory.
 
@@ -15,28 +15,9 @@ The instruction set is supported by a port of BinUtils, GCC (C and C++ front-end
 
 The first RTL implementation for the Brew architecture is the Espresso core, which is part of the Anachronistic Computer project.
 
+Working on the toolset allowed me to run some benchmarks (on the instruction-set simulator) and realize that my instruction set sucked in so many ways. What you see here is the third major revision of the ISA. In it's current incarnation it is better in code-density then RISC-V, better then ARM, almost as good as THUMB.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-CPU (the story)
-===============
-
-For the anachronistic computer, we need a properly anachronistic processor. As it turns out, I just have the design! I have been toying around with an instruction set design lately: the BREW architecture.
-
-What is BREW you might ask? It's my attempt at a RISC-like processor. I had a few ideas that have been rattling around in my cranium for years, but have always put it off as too crazy a project to embark upon. You see, there are way too many ISAs in the wild already, why should I inflict another one on the world? Plus, it's not exactly trivial to lift an ISA off the ground: one needs an assembler. A linker. A C compiler, runtime libraries, a debugger, a simulator. Ideally other languages, such as C++ as well. This was a daunting list that terrified me. About a year ago, I said, what the hack, why don't I give it a shot? As it turns out, porting GCC (and binutils) to a new target wasn't all that difficult. In a couple of months I had pretty much all of the above accomplished. Except for GDB, the debugger. That, I still didn't get around. This experience also allowed me to run some benchmarks (on an instruction-set simulator) and realize that my instruction set sucked in so many ways. I ended up re-writing the ISA three times, following up with all the toolset changes. At the end of the process though, I ended up with an ISA that was better in code-density then RISC-V, better then ARM, almost as good as THUMB.
-
-So, what does this processor look like? It's a 32-bit processor, and as I said, it's RISC-like. There are a few (nowadays) unusual features, so let's get through them!
+So, what does this processor look like? Let's get into its features in a little more detail.
 
 Instruction size
 ~~~~~~~~~~~~~~~~

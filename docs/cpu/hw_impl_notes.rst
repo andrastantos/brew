@@ -1,4 +1,4 @@
-Appendix D: Implementation Notes
+Appendix A: Implementation Notes
 ================================
 
 Instruction Decode

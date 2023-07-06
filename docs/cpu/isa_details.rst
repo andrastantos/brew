@@ -164,7 +164,7 @@ This instruction flushes the internal pipeline. Subsequent instructions must be 
 .. todo:: PFLUSH is not implemented anywhere. Not in BINUTILS, not in Espresso.
 
 FENCE_*
-------
+-------
 
 *Instruction code*: 0x.001
 
@@ -1435,7 +1435,7 @@ The implementation is allowed to throw exceptions if the memory access violates 
 
 
 type $r0...$r7  <- MEM[$rD + VALUE] & MASK
------------------------------------------
+------------------------------------------
 
 *Instruction code*: 0x.f0. 0x****
 

@@ -1,4 +1,4 @@
-Appendix A: Interpolation
+Appendix C: Interpolation
 =========================
 
 .. todo::  I'm actually not sure at all what I wanted the interpolation instruction to do anymore. The simulation just throws an exception and this old description below describes something woefully complex.
