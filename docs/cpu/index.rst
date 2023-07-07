@@ -11,9 +11,11 @@ Brew Processor
    :caption: Contents:
 
    introduction
-   basic_concepts
+   interrupts
+   execution_contexts
+   process_isolation
    registers
-   inst_encodings
+   exceptions
    isa
    memory_model
    isa_details

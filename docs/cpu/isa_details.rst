@@ -172,7 +172,7 @@ FENCE_*
 
 *Type variants*: No
 
-*Assembly mnemonics*: FENCE_RW_RW; FENCE__W_RW; FENCE_R__RW; FENCE____RW; FENCE_RW__W; FENCE__W__W; FENCE_R___W; FENCE_____W; FENCE_RW_R_; FENCE__W_R_; FENCE_R__R_; FENCE____R_; FENCE_RW___; FENCE__W___; FENCE_R____; FENCE_RW_RW;
+*Assembly mnemonics*: FENCE_RW_RW; FENCE__W_RW; FENCE_R__RW; FENCE____RW; FENCE_RW__W; FENCE__W__W; FENCE_R___W; FENCE_____W; FENCE_RW_R\_; FENCE__W_R\_; FENCE_R__R\_; FENCE____R\_; FENCE_RW___; FENCE__W___; FENCE_R____; FENCE_RW_RW;
 
 Description
 ~~~~~~~~~~~
@@ -1956,10 +1956,6 @@ Absolute load/store group
 =========================  ==========================  ==================
 Instruction code           Assembly                    Operation
 =========================  ==========================  ==================
-vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv NOTE NOTE NOTE THESE ARE CHANGED!!!!! TO BE CHECKED WITH COMPILER/ASSEMBLER!!!!!!!
-0x.f2f 0x****              see store multiple
-0x.f3f 0x****              see load multiple
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ NOTE NOTE NOTE THESE ARE CHANGED!!!!! TO BE CHECKED WITH COMPILER/ASSEMBLER!!!!!!!
 0x.f4f 0x**** 0x****       $rD <- MEM8[FIELD_E]        8-bit unsigned load from MEM[FIELD_E] into $rD
 0x.f5f 0x**** 0x****       $rD <- MEM16[FIELD_E]       16-bit unsigned load from MEM[FIELD_E] into $rD
 0x.f6f 0x**** 0x****       $rD <- MEM[32][FIELD_E]     32-bit load from MEM[FIELD_E] into $rD

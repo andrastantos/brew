@@ -110,10 +110,10 @@ Instruction code   Assembly
 0x5001             FENCE__W__W
 0x6001             FENCE_R___W
 0x7001             FENCE_____W
-0x8001             FENCE_RW_R_
-0x9001             FENCE__W_R_
-0xa001             FENCE_R__R_
-0xb001             FENCE____R_
+0x8001             FENCE_RW_R\_
+0x9001             FENCE__W_R\_
+0xa001             FENCE_R__R\_
+0xb001             FENCE____R\_
 0xc001             FENCE_RW___
 0xd001             FENCE__W___
 0xe001             FENCE_R____
@@ -695,15 +695,16 @@ Instruction code           Assembly                                             
 .. todo::
   Maybe we can do lane-replication in case of lane-count mismatch? After all, these are using the ALUs, the same way as binary ops do...
 
-PSEUDO OPS:
-    if any signed $rB >= $rA $pc <- $pc + unmunge(OFFSET)
-    if any signed $rB < $rA  $pc <- $pc + unmunge(OFFSET)
-    if any $rB >= $rA   $pc <- $pc + unmunge(OFFSET)
-    if any $rB < $rA    $pc <- $pc + unmunge(OFFSET)
-    if all signed $rB >= $rA $pc <- $pc + unmunge(OFFSET)
-    if all signed $rB < $rA  $pc <- $pc + unmunge(OFFSET)
-    if all $rB >= $rA   $pc <- $pc + unmunge(OFFSET)
-    if all $rB < $rA    $pc <- $pc + unmunge(OFFSET)
+*pseudo ops*:
+
+* if any signed $rB >= $rA $pc <- $pc + unmunge(OFFSET)
+* if any signed $rB < $rA  $pc <- $pc + unmunge(OFFSET)
+* if any $rB >= $rA   $pc <- $pc + unmunge(OFFSET)
+* if any $rB < $rA    $pc <- $pc + unmunge(OFFSET)
+* if all signed $rB >= $rA $pc <- $pc + unmunge(OFFSET)
+* if all signed $rB < $rA  $pc <- $pc + unmunge(OFFSET)
+* if all $rB >= $rA   $pc <- $pc + unmunge(OFFSET)
+* if all $rB < $rA    $pc <- $pc + unmunge(OFFSET)
 
 .. note:: unmunge: replicate LSB to bit positions [31:16], replace LSB with 0.
 
@@ -1292,9 +1293,9 @@ Zero compare lane predication group
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "f",         "bits": 4 },
       { "name": "0",         "bits": 4 },
-      { "name": "f",         "bits": 4 },
-      { "name": "f",         "bits": 4 },
       { "name": "f",         "bits": 4 },
   ],
   }
@@ -1312,7 +1313,7 @@ Zero compare lane predication group
 
 ..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 0 | 0 | 0 | 0 |
+  |       f       |       0       |       f       |       f       |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -1322,15 +1323,17 @@ Zero compare lane predication group
 =========================  ========================    ==================
 Instruction code           Assembly                    Operation
 =========================  ========================    ==================
-0xfff0 0x.00.              $rD <- $rA == 0
-0xfff0 0x.01.              $rD <- $rA != 0
-0xfff0 0x.02.              $rD <- $rA < 0                signed compare
-0xfff0 0x.03.              $rD <- $rA >= 0               signed compare
-0xfff0 0x.04.              $rD <- $rA > 0                signed compare
-0xfff0 0x.05.              $rD <- $rA <= 0               signed compare
+0xf0ff 0x.00.              $rD <- $rA == 0
+0xf0ff 0x.01.              $rD <- $rA != 0
+0xf0ff 0x.02.              $rD <- $rA < 0                signed compare
+0xf0ff 0x.03.              $rD <- $rA >= 0               signed compare
+0xf0ff 0x.04.              $rD <- $rA > 0                signed compare
+0xf0ff 0x.05.              $rD <- $rA <= 0               signed compare
 =========================  ========================    ==================
 
 These instructions perform lane-wise comparisons of the prescribed type. The result (0 for FALSE, 1 for TRUE) is replicated across the length of each lane (8- 16- or 32-times) and placed in the destination register.
+
+.. todo:: Extension group encoding changed. Toolset needs updating.
 
 Lane predication group
 ~~~~~~~~~~~~~~~~~~~~~~
@@ -1339,9 +1342,9 @@ Lane predication group
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "f",         "bits": 4 },
       { "name": "0",         "bits": 4 },
-      { "name": "f",         "bits": 4 },
-      { "name": "f",         "bits": 4 },
       { "name": "f",         "bits": 4 },
   ],
   }
@@ -1359,7 +1362,7 @@ Lane predication group
 
 ..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 0 | 0 | 0 | 0 |
+  |       f       |       0       |       f       |       f       |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -1369,15 +1372,17 @@ Lane predication group
 =========================  ========================    ==================
 Instruction code           Assembly                    Operation
 =========================  ========================    ==================
-0xfff0 0x.1..              $rD <- $rB == $rA
-0xfff0 0x.2..              $rD <- $rB != $rA
-0xfff0 0x.3..              $rD <- signed $rB < $rA       signed compare
-0xfff0 0x.4..              $rD <- signed $rB >= $rA      signed compare
-0xfff0 0x.5..              $rD <- $rB < $rA
-0xfff0 0x.6..              $rD <- $rB >= $rA
+0xf0ff 0x.1..              $rD <- $rB == $rA
+0xf0ff 0x.2..              $rD <- $rB != $rA
+0xf0ff 0x.3..              $rD <- signed $rB < $rA       signed compare
+0xf0ff 0x.4..              $rD <- signed $rB >= $rA      signed compare
+0xf0ff 0x.5..              $rD <- $rB < $rA
+0xf0ff 0x.6..              $rD <- $rB >= $rA
 =========================  ========================    ==================
 
 These instructions perform lane-wise comparisons of the prescribed type. The result (0 for FALSE, 1 for TRUE) is replicated across the length of each lane (8- 16- or 32-times) and placed in the destination register.
+
+.. todo:: Extension group encoding changed. Toolset needs updating.
 
 Linear interpolation group
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1386,9 +1391,9 @@ Linear interpolation group
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "f",         "bits": 4 },
       { "name": "1",         "bits": 4 },
-      { "name": "f",         "bits": 4 },
-      { "name": "f",         "bits": 4 },
       { "name": "f",         "bits": 4 },
   ],
   }
@@ -1406,7 +1411,7 @@ Linear interpolation group
 
 ..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 0 | 0 | 0 | 1 |
+  |       f       |       1       |       f       |       f       |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -1416,7 +1421,7 @@ Linear interpolation group
 =========================  ============================  ==================
 Instruction code           Assembly                      Operation
 =========================  ============================  ==================
-0xfff1 0x.0..              $rD <- interpolate $rA, $rB
+0xf1ff 0x.0..              $rD <- interpolate $rA, $rB
 =========================  ============================  ==================
 
 This instruction performs linear interpolation between adjacent lanes of $rA using the value of $rB as a fractional 32-bit value.
@@ -1433,6 +1438,7 @@ A 4-lane operation is as follows::
   $rD(3) <- $rA(3) *    $rB  + $rA(4) * (1-$rB)
   $rD(4) <- $rA(3) * (1-$rB) + $rA(4) *    $rB
 
+.. todo:: Extension group encoding changed. Toolset needs updating.
 
 Scaled multiply group
 ~~~~~~~~~~~~~~~~~~~~~
@@ -1442,10 +1448,11 @@ Scaled multiply group
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
-      { "name": "FLD_F",     "bits": 2, attr: "shift" },
-      { "name": "1",         "bits": 2 },
       { "name": "f",         "bits": 4 },
-      { "name": "0",         "bits": 4 },
+      { "name": "f",         "bits": 4 },
+      { "name": "FLD_F",     "bits": 2, attr: "shift" },
+      { "name": "FLD_O",     "bits": 2, attr: "op kind" },
+      { "name": "f",         "bits": 4 },
   ],
   }
 
@@ -1462,7 +1469,7 @@ Scaled multiply group
 
 ..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 0 | 1 | FLD_F |
+  |       f       |  OP   | FLD_F |       f       |       f       |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
@@ -1472,18 +1479,21 @@ Scaled multiply group
 =========================  =========================================  ==================
 Instruction code           Assembly                                   Operation
 =========================  =========================================  ==================
-0xfff4 0x.*..              $rD <- full $rA * $rB >>> FIELD_C + 0
-0xfff5 0x.*..              $rD <- full $rA * $rB >>> FIELD_C + 8
-0xfff6 0x.*..              $rD <- full $rA * $rB >>> FIELD_C + 16
-0xfff7 0x.*..              $rD <- full $rA * $rB >>> FIELD_C + 32
-0xfff8 0x.*..              $rD <- full $rA * $rB >> FIELD_C + 0
-0xfff9 0x.*..              $rD <- full $rA * $rB >> FIELD_C + 8
-0xfffa 0x.*..              $rD <- full $rA * $rB >> FIELD_C + 16
-0xfffb 0x.*..              $rD <- full $rA * $rB >> FIELD_C + 32
+0xf4ff 0x.*..              $rD <- full $rA * $rB >>> FIELD_C + 0
+0xf5ff 0x.*..              $rD <- full $rA * $rB >>> FIELD_C + 8
+0xf6ff 0x.*..              $rD <- full $rA * $rB >>> FIELD_C + 16
+0xf7ff 0x.*..              $rD <- full $rA * $rB >>> FIELD_C + 32
+0xf8ff 0x.*..              $rD <- full $rA * $rB >> FIELD_C + 0
+0xf9ff 0x.*..              $rD <- full $rA * $rB >> FIELD_C + 8
+0xfaff 0x.*..              $rD <- full $rA * $rB >> FIELD_C + 16
+0xfbff 0x.*..              $rD <- full $rA * $rB >> FIELD_C + 32
 =========================  =========================================  ==================
 
 .. todo::
   This is not how BINUTILS is coded up at the moment. We need to follow-up with the changes there.
+
+.. todo:: Extension group encoding changed. Toolset needs updating.
+
 
 Prefix instructions
 -------------------
@@ -1509,22 +1519,23 @@ This prefix instruction allows for the changing the way the subsequent operation
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
       { "name": "TYPE_A",    "bits": 4, attr: "type override A" },
-      { "name": "f",         "bits": 4 },
-      { "name": "f",         "bits": 4 },
       { "name": "TYPE_B",    "bits": 4, attr: "type override B" },
+      { "name": "f",         "bits": 4 },
+      { "name": "f",         "bits": 4 },
   ],
   }
 
 ..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |     TYPE_A    | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 |    TYPE_B     | ...
+  |       f       |       f       |     TYPE_A    |    TYPE_B     | ...
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 =========================  ===========================================================
 Instruction code           Operation
 =========================  ===========================================================
-0x.ff.                     Type override for $rA (TYPE_A) and $rB (TYPE_B).
+0xff** ...                 Type override for $rA (TYPE_A) and $rB (TYPE_B).
 =========================  ===========================================================
 
 Type override for $rA (TYPE_A) and $rB (TYPE_B).
 
+If either TYPE_A or TYPE_B is set to 0xf, the corresponding register type is not overridden: the type from the register file is used during the subsequent operation.

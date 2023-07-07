@@ -215,10 +215,10 @@ Instruction code   Assembly
 0x5001             FENCE__W__W
 0x6001             FENCE_R___W
 0x7001             FENCE_____W
-0x8001             FENCE_RW_R_
-0x9001             FENCE__W_R_
-0xa001             FENCE_R__R_
-0xb001             FENCE____R_
+0x8001             FENCE_RW_R\_
+0x9001             FENCE__W_R\_
+0xa001             FENCE_R__R\_
+0xb001             FENCE____R\_
 0xc001             FENCE_RW___
 0xd001             FENCE__W___
 0xe001             FENCE_R____
@@ -673,10 +673,6 @@ Instruction code    Assembly                                  Operation
 ==================  ======================================    ==================
 0x.f0. 0x****       type $r0...$r7  <- MEM[$rD, FIELD_A*4]    with FIELD_E as mask
 0x.f1. 0x****       type $r8...$r14 <- MEM[$rD, FIELD_A*4]    with FIELD_E as mask
-vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv NOTE NOTE NOTE THESE ARE CHANGED!!!!! TO BE CHECKED WITH COMPILER/ASSEMBLER!!!!!!!
-0x*f2* 0x****       Store multiple offset: {FIELD_D[3:1], FIELD_A} * 4, destination is FIELD_D[0], FIELD_E[15]: include types; FIELD_E[14:0]: register mask
-0x*f3* 0x****       Load multiple  offset: {FIELD_D[3:1], FIELD_A} * 4, destination is FIELD_D[0], FIELD_E[15]: include types; FIELD_E[14:0]: register mask
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ NOTE NOTE NOTE THESE ARE CHANGED!!!!! TO BE CHECKED WITH COMPILER/ASSEMBLER!!!!!!!
 ==================  ======================================    ==================
 
 .. note::
@@ -787,7 +783,7 @@ NOT USED, BUT RESERVED
 
 
 Load immediate group
-~~~~~~~~~~~~~~~~~~~~
+--------------------
 
 ::
 
@@ -823,7 +819,7 @@ Instruction code           Assembly                    Operation
   Types for each register are encoded in 4-bit nibbles. Lowest 4 bits determine the type of the lowest indexed register. Highest 4 bits determine the type of the highest indexed register.
 
 Constant ALU group
-~~~~~~~~~~~~~~~~~~
+------------------
 
 ::
 
@@ -864,7 +860,7 @@ Instruction code           Assembly                    Operation
   << and >> operations where opB is constant can be expressed by multiplies. Because of that, these operations only have one form. This does mean though, that the constant needed for certain shifts is larger than what would normally be required (i.e. 32-bit instead of 16).
 
 Indirect type load/store group
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+------------------------------
 
 ::
 
@@ -888,7 +884,7 @@ Instruction code    Assembly                                    Operation
 
 
 Absolute load/store group
-~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------
 
 ::
 
@@ -907,10 +903,6 @@ Absolute load/store group
 =========================  ==========================  ==================
 Instruction code           Assembly                    Operation
 =========================  ==========================  ==================
-vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv NOTE NOTE NOTE THESE ARE CHANGED!!!!! TO BE CHECKED WITH COMPILER/ASSEMBLER!!!!!!!
-0x.f2f 0x****              see store multiple
-0x.f3f 0x****              see load multiple
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ NOTE NOTE NOTE THESE ARE CHANGED!!!!! TO BE CHECKED WITH COMPILER/ASSEMBLER!!!!!!!
 0x.f4f 0x**** 0x****       $rD <- MEM8[FIELD_E]        8-bit unsigned load from MEM[FIELD_E] into $rD
 0x.f5f 0x**** 0x****       $rD <- MEM16[FIELD_E]       16-bit unsigned load from MEM[FIELD_E] into $rD
 0x.f6f 0x**** 0x****       $rD <- MEM[32][FIELD_E]     32-bit load from MEM[FIELD_E] into $rD
@@ -926,7 +918,7 @@ vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv NOTE NOTE NOTE THESE ARE CHANGED!!!!! TO BE CHEC
 .. note:: Loads don't change the type of a register.
 
 Absolute jump group
-~~~~~~~~~~~~~~~~~~~
+-------------------
 
 ::
 
@@ -959,7 +951,7 @@ Extension groups
 Extension groups allow for extending the instruction set by utilizing otherwise unused portions of the 16-bit instruction code-space, followed by a second 16-bit instruction code. These extension groups allow for expressing seldom used or specialized instructions while not impacting the compactness of the base ISA.
 
 Lane predicate generation group
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------------
 
 ::
 
@@ -991,7 +983,7 @@ Instruction code           Assembly                    Operation
 These instructions perform lane-wise comparisons of the prescribed type. The result (0 for FALSE, 1 for TRUE) is replicated across the length of each lane (8- 16- or 32-times) and placed in the destination register.
 
 Linear interpolation group
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+--------------------------
 
 ::
 
@@ -1025,7 +1017,25 @@ A 4-lane operation is as follows::
 
 
 Scaled multiply group
-~~~~~~~~~~~~~~~~~~~~~
+---------------------Register types
+--------------
+
+Each register has a type associated with it. Types are changed and propagated by instructions. They can be loaded and stored independent of the values contained in the registers.
+
+The dynamic typing of registers gives great flexibility ot the ISA and allows future growth and extensibility. There is however overhead associated with managing register types. This overhead is minimized if the compiler dedicates types to certain registers and keep them constant as much as possible.
+
+.. note::
+
+    Almost all processors have a similar concept for floating-point (and vector) registers: they have their own type, except this type is fixed. One can see the Brew way of dealing with register types as a more flexible partitioning of the register-file. A way that can adapt to the needs of the application at hand.
+
+Register types determine the semantics of many operations, especially in the unary, binary ALU groups and in conditional branches.
+
+Type-less variant
+-----------------
+
+A type-less variant of the ISA is possible: in this case, all registers are assumed to have the type of INT32 and type-change instructions have no effect.
+
+
 
 ::
 

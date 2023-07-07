@@ -40,6 +40,7 @@ with open("isa.rst", "rt") as file:
             inst_code = line[start:start+4]
             inst_len = 16
             try:
+                if line[start+5:].startswith("..."): inst_len = None
                 if line[start+5:].startswith("0x"): inst_len += 16
                 if line[start+12:].startswith("0x"): inst_len += 16
             except IndexError:
@@ -56,7 +57,7 @@ with open("isa.rst", "rt") as file:
                                 print(f"    {inst_codes[inst_code_int]}")
                                 print(f"    {line}")
                                 print(f"    at inst code: 0x{inst_code_int:04x}")
-                            if inst_len != get_inst_len(inst_code_int):
+                            if inst_len is not None and inst_len != get_inst_len(inst_code_int):
                                 print(f"!!!!!!!!!!!!!!!! SIZE CONFLICT !!!!!!!!!!!!!!!!")
                                 print(f"between:")
                                 print(f"    {inst_codes[inst_code_int]}")
