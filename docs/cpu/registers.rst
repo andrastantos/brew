@@ -45,7 +45,12 @@ $tpc:
 Register Types
 --------------
 
-The type of the data held in a register is stored as side-band information next to the register data. The meaning of various instruction opcodes depend on the register types they operate on.
+Each general purpose register has a type associated with it. Types are changed and propagated by instructions. They can be loaded and stored independent of the values contained in the registers. The type of :code:`$tpc`, :code:`$spc` and :code:`$pc` is always assumed to be :code:`INT32`.
+
+The meaning of various instruction opcodes depend on the register types they operate on.
+
+.. note::
+  This means that instruction scheduling cannot be statically performed without having access to the register types. There could be dependencies on previous instructions still in the pipeline. The ISA is formulated in a way that the result type can often be determined from the source types alone, without regard of the values involved in the operations (obvious exceptions are the loading and storing of types). An implementation can pre-calculate the types of future register updates, eliminating the latency impact of the pipeline in most cases.
 
 .. note::
   Since compilers (at least GCC) don't differentiate between signed and unsigned integer types, the HW doesn't do that either. This means that certain integer operations have signed and unsigned variants.
@@ -56,13 +61,26 @@ There are up to 15 register types supported by the ISA, but only the following a
 Type code     Type        Note
 ==========    =========   ==========
 0x0           INT32       32-bit integer: this is the default type of all registers after reset
-0x1           INT16X2     2-way 16-bit integer vector
-0x2           INT8X4      4-way 8-bit integer vector
-0x3           UINT16X2S   Unsigned, saturated version on INT16X2
-0x4           SINT16X2S   Signed, saturated version on INT16X2
-0x5           UINT8X4S    Unsigned, saturated version on INT8X4
-0x6           SINT8X4S    Signed, saturated version on INT8X4
-0x8           FP32        32-bit float
-0x9           FP16X2      2-way 16-bit float vector
+0x1           FP32        32-bit float
+0x2           RES1        reserved
+0x3           RES2        reserved
+0x4           VINT32      32-bit integer vector
+0x5           VFP32       32-bit float vector
+0x6           VINT16      16-bit integer vector
+0x7           VINT8       8-bit integer vector
+0x8           VFP16       16-bit float vector
+0x9           VUINT32S    Unsigned, saturated version on VINT32
+0xa           VSINT32S    Signed, saturated version on VINT32
+0xb           VUINT16S    Unsigned, saturated version on VINT16
+0xc           VSINT16S    Signed, saturated version on VINT16
+0xd           VUINT8X4S   Unsigned, saturated version on VINT8
+0xe           VSINT8X4S   Signed, saturated version on VINT8
 ==========    =========   ==========
+
+Type-less variant
+-----------------
+
+A type-less variant of the ISA is possible: in this case, all registers are assumed to have the type of INT32 and type-change instructions have no effect.
+
+.. todo:: The compatibility story of the typeless subset is rather shaky. We need more thought on that!
 

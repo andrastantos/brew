@@ -98,7 +98,7 @@ Stack layout
 
 Stack management is also the responsibility of SW: there are no instructions that define or constrain the way the stack is organized. However, there are special load/store instructions with very compact encodings that use :code:`$r12` (a.k.a. :code:`$sp`) and :code:`$r13` (a.k.a. :code:`$fp`), so any reasonable ABI would use these two registers for stack management.
 
-Stack is pre-decrement for push, and post-increment for pop. This means that :code:`$sp` points to the last valid value.
+The stack is growing down, and the stack pointer is pre-decrement for push, and post-increment for pop. This means that :code:`$sp` points to the last valid value.
 
 .. important::
   since the stack is SW managed, pushes and pops are not atomic. Interrupt handlers can't assume that :code:`$sp` actually points to the top of the stack.

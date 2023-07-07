@@ -555,15 +555,10 @@ Instruction code           Assembly                             Operation
 0x.7f. 0x****              $rD <- short $rA >> FIELD_E          Binary right-shift [#note_binary_shift]_
 0x.8f. 0x****              $rD <- short $rA >>> FIELD_E         Arithmetic right-shift [#note_binary_shift]_
 0x.9f. 0x****              $rD <- short FIELD_E * $rA           Type-dependent multiply
-0x.af. 0x****              $rD <- lane_swizzle $rA, VALUE       [#note_lane_swizzle]_
-0x.bf. 0x****              SII                                  Reserved for future ISA expansion
 0x.cf. 0x****              see below (stack ops)
 0x.df. 0x****              see below (stack ops)
 0x.ef. 0x****              see below (mem ops)
 =========================  =================================    ==================
-
-.. [#note_lane_swizzle]
-  only lower 8 bits of value has any meaning, all selection options are valid, independent of type NOTE: in ASM, this is represented as a 4-digit number, each digit of the value 0...3, representing each lane, so for instance 0000 would replicate byte 0 into all 4 bytes
 
 .. note::
   FIELD_E is assumed to be of matching scalar type for $rA. It is sign-extended to 32-bits, then replicated for each lane.
@@ -1384,8 +1379,8 @@ These instructions perform lane-wise comparisons of the prescribed type. The res
 
 .. todo:: Extension group encoding changed. Toolset needs updating.
 
-Linear interpolation group
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+Binary vector operation group
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. wavedrom::
 
@@ -1403,8 +1398,8 @@ Linear interpolation group
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
       { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
-      { "name": "0",         "bits": 4 },
-      { "name": "FIELD_C",   "bits": 4, attr: "$rB" },
+      { "name": "FIELD_B",   "bits": 4, attr: "$rB" },
+      { "name": "FIELD_C",   "bits": 4, attr: "op kind" },
       { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
   ],
   }
@@ -1421,24 +1416,35 @@ Linear interpolation group
 =========================  ============================  ==================
 Instruction code           Assembly                      Operation
 =========================  ============================  ==================
-0xf1ff 0x.0..              $rD <- interpolate $rA, $rB
+0xf1ff 0x.0..              $rD <- interpolate $rA, $rB   [#note_interpolation]_
+0xf1ff 0x.1..              $rD(i) <- $rA($rB(i))         [#note_lane_swizzle]_
+0xf1ff 0x.2..              $rD <- (cast TYPE_B)$rA       Element-wise type-cast $rA to TYPE_B
+0xf1ff 0x.3..              $rD <- compress $rA & $rB     Element-wise compressed selection of $rA, $rB being the selector
 =========================  ============================  ==================
 
-This instruction performs linear interpolation between adjacent lanes of $rA using the value of $rB as a fractional 32-bit value.
+.. [#note_interpolation]
+  This instruction performs linear interpolation between adjacent lanes of $rA using the value of $rB as the interpolator.
 
-A 2-lane operation is as follows::
+  If $rB is of an integral type, it is assumed to be a fractional value between 0 and 1. If it's a floating-point type, its value must be between 0.0 and 1.0.
 
-  $rD(0) <- $rA(0) *    $rB  + $rA(1) * (1-$rB)
-  $rD(1) <- $rA(0) * (1-$rB) + $rA(1) *    $rB
+  If the value of $rB is not within the requisite range, the outcome of the operation is implementation-defined.
 
-A 4-lane operation is as follows::
+  If $rB is a scalar type, it's broadcast to all lanes. If $rB is a vector type, its value is used lane-wise::
 
-  $rD(0) <- $rA(0) *    $rB  + $rA(1) * (1-$rB)
-  $rD(1) <- $rA(0) * (1-$rB) + $rA(1) *    $rB
-  $rD(3) <- $rA(3) *    $rB  + $rA(4) * (1-$rB)
-  $rD(4) <- $rA(3) * (1-$rB) + $rA(4) *    $rB
+    $rD(i*2+0) <- $rA(i*2+0) *    $rB(i*2+0)  + $rA(i*2+1) *    $rB(i*2+1)
+    $rD(i*2+1) <- $rA(i*2+0) * (1-$rB(i*2+0)) + $rA(i*2+1) * (1-$rB(i*2+1))
 
-.. todo:: Extension group encoding changed. Toolset needs updating.
+  .. todo:: Extension group encoding changed. Toolset needs updating.
+
+  .. todo:: Do we really want to support this for floating-point types? There are a boat-load of multiplies here!
+
+.. [#note_lane_swizzle]
+  Each lane of $rD is set to the lane of $rA referenced by the corresponding lane of $rB.
+
+  .. todo:: Original lane-swizzle:
+    0x.af. 0x****              $rD <- lane_swizzle $rA, VALUE
+    got removed. Toolset needs updating.
+
 
 Scaled multiply group
 ~~~~~~~~~~~~~~~~~~~~~

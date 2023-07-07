@@ -1,7 +1,7 @@
 Task and Scheduler modes
 ------------------------
 
-There are only two execution contexts: TASK mode and SCHEDULER mode. They roughly correspond to user-space and kernel-space in other architectures, but there are differences (described later) that warrant a different naming. There is no concept of rings such as on ia32.
+There are only two execution contexts: TASK mode and SCHEDULER mode. They roughly correspond to user-space and kernel-space in other architectures, but there are differences that warrant a different naming. There is no concept of rings such as on ia32.
 
 Each context has its program counter: :code:`$tpc` for TASK mode and :code:`$spc` for SCHEDULER mode. The processor updates the appropriate program counter depending on the execution context. Most instructions deal with the 'program counter of the current context', which is simply named :code:`$pc`, which is an alias to either :code:`$tpc` or :code:`$spc`.
 

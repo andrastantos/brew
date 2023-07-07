@@ -1,7 +1,12 @@
 Process isolation
 -----------------
 
-There are no privileged instructions. Every instruction can be executed in both SCHEDULER and TASK mode with exactly the same semantics. Process-isolation and protection is achieved by two key concepts:
+There are no privileged instructions. Every instruction can be executed in both SCHEDULER and TASK mode with exactly the same semantics. Process isolation needs to ensure two things:
+
+* No TASK mode process should be able to influence the execution of any other TASK mode process.
+* No TASK mode process should be able to influence the execution of SCHEDULER mode.
+
+This is achieved by two key concepts:
 
 * There is a slight imbalance in the ISA: there is a way to influence the current contexts' :code:`$pc` and :code:`$tpc`; there is no way to influence :code:`$spc` (unless of course that happens to be the current context :code:`$pc`).
 * All resources (I/O, memory, even CSRs) are accessed through memory references. These references go through an MMU, which controls per-task access rights.
