@@ -167,13 +167,13 @@ Instruction code   Assembly       Operation
 0x.005             $rD <- $tpc    Load $tpc into register
 0x.006
 0x.007
-0x.008
-0x.009
-0x.00a
-0x.00b
-0x.00c
-0x.00d
-0x.00e
+0x.008             $rD <- DIRTY   Load 'dirty' mask into $rD
+0x.009             DIRTY <- $rD   Set 'dirty' mask based on $rD
+0x.00a             $rD <- VSTART  Load 'vstart' into $rD
+0x.00b             VSTART <- $rD  Set 'vstart' from $rD
+0x.00c             $rD <- VEND    Load 'vend' into $rD
+0x.00d             VEND <- $rD    Set 'vend' from $rD
+0x.00e             $rD <- VLEN    Load HW vector length into $rD
 =================  ===========    ==================
 
 .. note::
@@ -181,6 +181,9 @@ Instruction code   Assembly       Operation
 
 .. todo::
   We might want to shift encoding to 0x.004 ... 0x.007 to make the branch predictors job easier at recognizing this class.
+
+.. todo::
+  What are the consequences of manipulating VSTART/VEND/DIRTY in TASK mode?
 
 Unary group
 -----------
@@ -1074,10 +1077,10 @@ Load/store multiple
 ==================  =======================================    ==================
 Instruction code    Assembly                                   Operation
 ==================  =======================================    ==================
-0x.f0. 0x****       $r0...$r14 <- MEM[$rD]                     load any combination of registers with FIELD_E as mask; skip-mask in $rA
-0x.f1. 0x****       MEM[$rD] <- $r0...$r14                     store any combination of registers with FIELD_E as mask; skip-mask in $rA
-0x.f2. 0x****       $r0...$r14 <- POP[$rD]                     pop any combination of registers with FIELD_E as mask; skip-mask in $rA
-0x.f3. 0x****       PUSH[$rD] <- $r0...$r14                    push any combination of registers with FIELD_E as mask; skip-mask in $rA
+0x.f0. 0x****       $r0...$r14 <- MEM[$rD] @ $rA               load any combination of registers with FIELD_E as mask; skip-mask in $rA
+0x.f1. 0x****       MEM[$rD] <- $r0...$r14 @ $rA               store any combination of registers with FIELD_E as mask; skip-mask in $rA
+0x.f2. 0x****       $r0...$r14 <- POP[$rD] @ $rA               pop any combination of registers with FIELD_E as mask; skip-mask in $rA
+0x.f3. 0x****       PUSH[$rD] <- $r0...$r14 @ $rA              push any combination of registers with FIELD_E as mask; skip-mask in $rA
 0x.f0f 0x****       $r0...$r14 <- MEM[$rD]                     load any combination of registers with FIELD_E as mask
 0x.f1f 0x****       MEM[$rD] <- $r0...$r14                     store any combination of registers with FIELD_E as mask
 0x.f2f 0x****       $r0...$r14 <- POP[$rD]                     pop any combination of registers with FIELD_E as mask
