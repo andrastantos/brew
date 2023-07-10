@@ -184,7 +184,7 @@ Instruction code           Assembly                                   Operation
 0x.0ff 0x**** 0x****       $r0...$r14 <- MEM[$rD +]                   load any combination of registers with FIELD_E as mask, incrementing
 0x.1ff 0x**** 0x****       MEM[$rD +] <- $r0...$r14                   store any combination of registers with FIELD_E as mask, incrementing
 0x.2ff 0x**** 0x****       $r0...$r14 <- MEM[$rD -]                   load any combination of registers with FIELD_E as mask, decrementing
-0x.3ff 0x**** 0x****       MEM[$rD -] <- $r0.We also need to store ..$r14                   store any combination of registers with FIELD_E as mask, decrementing
+0x.3ff 0x**** 0x****       MEM[$rD -] <- $r0...$r14                   store any combination of registers with FIELD_E as mask, decrementing
 =========================  =======================================    ==================
 
 What we would need instead is something like this:

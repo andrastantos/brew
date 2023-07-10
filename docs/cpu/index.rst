@@ -6,6 +6,16 @@
 Brew Processor
 ======================
 
+.. svgbob::
+
+   ( ( (
+    ) ) )
+  .------.
+  |      +-.
+  | Brew | |
+  |      +-'
+  '------'
+
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
@@ -15,12 +25,15 @@ Brew Processor
    execution_contexts
    process_isolation
    registers
+   types
+   vectors
+   control_flow
    exceptions
+   isa_intro
    isa
    memory_model
    isa_details
    abi
-   decode
    hw_impl_notes
    system_sw
    competition

@@ -1,16 +1,6 @@
 Introduction
 ============
 
-.. svgbob::
-
-    ( ( (
-    ) ) )
-  .------.
-  |      +-.
-  | Brew | |
-  |      +-'
-  '------'
-
 Brew (as in home-brew) is an Instruction Set Architecture to explore a few ideas that have been rattling in my head for a while. It is a RISC-style design at its heart with a few twists.
 
 Brew has a 32-bit data-path with a variable instruction length. The smallest instructions are 16-bits long, the largest are 64 bits. For an common instruction sequence, the average instruction length is around 24 bits.
