@@ -34,6 +34,7 @@ extensions = [
     'exec',
     'myst_parser',
     'sphinxcontrib.wavedrom',
+    'sphinxcontrib.svgbob',
     'sphinx_rtd_theme',
     'sphinx.ext.todo',
 ]
