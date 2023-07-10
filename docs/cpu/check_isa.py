@@ -10,7 +10,7 @@ def get_inst_len(inst_code):
         (field_c == 0xf and (field_b != 0xf or field_a == 0xf)) or \
         (field_c == 0xe and (field_a == 0xf)) or \
         (field_c  < 0xc and (field_b == 0xf or field_a == 0xf))
-    field_e_is_16 = field_d == 0xf or field_a != 0xf or (field_c == 0xf and field_d != 0xf)
+    field_e_is_16 = field_d == 0xf or field_a != 0xf or (field_c == 0xf and field_d != 0xf and (field_b & 0xc) == 0)
     if not field_e_needed: return 16
     if field_e_is_16: return 32
     return 48

@@ -367,7 +367,7 @@ Instruction code           Assembly                    Operation
 0x20ef 0x**** 0x****       $pc   <- VALUE              Unconditional jump
 0x30ef 0x**** 0x****       $tpc  <- VALUE              Load immediate to $tpc
 0x80ef 0x**** 0x****       type $r0...$r7 <- VALUE     Load immediate type values [#note_immedate_types]_
-0x90ef 0x**** 0x****       type $r8...$r14 <- VALUE    Load immediate type values
+0x90ef 0x**** 0x****       type $r8...$r14 <- VALUE    Load immediate type values [#note_immedate_types]_
 =========================  ========================    ==================
 
 .. note::
@@ -946,53 +946,6 @@ Instruction code    Assembly                        Operation
 .. note::
   Cache invalidation applies to all caches and to all levels of caches: L1D L1I; L2, if exists. System-level caches (L3) are not invalidated. In a multi-processor system, only local caches (caches that are in the path-to-memory for the core executing the instruction) are invalidated.
 
-Offset-indirect type load/store group
--------------------------------------
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "FIELD_A",   "bits": 4, attr: "offset" },
-      { "name": "FIELD_B",   "bits": 4, attr: "op kind" },
-      { "name": "f",         "bits": 4 },
-      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
-  ],
-  }
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "FIELD_E", "bits": 16 },
-  ],
-  }
-
-..
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |       f       |    FIELD_B    |    FIELD_A    |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |                         FIELD_E                               |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-==================  =======================================    ==================
-Instruction code    Assembly                                   Operation
-==================  =======================================    ==================
-0x.f0. 0x****       type $r0...$r7  <- MEM[$rD + FIELD_A*4]    with FIELD_E as mask
-0x.f1. 0x****       type $r8...$r14 <- MEM[$rD + FIELD_A*4]    with FIELD_E as mask
-==================  =======================================    ==================
-
-.. note::
-  FIELD_A is ones-complement coded
-
-.. note::
-  FIELD_E is used as an 8-bit mask: 1 denotes setting the type for a register, 0 denotes leaving the type unchanged. LSB corresponds to the lowest order register, bit-8 to the highest order. The upper byte of FIELD_E is ignored.
-
-.. note::
-  A 32-bit value is loaded from memory and is used to set the types. Ignored types are 'stepped over', their bits in memory are still occupied.
-
 
 Offset-indirect load/store group
 --------------------------------
@@ -1080,14 +1033,6 @@ Instruction code    Assembly                                Operation
 0x1fe. 0x****       INV[32][$rA+FIELD_E]                    invalidate cache line for address $rA+FIELD_E
 0x2fe. 0x****       $pc <- MEM[32][$rA+FIELD_E]             32-bit load from MEM[$rA+FIELD_E] into $PC
 0x3fe. 0x****       $tpc <- MEM[32][$rA+FIELD_E]            32-bit load from MEM[$rA+FIELD_E] into $TPC
-0x4fe. 0x****       $r0...$r14 <- MEM[$rD +]                load any combination of registers with FIELD_E as mask, incrementing
-0x5fe. 0x****       MEM[$rD +] <- $r0...$r14                store any combination of registers with FIELD_E as mask, incrementing
-0x6fe. 0x****       $r0...$r14 <- MEM[$rD -]                load any combination of registers with FIELD_E as mask, decrementing
-0x7fe. 0x****       MEM[$rD -] <- $r0...$r14                store any combination of registers with FIELD_E as mask, decrementing
-0x8fe. 0x****       $r0...$r14 <- POP[$rD +]                load any combination of registers with FIELD_E as mask, incrementing, return updated $rD
-0x9fe. 0x****       PUSH[$rD +] <- $r0...$r14               store any combination of registers with FIELD_E as mask, incrementing, return updated $rD
-0xafe. 0x****       $r0...$r14 <- POP[$rD -]                load any combination of registers with FIELD_E as mask, decrementing, return updated $rD
-0xbfe. 0x****       PUSH[$rD -] <- $r0...$r14               store any combination of registers with FIELD_E as mask, decrementing, return updated $rD
 ==================  ====================================    ==================
 
 .. note::
@@ -1096,7 +1041,54 @@ Instruction code    Assembly                                Operation
 .. note:: FIELD_E is sign-extended before addition
 
 Load/store multiple
-~~~~~~~~~~~~~~~~~~~
+-------------------
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_A",   "bits": 4, attr: "offset" },
+      { "name": "FIELD_B",   "bits": 4, attr: "op kind" },
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16 },
+  ],
+  }
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |       f       |    FIELD_B    |    FIELD_A    |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |                         FIELD_E                               |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+==================  =======================================    ==================
+Instruction code    Assembly                                   Operation
+==================  =======================================    ==================
+0x.f0. 0x****       $r0...$r14 <- MEM[$rD]                     load any combination of registers with FIELD_E as mask; skip-mask in $rA
+0x.f1. 0x****       MEM[$rD] <- $r0...$r14                     store any combination of registers with FIELD_E as mask; skip-mask in $rA
+0x.f2. 0x****       $r0...$r14 <- POP[$rD]                     pop any combination of registers with FIELD_E as mask; skip-mask in $rA
+0x.f3. 0x****       PUSH[$rD] <- $r0...$r14                    push any combination of registers with FIELD_E as mask; skip-mask in $rA
+0x.f0f 0x****       $r0...$r14 <- MEM[$rD]                     load any combination of registers with FIELD_E as mask
+0x.f1f 0x****       MEM[$rD] <- $r0...$r14                     store any combination of registers with FIELD_E as mask
+0x.f2f 0x****       $r0...$r14 <- POP[$rD]                     pop any combination of registers with FIELD_E as mask
+0x.f3f 0x****       PUSH[$rD] <- $r0...$r14                    push any combination of registers with FIELD_E as mask
+==================  =======================================    ==================
+
+.. note::
+  0x.f0f decodes to the wrong FIELD_E size. Otherwise, this is not a bad encoding.
+
+.. note::
+  $rA is used as a 'skip' mask. If FIELD_A is 0xf, no skip mask is used
 
 **These are very complex instructions.**
 
@@ -1464,7 +1456,7 @@ Instruction code           Assembly                      Operation
 0xf1ff 0x.2..              $rD(i) <- $rA($rB(i))         [#note_lane_swizzle]_
 0xf1ff 0x.3..              $rD <- (cast TYPE_B)$rA       Element-wise type-cast $rA to TYPE_B
 0xf1ff 0x.4..              $rD <- compress $rA & $rB     Element-wise compressed selection of $rA, $rB being the selector
-0xf0ff 0x.5..              $rD <- $rB + sum $rA          Reduction sum-accumulate
+0xf1ff 0x.5..              $rD <- $rB + sum $rA          Reduction sum-accumulate
 =========================  ============================  ==================
 
 .. [#note_interpolation]
