@@ -36,7 +36,7 @@ Let's say we want to add two vectors: V1, V2 and put the result into V3. Let's s
         type $r0 <- VFP16
         type $r1 <- VFP16
     loop:
-        $r2 <- SETVEND($r7)      # Set and store number of elements *actually* processed in the iteration in $r2
+        $r2 <- SET_VEND $r7      # Set and store number of elements *actually* processed in the iteration in $r2
         $r0 <- MEM[$r4]          # Load source
         $r1 <- MEM[$r5]          # Load source
         $r1 <- $r0 + $r1         # Do math
@@ -101,3 +101,129 @@ We need to define what happens if an operation encounters incompatible types. Ei
 
 #. Require that element types are the same (i.e. can't add a float to an integer)
 #. Require that lane counts are the same, except to allow for scalar broadcasting.
+
+Lane predication, or the lack of it
+-----------------------------------
+
+Brew doesn't have lane predicated operations, but has instructions to compute predication masks. These can later be used to combine vector lanes.
+
+For instance, let's assume we want to compute the element-wise square of a vector, but only if the elements are greater then 1. Otherwise we leave the elements alone.
+
+::
+    $r5 <- 1
+    $r0 <- if $r4 > $r5 # Here $r5 gets broadcast to all lanes during the comparison
+    $r6 <- $r4 * $r4
+    $r6 <- ~$r0 & $r6 # Zero out the elements that were less than 1
+    $r4 <- $r0 & $r4 # Zero out the elements that were greater than 1
+    $r4 <- $r4 | $r6 # Combine the results
+
+This of course can be put in an SVI loop for larger vectors.
+
+.. note:: since operations are not predicated, exceptions can still fire for elements that should be ignored.
+
+.. todo:: I don't yet know how to deal with floating point exceptions (IEEE in that regard is painful, I believe), but load-stores could also be problematic.
+
+Context changes
+---------------
+
+There is an inherent problem with vector ISAs: they hold a lot of state. This of course is great for performance as state needs to be spilled into memory much less frequently and even when it does, it can be done much more efficiently. However, this state is a problem whenever the execution context needs to change.
+
+Drawing on the Cray experience: on the one hand, one could say that if a code doesn't touch vector registers, it's context doesn't need to include them, on the other, the Cray libraries made extensive use of vector registers for very mundane tasks, such as memcpy or strlen. These are so commonly used, it's hard to imagine many programs that would not touch vector registers.
+
+What can be said though is that there could be significant sections of execution when no vector registers are touched. If a context switch happens in those sections, the previously saved vector values are still valid, no need to update them.
+
+The way Cray dealt with this was to provide a 'vector-registers-are-dirty' bit that could be cleared by the kernel and set by the CPU whenever a vector register was touched. For them, this was a bit in the memory-held state block, but it could be wherever.
+
+Load/store
+----------
+
+We have an even bigger problem, actually: the amount of data loaded/stored depends on the pre-set register type. This is very difficult to handle in - for example - stack frames, where $sp would need to be adjusted according to the total number of bytes stored, but that isn't known, at least not statically.
+
+Arguably even worse, every load/store now works at arbitrary sizes, which is a *huge* security hole! If one can inject the wrong type into a library or program, that code can either overwrite things it's not supposed to, or load stuff it should not have access to. This later can be used to reveal sensitive information, even if the type gets corrected later on: the extra values still exist in the registers, so re-casting the register to the right type would unmask the hidden context.
+
+The load/store problem could be solved by providing a vector load/store variant. This would mean that all existing load/stores would only accept (or care about) the first 32 bits of data. The vector loads/store variants would store a whole register. Their size would be something that is known for a given implementation. This can be done as an (almost) prefix instruction that can go in front of any load/store to make them vectorized.
+
+.. todo:: Not sure of the 8- and 16-bit size and zero-extension versions make much sense. They are rather difficult to implement, probable better left for a load+widening operation.
+
+Type changes must touch values
+------------------------------
+
+Otherwise there's is security hole in here: Let's say that kernel code does a sensitive memcpy using vector registers. Then, it changes context to a user-task. This change involves changing the type of these registers to scalar and restoring their values. Now, in user-land, we can change the types back to vector ones, and voila: we have the values of a potentially rather large section of kernel space.
+
+To solve this, type changes need to be required to zero out top bits of the registers, or at least pretend to do so. One way of implementing this cheaply is each register (on top of its type) to have a size field.
+
+When a register is type-cast to a shorter type, the size field is adjusted. When a register is type-cast to a larger type, the size field is *not* adjusted. When a value is stored in the register, the size field is adjusted. When a value is used from a register, bits beyond the limit indicated by the size field are masked to 0.
+
+.. note:: the type-override prefix instruction uses the shorter of the size field in the register and the size field associated with the type override.
+
+Load/store multiple and stacks
+------------------------------
+
+Oh, dear, this is difficult: the problem is that the *length* of the stored registers now depend on the type. So, in order to make the load/store process even remotely reasonable, we would need to start with loading/storing the types. This, however runs havoc with exception handling: we can't update the types until we're certain we have the value as well. Not only that, but what about the typeless ISA variant? Waste 64 bits of state?
+
+Regardless of implementation headaches, the problem of context save/restore pops up in two major ways: when we swap execution contexts and when we do a function call. The common problem in both cases is that we don't know the types of the registers we want to save/restore, thus we don't know how much storage we need. Being conservative is wasteful, but if we aren't, we have a dynamic stack-frame size issue. Not only that, but every stack-operation after the first unknown sized store have dynamic addresses. Same for loads in reverse.
+
+We can wrap all this complexity into the load/store multiple, but that makes that instruction incredibly complex. Still worth it, given the alternative is to provide true push/pull instructions. That is a pandoras box, still requires dealing with types and still generates a rather long and complex prolog/epilog section.
+
+So, what we should say is that load/store multiple works this way:
+
+#. Gets a mask of registers to touch
+#. Types for these registers are also touched, no ifs or buts.
+#. The instruction uses an opaque (i.e. implementation defined) structure to store values. The only requirement is that if the same mask is given for the load as the store, the result should be 'as expected'.
+   #. This might be problematic: in a context switch world we might want to restore a subset to maintain ex. return values. BTW: this is a problem even in the current variant of this instruction-pair. We will address that in a minute.
+#. Somehow we would need to be notified about the amount of space taken up by the storage being used.
+#. We incorporate a 'dirty' mask: each register maintains a sticky 'dirty' bit, which is set on every value or type update. It is cleared (or set) by a special instruction. There is a store multiple variant that skips registers with the 'dirty' bit cleared (still reserves storage, but doesn't actually store). The load variant of this is that *only* dirty registers are loaded.
+
+This is insanely complex. Certainly needs several cycles and a sequencer to accomplish.
+
+Right now we have these variants:
+
+=========================  =======================================    ==================
+Instruction code           Assembly                                   Operation
+=========================  =======================================    ==================
+0x.0ff 0x**** 0x****       $r0...$r14 <- MEM[$rD +]                   load any combination of registers with FIELD_E as mask, incrementing
+0x.1ff 0x**** 0x****       MEM[$rD +] <- $r0...$r14                   store any combination of registers with FIELD_E as mask, incrementing
+0x.2ff 0x**** 0x****       $r0...$r14 <- MEM[$rD -]                   load any combination of registers with FIELD_E as mask, decrementing
+0x.3ff 0x**** 0x****       MEM[$rD -] <- $r0.We also need to store ..$r14                   store any combination of registers with FIELD_E as mask, decrementing
+=========================  =======================================    ==================
+
+What we would need instead is something like this:
+
+=========================  =======================================    ==================
+Instruction code           Assembly                                   Operation
+=========================  =======================================    ==================
+0x.f0f 0x****              $r0...$r14 <- MEM[$rD +]                   load any combination of registers with FIELD_E as mask, incrementing
+0x.f1f 0x****              MEM[$rD +] <- $r0...$r14                   store any combination of registers with FIELD_E as mask, incrementing
+0x.f2f 0x****              $r0...$r14 <- MEM[$rD -]                   load any combination of registers with FIELD_E as mask, decrementing
+0x.f3f 0x****              MEM[$rD -] <- $r0...$r14                   store any combination of registers with FIELD_E as mask, decrementing
+0x.f4f 0x****              $rD; $r0...$r14 <- MEM[$rD +]              load any combination of registers with FIELD_E as mask, incrementing, return updated $rD
+0x.f5f 0x****              $rD; MEM[$rD +] <- $r0...$r14              store any combination of registers with FIELD_E as mask, incrementing, return updated $rD
+0x.f6f 0x****              $rD; $r0...$r14 <- MEM[$rD -]              load any combination of registers with FIELD_E as mask, decrementing, return updated $rD
+0x.f7f 0x****              $rD; MEM[$rD -] <- $r0...$r14              store any combination of registers with FIELD_E as mask, decrementing, return updated $rD
+=========================  =======================================    ==================
+
+Where 'dirty' semantics would be controlled by the MSB of FIELD_E. The later four variants are effectively push/pull operations, so much so that maybe we should use push/pull syntax. For pop operations that touch $rD, the return value is still the updated base. Setting the 'D' bit for a pop might still be needed to mimic whatever the corresponding push did.
+
+The usage would be:
+
+For stack operations, we would always use the push/pull semantics. That is, we would always set the MSB of field_e would never save/restore $sp itself, and would always use $sp as the base register.
+
+For context switches we would never use the push/pull semantics and would always use the 'dirty' bit semantics.
+
+Now, the nice thing in this world is that the 'blob' is opaque. So a typeless variant doesn't have to waste space storing the types. By manipulating the dirty bits, we can also control restore in a SYSCALL return to not restore registers which we want to keep the new values for - this however makes 'dirty' implementation at least in some simple form mandatory.
+
+Register metadata
+-----------------
+
+So, the metadata we have with registers is the following:
+
+TYPE  - 4 bits, describing the type
+SIZE  - 1 bit (maybe more, if we have more complex types at some point), determining if the *value* in the register is scalar or vector
+DIRTY - 1 bit, saying if the value of the register was modified.
+
+Vector metadata
+---------------
+
+vrlen:  the architectural vector length, that is the number of bits/bytes/words/whatever a HW vector register stores.
+vstart: the first byte index to be touched by a vector operation
+vend:   the last byte index to be touched by a vector operation

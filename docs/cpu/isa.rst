@@ -214,7 +214,7 @@ Instruction code   Assembly                    Operation
 0x.08.             $rD <- int $rA              Convert to integer. No-op if $rA is already integer
 0x.09.             $rD <- 1 / $rA              Reciprocal for floats [#note0xX09X]_
 0x.0a.             $rD <- rsqrt $rA            Reciprocal square-root for floats [#note0xX0aX]_
-0x.0b.             $rD <- sum $rA              Reduction sum [#note-x.0b.]_
+0x.0b.
 0x.0c.             type $rD <- $rA             Sets type of $rD as denoted by $rA [#note0xX0cX]_
 0x.0d.             $rD <- type $rA             Loads type value of $rA into $rD
 0x.0e.             type $rD <- FIELD_A         Sets type of $rD
@@ -993,81 +993,6 @@ Instruction code    Assembly                                   Operation
 .. note::
   A 32-bit value is loaded from memory and is used to set the types. Ignored types are 'stepped over', their bits in memory are still occupied.
 
-Load/store multiple group
--------------------------------------
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "f",         "bits": 4 },
-      { "name": "f",         "bits": 4 },
-      { "name": "FIELD_C",   "bits": 4, attr: "op kind" },
-      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
-  ],
-  }
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "FIELD_E lower 16 bits", "bits": 16, attr: "register mask"},
-  ],
-  }
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "FIELD_E upper 16 bits", "bits": 16, attr: "type mask" },
-  ]
-  }
-
-..
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |    FIELD_C    |       f       |       f       |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+-...
-  |                         FIELD_E  lower 16 bits              ...
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+-...
-
-  ...-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  ...                       FIELD_E   upper 16 bits               |
-  ...-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-  FIELD_C != 0xc; FIELD_C != 0xd;
-
-=========================  =======================================    ==================
-Instruction code           Assembly                                   Operation
-=========================  =======================================    ==================
-0x.0ff 0x**** 0x****       $r0...$r14 <- MEM[$rD +]                   load any combination of registers with FIELD_E as mask, incrementing
-0x.1ff 0x**** 0x****       MEM[$rD +] <- $r0...$r14                   store any combination of registers with FIELD_E as mask, incrementing
-0x.2ff 0x**** 0x****       $r0...$r14 <- MEM[$rD -]                   load any combination of registers with FIELD_E as mask, decrementing
-0x.3ff 0x**** 0x****       MEM[$rD -] <- $r0...$r14                   store any combination of registers with FIELD_E as mask, decrementing
-=========================  =======================================    ==================
-
-This is a multi-cycle instruction. For store instructions, the memory address is incremented/decremented for every register that's marked for storage. After that, the type info is stored for every register that's marked for type storage. If no register is marked for type storage in the $r0...$r7 region, the first type WORD is not stored. If no register is marked for type storage in the $r8...$r14 region, the second type WORD is not stored. Otherwise, skipped types are replaced by 0xf.
-
-For load instructions, the reverse happens: for every marked load, the address is (post) incremented/decremented after loading. Types are loaded as needed (skipping type WORDs if none of the corresponding types are marked for load). Individual types are not updated if their associated field is 0xf upon load.
-
-For a load multiple where the base register is marked for load, the implementation must ensure that the new register value only takes effect after the operation fully completes.
-
-*Exception behavior*: If a exception (due to access violation during memory access) is raised, $tpc points to the load/store multiple instruction. It however is generally not guaranteed that no loads or stores have been performed. Consequently, some of the side-effects might have already taken place and the exception handler is in no position to know which ones. It is however safe to assume that the operation can be retried, as long as the following conditions are met:
-
-* Address translation after the retry generates the same physical addresses for store multiple operations
-* The target address is in regular memory as opposed to I/O or CSR space
-
-The requirement to be able to retry means that if the base register is part of the set of registers to be loaded, it's value can only change after it is determined that no more exceptions can fire. This can be achieved by loading the base register last (i.e. not loading registers in order), or load the value into a temporary storage and update the base register as the last step.
-
-.. note::
-
-  Implementing these instructions is complicated. It requires some sort of sequencer in the pipeline and breaks the basic construct of a RISC ISA. It also complicates exception handling.
-
-.. todo::
-
-  These instructions are not supported by the toolset, or Espresso.
-
 
 Offset-indirect load/store group
 --------------------------------
@@ -1155,12 +1080,47 @@ Instruction code    Assembly                                Operation
 0x1fe. 0x****       INV[32][$rA+FIELD_E]                    invalidate cache line for address $rA+FIELD_E
 0x2fe. 0x****       $pc <- MEM[32][$rA+FIELD_E]             32-bit load from MEM[$rA+FIELD_E] into $PC
 0x3fe. 0x****       $tpc <- MEM[32][$rA+FIELD_E]            32-bit load from MEM[$rA+FIELD_E] into $TPC
+0x4fe. 0x****       $r0...$r14 <- MEM[$rD +]                load any combination of registers with FIELD_E as mask, incrementing
+0x5fe. 0x****       MEM[$rD +] <- $r0...$r14                store any combination of registers with FIELD_E as mask, incrementing
+0x6fe. 0x****       $r0...$r14 <- MEM[$rD -]                load any combination of registers with FIELD_E as mask, decrementing
+0x7fe. 0x****       MEM[$rD -] <- $r0...$r14                store any combination of registers with FIELD_E as mask, decrementing
+0x8fe. 0x****       $r0...$r14 <- POP[$rD +]                load any combination of registers with FIELD_E as mask, incrementing, return updated $rD
+0x9fe. 0x****       PUSH[$rD +] <- $r0...$r14               store any combination of registers with FIELD_E as mask, incrementing, return updated $rD
+0xafe. 0x****       $r0...$r14 <- POP[$rD -]                load any combination of registers with FIELD_E as mask, decrementing, return updated $rD
+0xbfe. 0x****       PUSH[$rD -] <- $r0...$r14               store any combination of registers with FIELD_E as mask, decrementing, return updated $rD
 ==================  ====================================    ==================
 
 .. note::
   Cache invalidation applies to all caches and to all levels of caches: L1D L1I; L2, if exists. System-level caches (L3) are not invalidated. In a multi-processor system, only local caches (caches that are in the path-to-memory for the core executing the instruction) are invalidated.
 
 .. note:: FIELD_E is sign-extended before addition
+
+Load/store multiple
+~~~~~~~~~~~~~~~~~~~
+
+**These are very complex instructions.**
+
+This is a multi-cycle instruction. For store instructions, the memory address is incremented/decremented for every register that's marked for storage. After that, the type info is stored for every register that's marked for type storage. If no register is marked for type storage in the $r0...$r7 region, the first type WORD is not stored. If no register is marked for type storage in the $r8...$r14 region, the second type WORD is not stored. Otherwise, skipped types are replaced by 0xf.
+
+For load instructions, the reverse happens: for every marked load, the address is (post) incremented/decremented after loading. Types are loaded as needed (skipping type WORDs if none of the corresponding types are marked for load). Individual types are not updated if their associated field is 0xf upon load.
+
+For a load multiple where the base register is marked for load, the implementation must ensure that the new register value only takes effect after the operation fully completes.
+
+*Exception behavior*: If a exception (due to access violation during memory access) is raised, $tpc points to the load/store multiple instruction. It however is generally not guaranteed that no loads or stores have been performed. Consequently, some of the side-effects might have already taken place and the exception handler is in no position to know which ones. It is however safe to assume that the operation can be retried, as long as the following conditions are met:
+
+* Address translation after the retry generates the same physical addresses for store multiple operations
+* The target address is in regular memory as opposed to I/O or CSR space
+
+The requirement to be able to retry means that if the base register is part of the set of registers to be loaded, it's value can only change after it is determined that no more exceptions can fire. This can be achieved by loading the base register last (i.e. not loading registers in order), or load the value into a temporary storage and update the base register as the last step.
+
+.. note::
+
+  Implementing these instructions is complicated. It requires some sort of sequencer in the pipeline and breaks the basic construct of a RISC ISA. It also complicates exception handling.
+
+.. todo::
+
+  These instructions are not supported by the toolset, or Espresso.
+
 
 Absolute load/store group
 -------------------------
@@ -1379,6 +1339,90 @@ These instructions perform lane-wise comparisons of the prescribed type. The res
 
 .. todo:: Extension group encoding changed. Toolset needs updating.
 
+Special vector operation group
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "f",         "bits": 4 },
+      { "name": "1",         "bits": 4 },
+      { "name": "f",         "bits": 4 },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_A",   "bits": 4, attr: "op kind" },
+      { "name": "FIELD_B",   "bits": 4, attr: "0" },
+      { "name": "FIELD_C",   "bits": 4, attr: "0" },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ],
+  }
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |       f       |       1       |       f       |       f       |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |       0       |       0       |    FIELD_A    |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+=========================  ============================  ==================
+Instruction code           Assembly                      Operation
+=========================  ============================  ==================
+0xf1ff 0x.001              $rD <- vstat                  Store vector status (vstart and vend) in $rD
+0xf1ff 0x.002              vstat <- $rD                  Load vector status (vstart and vend) from $rD
+=========================  ============================  ==================
+
+Unary vector operation group
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "f",         "bits": 4 },
+      { "name": "1",         "bits": 4 },
+      { "name": "f",         "bits": 4 },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
+      { "name": "FIELD_B",   "bits": 4, attr: "op kind" },
+      { "name": "FIELD_C",   "bits": 4, attr: "0" },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ],
+  }
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |       f       |       1       |       f       |       f       |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |       0       |    FIELD_B    |    FIELD_A    |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+=========================  ============================  ==================
+Instruction code           Assembly                      Operation
+=========================  ============================  ==================
+0xf1ff 0x.01.              $rD <- sum $rA                Reduction sum
+0xf1ff 0x.02.              $rD <- SET_VEND $rA           Load VEND register and return it's value based on $rA
+0xf1ff 0x.03.              $rD <- (cast TYPE_B)$rA       Element-wise type-cast $rA to TYPE_B
+0xf1ff 0x.04.              $rD <- compress $rA & $rB     Element-wise compressed selection of $rA, $rB being the selector
+=========================  ============================  ==================
+
 Binary vector operation group
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -1416,10 +1460,11 @@ Binary vector operation group
 =========================  ============================  ==================
 Instruction code           Assembly                      Operation
 =========================  ============================  ==================
-0xf1ff 0x.0..              $rD <- interpolate $rA, $rB   [#note_interpolation]_
-0xf1ff 0x.1..              $rD(i) <- $rA($rB(i))         [#note_lane_swizzle]_
-0xf1ff 0x.2..              $rD <- (cast TYPE_B)$rA       Element-wise type-cast $rA to TYPE_B
-0xf1ff 0x.3..              $rD <- compress $rA & $rB     Element-wise compressed selection of $rA, $rB being the selector
+0xf1ff 0x.1..              $rD <- interpolate $rA, $rB   [#note_interpolation]_
+0xf1ff 0x.2..              $rD(i) <- $rA($rB(i))         [#note_lane_swizzle]_
+0xf1ff 0x.3..              $rD <- (cast TYPE_B)$rA       Element-wise type-cast $rA to TYPE_B
+0xf1ff 0x.4..              $rD <- compress $rA & $rB     Element-wise compressed selection of $rA, $rB being the selector
+0xf0ff 0x.5..              $rD <- $rB + sum $rA          Reduction sum-accumulate
 =========================  ============================  ==================
 
 .. [#note_interpolation]
@@ -1444,6 +1489,9 @@ Instruction code           Assembly                      Operation
   .. todo:: Original lane-swizzle:
     0x.af. 0x****              $rD <- lane_swizzle $rA, VALUE
     got removed. Toolset needs updating.
+
+
+.. todo:: reduction sum used to be in the unary group and, well, used to be unary. Need to update toolset.
 
 
 Scaled multiply group
