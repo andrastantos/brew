@@ -227,3 +227,77 @@ Vector metadata
 vrlen:  the architectural vector length, that is the number of bits/bytes/words/whatever a HW vector register stores.
 vstart: the first byte index to be touched by a vector operation
 vend:   the last byte index to be touched by a vector operation
+
+Context switch
+--------------
+
+With all these, a context change in SCHEDULER-mode would look something like this:
+
+::
+    .text
+        run_task:
+            # We're about to return to a task.
+            # The task context pointer is in $r0.
+            # The register mask we want to return to the task is in $r1.
+            # $lr can't be returned, it will always be restored from the saved context.
+            # $r2 is throw-away. We clobber $r1 as well.
+            # Upon return, $r0 still points to the (newly updated) context pointer.
+            # There are many other things we care about, such as:
+            # - vstart, vend
+            # - MMU base address (or base/limit registers)
+            # - OS related info
+
+            $r2 <- sched_context
+            MEM[$r0] <- $r0, $r3 ... $r14 # Save full SCHEDULER context
+            MEM[cur_context] <- $r0
+            $lr <- $r0 + cur_context_size
+            $r0 ... $r13 <- MEM[$r0], SKIP=$r1
+            # At this point the only register we can manipulate is $lr.
+            # The address to finally restore it from is in $lr itself
+            MEM[lr_save] <- $lr
+            $lr <- MEM[$lr + cur_context_lr_size] # Load DIRTY mask
+            DIRTY <- $lr
+            $lr <- MEM[$lr + cur_context_lr_size + 4] # Load VSTART
+            VSTART <- $lr
+            $lr <- MEM[$lr + cur_context_lr_size] # Load VEND
+            VEND <- $lr
+            $lr <- MEM[lr_save]
+            $lr ... $lr <- MEM[$lr]
+            # At this point the full context of the task is restored, we're ready to return to TASK mode
+            stm
+
+            # We need a register. Use $lr as that's the most likely to be a scalar.
+            # We need to save it (and it's type) to a static location before we can move on.
+            MEM[lr_save] <- full $lr
+            $lr <- type $lr
+            MEM[lr_type_save] <- $lr
+            # Load context pointer and save everything (in two steps)
+            $lr <- MEM[cur_context]
+            MEM[$lr] <- $r0 ... $r13, DIRTY # Save all dirty registers (except $lr) to context
+            $sp <- $lr + cur_context_size # Use SP here because we're going to ruin it's DIRTY bit. It is likely dirty anyway
+            $lr <- MEM[lr_type_save]
+            type $lr <- $lr
+            $lr <- MEM[lr_save]
+            MEM[$sp] <- $lr ... $lr
+            $lr <- DIRTY
+            MEM[$sp + cur_context_lr_size] <- $lr
+            $lr <- VSTART
+            MEM[$sp + cur_context_lr_size + 4] <- $lr
+            $lr <- VEND
+            MEM[$sp + cur_context_lr_size + 8] <- $lr
+            # At this point we've saved off the current context. We can restore the context of the SCHEDULER
+            $r0 <- sched_context
+            $r0, $r3 ... $r14 <- MEM[$r0] # Restore everything we might care about
+            $pc <- $lr
+
+    .bss:
+        sched_context: # enough storage for the full SCHEDULER context
+            dw ...
+        cur_context: # pointer to the current TASK context
+            dw 0
+        lr_save: # enough storage for the largest HW register
+            dw ...
+        lr_type_save: # Just a 32-bit integer
+            dw 0
+
+This is not short, but maybe acceptable. It's 25 instructions, of course some of them are many many cycles long.

@@ -1116,6 +1116,9 @@ The requirement to be able to retry means that if the base register is part of t
 
   These instructions are not supported by the toolset, or Espresso.
 
+.. note::
+
+  These instructions should *not* make use of or modify vstart/vend: they store/load full HW registers, based on type.
 
 Absolute load/store group
 -------------------------
@@ -1231,6 +1234,85 @@ Instruction code           Assembly                    Operation
 .. note::
   Cache invalidation applies to all caches and to all levels of caches: L1D L1I; L2, if exists. System-level caches (L3) are not invalidated. In a multi-processor system, only local caches (caches that are in the path-to-memory for the core executing the instruction) are invalidated.
 
+
+Special immediate load-store group
+----------------------------------
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_C"    "bits": 4, attr: "op kind" },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E lower 16 bits", "bits": 16 },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E upper 16 bits", "bits": 16 },
+  ]
+  }
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |    FIELD_C    |       f       |       f       |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+-...
+  |                         FIELD_E  lower 16 bits              ...
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+-...
+
+  ...-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  ...                       FIELD_E   upper 16 bits               |
+  ...-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+=========================  ==================================    ==================
+Instruction code           Assembly                              Operation
+=========================  ==================================    ==================
+0x.eff 0x**** 0x****       MEM[FIELD_E] <- full $rD              Store full $rD (no use/modification of vstart vend)
+0x.fff 0x**** 0x****       full $rD <- MEM[FIELD_E]              Load full $rD (no use/modification of vstart vend)
+=========================  ==================================    ==================
+
+
+Special indirect load-store group
+----------------------------------
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_C"    "bits": 4, attr: "op kind" },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ],
+  }
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |    FIELD_C    |       f       |    FIELD_A    |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+=========================  ==================================    ==================
+Instruction code           Assembly                              Operation
+=========================  ==================================    ==================
+0x.ef.                     MEM[$rA] <- full $rD                  Store full $rD (no use/modification of vstart vend)
+0x.ff.                     full $rD <- MEM[$rA]                  Load full $rD (no use/modification of vstart vend)
+=========================  ==================================    ==================
+
+
 Extension groups
 ----------------
 
@@ -1333,47 +1415,6 @@ Instruction code           Assembly                    Operation
 These instructions perform lane-wise comparisons of the prescribed type. The result (0 for FALSE, 1 for TRUE) is replicated across the length of each lane (8- 16- or 32-times) and placed in the destination register.
 
 .. todo:: Extension group encoding changed. Toolset needs updating.
-
-Special vector operation group
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "f",         "bits": 4 },
-      { "name": "f",         "bits": 4 },
-      { "name": "1",         "bits": 4 },
-      { "name": "f",         "bits": 4 },
-  ],
-  }
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "FIELD_A",   "bits": 4, attr: "op kind" },
-      { "name": "FIELD_B",   "bits": 4, attr: "0" },
-      { "name": "FIELD_C",   "bits": 4, attr: "0" },
-      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
-  ],
-  }
-
-..
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |       f       |       1       |       f       |       f       |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |       0       |       0       |    FIELD_A    |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-=========================  ============================  ==================
-Instruction code           Assembly                      Operation
-=========================  ============================  ==================
-0xf1ff 0x.001              $rD <- vstat                  Store vector status (vstart and vend) in $rD
-0xf1ff 0x.002              vstat <- $rD                  Load vector status (vstart and vend) from $rD
-=========================  ============================  ==================
 
 Unary vector operation group
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
