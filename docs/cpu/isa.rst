@@ -850,37 +850,6 @@ Instruction code    Assembly                        Operation
 .. note::
   the existence of these ops complicate memory op decode as well as operation size decode, but save a *huge* amount of code-space, allowing almost all register spills and fills to be done in two bytes.
 
-Indirect type load/store group
-------------------------------
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "FIELD_A",   "bits": 4, attr: "offset" },
-      { "name": "FIELD_B",   "bits": 4, attr: "op kind" },
-      { "name": "e",         "bits": 4 },
-      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
-  ],
-  }
-
-..
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |       e       |    FIELD_B    |    FIELD_A    |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-==================  =======================================    ==================
-Instruction code    Assembly                                   Operation
-==================  =======================================    ==================
-0x.e0.              type $r0...$r7  <- MEM[$rD + FIELD_A*4]
-0x.e1.              type $r8...$r14 <- MEM[$rD + FIELD_A*4]
-0x.e2.              MEM[$rD + FIELD_A*4] <- type $r0...$r7
-0x.e3.              MEM[$rD + FIELD_A*4] <- type $r8...$r14
-==================  =======================================    ==================
-
-.. note::
-  FIELD_A is ones-complement coded
-
 Indirect load/Store group
 -------------------------
 
@@ -1311,6 +1280,127 @@ Instruction code           Assembly                              Operation
 0x.ef.                     MEM[$rA] <- full $rD                  Store full $rD (no use/modification of vstart vend)
 0x.ff.                     full $rD <- MEM[$rA]                  Load full $rD (no use/modification of vstart vend)
 =========================  ==================================    ==================
+
+Register block type test group
+------------------------------
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_B ",  "bits": 4, attr: "op kind" },
+      { "name": "0"          "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16 },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_F", "bits": 16 },
+  ]
+  }
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |       0       |    FIELD_B    |       f       |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |                            FIELD_E                            |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |                            FIELD_F                            |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+=========================  =========================================================    ==================
+Instruction code           Assembly                                                     Operation
+=========================  =========================================================    ==================
+0x001f 0x**** 0x****       if any type $r0...$r3   != FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
+0x101f 0x**** 0x****       if any type $r4...$r7   != FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
+0x201f 0x**** 0x****       if any type $r8...$r11  != FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
+0x301f 0x**** 0x****       if any type $r12...$r14 != FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
+0x401f 0x**** 0x****       if any type $r0...$r3   == FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
+0x501f 0x**** 0x****       if any type $r4...$r7   == FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
+0x601f 0x**** 0x****       if any type $r8...$r11  == FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
+0x701f 0x**** 0x****       if any type $r12...$r14 == FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
+0x002f 0x**** 0x****       if all type $r0...$r3   != FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
+0x102f 0x**** 0x****       if all type $r4...$r7   != FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
+0x202f 0x**** 0x****       if all type $r8...$r11  != FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
+0x302f 0x**** 0x****       if all type $r12...$r14 != FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
+0x402f 0x**** 0x****       if all type $r0...$r3   == FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
+0x502f 0x**** 0x****       if all type $r4...$r7   == FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
+0x602f 0x**** 0x****       if all type $r8...$r11  == FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
+0x702f 0x**** 0x****       if all type $r12...$r14 == FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
+=========================  =========================================================    ==================
+
+These instructions dedicate a nibble to each register in FIELD_F. The instruction perform a set of comparisons between the expected and actual types and jump if the conditions prescribed in the instructions are met. A register can be excluded from the test by setting their corresponding nibble in FIELD_F to 0xf.
+
+This instruction can be used in function prologs to check that operands passed in registers are indeed of the expected type. Variants are provided for both checking for allowed types or disallowed ones.
+
+
+Individual register type test group
+-----------------------------------
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_B ",  "bits": 4, attr: "op kind" },
+      { "name": "0"          "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16 },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_F", "bits": 16 },
+  ]
+  }
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |       0       |    FIELD_B    |       f       |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |                            FIELD_E                            |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |                            FIELD_F                            |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+=========================  =========================================================    ==================
+Instruction code           Assembly                                                     Operation
+=========================  =========================================================    ==================
+0x.03f 0x**** 0x****       if type $rD not in FIELD_F $pc <- $pc + FIELD_E              Jump if type of registers is not what's expected
+
+This instruction provides a type-mask in FIELD_F. An allowed type is represented by a '1'. The instruction branches if the bit corresponding to tye type of $rD is not set in FIELD_F. The MSB of FIELD_F is reserved and should be set to 0.
+
+This instruction can be used in function prologs to check that operands passed in registers are indeed of the expected type.
 
 
 Extension groups
