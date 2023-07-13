@@ -165,8 +165,34 @@ Instruction code   Assembly       Operation
 0x.003             $tpc <- $rD    Update $tpc
 0x.004             $rD <- $pc     Load $pc into register
 0x.005             $rD <- $tpc    Load $tpc into register
-0x.006
-0x.007
+=================  ===========    ==================
+
+.. note::
+  All instruction codes in this group are treated as jump instructions by the branch predictor, if exists. After warming up, some will always be predicted taken, some will not be. In TASK mode indirect jump (0x.002) and $tpc update (0x.003) instructions have the exact same behavior, however might have different latencies.
+
+
+State manipulation group
+------------------------
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_A",   "bits": 4, attr: "op kind" },
+      { "name": "0",         "bits": 4 },
+      { "name": "0",         "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ]}
+
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |       0       |       0       |    FIELD_A    |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+=================  =============  ==================
+Instruction code   Assembly       Operation
+=================  =============  ==================
 0x.008             $rD <- DIRTY   Load 'dirty' mask into $rD
 0x.009             DIRTY <- $rD   Set 'dirty' mask based on $rD
 0x.00a             $rD <- VSTART  Load 'vstart' into $rD
@@ -174,13 +200,10 @@ Instruction code   Assembly       Operation
 0x.00c             $rD <- VEND    Load 'vend' into $rD
 0x.00d             VEND <- $rD    Set 'vend' from $rD
 0x.00e             $rD <- VLEN    Load HW vector length into $rD
-=================  ===========    ==================
+=================  =============  ==================
 
 .. note::
   All instruction codes in this group are treated as jump instructions by the branch predictor, if exists. After warming up, some will always be predicted taken, some will not be. In TASK mode indirect jump (0x.002) and $tpc update (0x.003) instructions have the exact same behavior, however might have different latencies.
-
-.. todo::
-  We might want to shift encoding to 0x.004 ... 0x.007 to make the branch predictors job easier at recognizing this class.
 
 .. todo::
   What are the consequences of manipulating VSTART/VEND/DIRTY in TASK mode?
@@ -217,7 +240,7 @@ Instruction code   Assembly                    Operation
 0x.08.             $rD <- int $rA              Convert to integer. No-op if $rA is already integer
 0x.09.             $rD <- 1 / $rA              Reciprocal for floats [#note0xX09X]_
 0x.0a.             $rD <- rsqrt $rA            Reciprocal square-root for floats [#note0xX0aX]_
-0x.0b.
+0x.0b.             $rD <- size $rA             Load the run-time size of $rA into $rD
 0x.0c.             type $rD <- $rA             Sets type of $rD as denoted by $rA [#note0xX0cX]_
 0x.0d.             $rD <- type $rA             Loads type value of $rA into $rD
 0x.0e.             type $rD <- FIELD_A         Sets type of $rD
@@ -234,6 +257,8 @@ Instruction code   Assembly                    Operation
 
 .. note::
   We only have reduction sum. Is there any other *really* important reduction op we need?
+
+.. todo:: $rD <- size $rA is a new instruction, needs toolset/Espresso support.
 
 Binary ALU group
 ----------------
@@ -1075,7 +1100,11 @@ For a load multiple where the base register is marked for load, the implementati
 * Address translation after the retry generates the same physical addresses for store multiple operations
 * The target address is in regular memory as opposed to I/O or CSR space
 
-The requirement to be able to retry means that if the base register is part of the set of registers to be loaded, it's value can only change after it is determined that no more exceptions can fire. This can be achieved by loading the base register last (i.e. not loading registers in order), or load the value into a temporary storage and update the base register as the last step.
+The requirement to be able to retry means that if the base register is part of the set of registers to be loaded, it's value/type can only change after it is determined that no more exceptions can fire. This can be achieved by loading the base register last (i.e. not loading registers in order), or load the value into a temporary storage and update the base register as the last step.
+
+.. note::
+
+  The MSB of the mask field controls 'DIRTY' behavior.
 
 .. note::
 
@@ -1397,6 +1426,7 @@ Individual register type test group
 Instruction code           Assembly                                                     Operation
 =========================  =========================================================    ==================
 0x.03f 0x**** 0x****       if type $rD not in FIELD_F $pc <- $pc + FIELD_E              Jump if type of registers is not what's expected
+=========================  =========================================================    ==================
 
 This instruction provides a type-mask in FIELD_F. An allowed type is represented by a '1'. The instruction branches if the bit corresponding to tye type of $rD is not set in FIELD_F. The MSB of FIELD_F is reserved and should be set to 0.
 

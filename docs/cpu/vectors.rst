@@ -61,6 +61,14 @@ State management
 
 This is the ugly part: we now have two internal state registers (VSTART and VEND) that needs to be maintained during context switches. RiscV simply delegates these to CSRs and throws its arms in the air. That's certainly a way to deal (or rather not to deal) with the problem.
 
+The problem is more complex though: upon entering SCHEDULER mode, we don't have any free registers. And normal load/store operations use VSTART/VEND.
+
+The solution (however ugly it is) is to provide a set of load/store operations that work on the *full* register and ignore the setting in VSTART/VEND.
+
+These operations are potentially also useful in spilling registers to the stack: in those cases too, we don't know/care about the size of the actual vectors the user operates on. For all we know, VSTART/VEND might not even apply to the register we're trying to free up to relieve register pressure.
+
+Another, maybe safer way of dealing with this is the PUSH/POP operations, though they can't be used during context switches: not only can't we take $sp up to date - or even assume that $sp is used as the stack pointer - but we can't assume that there's room in the stack.
+
 Loads, stores and memory alignment
 ----------------------------------
 
@@ -72,6 +80,13 @@ Vector storage alignment must be the smaller of:
 In other words: if I'm dealing with a vector of 32-bit length (4 8-bit values), it needs to be aligned to 32-bit boundaries. If I'm dealing with a vector of 256 FP32 elements, it needs to be aligned to a 256-bit boundary.
 
 This requirement is a compromise: if there is an implementation that uses a wider than 256-bit external bus, it must deal with unaligned storage and related issues for large vectors. However, an implementation of that complexity can presumably afford it.
+
+This alignment requirement is going to be fun for stack operations (PUSH/PULL multiple): we have to align the stack, potentially leaving a gap. Then, on POP we'd need to re-un-align the stack, which means we also have to store whatever alignment we decided upon in the PUSH block.
+
+VSTART/VEND alignment
+---------------------
+
+VSTART and VEND are specified in bytes. But what happens if a vector is of type VINT32 and VSTART is 3? Or VEND is 14? The answer is that CPU has to truncate down to element boundary.
 
 Special vector operations
 -------------------------
@@ -134,83 +149,76 @@ What can be said though is that there could be significant sections of execution
 
 The way Cray dealt with this was to provide a 'vector-registers-are-dirty' bit that could be cleared by the kernel and set by the CPU whenever a vector register was touched. For them, this was a bit in the memory-held state block, but it could be wherever.
 
-Load/store
-----------
+In Brew, we have a dirty bit for each register. During context switch, we can use the dirty mask to not store back registers whose value didn't change. Of course we also have to store and re-load the dirty map during the context switch, otherwise it's value can't be trusted.
 
-We have an even bigger problem, actually: the amount of data loaded/stored depends on the pre-set register type. This is very difficult to handle in - for example - stack frames, where $sp would need to be adjusted according to the total number of bytes stored, but that isn't known, at least not statically.
+Function prologs and epilogs
+----------------------------
 
-Arguably even worse, every load/store now works at arbitrary sizes, which is a *huge* security hole! If one can inject the wrong type into a library or program, that code can either overwrite things it's not supposed to, or load stuff it should not have access to. This later can be used to reveal sensitive information, even if the type gets corrected later on: the extra values still exist in the registers, so re-casting the register to the right type would unmask the hidden context.
+We have a big problem in this arena: the amount of data loaded/stored depends on the pre-set register type. This is very difficult to handle in - for example - stack frames, where $sp would need to be adjusted according to the total number of bytes stored, but that isn't known, at least not statically. To handle this, PUSH/POP multiple operations are provided which can be used to spill a specified part of the architectural register state onto the stack. These create an implementation-defined structure on the stack and return the updated stack pointer. They can be used to spill/restore any combination of registers, solving two problems at once: the function prolog/epilog is very short now and the fact that the size of the stack space needed depends on the (run-time) types of the registers can be handled in the layout of the implementation defined blob.
 
-The load/store problem could be solved by providing a vector load/store variant. This would mean that all existing load/stores would only accept (or care about) the first 32 bits of data. The vector loads/store variants would store a whole register. Their size would be something that is known for a given implementation. This can be done as an (almost) prefix instruction that can go in front of any load/store to make them vectorized.
+The down-side of course is that these instructions are extremely complex. They certainly are not single-cycle, need a complex FSM to implement, and made even more complex by the need of precise (restartable) exception handling.
+
+Loads and stores
+----------------
+
+If the previous problem wasn't big enough, we have another one coming on its heels: every load/store now works on run-time defined sizes, which is a *huge* security hole! If one can inject the wrong type into a library or program, that code can either overwrite things it's not supposed to, or load stuff it should not have access to. This later can be used to reveal sensitive information, even if the type gets corrected later on: the extra values still exist in the registers, so re-casting the register to the right type would unmask the hidden context (this latter issue is dealt with in the next chapter).
+
+To mitigate this problem, a set of quick check instructions are provided that allow for checking if a register (or block of registers) is of a given type. These instructions can be deployed for instance in function prologs to test that register-passed arguments are of an assumed type. Then, the assumed register types can be quickly loaded by :code:`type $r0...$r7 <- VALUE` instructions.
+
+.. note:: Maybe we don't care about the type check and simply load the assumed types?
+
+.. note:: Since we use push/pop multiple to save caller context, the types of callee-saved registers are preserved. Call-clobbered registers don't provide any type persistence guarantees anyway, so blowing them away is kosher behavior.
+
+Another problem arises when we try to save/restore individual vector registers: normal load/stores use VSTART/VEND to guide their behavior, but that's not what we want here: we want to preserve the full HW value. A set of loads and stores are thus provided that ignore VSTART and VEND.
 
 .. todo:: Not sure of the 8- and 16-bit size and zero-extension versions make much sense. They are rather difficult to implement, probable better left for a load+widening operation.
+
+.. todo:: RiscV provides strided loads/stores. These are highly useful for loading transposed matrices, but are complex to implement. Right now we're not supporting them, but should we? We can actually simulate these with scatter/gather loads/stores. Once the indices are set up, the vector register can be changed by adding a scalar to it, which would get broadcast across all elements. The setting up of the stride is a chore though.
+
+.. todo:: We do support scatter/gather loads and stores using the MEM[$r1] <- $rB instruction, if $r1 happens to be a vector register.
 
 Type changes must touch values
 ------------------------------
 
-Otherwise there's is security hole in here: Let's say that kernel code does a sensitive memcpy using vector registers. Then, it changes context to a user-task. This change involves changing the type of these registers to scalar and restoring their values. Now, in user-land, we can change the types back to vector ones, and voila: we have the values of a potentially rather large section of kernel space.
+This is where we left off in the previous topic: Let's say that kernel code does a sensitive memcpy using vector registers. Then, it changes context to a user-task. This change involves changing the type of these registers to scalar and restoring their values. Now, in user-land, we can change the types back to vector ones. If type-changes don't touch values the user task would suddenly have unmasked values of a potentially rather large section of kernel space.
 
-To solve this, type changes need to be required to zero out top bits of the registers, or at least pretend to do so. One way of implementing this cheaply is each register (on top of its type) to have a size field.
+To solve this, type changes are required to zero out top bits of the registers, or at least pretend to do so. One way of implementing this cheaply is each register (on top of its type) to have a size field.
 
 When a register is type-cast to a shorter type, the size field is adjusted. When a register is type-cast to a larger type, the size field is *not* adjusted. When a value is stored in the register, the size field is adjusted. When a value is used from a register, bits beyond the limit indicated by the size field are masked to 0.
 
 .. note:: the type-override prefix instruction uses the shorter of the size field in the register and the size field associated with the type override.
 
-Load/store multiple and stacks
+Load/store/push/pull multiple
 ------------------------------
 
 Oh, dear, this is difficult: the problem is that the *length* of the stored registers now depend on the type. So, in order to make the load/store process even remotely reasonable, we would need to start with loading/storing the types. This, however runs havoc with exception handling: we can't update the types until we're certain we have the value as well. Not only that, but what about the typeless ISA variant? Waste 64 bits of state?
 
 Regardless of implementation headaches, the problem of context save/restore pops up in two major ways: when we swap execution contexts and when we do a function call. The common problem in both cases is that we don't know the types of the registers we want to save/restore, thus we don't know how much storage we need. Being conservative is wasteful, but if we aren't, we have a dynamic stack-frame size issue. Not only that, but every stack-operation after the first unknown sized store have dynamic addresses. Same for loads in reverse.
 
-We can wrap all this complexity into the load/store multiple, but that makes that instruction incredibly complex. Still worth it, given the alternative is to provide true push/pull instructions. That is a pandoras box, still requires dealing with types and still generates a rather long and complex prolog/epilog section.
+We can wrap all this complexity into the load/store/push/pop multiple, but that makes that instruction incredibly complex. Still worth it, given the alternatives.
 
-So, what we should say is that load/store multiple works this way:
+For these operations, we provide the following inputs:
 
-#. Gets a mask of registers to touch
-#. Types for these registers are also touched, no ifs or buts.
-#. The instruction uses an opaque (i.e. implementation defined) structure to store values. The only requirement is that if the same mask is given for the load as the store, the result should be 'as expected'.
-   #. This might be problematic: in a context switch world we might want to restore a subset to maintain ex. return values. BTW: this is a problem even in the current variant of this instruction-pair. We will address that in a minute.
-#. Somehow we would need to be notified about the amount of space taken up by the storage being used.
-#. We incorporate a 'dirty' mask: each register maintains a sticky 'dirty' bit, which is set on every value or type update. It is cleared (or set) by a special instruction. There is a store multiple variant that skips registers with the 'dirty' bit cleared (still reserves storage, but doesn't actually store). The load variant of this is that *only* dirty registers are loaded.
+#. A mask of which registers to involve
+#. An optional skip-mask (in the form of a register). These registers are skipped for updated/storage
+#. An address to load/store/pus/pop the contents from in the form of a pointer register
 
-This is insanely complex. Certainly needs several cycles and a sequencer to accomplish.
+Given these, the CPU creates an implementation-defined blob in the pointed location with the following guarantees:
 
-Right now we have these variants:
+#. The block layout is well documented
+#. The block contains space for all registers in the mask
+#. The block contains types and values for all registers that are in the mask and not skipped
+#. Loading a blob with the same mask is always possible independent of the skip field content.
 
-=========================  =======================================    ==================
-Instruction code           Assembly                                   Operation
-=========================  =======================================    ==================
-0x.0ff 0x**** 0x****       $r0...$r14 <- MEM[$rD +]                   load any combination of registers with FIELD_E as mask, incrementing
-0x.1ff 0x**** 0x****       MEM[$rD +] <- $r0...$r14                   store any combination of registers with FIELD_E as mask, incrementing
-0x.2ff 0x**** 0x****       $r0...$r14 <- MEM[$rD -]                   load any combination of registers with FIELD_E as mask, decrementing
-0x.3ff 0x**** 0x****       MEM[$rD -] <- $r0...$r14                   store any combination of registers with FIELD_E as mask, decrementing
-=========================  =======================================    ==================
+Variants of the instructions can use an implementation-defined 'dirty' bit and skip registers that are/are not dirty.
 
-What we would need instead is something like this:
+On top of all this PUSH/POP variants are to update the blob pointer with the size of the created/consumed blob. The blob structure should allow for POP to operate, given it's pointer points to after the end of the blob. For instance, the last word in the blob could be a size field, so POP can read that and find the beginning of the blob.
 
-=========================  =======================================    ==================
-Instruction code           Assembly                                   Operation
-=========================  =======================================    ==================
-0x.f0f 0x****              $r0...$r14 <- MEM[$rD +]                   load any combination of registers with FIELD_E as mask, incrementing
-0x.f1f 0x****              MEM[$rD +] <- $r0...$r14                   store any combination of registers with FIELD_E as mask, incrementing
-0x.f2f 0x****              $r0...$r14 <- MEM[$rD -]                   load any combination of registers with FIELD_E as mask, decrementing
-0x.f3f 0x****              MEM[$rD -] <- $r0...$r14                   store any combination of registers with FIELD_E as mask, decrementing
-0x.f4f 0x****              $rD; $r0...$r14 <- MEM[$rD +]              load any combination of registers with FIELD_E as mask, incrementing, return updated $rD
-0x.f5f 0x****              $rD; MEM[$rD +] <- $r0...$r14              store any combination of registers with FIELD_E as mask, incrementing, return updated $rD
-0x.f6f 0x****              $rD; $r0...$r14 <- MEM[$rD -]              load any combination of registers with FIELD_E as mask, decrementing, return updated $rD
-0x.f7f 0x****              $rD; MEM[$rD -] <- $r0...$r14              store any combination of registers with FIELD_E as mask, decrementing, return updated $rD
-=========================  =======================================    ==================
+During the load/store of vector registers VSTART/VEND should not be modified or consulted: the whole length of the HW register is accessed.
 
-Where 'dirty' semantics would be controlled by the MSB of FIELD_E. The later four variants are effectively push/pull operations, so much so that maybe we should use push/pull syntax. For pop operations that touch $rD, the return value is still the updated base. Setting the 'D' bit for a pop might still be needed to mimic whatever the corresponding push did.
+Exceptions further complicate this process: there must be a way to restart a partial load/store/push/pop multiple. I don't know how to do that at the moment!
 
-The usage would be:
-
-For stack operations, we would always use the push/pull semantics. That is, we would always set the MSB of field_e would never save/restore $sp itself, and would always use $sp as the base register.
-
-For context switches we would never use the push/pull semantics and would always use the 'dirty' bit semantics.
-
-Now, the nice thing in this world is that the 'blob' is opaque. So a typeless variant doesn't have to waste space storing the types. By manipulating the dirty bits, we can also control restore in a SYSCALL return to not restore registers which we want to keep the new values for - this however makes 'dirty' implementation at least in some simple form mandatory.
+Needless to say, this is insanely complex. Certainly needs several cycles and a sequencer to accomplish.
 
 Register metadata
 -----------------
@@ -301,3 +309,186 @@ With all these, a context change in SCHEDULER-mode would look something like thi
             dw 0
 
 This is not short, but maybe acceptable. It's 25 instructions, of course some of them are many many cycles long.
+
+
+Vectors simplified
+==================
+
+Let's see if we can simplify things. One thing we can try is *not* to have multiple load/store, instead have the following:
+
+This is how you would push a single value::
+
+    $rD <- size $rA  # This would load the run-time size of $rA in bytes into $rD
+    mem[$sp] <- full $rA
+    $sp <- $sp - $rD
+    $rD <- type $rA
+    mem[$sp] <- $rD
+    $sp <- $sp - 4
+
+And the corresponding pop:
+
+    $sp <- $sp + 4
+    type $rD <- INT32 # Might not be needed if can be guaranteed
+    $rD <- mem[$sp]
+    type $rA <- $rD
+    $rD <- size $rA
+    $sp <- $sp - $rD
+    full $rA <- mem[$sp]
+
+This is 6 instructions (each) to pop/pull a single value!
+
+The context change variant is::
+
+    .text
+        run_task:
+            # We're about to return to a task.
+            # The task context pointer is in $r0, type INT32
+            # The register mask we want to return to the task is in $r1, type INT32
+            # $lr can't be returned, it will always be restored from the saved context.
+            # $r2 is throw-away. We clobber $r1 as well.
+            # Upon return, $r0 still points to the (newly updated) context pointer.
+            # There are many other things we care about, such as:
+            # - vstart, vend
+            # - MMU base address (or base/limit registers)
+            # - OS related info
+
+
+            type $r2 <- INT32
+            $r2 <- sched_context
+
+            MEM[$r2 + type_ofs_1] <- type $r8 ... $r14
+            MEM[$r2 + slot_size*6] <- full $r8
+            MEM[$r2 + slot_size*7] <- full $r9
+            MEM[$r2 + slot_size*8] <- full $r10
+            MEM[$r2 + slot_size*9] <- full $r11
+            MEM[$r2 + slot_size*10] <- full $r12
+            MEM[$r2 + slot_size*11] <- full $r13
+            MEM[$r2 + slot_size*12] <- full $r14
+
+            $lr <- DIRTY
+            MEM[$r2 + dirty_ofs] <- $lr
+            $lr <- VSTART
+            MEM[$r2 + vstart_ofs] <- $lr
+            $lr <- VEND
+            MEM[$r2 + vend_ofs] <- $lr
+
+            MEM[$r2 + type_ofs_0] <- type $r0 ... $r7
+            MEM[$r2 + slot_size*0] <- full $r0
+            MEM[$r2 + slot_size*1] <- full $r3
+            MEM[$r2 + slot_size*2] <- full $r4
+            MEM[$r2 + slot_size*3] <- full $r5
+            MEM[$r2 + slot_size*4] <- full $r6
+            MEM[$r2 + slot_size*5] <- full $r7
+
+            MEM[cur_context] <- $r0
+            $lr <- $r0
+
+            $r0 <- MEM[$lr + dirty_ofs]
+            DIRTY <- $r0
+            $r0 <- MEM[$lr + vstart_ofs]
+            VSTART <- $r0
+            $r0 <- MEM[$lr + vend_ofs]
+            VEND <- $r0
+
+
+            # We have a big problem here: we can't really restore the type!!!
+            # At least not selectively: we need to have the types set before the loads
+            # but what about skips? In those cases we would not want the types set.
+            # A type-setting from vector to scalar is a destructive operation, we
+            # loose the upper bits irrevocably. Our only choice it seems is to re-create
+            # the full type mask and re-load the register values from sched_context.
+            # That is just painful!!!!
+            if $r1[0] == 1 $pc <- skip_r0
+            full $r0 <- MEM[$lr + slit_size*0]
+            $pc <- cont_r0
+        skip_r0:
+            $r0 <- $r0
+        cont_r0:
+            if $r1[1] == 1 $pc <- skip_r1
+            full $r1 <- MEM[$lr + slit_size*1]
+            $pc <- cont_r1
+        skip_r1:
+            $r1 <- $r1
+        cont_r1:
+            ...
+        cont_r7:
+
+
+
+
+
+
+
+
+            # We need a register. Use $lr as that's the most likely to be a scalar.
+            # We need to save it (and it's type) to a static location before we can move on.
+            MEM[lr_save] <- full $lr
+            $lr <- type $lr
+            MEM[lr_type_save] <- $lr
+            # Load context pointer
+            type $lr <- INT32
+            $lr <- MEM[cur_context]
+            # Save the context
+            MEM[$lr + slot_size*0]  <- full $r0
+            MEM[$lr + slot_size*1]  <- full $r1
+            MEM[$lr + slot_size*2]  <- full $r2
+            MEM[$lr + slot_size*3]  <- full $r3
+            MEM[$lr + slot_size*4]  <- full $r4
+            MEM[$lr + slot_size*5]  <- full $r5
+            MEM[$lr + slot_size*6]  <- full $r6
+            MEM[$lr + slot_size*7]  <- full $r7
+            MEM[$lr + type_ofs_0] <- type $r0 ... $r7
+
+            $r0 <- DIRTY # Changes type to INT32
+            MEM[$lr + dirty_ofs] <- $r0
+
+            $r0 <- $lr
+            $lr <- MEM[lr_type_save]
+            type $lr <- $lr
+            full $lr <- MEM[lr_save]
+
+            MEM[$r0 + slot_size*8]  <- full $r8
+            MEM[$r0 + slot_size*9]  <- full $r9
+            MEM[$r0 + slot_size*10] <- full $r10
+            MEM[$r0 + slot_size*11] <- full $r11
+            MEM[$r0 + slot_size*12] <- full $r12
+            MEM[$r0 + slot_size*13] <- full $r13
+            MEM[$r0 + slot_size*14] <- full $r14
+            MEM[$r0 + type_ofs_1] <- type $r8 ... $r14
+
+            $lr <- VSTART
+            MEM[$r0 + vstart_ofs] <- $lr
+            $lr <- VEND
+            MEM[$r0 + vend_ofs] <- $lr
+
+            # At this point we've saved off the current context. We can restore the context of the SCHEDULER
+            type $r1 <- INT32
+            $r1 <- sched_context
+            type $r8 ... $r14 <- MEM[$r1 + type_ofs_1]
+            full $r8 <- MEM[$r1 + slot_size*6]
+            full $r9 <- MEM[$r1 + slot_size*7]
+            full $r10 <- MEM[$r1 + slot_size*8]
+            full $r11 <- MEM[$r1 + slot_size*9]
+            full $r12 <- MEM[$r1 + slot_size*10]
+            full $r13 <- MEM[$r1 + slot_size*11]
+            full $r14 <- MEM[$r1 + slot_size*12]
+
+            $r2 <- MEM[$r1 + vstart_ofs]
+            VSTART <- $r2
+            $r2 <- MEM[$r1 + vend_ofs]
+            VEND <- $r2
+
+            type $r0 ... $r7 <- MEM[$r1 + type_ofs_0] # We assume $r1-s restored type is also INT32
+            full $r0 <- MEM[$r1 + slot_size*0]
+            full $r3 <- MEM[$r1 + slot_size*1]
+            full $r4 <- MEM[$r1 + slot_size*2]
+            full $r5 <- MEM[$r1 + slot_size*3]
+            full $r6 <- MEM[$r1 + slot_size*4]
+            full $r7 <- MEM[$r1 + slot_size*5]
+
+            $r2 <- MEM[$r1 + dirty_ofs]
+            DIRTY <- $r2
+            $pc <- $lr
+
+OK, so this is hopelessly complex. Even with all the FSM and exception nightmare, it's better to have the load/store multiple instructions by a mile.
+

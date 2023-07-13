@@ -33,6 +33,7 @@ Brew Processor
    isa
    memory_model
    isa_details
+   compatibility
    abi
    hw_impl_notes
    system_sw

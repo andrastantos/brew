@@ -41,3 +41,20 @@ $tpc:
  denotes the task-mode program counter. If the current execution context is TASK mode, $tpc is the same as $pc. In SCHEDULER mode, it's not.
 
 .. note:: $pc and $tpc are 31-bit registers.
+
+Register content fields
+-----------------------
+
+The following data fields are stored with every register:
+
+* Value
+* Type
+* Size
+* Dirty
+
+These fields can be accessed using the '.' notation.
+The :code:`value` field holds the result of the latest write to the register.
+The :code:`type` field contains the type of the value held in the register. This field is updated by most operations that modify the value, except for load/store operations. It is also updated by type overrides and type-casts.
+The :code:`size` field contains the number of valid bytes held in the :code:`value` field of the register. The :code:`size` field is set to the :code:`min($rX.size, sizeof(type))` when type alone is changed. When :code:`value` changes, the :code:`size` field is adjusted to reflect the total number of bytes held in :code:`value`.
+The :code:`dirty` bit is set whenever either :code:`type` or :code:`value` fields are changed. It can be cleared by special instructions.
+
