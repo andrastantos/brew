@@ -340,7 +340,7 @@ Load immediate group
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
-      { "name": "FIELD_E lower 16 bits", "bits": 16 },
+      { "name": "FIELD_E lower 16 bits", "bits": 16, attr: "VALUE lower 16 bits" },
   ],
   }
 
@@ -348,9 +348,10 @@ Load immediate group
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
-      { "name": "FIELD_E upper 16 bits", "bits": 16 },
+      { "name": "FIELD_E upper 16 bits", "bits": 16, attr: "VALUE upper 16 bits" },
   ]
   }
+
 
 or
 
@@ -403,9 +404,6 @@ Instruction code           Assembly                    Operation
 0x80ef 0x**** 0x****       type $r0...$r7 <- VALUE     Load immediate type values [#note_immedate_types]_
 0x90ef 0x**** 0x****       type $r8...$r14 <- VALUE    Load immediate type values [#note_immedate_types]_
 =========================  ========================    ==================
-
-.. note::
-  There are a lot of holes in this space. Those are reserved for ISA expansion and should generate an SII exception. Such as 0x.01f:0x.0df; 0x40ef:0x70ef, 0xa0ef:0xe0ef.
 
 .. note::
   Destination type is not changed, except of course for type load operations.
@@ -498,7 +496,7 @@ Short load immediate group
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
-      { "name": "FIELD_E", "bits": 16 },
+      { "name": "FIELD_E", "bits": 16, attr: "VALUE" },
   ],
   }
 
@@ -865,12 +863,12 @@ While stack operations (as in push/pull) are not supported by the ISA, special l
   |    FIELD_D    |    FIELD_C    |            OFS            | S |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-==================  ============================    ==================
-Instruction code    Assembly                        Operation
-==================  ============================    ==================
+==================  =============================    ==================
+Instruction code    Assembly                         Operation
+==================  =============================    ==================
 0x.c**              MEM[$rS + tiny OFFSET] <- $rD    Store $rD in memory
 0x.d**              $rD <- MEM[$rS + tiny OFFSET]    Load $rD from memory
-==================  ============================    ==================
+==================  =============================    ==================
 
 .. warning::
   The encoding of field S is special: A=0 denotes $r12, A=1 denotes $r13
@@ -1054,7 +1052,7 @@ Load/store multiple
   reg: [
       { "name": "FIELD_A",   "bits": 4, attr: "offset" },
       { "name": "FIELD_B",   "bits": 4, attr: "op kind" },
-      { "name": "f",         "bits": 4 },
+      { "name": "f",         "bits": 4, attr: "REG_MASK" },
       { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
   ],
   }
