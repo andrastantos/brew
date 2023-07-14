@@ -1,3 +1,123 @@
+$r0...$r14 <- MEM[$rD] @ $rA
+----------------------------
+
+*Instruction code*: 0x.f0. 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+load any combination of registers with FIELD_E as mask; skip-mask in $rA
+
+
+$r0...$r14 <- MEM[$rD]
+----------------------
+
+*Instruction code*: 0x.f0f 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+load any combination of registers with FIELD_E as mask
+
+
+MEM[$rD] <- $r0...$r14 @ $rA
+----------------------------
+
+*Instruction code*: 0x.f1. 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+store any combination of registers with FIELD_E as mask; skip-mask in $rA
+
+
+MEM[$rD] <- $r0...$r14
+----------------------
+
+*Instruction code*: 0x.f1f 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+store any combination of registers with FIELD_E as mask
+
+
+$r0...$r14 <- POP[$rD] @ $rA
+----------------------------
+
+*Instruction code*: 0x.f2. 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+pop any combination of registers with FIELD_E as mask; skip-mask in $rA
+
+
+$r0...$r14 <- POP[$rD]
+----------------------
+
+*Instruction code*: 0x.f2f 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+pop any combination of registers with FIELD_E as mask
+
+
+PUSH[$rD] <- $r0...$r14 @ $rA
+-----------------------------
+
+*Instruction code*: 0x.f3. 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+push any combination of registers with FIELD_E as mask; skip-mask in $rA
+
+
+PUSH[$rD] <- $r0...$r14
+-----------------------
+
+*Instruction code*: 0x.f3f 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+push any combination of registers with FIELD_E as mask
+
+
 Load/store multiple
 ===================
 

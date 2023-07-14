@@ -252,15 +252,36 @@ for detail_file_name in glob("isa_detail*.rst"):
                                 print(f"         '{summary}'")
 
 print("Instructions with no detail:")
-for inst_code, line in enumerate(inst_codes.codes):
-    if line is None:
-        continue
-    elif isinstance(line, InstCodes):
-        #for sub_inst_code, sub_line in enumerate(line.codes):
-        #    if sub_line is not None:
-        #        print(f"    0x{inst_code:04x} 0x{sub_inst_code:04x} - {sub_line}")
-        #print(f"    0x{inst_code:04x} - MULTIPLE")
-        pass
-    else:
-        if not line.detail:
-            print(f"    0x{inst_code:04x} - {line}")
+reported_missing = OrderedSet()
+
+with open("isa_detail_new.rst", "wt") as new_inst_file:
+    line: InstInfo
+    for inst_code, line in enumerate(inst_codes.codes):
+        if line is None:
+            continue
+        elif isinstance(line, InstCodes):
+            #for sub_inst_code, sub_line in enumerate(line.codes):
+            #    if sub_line is not None:
+            #        print(f"    0x{inst_code:04x} 0x{sub_inst_code:04x} - {sub_line}")
+            #print(f"    0x{inst_code:04x} - MULTIPLE")
+            pass
+        else:
+            if not line.detail:
+                print(f"    0x{inst_code:04x} - {line}")
+                if line.inst_code not in reported_missing:
+                    new_inst_file.write(f"{line.asm}\n");
+                    new_inst_file.write(f"{'-'*len(line.asm)}\n");
+                    new_inst_file.write(f"\n");
+                    new_inst_file.write(f"*Instruction code*: {line.inst_code}\n");
+                    new_inst_file.write(f"\n");
+                    new_inst_file.write(f"*Exceptions*: TBD\n");
+                    new_inst_file.write(f"\n");
+                    new_inst_file.write(f"*Type variants*: TBD\n");
+                    new_inst_file.write(f"\n");
+                    new_inst_file.write(f"Description\n");
+                    new_inst_file.write(f"~~~~~~~~~~~\n");
+                    new_inst_file.write(f"\n");
+                    new_inst_file.write(f"{line.operation}\n");
+                    new_inst_file.write(f"\n");
+                    new_inst_file.write(f"\n");
+                reported_missing.add(line.inst_code)

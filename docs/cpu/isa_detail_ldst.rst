@@ -234,77 +234,392 @@ The implementation is allowed to throw exceptions if the memory access violates 
 
 
 
+$rD <- CSR[ADDR]
+----------------
+
+*Instruction code*: 0x.0f8 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+Load CSR value into $rD
 
 
+CSR[ADDR] <- $rD
+----------------
+
+*Instruction code*: 0x.0f9 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+Store $rD in CSR
 
 
+MEM[$rA] <- full $rD
+--------------------
+
+*Instruction code*: 0x.ef.
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+Store full $rD (no use/modification of vstart vend)
 
 
+MEM[VALUE] <- full $rD
+----------------------
 
-Offset-indirect load/store group
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*Instruction code*: 0x.eff 0x**** 0x****
 
-::
+*Exceptions*: TBD
 
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |       f       |    FIELD_B    |    FIELD_A    |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+*Type variants*: TBD
 
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |                         FIELD_E                               |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+Description
+~~~~~~~~~~~
 
-==================  ====================================    ==================
-Instruction code    Assembly                                Operation
-==================  ====================================    ==================
-0x.f4. 0x****       $rD <- MEM8[$rA+FIELD_E]                8-bit unsigned load from MEM[$rA+FIELD_E] into $rD
-0x.f5. 0x****       $rD <- MEM16[$rA+FIELD_E]               16-bit unsigned load from MEM[$rA+FIELD_E] into $rD
-0x.f6. 0x****       $rD <- MEM[32][$rA+FIELD_E]             32-bit load from MEM[$rA+FIELD_E] into $rD
-0x.f7. 0x****       $rD <- MEMLL[$rA+FIELD_E]               32-bit unsigned load-reserve (exclusive load)
-0x.f8. 0x****       MEM8[$rA+FIELD_E] <- $rD                8-bit store to MEM[$rA+FIELD_E] from $rD
-0x.f9. 0x****       MEM16[$rA+FIELD_E] <- $rD               16-bit store to MEM[$rA+FIELD_E] from $rD
-0x.fa. 0x****       MEM[32][$rA+FIELD_E] <- $rD             32-bit store to MEM[$rA+FIELD_E] from $rD
-0x.fb. 0x****       MEMSR[32][$rA+FIELD_E] <- $rD           32-bit store-release (exclusive store)
-0x.fc. 0x****       $rD <- SMEM8[$rA+FIELD_E]               8-bit signed load from MEM[$rA+FIELD_E] into $rD
-0x.fd. 0x****       $rD <- SMEM16[$rA+FIELD_E]              16-bit signed load from MEM[$rA+FIELD_E] into $rD
-==================  ====================================    ==================
-
-.. note:: FIELD_E is sign-extended before addition
-.. note:: Loads don't change the type of a register.
+Store full $rD (no use/modification of vstart vend)
 
 
+$rD <- MEM8[$rA + VALUE]
+------------------------
 
-Absolute load/store group
-~~~~~~~~~~~~~~~~~~~~~~~~~
+*Instruction code*: 0x.f4. 0x****
 
-::
+*Exceptions*: TBD
 
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |       f       |    FIELD_B    |       f       |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+*Type variants*: TBD
 
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+-...
-  |                         FIELD_E  lower 16 bits              ...
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+-...
+Description
+~~~~~~~~~~~
 
-  ...-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  ...                       FIELD_E   upper 16 bits               |
-  ...-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+8-bit unsigned load from MEM[$rA+VALUE] into $rD
 
-=========================  ==========================  ==================
-Instruction code           Assembly                    Operation
-=========================  ==========================  ==================
-0x.f4f 0x**** 0x****       $rD <- MEM8[FIELD_E]        8-bit unsigned load from MEM[FIELD_E] into $rD
-0x.f5f 0x**** 0x****       $rD <- MEM16[FIELD_E]       16-bit unsigned load from MEM[FIELD_E] into $rD
-0x.f6f 0x**** 0x****       $rD <- MEM[32][FIELD_E]     32-bit load from MEM[FIELD_E] into $rD
-0x.f7f 0x**** 0x****       $rD <- MEMLL[FIELD_E]       32-bit unsigned load-reserve (exclusive load)
-0x.f8f 0x**** 0x****       MEM8[FIELD_E] <- $rD        8-bit store to MEM[FIELD_E] from $rD
-0x.f9f 0x**** 0x****       MEM16[FIELD_E] <- $rD       16-bit store to MEM[FIELD_E] from $rD
-0x.faf 0x**** 0x****       MEM[32][FIELD_E] <- $rD     32-bit store to MEM[FIELD_E] from $rD
-0x.fbf 0x**** 0x****       MEMSR[32][FIELD_E] <- $rD   32-bit store-release (exclusive store)
-0x.fcf 0x**** 0x****       $rD <- SMEM8[FIELD_E]       8-bit signed load from MEM[FIELD_E] into $rD
-0x.fdf 0x**** 0x****       $rD <- SMEM16[FIELD_E]      16-bit signed load from MEM[FIELD_E] into $rD
-=========================  ==========================  ==================
 
-.. note:: Loads don't change the type of a register.
+$rD <- MEM8[VALUE]
+------------------
+
+*Instruction code*: 0x.f4f 0x**** 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+8-bit unsigned load from MEM[VALUE] into $rD
+
+
+$rD <- MEM16[$rA + VALUE]
+-------------------------
+
+*Instruction code*: 0x.f5. 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+16-bit unsigned load from MEM[$rA+VALUE] into $rD
+
+
+$rD <- MEM16[VALUE]
+-------------------
+
+*Instruction code*: 0x.f5f 0x**** 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+16-bit unsigned load from MEM[VALUE] into $rD
+
+
+$rD <- MEM[$rA + VALUE]
+-----------------------
+
+*Instruction code*: 0x.f6. 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+32-bit load from MEM[$rA+VALUE] into $rD
+
+
+$rD <- MEM[VALUE]
+-----------------
+
+*Instruction code*: 0x.f6f 0x**** 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+32-bit load from MEM[VALUE] into $rD
+
+
+$rD <- MEMLL[$rA + VALUE]
+-------------------------
+
+*Instruction code*: 0x.f7. 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+32-bit unsigned load-lock (exclusive load)
+
+
+$rD <- MEMLL[VALUE]
+-------------------
+
+*Instruction code*: 0x.f7f 0x**** 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+32-bit unsigned load-lock (exclusive load)
+
+
+MEM8[$rA + VALUE] <- $rD
+------------------------
+
+*Instruction code*: 0x.f8. 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+8-bit store to MEM[$rA+VALUE] from $rD
+
+
+MEM8[VALUE] <- $rD
+------------------
+
+*Instruction code*: 0x.f8f 0x**** 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+8-bit store to MEM[VALUE] from $rD
+
+
+MEM16[$rA + VALUE] <- $rD
+-------------------------
+
+*Instruction code*: 0x.f9. 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+16-bit store to MEM[$rA+VALUE] from $rD
+
+
+MEM16[VALUE] <- $rD
+-------------------
+
+*Instruction code*: 0x.f9f 0x**** 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+16-bit store to MEM[VALUE] from $rD
+
+
+MEM[$rA + VALUE] <- $rD
+-----------------------
+
+*Instruction code*: 0x.fa. 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+32-bit store to MEM[$rA+VALUE] from $rD
+
+
+MEM[VALUE] <- $rD
+-----------------
+
+*Instruction code*: 0x.faf 0x**** 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+32-bit store to MEM[VALUE] from $rD
+
+
+MEMSC[$rA + VALUE] <- $rD
+-------------------------
+
+*Instruction code*: 0x.fb. 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+32-bit store-conditional (exclusive store)
+
+
+MEMSC[VALUE] <- $rD
+-------------------
+
+*Instruction code*: 0x.fbf 0x**** 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+32-bit store-conditional (exclusive store)
+
+
+$rD <- SMEM8[$rA + VALUE]
+-------------------------
+
+*Instruction code*: 0x.fc. 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+8-bit signed load from MEM[$rA+VALUE] into $rD
+
+
+$rD <- SMEM8[VALUE]
+-------------------
+
+*Instruction code*: 0x.fcf 0x**** 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+8-bit signed load from MEM[VALUE] into $rD
+
+
+$rD <- SMEM16[$rA + VALUE]
+--------------------------
+
+*Instruction code*: 0x.fd. 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+16-bit signed load from MEM[$rA+VALUE] into $rD
+
+
+$rD <- SMEM16[VALUE]
+--------------------
+
+*Instruction code*: 0x.fdf 0x**** 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+16-bit signed load from MEM[VALUE] into $rD
+
+
+full $rD <- MEM[$rA]
+--------------------
+
+*Instruction code*: 0x.ff.
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+Load full $rD (no use/modification of vstart vend)
+
+
+full $rD <- MEM[VALUE]
+----------------------
+
+*Instruction code*: 0x.fff 0x**** 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+Load full $rD (no use/modification of vstart vend)
 

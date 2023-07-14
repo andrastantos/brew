@@ -1,8 +1,3 @@
-
-
-
-
-
 if any $rA == 0  $pc <- $pc + VALUE
 ----------------------------------------------------------
 
@@ -584,4 +579,279 @@ e       31
 ======= ===============
 
 The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
+
+
+
+
+
+if any type $r0...$r3   != types $pc <- $pc + br_offs
+-------------------------------------------------------
+
+*Instruction code*: 0x001f 0x**** 0x****
+
+*Exceptions*: None
+
+*Type variants*: No
+
+Description
+~~~~~~~~~~~
+
+Jump if type of registers is not what's expected
+
+
+if all type $r0...$r3   != types $pc <- $pc + br_offs
+-------------------------------------------------------
+
+*Instruction code*: 0x002f 0x**** 0x****
+
+*Exceptions*: None
+
+*Type variants*: No
+
+Description
+~~~~~~~~~~~
+
+Jump if type of registers is not what's expected
+
+
+if type $rD not in FIELD_F $pc <- $pc + FIELD_E
+-----------------------------------------------
+
+*Instruction code*: 0x.03f 0x**** 0x****
+
+*Exceptions*: None
+
+*Type variants*: No
+
+Description
+~~~~~~~~~~~
+
+Jump if type of registers is not what's expected
+
+
+
+if any type $r4...$r7   != types $pc <- $pc + br_offs
+----------------------------------------------------
+
+*Instruction code*: 0x101f 0x**** 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+Jump if type of registers is not what's expected
+
+
+if all type $r4...$r7   != types $pc <- $pc + br_offs
+----------------------------------------------------
+
+*Instruction code*: 0x102f 0x**** 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+Jump if type of registers is not what's expected
+
+
+if any type $r8...$r11  != types $pc <- $pc + br_offs
+----------------------------------------------------
+
+*Instruction code*: 0x201f 0x**** 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+Jump if type of registers is not what's expected
+
+
+if all type $r8...$r11  != types $pc <- $pc + br_offs
+----------------------------------------------------
+
+*Instruction code*: 0x202f 0x**** 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+Jump if type of registers is not what's expected
+
+
+if any type $r12...$r14 != types $pc <- $pc + br_offs
+----------------------------------------------------
+
+*Instruction code*: 0x301f 0x**** 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+Jump if type of registers is not what's expected
+
+
+if all type $r12...$r14 != types $pc <- $pc + br_offs
+----------------------------------------------------
+
+*Instruction code*: 0x302f 0x**** 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+Jump if type of registers is not what's expected
+
+
+if any type $r0...$r3   == types $pc <- $pc + br_offs
+----------------------------------------------------
+
+*Instruction code*: 0x401f 0x**** 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+Jump if type of registers is not what's expected
+
+
+if all type $r0...$r3   == types $pc <- $pc + br_offs
+----------------------------------------------------
+
+*Instruction code*: 0x402f 0x**** 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+Jump if type of registers is not what's expected
+
+
+if any type $r4...$r7   == types $pc <- $pc + br_offs
+----------------------------------------------------
+
+*Instruction code*: 0x501f 0x**** 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+Jump if type of registers is not what's expected
+
+
+if all type $r4...$r7   == types $pc <- $pc + br_offs
+----------------------------------------------------
+
+*Instruction code*: 0x502f 0x**** 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+Jump if type of registers is not what's expected
+
+
+if any type $r8...$r11  == types $pc <- $pc + br_offs
+----------------------------------------------------
+
+*Instruction code*: 0x601f 0x**** 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+Jump if type of registers is not what's expected
+
+
+if all type $r8...$r11  == types $pc <- $pc + br_offs
+----------------------------------------------------
+
+*Instruction code*: 0x602f 0x**** 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+Jump if type of registers is not what's expected
+
+
+if any type $r12...$r14 == types $pc <- $pc + br_offs
+----------------------------------------------------
+
+*Instruction code*: 0x701f 0x**** 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+Jump if type of registers is not what's expected
+
+
+if all type $r12...$r14 == types $pc <- $pc + br_offs
+----------------------------------------------------
+
+*Instruction code*: 0x702f 0x**** 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+Jump if type of registers is not what's expected
+
+
+if all $rA >= 0  $pc <- $pc + VALUE
+-----------------------------------
+
+*Instruction code*: 0xf0b. 0x****
+
+*Exceptions*: TBD
+
+*Type variants*: TBD
+
+Description
+~~~~~~~~~~~
+
+signed compare
+
 

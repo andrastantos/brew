@@ -971,16 +971,16 @@ Offset-indirect load/store group
 ==================  ====================================    ==================
 Instruction code    Assembly                                Operation
 ==================  ====================================    ==================
-0x.f4. 0x****       $rD <- MEM8[$rA + VALUE]                8-bit unsigned load from MEM[$rA+FIELD_E] into $rD
-0x.f5. 0x****       $rD <- MEM16[$rA + VALUE]               16-bit unsigned load from MEM[$rA+FIELD_E] into $rD
-0x.f6. 0x****       $rD <- MEM[$rA + VALUE]                 32-bit load from MEM[$rA+FIELD_E] into $rD
+0x.f4. 0x****       $rD <- MEM8[$rA + VALUE]                8-bit unsigned load from MEM[$rA+VALUE] into $rD
+0x.f5. 0x****       $rD <- MEM16[$rA + VALUE]               16-bit unsigned load from MEM[$rA+VALUE] into $rD
+0x.f6. 0x****       $rD <- MEM[$rA + VALUE]                 32-bit load from MEM[$rA+VALUE] into $rD
 0x.f7. 0x****       $rD <- MEMLL[$rA + VALUE]               32-bit unsigned load-lock (exclusive load)
-0x.f8. 0x****       MEM8[$rA + VALUE] <- $rD                8-bit store to MEM[$rA+FIELD_E] from $rD
-0x.f9. 0x****       MEM16[$rA + VALUE] <- $rD               16-bit store to MEM[$rA+FIELD_E] from $rD
-0x.fa. 0x****       MEM[$rA + VALUE] <- $rD                 32-bit store to MEM[$rA+FIELD_E] from $rD
+0x.f8. 0x****       MEM8[$rA + VALUE] <- $rD                8-bit store to MEM[$rA+VALUE] from $rD
+0x.f9. 0x****       MEM16[$rA + VALUE] <- $rD               16-bit store to MEM[$rA+VALUE] from $rD
+0x.fa. 0x****       MEM[$rA + VALUE] <- $rD                 32-bit store to MEM[$rA+VALUE] from $rD
 0x.fb. 0x****       MEMSC[$rA + VALUE] <- $rD               32-bit store-conditional (exclusive store)
-0x.fc. 0x****       $rD <- SMEM8[$rA + VALUE]               8-bit signed load from MEM[$rA+FIELD_E] into $rD
-0x.fd. 0x****       $rD <- SMEM16[$rA + VALUE]              16-bit signed load from MEM[$rA+FIELD_E] into $rD
+0x.fc. 0x****       $rD <- SMEM8[$rA + VALUE]               8-bit signed load from MEM[$rA+VALUE] into $rD
+0x.fd. 0x****       $rD <- SMEM16[$rA + VALUE]              16-bit signed load from MEM[$rA+VALUE] into $rD
 ==================  ====================================    ==================
 
 .. note:: FIELD_E is sign-extended before addition
@@ -1021,8 +1021,8 @@ Offset-indirect jump group
 Instruction code    Assembly                                Operation
 ==================  ====================================    ==================
 0x1fe. 0x****       INV[$rA + VALUE]                        invalidate cache line for address $rA+FIELD_E
-0x2fe. 0x****       $pc <- MEM[$rA + VALUE]                 32-bit load from MEM[$rA+FIELD_E] into $PC
-0x3fe. 0x****       $tpc <- MEM[$rA + VALUE]                32-bit load from MEM[$rA+FIELD_E] into $TPC
+0x2fe. 0x****       $pc <- MEM[$rA + VALUE]                 32-bit load from MEM[$rA+VALUE] into $PC
+0x3fe. 0x****       $tpc <- MEM[$rA + VALUE]                32-bit load from MEM[$rA+VALUE] into $TPC
 ==================  ====================================    ==================
 
 .. note::
@@ -1159,16 +1159,16 @@ Absolute load/store group
 =========================  ==========================  ==================
 Instruction code           Assembly                    Operation
 =========================  ==========================  ==================
-0x.f4f 0x**** 0x****       $rD <- MEM8[VALUE]          8-bit unsigned load from MEM[FIELD_E] into $rD
-0x.f5f 0x**** 0x****       $rD <- MEM16[VALUE]         16-bit unsigned load from MEM[FIELD_E] into $rD
-0x.f6f 0x**** 0x****       $rD <- MEM[VALUE]           32-bit load from MEM[FIELD_E] into $rD
+0x.f4f 0x**** 0x****       $rD <- MEM8[VALUE]          8-bit unsigned load from MEM[VALUE] into $rD
+0x.f5f 0x**** 0x****       $rD <- MEM16[VALUE]         16-bit unsigned load from MEM[VALUE] into $rD
+0x.f6f 0x**** 0x****       $rD <- MEM[VALUE]           32-bit load from MEM[VALUE] into $rD
 0x.f7f 0x**** 0x****       $rD <- MEMLL[VALUE]         32-bit unsigned load-lock (exclusive load)
-0x.f8f 0x**** 0x****       MEM8[VALUE] <- $rD          8-bit store to MEM[FIELD_E] from $rD
-0x.f9f 0x**** 0x****       MEM16[VALUE] <- $rD         16-bit store to MEM[FIELD_E] from $rD
-0x.faf 0x**** 0x****       MEM[VALUE] <- $rD           32-bit store to MEM[FIELD_E] from $rD
+0x.f8f 0x**** 0x****       MEM8[VALUE] <- $rD          8-bit store to MEM[VALUE] from $rD
+0x.f9f 0x**** 0x****       MEM16[VALUE] <- $rD         16-bit store to MEM[VALUE] from $rD
+0x.faf 0x**** 0x****       MEM[VALUE] <- $rD           32-bit store to MEM[VALUE] from $rD
 0x.fbf 0x**** 0x****       MEMSC[VALUE] <- $rD         32-bit store-conditional (exclusive store)
-0x.fcf 0x**** 0x****       $rD <- SMEM8[VALUE]         8-bit signed load from MEM[FIELD_E] into $rD
-0x.fdf 0x**** 0x****       $rD <- SMEM16[VALUE]        16-bit signed load from MEM[FIELD_E] into $rD
+0x.fcf 0x**** 0x****       $rD <- SMEM8[VALUE]         8-bit signed load from MEM[VALUE] into $rD
+0x.fdf 0x**** 0x****       $rD <- SMEM16[VALUE]        16-bit signed load from MEM[VALUE] into $rD
 =========================  ==========================  ==================
 
 .. note:: Loads don't change the type of a register.
@@ -1220,8 +1220,8 @@ Absolute jump group
 Instruction code           Assembly                    Operation
 =========================  ========================    ==================
 0x1fef 0x**** 0x****       INV[VALUE]                  invalidate cache line for address FIELD_E
-0x2fef 0x**** 0x****       $pc <- MEM[VALUE]           32-bit load from MEM[FIELD_E] into $PC
-0x3fef 0x**** 0x****       $tpc <- MEM[VALUE]          32-bit load from MEM[FIELD_E] into $TPC
+0x2fef 0x**** 0x****       $pc <- MEM[VALUE]           32-bit load from MEM[VALUE] into $PC
+0x3fef 0x**** 0x****       $tpc <- MEM[VALUE]          32-bit load from MEM[VALUE] into $TPC
 =========================  ========================    ==================
 
 .. note::
@@ -1274,8 +1274,8 @@ Special immediate load-store group
 =========================  ==================================    ==================
 Instruction code           Assembly                              Operation
 =========================  ==================================    ==================
-0x.eff 0x**** 0x****       MEM[FIELD_E] <- full $rD              Store full $rD (no use/modification of vstart vend)
-0x.fff 0x**** 0x****       full $rD <- MEM[FIELD_E]              Load full $rD (no use/modification of vstart vend)
+0x.eff 0x**** 0x****       MEM[VALUE] <- full $rD                Store full $rD (no use/modification of vstart vend)
+0x.fff 0x**** 0x****       full $rD <- MEM[VALUE]                Load full $rD (no use/modification of vstart vend)
 =========================  ==================================    ==================
 
 
@@ -1323,7 +1323,7 @@ Register block type test group
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
-      { "name": "FIELD_E", "bits": 16 },
+      { "name": "FIELD_E", "bits": 16, attr: "br_offs" },
   ],
   }
 
@@ -1331,7 +1331,7 @@ Register block type test group
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
-      { "name": "FIELD_F", "bits": 16 },
+      { "name": "FIELD_F", "bits": 16, attr: "types" },
   ]
   }
 
@@ -1351,22 +1351,22 @@ Register block type test group
 =========================  =========================================================    ==================
 Instruction code           Assembly                                                     Operation
 =========================  =========================================================    ==================
-0x001f 0x**** 0x****       if any type $r0...$r3   != FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
-0x101f 0x**** 0x****       if any type $r4...$r7   != FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
-0x201f 0x**** 0x****       if any type $r8...$r11  != FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
-0x301f 0x**** 0x****       if any type $r12...$r14 != FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
-0x401f 0x**** 0x****       if any type $r0...$r3   == FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
-0x501f 0x**** 0x****       if any type $r4...$r7   == FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
-0x601f 0x**** 0x****       if any type $r8...$r11  == FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
-0x701f 0x**** 0x****       if any type $r12...$r14 == FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
-0x002f 0x**** 0x****       if all type $r0...$r3   != FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
-0x102f 0x**** 0x****       if all type $r4...$r7   != FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
-0x202f 0x**** 0x****       if all type $r8...$r11  != FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
-0x302f 0x**** 0x****       if all type $r12...$r14 != FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
-0x402f 0x**** 0x****       if all type $r0...$r3   == FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
-0x502f 0x**** 0x****       if all type $r4...$r7   == FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
-0x602f 0x**** 0x****       if all type $r8...$r11  == FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
-0x702f 0x**** 0x****       if all type $r12...$r14 == FIELD_F $pc <- $pc + FIELD_E      Jump if type of registers is not what's expected
+0x001f 0x**** 0x****       if any type $r0...$r3   != types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
+0x101f 0x**** 0x****       if any type $r4...$r7   != types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
+0x201f 0x**** 0x****       if any type $r8...$r11  != types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
+0x301f 0x**** 0x****       if any type $r12...$r14 != types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
+0x401f 0x**** 0x****       if any type $r0...$r3   == types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
+0x501f 0x**** 0x****       if any type $r4...$r7   == types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
+0x601f 0x**** 0x****       if any type $r8...$r11  == types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
+0x701f 0x**** 0x****       if any type $r12...$r14 == types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
+0x002f 0x**** 0x****       if all type $r0...$r3   != types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
+0x102f 0x**** 0x****       if all type $r4...$r7   != types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
+0x202f 0x**** 0x****       if all type $r8...$r11  != types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
+0x302f 0x**** 0x****       if all type $r12...$r14 != types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
+0x402f 0x**** 0x****       if all type $r0...$r3   == types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
+0x502f 0x**** 0x****       if all type $r4...$r7   == types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
+0x602f 0x**** 0x****       if all type $r8...$r11  == types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
+0x702f 0x**** 0x****       if all type $r12...$r14 == types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
 =========================  =========================================================    ==================
 
 These instructions dedicate a nibble to each register in FIELD_F. The instruction perform a set of comparisons between the expected and actual types and jump if the conditions prescribed in the instructions are met. A register can be excluded from the test by setting their corresponding nibble in FIELD_F to 0xf.
