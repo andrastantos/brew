@@ -26,7 +26,7 @@ Description
 Loads :code:`$pc` with the value of FIELD_E. The LSB of the value has an implementation-defined meaning. This is an absolute jump operation. The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
 
 
-$tpc  <- VALUE
+$tpc <- VALUE
 --------------------------
 
 *Instruction code*: 0x30ef 0x**** 0x****

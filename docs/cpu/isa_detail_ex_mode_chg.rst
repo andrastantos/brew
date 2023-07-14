@@ -12,7 +12,7 @@ SWI 0
 Description
 ~~~~~~~~~~~
 
-Raises the SWI 0 exception. Used to fill unused space.
+Raises the :code:`exc_swi_0` exception. Used to fill unused space.
 
 SWI 1
 -----
@@ -28,7 +28,7 @@ SWI 1
 Description
 ~~~~~~~~~~~
 
-Raises the SWI 1 exception. Used to implement software breakpoints.
+Raises the :code:`exc_swi_1` exception. Used to implement software breakpoints.
 
 SWI 2
 -----
@@ -44,7 +44,7 @@ SWI 2
 Description
 ~~~~~~~~~~~
 
-Raises the SWI 2 exception. Used to implement operating system calls
+Raises the :code:`exc_swi_2` exception. Used to implement operating system calls
 
 SWI 3
 -----
@@ -58,7 +58,7 @@ SWI 3
 Description
 ~~~~~~~~~~~
 
-Raises the SWI 3 exception.
+Raises the :code:`exc_swi_3` exception.
 
 SWI 4
 -----
@@ -72,7 +72,7 @@ SWI 4
 Description
 ~~~~~~~~~~~
 
-Raises the SWI 4 exception.
+Raises the :code:`exc_swi_4` exception.
 
 SWI 5
 -----
@@ -86,7 +86,7 @@ SWI 5
 Description
 ~~~~~~~~~~~
 
-Raises the SWI 5 exception.
+Raises the :code:`exc_swi_5` exception.
 
 SWI 6
 -----
@@ -100,7 +100,7 @@ SWI 6
 Description
 ~~~~~~~~~~~
 
-Raises the SWI 6 exception.
+Raises the :code:`exc_swi_6` exception.
 
 SWI 7
 -----
@@ -114,7 +114,7 @@ SWI 7
 Description
 ~~~~~~~~~~~
 
-Raises the SWI 7 exception. SWI 7 is the same exception that is raised by a core if an unimplemented instruction is encountered.
+Raises the :code:`exc_swi_7` exception.
 
 STM
 ---

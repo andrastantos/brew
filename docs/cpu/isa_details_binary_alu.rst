@@ -215,7 +215,7 @@ Bit-wise 'negate-and'. Destination type is set to match that of :code:`$rA`. Thi
 $rD <- tiny $rB + CONST
 --------------------------
 
-*Instruction code*: 0x.4..
+*Instruction code*: 0x.b..
 
 ::
 
@@ -240,7 +240,7 @@ Description
 
 
 
-$rD <- short VALUE ^ $rB
+$rD <- short VALUE ^ $rA
 --------------------------
 
 *Instruction code*: 0x.1f. 0x****
@@ -255,7 +255,7 @@ Description
 Bit-wise 'xor'. Destination type is set to match that of :code:`$rB`. The binary value of VALUE is the sign-extended value stored in FIELD_E.
 
 
-$rD <- short VALUE | $rB
+$rD <- short VALUE | $rA
 --------------------------
 
 *Instruction code*: 0x.2f. 0x****
@@ -269,7 +269,7 @@ Description
 
 Bit-wise 'or'. Destination type is set to match that of :code:`$rB`. The binary value of VALUE is the sign-extended value stored in FIELD_E.
 
-$rD <- short VALUE & $rB
+$rD <- short VALUE & $rA
 --------------------------
 
 *Instruction code*: 0x.3f. 0x****
@@ -283,7 +283,7 @@ Description
 
 Bit-wise 'and'. Destination type is set to match that of :code:`$rB`. The binary value of VALUE is the sign-extended value stored in FIELD_E.
 
-$rD <- short VALUE + $rB
+$rD <- short VALUE + $rA
 --------------------------
 
 *Instruction code*: 0x.4f. 0x****
@@ -297,7 +297,7 @@ Description
 
 :code:`$rD` is set to the sum of VALUE and :code:`$rB`. The type of operation is determined by the type of :code:`$rB`. The type of VALUE is assumed to be the same as :code:`$rB`. Destination type is set to match that of :code:`$rB`. For vector types a lane-wise addition is performed. For floating-point types an invalid instruction exception is thrown. The binary value of VALUE is the sign-extended value stored in FIELD_E.
 
-$rD <- short VALUE - $rB
+$rD <- short VALUE - $rA
 --------------------------
 
 *Instruction code*: 0x.5f. 0x****
@@ -312,7 +312,7 @@ Description
 :code:`$rD` is set to the difference of VALUE and :code:`$rB`. The type of operation is determined by the type of :code:`$rB`. The type of VALUE is assumed to be the same as :code:`$rB`. Destination type is set to match that of :code:`$rB`. For vector types a lane-wise subtraction is performed. For floating-point types an invalid instruction exception is thrown. The binary value of VALUE is the sign-extended value stored in FIELD_E.
 
 
-$rD <- $rB << short VALUE
+$rD <- short $rA << VALUE
 --------------------------
 
 *Instruction code*: 0x.6f. 0x****
@@ -326,7 +326,7 @@ Description
 
 VALUE is left-shifted by :code:`$rB` bits and is assigned to :code:`$rD`. 0-s are shifted in from the right. The type of VALUE and the operation is determined by the type of :code:`$rB` (even though for the operation, :code:`$rB` is treaded as an INT32). Destination type is set to match that of :code:`$rB`. For vector types a lane-wise shift is performed. For scalar types, a binary shift is performed. The binary value of VALUE is the sign-extended value stored in FIELD_E.
 
-$rD <- $rB >> short VALUE
+$rD <- short $rA >> VALUE
 --------------------------
 
 *Instruction code*: 0x.7f. 0x****
@@ -340,7 +340,7 @@ Description
 
 VALUE is right-shifted by :code:`$rB` bits and is assigned to :code:`$rD`. 0-s are shifted in from the left. The type of VALUE and the operation is determined by the type of :code:`$rB` (even though for the operation, :code:`$rB` is treaded as an INT32). Destination type is set to match that of :code:`$rB`. For vector types a lane-wise shift is performed. For scalar types, a binary shift is performed. The binary value of VALUE is the sign-extended value stored in FIELD_E.
 
-$rD <- $rB >>> short VALUE
+$rD <- short $rA >>> VALUE
 --------------------------
 
 *Instruction code*: 0x.8f. 0x****
@@ -354,7 +354,7 @@ Description
 
 VALUE is right-shifted arithmetically by :code:`$rB` bits and is assigned to :code:`$rD`. The MSB of :code:`$rA` is repeatedly shifted in from the left. The type of VALUE and the operation is determined by the type of :code:`$rB` (even though for the operation, :code:`$rB` is treaded as an INT32). Destination type is set to match that of :code:`$rB`. For vector types a lane-wise shift is performed. For scalar types, a binary shift is performed. The binary value of VALUE is the sign-extended value stored in FIELD_E.
 
-$rD <- short VALUE * $rB
+$rD <- short VALUE * $rA
 --------------------------
 
 *Instruction code*: 0x.9f. 0x****
@@ -367,45 +367,6 @@ Description
 ~~~~~~~~~~~
 
 :code:`$rD` is set to the product of VALUE and :code:`$rB`. The type of operation is determined by the type of :code:`$rB`. The type of VALUE is assumed to be the same as :code:`$rB`. Destination type is set to match that of :code:`$rA`. For vector types a lane-wise multiplication is performed. For floating-point types an invalid instruction exception is thrown. The binary value of VALUE is the sign-extended value stored in FIELD_E.
-
-
-
-$rD <- lane_swizzle $rA, VALUE
------------------------------------
-
-*Instruction code*: 0x.af. 0x****
-
-*Exceptions*: None
-
-*Type variants*: No
-
-Description
-~~~~~~~~~~~
-
-:code:`$rD` is set to the lane-swizzled value of :code:`$rB`. Destination type is set to match that of :code:`$rA`. FIELD_E encodes the source byte for each destination byte in the following manner:
-
-=============  ===================
-FIELD_E bits   destination byte
-=============  ===================
-0..1           0
-2..3           1
-4..5           2
-6..8           3
-=============  ===================
-
-Each bit-field of FIELD_E denotes a source byte as follows:
-
-=============  ===================
-source code    source byte
-=============  ===================
-0              0
-1              1
-2              2
-3              3
-=============  ===================
-
-VALUE is a 4-digit number in assembly, each digit representing a destination byte. The value of each digit ranges from 0 to 3, encoding the corresponding source byte. Any combination is valid. For instance VALUE=0000 would replicate byte 0 into all 4 bytes, VALUE=0123 would swap the bytes around. VALUE=3210 copies source to destination without modification.
-
 
 
 

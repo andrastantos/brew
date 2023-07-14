@@ -55,6 +55,13 @@ The following data fields are stored with every register:
 These fields can be accessed using the '.' notation.
 The :code:`value` field holds the result of the latest write to the register.
 The :code:`type` field contains the type of the value held in the register. This field is updated by most operations that modify the value, except for load/store operations. It is also updated by type overrides and type-casts.
-The :code:`size` field contains the number of valid bytes held in the :code:`value` field of the register. The :code:`size` field is set to the :code:`min($rX.size, sizeof(type))` when type alone is changed. When :code:`value` changes, the :code:`size` field is adjusted to reflect the total number of bytes held in :code:`value`.
+The :code:`size` field contains the number of valid bytes held in the :code:`value` field of the register. The :code:`size` field is set to the :code:`min($rX.size, sizeof(type))` when type alone is changed. When :code:`value` changes, the :code:`size` field is adjusted to reflect the total number of bytes held in :code:`value`. For vector operations that use :code:`vstart` and :code:`vend`, :code:`size` reflects :code:`vend`, not the size of the source, nor the size of the destination type.
+
 The :code:`dirty` bit is set whenever either :code:`type` or :code:`value` fields are changed. It can be cleared by special instructions.
 
+.. todo:: We have a security hole still: what if someone sets vstart to a high value? Then we won't write many of the destination lanes, yet set size as if we did. So, previously held values could be unmasked. Should we hold a start field as well? Should we zero out elements below vstart? Should not allow modification of vstart from task mode? Man, this is getting convoluted real fast!
+
+Register value access
+---------------------
+
+Each register contains VLEN number of bytes. However not all of these bytes hold valid values. Only bytes from 0 to :code:`size` contain valid values. If a byte outside of this range is read, those bytes are masked and 0 is returned instead.

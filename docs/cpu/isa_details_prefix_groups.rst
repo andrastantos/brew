@@ -1,7 +1,7 @@
 Type overrides (<type>)
 -----------------------
 
-*Instruction code*: 0x.ff.
+*Instruction code*: 0xff**
 
 *Exceptions*: None
 

@@ -23,7 +23,16 @@ def get_digits(pattern: str) -> Sequence[int]:
 
 def is_ext_group(code:int) -> bool:
     # Hard coded known extension groups
-    return code in (0xf0ff, 0xf1ff, 0xf4ff, 0xf5ff, 0xf6ff, 0xf7ff, 0xf8ff, 0xf9ff, 0xfaff, 0xfbff) 
+    return code in (0xf0ff, 0xf1ff, 0xf4ff, 0xf5ff, 0xf6ff, 0xf7ff, 0xf8ff, 0xf9ff, 0xfaff, 0xfbff)
+
+def list_inst_codes(inst_code: str) -> 'Generator':
+    if inst_code.startswith("0x"): inst_code = inst_code[2:]
+    for digit1 in get_digits(inst_code[0]):
+        for digit2 in get_digits(inst_code[1]):
+            for digit3 in get_digits(inst_code[2]):
+                for digit4 in get_digits(inst_code[3]):
+                    inst_code_int = digit1 << 12 | digit2 << 8 | digit3 << 4 | digit4
+                    yield inst_code_int
 
 class InstCodes(object):
     def __init__(self):
@@ -43,22 +52,18 @@ class InstCodes(object):
             except IndexError:
                 pass
         size_conflict_reported = False
-        for digit1 in get_digits(inst_code[0]):
-            for digit2 in get_digits(inst_code[1]):
-                for digit3 in get_digits(inst_code[2]):
-                    for digit4 in get_digits(inst_code[3]):
-                        inst_code_int = digit1 << 12 | digit2 << 8 | digit3 << 4 | digit4
-                        #print(f"0x{inst_code_int:04x}", end=" ")
-                        if inst_len is not None and inst_len != get_inst_len(inst_code_int) and not size_conflict_reported:
-                            print(f"!!!!!!!!!!!!!!!! SIZE CONFLICT !!!!!!!!!!!!!!!!")
-                            print(f"    {line}")
-                            print(f"    should be {get_inst_len(inst_code_int)} bits long")
-                            size_conflict_reported = True
-                        if is_ext_group(inst_code_int):
-                            group = inst_codes._add_group(inst_code_int, line)
-                            group.add_code(line, start+7, sub_code=True)
-                        else:
-                            self._add(inst_code_int, line)
+        for inst_code_int in list_inst_codes(inst_code):
+            #print(f"0x{inst_code_int:04x}", end=" ")
+            if inst_len is not None and inst_len != get_inst_len(inst_code_int) and not size_conflict_reported:
+                print(f"!!!!!!!!!!!!!!!! SIZE CONFLICT !!!!!!!!!!!!!!!!")
+                print(f"    {line}")
+                print(f"    should be {get_inst_len(inst_code_int)} bits long")
+                size_conflict_reported = True
+            if is_ext_group(inst_code_int):
+                group = inst_codes._add_group(inst_code_int, line)
+                group.add_code(line, start+7, sub_code=True)
+            else:
+                self._add(inst_code_int, line)
 
     def _add(self, code: int, content: str):
         if self.codes[code] is not None:
@@ -166,3 +171,49 @@ for code in unused_codes_32:
 
 for code in unused_codes_48:
     print(f"    0x{code} 0x**** 0x****")
+
+# Look through detailed instruction specs for inconsistencies
+from glob import glob
+
+pass
+
+for detail_file_name in glob("isa_detail*.rst"):
+    def is_underscore(s: str) -> bool:
+        return all(s == "-" for s in s) and len(s) > 0
+
+    inst_name = None
+    with open(detail_file_name, "rt") as file:
+        line = None
+        line_num = 0
+        while file:
+            line_num += 1
+            prev_line = line
+            line = file.readline()
+            if line == "":
+                break
+            if line.endswith("\n"): line = line[:-1]
+            if is_underscore(line):
+                # We've found a new instruction
+                inst_name = prev_line
+            sline = line.strip()
+            if sline.startswith("*Instruction code*:"):
+                inst_code_str = sline[len("*Instruction code*:")+1:].strip()
+                if inst_name is None:
+                    print("========== CONSISTENCY ERROR ===============")
+                    print(f"    {detail_file_name}:{line_num} - instruction code: {inst_code_str} occurs without instruction name in ")
+                else:
+                    for inst_code_int in list_inst_codes(inst_code_str):
+                        summary = inst_codes.codes[inst_code_int]
+                        if isinstance(summary, str):
+                            if inst_name not in summary: # This could be more stringent by parsing the summary by (probably) understanding the table structure of RTS.
+                                if "Type override" in summary and inst_name.startswith("Type override"):
+                                    continue
+                                if inst_name.startswith("if $rA[C]") and "if $rA[" in summary:
+                                    continue
+                                if inst_name.startswith("if $rB[C]") and "if $rB[" in summary:
+                                    continue
+                                print("========== CONSISTENCY ERROR ===============")
+                                print(f"    {detail_file_name}:{line_num} - instruction detail:")
+                                print(f"         '{inst_name}'")
+                                print(f"    for code 0x{inst_code_int:04x} doesn't match summary")
+                                print(f"         '{summary}'")

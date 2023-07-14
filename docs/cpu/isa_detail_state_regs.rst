@@ -1,11 +1,11 @@
-$rD <- DIRTY
+$rD <- CPU_ID
 -------------
 
 .. wavedrom::
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
-      { "name": "FIELD_A",   "bits": 4, attr: "op kind" },
+      { "name": "8",         "bits": 4, attr: "op kind" },
       { "name": "0",         "bits": 4 },
       { "name": "0",         "bits": 4 },
       { "name": "FIELD_D",   "bits": 4, attr: "$rD" },

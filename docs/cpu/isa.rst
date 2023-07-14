@@ -171,42 +171,48 @@ Instruction code   Assembly       Operation
   All instruction codes in this group are treated as jump instructions by the branch predictor, if exists. After warming up, some will always be predicted taken, some will not be. In TASK mode indirect jump (0x.002) and $tpc update (0x.003) instructions have the exact same behavior, however might have different latencies.
 
 
-State manipulation group
-------------------------
+CSR access group
+----------------
 
 .. wavedrom::
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
       { "name": "FIELD_A",   "bits": 4, attr: "op kind" },
-      { "name": "0",         "bits": 4 },
+      { "name": "f",         "bits": 4 },
       { "name": "0",         "bits": 4 },
       { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
   ]}
 
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16 },
+  ],
+  }
 
 ..
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |       0       |       0       |    FIELD_A    |
+  |    FIELD_D    |       0       |       f       |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-=================  =============  ==================
-Instruction code   Assembly       Operation
-=================  =============  ==================
-0x.008             $rD <- DIRTY   Load 'dirty' mask into $rD
-0x.009             DIRTY <- $rD   Set 'dirty' mask based on $rD
-0x.00a             $rD <- VSTART  Load 'vstart' into $rD
-0x.00b             VSTART <- $rD  Set 'vstart' from $rD
-0x.00c             $rD <- VEND    Load 'vend' into $rD
-0x.00d             VEND <- $rD    Set 'vend' from $rD
-0x.00e             $rD <- VLEN    Load HW vector length into $rD
-=================  =============  ==================
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |                         FIELD_E                               |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+
+=================  =========================  ==================
+Instruction code   Assembly                   Operation
+=================  =========================  ==================
+0x.0f8 0x****      $rD <- CSR[ADDR]           Load CSR value into $rD
+0x.0f9 0x****      CSR[ADDR] <- $rD           Store $rD in CSR
+=================  =========================  ==================
 
 .. note::
-  All instruction codes in this group are treated as jump instructions by the branch predictor, if exists. After warming up, some will always be predicted taken, some will not be. In TASK mode indirect jump (0x.002) and $tpc update (0x.003) instructions have the exact same behavior, however might have different latencies.
+  These instructions access CSR registers. This address space is unique to each CPU (or thread within a CPU) though some addresses might actually access the same underlying register. CSRs are always 32-bits long. While the instructions themselves are not privileged, certain CSRs might not be accessible from TASK mode.
 
-.. todo::
-  What are the consequences of manipulating VSTART/VEND/DIRTY in TASK mode?
+The :code:`ADDR` field equals to :code:`FIELD_E` in SCHEDULER-mode. In task mode the MSB of :code:`ADDR` is forced to 1.
 
 Unary group
 -----------
@@ -230,8 +236,8 @@ Unary group
 =================  ========================    ==================
 Instruction code   Assembly                    Operation
 =================  ========================    ==================
-0x.01.             $rD <- tiny FIELD_A         Load $rD with constant [#note0xX01X]_
-0x.02.             $rD <- $pc + FIELD_A*2      Call return address calculation [#note0xX02X]_
+0x.01.             $rD <- tiny CONST           Load $rD with constant [#note0xX01X]_
+0x.02.             $rD <- $pc + CONST          Call return address calculation [#note0xX02X]_
 0x.03.             $rD <- -$rA                 Negative operation, depending on type
 0x.04.             $rD <- ~$rA                 Binary inversion
 0x.05.             $rD <- bse $rA              Sign-extend from byte [#note0xX05X]_
@@ -246,8 +252,8 @@ Instruction code   Assembly                    Operation
 0x.0e.             type $rD <- FIELD_A         Sets type of $rD
 =================  ========================    ==================
 
-.. [#note0xX01X] FIELD_A is one-s complement; range is -7...7
-.. [#note0xX02X] FIELD_A is one-s complement; range is -7...7; NOTE: WE COULD MAKE THE RANGE A LITTLE HIGHER IF NOT ALLOW 0
+.. [#note0xX01X] CONST=FIELD_A. FIELD_A is one-s complement; range is -7...7
+.. [#note0xX02X] CONST=FIELD_A*2. FIELD_A is one-s complement; range is -7...7; NOTE: WE COULD MAKE THE RANGE A LITTLE HIGHER IF NOT ALLOW 0
 .. [#note0xX05X] For vector types, operation is per-lane. Floating point types are treated as integer
 .. [#note0xX09X] Operation is RESERVED for integer types.
 .. [#note0xX0aX] Operation is RESERVED for integer types.
@@ -293,7 +299,7 @@ Instruction code   Assembly                    Operation
 0x.8..             $rD <- $rA >>> $rB          Arithmetic right-shift [#note_binary_shift]_
 0x.9..             $rD <- $rA * $rB            Type-dependent multiply
 0x.a..             $rD <- ~$rA & $rB           Bit-wise 'not'-'and' [#note0xXaXX]_
-0x.b..             $rD <- tiny $rB + FIELD_A   Integer add [#note0xXbXX]_
+0x.b..             $rD <- tiny $rB + CONST     Integer add [#note0xXbXX]_
 0x.c..             see below (stack ops)
 0x.d..             see below (stack ops)
 0x.e..             see below (mem ops)
@@ -302,7 +308,7 @@ Instruction code   Assembly                    Operation
 .. [#note_logical] This operation ignore type info, but sets destination type to be the same as that of $rA
 .. [#note_binary_shift] This operation only uses the lane-setup part of the type information. It sets the destination type to that of $rA
 .. [#note0xXaXX] This operation is useful for lane-combining with an inverted predicate
-.. [#note0xXbXX] FIELD_A is one's complement-coded; range is -7...7. This operation only uses the lane-setup part of the type information. It sets the destination type to that of $rA
+.. [#note0xXbXX] CONST is FIELD_A is one's complement-coded; range is -7...7. This operation only uses the lane-setup part of the type information. It sets the destination type to that of $rA
 
 .. note::
   If swizzle muxes are inline in the pipeline (as opposed to their own execution unit), it's possible to deal with scalar-vector combinations, where the scalar gets automatically replicated into the right number of lanes before the operation is performed. Similarly, a 2-lane-and-4-lane vector operation can replicate the 2-lane vector into 4 lanes before executing the operation.
@@ -363,7 +369,7 @@ or
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
-      { "name": "FIELD_E lower 16 bits", "bits": 16 },
+      { "name": "FIELD_E lower 16 bits", "bits": 16, attr: "VALUE lower 16 bits" },
   ],
   }
 
@@ -371,7 +377,7 @@ or
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
-      { "name": "FIELD_E upper 16 bits", "bits": 16 },
+      { "name": "FIELD_E upper 16 bits", "bits": 16, attr: "VALUE upper 16 bits" },
   ]
   }
 
@@ -391,9 +397,9 @@ or
 =========================  ========================    ==================
 Instruction code           Assembly                    Operation
 =========================  ========================    ==================
-0x.00f 0x**** 0x****       $rD  <- VALUE               Load immediate
-0x20ef 0x**** 0x****       $pc   <- VALUE              Unconditional jump
-0x30ef 0x**** 0x****       $tpc  <- VALUE              Load immediate to $tpc
+0x.00f 0x**** 0x****       $rD <- VALUE                Load immediate
+0x20ef 0x**** 0x****       $pc <- VALUE                Unconditional jump
+0x30ef 0x**** 0x****       $tpc <- VALUE               Load immediate to $tpc
 0x80ef 0x**** 0x****       type $r0...$r7 <- VALUE     Load immediate type values [#note_immedate_types]_
 0x90ef 0x**** 0x****       type $r8...$r14 <- VALUE    Load immediate type values [#note_immedate_types]_
 =========================  ========================    ==================
@@ -425,7 +431,7 @@ Constant ALU group
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
-      { "name": "FIELD_E lower 16 bits", "bits": 16 },
+      { "name": "FIELD_E lower 16 bits", "bits": 16, attr: "VALUE lower 16 bits" },
   ],
   }
 
@@ -433,7 +439,7 @@ Constant ALU group
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
-      { "name": "FIELD_E upper 16 bits", "bits": 16 },
+      { "name": "FIELD_E upper 16 bits", "bits": 16, attr: "VALUE upper 16 bits" },
   ]
   }
 
@@ -453,15 +459,15 @@ Constant ALU group
 =========================  ========================    ==================
 Instruction code           Assembly                    Operation
 =========================  ========================    ==================
-0x.1.f 0x**** 0x****       $rD <- FIELD_E ^ $rB        Bit-wise 'xor' [#note_logical]_
-0x.2.f 0x**** 0x****       $rD <- FIELD_E | $rB        Bit-wise 'or'  [#note_logical]_
-0x.3.f 0x**** 0x****       $rD <- FIELD_E & $rB        Bit-wise 'and' [#note_logical]_
-0x.4.f 0x**** 0x****       $rD <- FIELD_E + $rB        Type-dependent add
-0x.5.f 0x**** 0x****       $rD <- FIELD_E - $rB        Type-dependent subtract
-0x.6.f 0x**** 0x****       $rD <- FIELD_E << $rB       Binary left-shift [#note_binary_shift]_
-0x.7.f 0x**** 0x****       $rD <- FIELD_E >> $rB       Binary right-shift [#note_binary_shift]_
-0x.8.f 0x**** 0x****       $rD <- FIELD_E >>> $rB      Arithmetic right-shift [#note_binary_shift]_
-0x.9.f 0x**** 0x****       $rD <- FIELD_E * $rB        Type-dependent multiply
+0x.1.f 0x**** 0x****       $rD <- VALUE ^ $rB          Bit-wise 'xor' [#note_logical]_
+0x.2.f 0x**** 0x****       $rD <- VALUE | $rB          Bit-wise 'or'  [#note_logical]_
+0x.3.f 0x**** 0x****       $rD <- VALUE & $rB          Bit-wise 'and' [#note_logical]_
+0x.4.f 0x**** 0x****       $rD <- VALUE + $rB          Type-dependent add
+0x.5.f 0x**** 0x****       $rD <- VALUE - $rB          Type-dependent subtract
+0x.6.f 0x**** 0x****       $rD <- VALUE << $rB         Binary left-shift [#note_binary_shift]_
+0x.7.f 0x**** 0x****       $rD <- VALUE >> $rB         Binary right-shift [#note_binary_shift]_
+0x.8.f 0x**** 0x****       $rD <- VALUE >>> $rB        Arithmetic right-shift [#note_binary_shift]_
+0x.9.f 0x**** 0x****       $rD <- VALUE * $rB          Type-dependent multiply
 0x.a.f 0x**** 0x****       SII                         Reserved for future ISA expansion
 0x.b.f 0x**** 0x****       SII                         Reserved for future ISA expansion
 0x.c.f 0x**** 0x****       see below (stack ops)
@@ -513,7 +519,7 @@ or
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
-      { "name": "FIELD_E", "bits": 16 },
+      { "name": "FIELD_E", "bits": 16, attr: "VALUE" },
   ],
   }
 
@@ -529,13 +535,10 @@ or
 =========================  ========================    ==================
 Instruction code           Assembly                    Operation
 =========================  ========================    ==================
-0x.0f0 0x****              $rD  <- short VALUE         Load sign-extended 16-bit immediate
-0x20fe 0x****              $pc  <- short VALUE         Immediate short jump (value is sign-extended)
+0x.0f0 0x****              $rD <- short VALUE          Load sign-extended 16-bit immediate
+0x20fe 0x****              $pc <- short VALUE          Immediate short jump (value is sign-extended)
 0x30fe 0x****              $tpc <- short VALUE         Load sign-extended value into $tpc
 =========================  ========================    ==================
-
-.. note::
-  There are a lot of holes in this space. Those are reserved for ISA expansion and should generate an SII exception. Such as 0x.01f:0x.0df; 0x40ef:0xe0ef.
 
 .. note::
   Destination type is not changed.
@@ -558,7 +561,7 @@ Short constant ALU group
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
-      { "name": "FIELD_E", "bits": 16 },
+      { "name": "FIELD_E", "bits": 16, attr: "VALUE" },
   ],
   }
 
@@ -574,22 +577,22 @@ Short constant ALU group
 =========================  =================================    ==================
 Instruction code           Assembly                             Operation
 =========================  =================================    ==================
-0x.1f. 0x****              $rD <- short FIELD_E ^ $rA           Bit-wise 'xor' [#note_logical]_
-0x.2f. 0x****              $rD <- short FIELD_E | $rA           Bit-wise 'or'  [#note_logical]_
-0x.3f. 0x****              $rD <- short FIELD_E & $rA           Bit-wise 'and' [#note_logical]_
-0x.4f. 0x****              $rD <- short FIELD_E + $rA           Type-dependent add
-0x.5f. 0x****              $rD <- short FIELD_E - $rA           Type-dependent subtract
-0x.6f. 0x****              $rD <- short $rA << FIELD_E          Binary left-shift [#note_binary_shift]_
-0x.7f. 0x****              $rD <- short $rA >> FIELD_E          Binary right-shift [#note_binary_shift]_
-0x.8f. 0x****              $rD <- short $rA >>> FIELD_E         Arithmetic right-shift [#note_binary_shift]_
-0x.9f. 0x****              $rD <- short FIELD_E * $rA           Type-dependent multiply
+0x.1f. 0x****              $rD <- short VALUE ^ $rA             Bit-wise 'xor' [#note_logical]_
+0x.2f. 0x****              $rD <- short VALUE | $rA             Bit-wise 'or'  [#note_logical]_
+0x.3f. 0x****              $rD <- short VALUE & $rA             Bit-wise 'and' [#note_logical]_
+0x.4f. 0x****              $rD <- short VALUE + $rA             Type-dependent add
+0x.5f. 0x****              $rD <- short VALUE - $rA             Type-dependent subtract
+0x.6f. 0x****              $rD <- short $rA << VALUE            Binary left-shift [#note_binary_shift]_
+0x.7f. 0x****              $rD <- short $rA >> VALUE            Binary right-shift [#note_binary_shift]_
+0x.8f. 0x****              $rD <- short $rA >>> VALUE           Arithmetic right-shift [#note_binary_shift]_
+0x.9f. 0x****              $rD <- short VALUE * $rA             Type-dependent multiply
 0x.cf. 0x****              see below (stack ops)
 0x.df. 0x****              see below (stack ops)
 0x.ef. 0x****              see below (mem ops)
 =========================  =================================    ==================
 
 .. note::
-  FIELD_E is assumed to be of matching scalar type for $rA. It is sign-extended to 32-bits, then replicated for each lane.
+  VALUE is assumed to be of matching scalar type for $rA. It is sign-extended to 32-bits, then replicated for each lane.
 
 .. note::
   result type is that of $rA
@@ -621,7 +624,7 @@ Zero-compare conditional branch group
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
-      { "name": "FIELD_E", "bits": 16 },
+      { "name": "FIELD_E", "bits": 16, attr: "VALUE" },
   ],
   }
 
@@ -637,27 +640,27 @@ Zero-compare conditional branch group
 =========================  ===============================================    ==================
 Instruction code           Assembly                                           Operation
 =========================  ===============================================    ==================
-0xf00. 0x****              if any $rA == 0  $pc <- $pc + unmunge(FIELD_E)
-0xf01. 0x****              if any $rA != 0  $pc <- $pc + unmunge(FIELD_E)
-0xf02. 0x****              if any $rA < 0   $pc <- $pc + unmunge(FIELD_E)     signed compare
-0xf03. 0x****              if any $rA >= 0  $pc <- $pc + unmunge(FIELD_E)     signed compare
-0xf04. 0x****              if any $rA > 0   $pc <- $pc + unmunge(FIELD_E)     signed compare
-0xf05. 0x****              if any $rA <= 0  $pc <- $pc + unmunge(FIELD_E)     signed compare
+0xf00. 0x****              if any $rA == 0  $pc <- $pc + VALUE
+0xf01. 0x****              if any $rA != 0  $pc <- $pc + VALUE
+0xf02. 0x****              if any $rA < 0   $pc <- $pc + VALUE                signed compare
+0xf03. 0x****              if any $rA >= 0  $pc <- $pc + VALUE                signed compare
+0xf04. 0x****              if any $rA > 0   $pc <- $pc + VALUE                signed compare
+0xf05. 0x****              if any $rA <= 0  $pc <- $pc + VALUE                signed compare
 0xf06. 0x****              SII
 0xf07. 0x****              SII
-0xf08. 0x****              if all $rA == 0  $pc <- $pc + unmunge(FIELD_E)
-0xf09. 0x****              if all $rA != 0  $pc <- $pc + unmunge(FIELD_E)
-0xf0a. 0x****              if all $rA < 0   $pc <- $pc + unmunge(FIELD_E)     signed compare
-0xf0b. 0x****              if all $rA >= 0  $pc <- $pc + unmunge(FIELD_E)     signed compare
-0xf0c. 0x****              if all $rA > 0   $pc <- $pc + unmunge(FIELD_E)     signed compare
-0xf0d. 0x****              if all $rA <= 0  $pc <- $pc + unmunge(FIELD_E)     signed compare
+0xf08. 0x****              if all $rA == 0  $pc <- $pc + VALUE
+0xf09. 0x****              if all $rA != 0  $pc <- $pc + VALUE
+0xf0a. 0x****              if all $rA < 0   $pc <- $pc + VALUE                signed compare
+0xf0b. 0x****              if all $rA >= 0  $pc <- $pc + VALUE                signed compare
+0xf0c. 0x****              if all $rA > 0   $pc <- $pc + VALUE                signed compare
+0xf0d. 0x****              if all $rA <= 0  $pc <- $pc + VALUE                signed compare
 0xf0e. 0x****              SII
 =========================  ===============================================    ==================
 
 .. note::
   For scalar types, FIELD_C MSB (inst[15]) is irrelevant; In other words, any/all selection doesn't matter
 
-.. note:: unmunge: replicate LSB to bit positions [31:16], replace LSB with 0.
+.. note:: VALUE computation: replicate LSB of FIELD_E to bit positions [31:16], replace LSB with 0.
 
 Conditional branch group
 ------------------------
@@ -677,7 +680,7 @@ Conditional branch group
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
-      { "name": "FIELD_E", "bits": 16 },
+      { "name": "FIELD_E", "bits": 16, attr: "VALUE" },
   ],
   }
 
@@ -693,20 +696,20 @@ Conditional branch group
 =========================  =====================================================    ==================
 Instruction code           Assembly                                                 Operation
 =========================  =====================================================    ==================
-0xf1.. 0x****              if any $rB == $rA   $pc <- $pc + unmunge(OFFSET)
-0xf2.. 0x****              if any $rB != $rA   $pc <- $pc + unmunge(OFFSET)
-0xf3.. 0x****              if any signed $rB < $rA  $pc <- $pc + unmunge(OFFSET)    signed compare
-0xf4.. 0x****              if any signed $rB >= $rA $pc <- $pc + unmunge(OFFSET)    signed compare
-0xf5.. 0x****              if any $rB < $rA    $pc <- $pc + unmunge(OFFSET)
-0xf6.. 0x****              if any $rB >= $rA   $pc <- $pc + unmunge(OFFSET)
+0xf1.. 0x****              if any $rB == $rA   $pc <- $pc + VALUE
+0xf2.. 0x****              if any $rB != $rA   $pc <- $pc + VALUE
+0xf3.. 0x****              if any signed $rB < $rA  $pc <- $pc + VALUE              signed compare
+0xf4.. 0x****              if any signed $rB >= $rA $pc <- $pc + VALUE              signed compare
+0xf5.. 0x****              if any $rB < $rA    $pc <- $pc + VALUE
+0xf6.. 0x****              if any $rB >= $rA   $pc <- $pc + VALUE
 0xf7.. 0x****              SII
 0xf8.. 0x****              SII
-0xf9.. 0x****              if all $rB == $rA   $pc <- $pc + unmunge(OFFSET)
-0xfa.. 0x****              if all $rB != $rA   $pc <- $pc + unmunge(OFFSET)
-0xfb.. 0x****              if all signed $rB < $rA  $pc <- $pc + unmunge(OFFSET)    signed compare
-0xfc.. 0x****              if all signed $rB >= $rA $pc <- $pc + unmunge(OFFSET)    signed compare
-0xfd.. 0x****              if all $rB < $rA    $pc <- $pc + unmunge(OFFSET)
-0xfe.. 0x****              if all $rB >= $rA   $pc <- $pc + unmunge(OFFSET)
+0xf9.. 0x****              if all $rB == $rA   $pc <- $pc + VALUE
+0xfa.. 0x****              if all $rB != $rA   $pc <- $pc + VALUE
+0xfb.. 0x****              if all signed $rB < $rA  $pc <- $pc + VALUE              signed compare
+0xfc.. 0x****              if all signed $rB >= $rA $pc <- $pc + VALUE              signed compare
+0xfd.. 0x****              if all $rB < $rA    $pc <- $pc + VALUE
+0xfe.. 0x****              if all $rB >= $rA   $pc <- $pc + VALUE
 =========================  =====================================================    ==================
 
 .. note::
@@ -720,16 +723,16 @@ Instruction code           Assembly                                             
 
 *pseudo ops*:
 
-* if any signed $rB >= $rA $pc <- $pc + unmunge(OFFSET)
-* if any signed $rB < $rA  $pc <- $pc + unmunge(OFFSET)
-* if any $rB >= $rA   $pc <- $pc + unmunge(OFFSET)
-* if any $rB < $rA    $pc <- $pc + unmunge(OFFSET)
-* if all signed $rB >= $rA $pc <- $pc + unmunge(OFFSET)
-* if all signed $rB < $rA  $pc <- $pc + unmunge(OFFSET)
-* if all $rB >= $rA   $pc <- $pc + unmunge(OFFSET)
-* if all $rB < $rA    $pc <- $pc + unmunge(OFFSET)
+* if any signed $rB >= $rA $pc <- $pc + VALUE
+* if any signed $rB < $rA  $pc <- $pc + VALUE
+* if any $rB >= $rA   $pc <- $pc + VALUE
+* if any $rB < $rA    $pc <- $pc + VALUE
+* if all signed $rB >= $rA $pc <- $pc + VALUE
+* if all signed $rB < $rA  $pc <- $pc + VALUE
+* if all $rB >= $rA   $pc <- $pc + VALUE
+* if all $rB < $rA    $pc <- $pc + VALUE
 
-.. note:: unmunge: replicate LSB to bit positions [31:16], replace LSB with 0.
+.. note:: VALUE computation: replicate LSB of FIELD_E to bit positions [31:16], replace LSB with 0.
 
 Bit-set-test conditional branch group
 -------------------------------------
@@ -749,7 +752,7 @@ Bit-set-test conditional branch group
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
-      { "name": "FIELD_E", "bits": 16 },
+      { "name": "FIELD_E", "bits": 16, attr: "VALUE" },
   ],
   }
 
@@ -765,24 +768,24 @@ Bit-set-test conditional branch group
 =========================  =====================================================    ==================
 Instruction code           Assembly                                                 Operation
 =========================  =====================================================    ==================
-0xf0f. 0x****              if $rA[0]  == 1 $pc <- $pc + unmunge(OFFSET)
-0xf1f. 0x****              if $rA[1]  == 1 $pc <- $pc + unmunge(OFFSET)
-0xf2f. 0x****              if $rA[2]  == 1 $pc <- $pc + unmunge(OFFSET)
-0xf3f. 0x****              if $rA[3]  == 1 $pc <- $pc + unmunge(OFFSET)
-0xf4f. 0x****              if $rA[4]  == 1 $pc <- $pc + unmunge(OFFSET)
-0xf5f. 0x****              if $rA[5]  == 1 $pc <- $pc + unmunge(OFFSET)
-0xf6f. 0x****              if $rA[6]  == 1 $pc <- $pc + unmunge(OFFSET)
-0xf7f. 0x****              if $rA[7]  == 1 $pc <- $pc + unmunge(OFFSET)
-0xf8f. 0x****              if $rA[8]  == 1 $pc <- $pc + unmunge(OFFSET)
-0xf9f. 0x****              if $rA[9]  == 1 $pc <- $pc + unmunge(OFFSET)
-0xfaf. 0x****              if $rA[14] == 1 $pc <- $pc + unmunge(OFFSET)
-0xfbf. 0x****              if $rA[15] == 1 $pc <- $pc + unmunge(OFFSET)
-0xfcf. 0x****              if $rA[16] == 1 $pc <- $pc + unmunge(OFFSET)
-0xfdf. 0x****              if $rA[30] == 1 $pc <- $pc + unmunge(OFFSET)
-0xfef. 0x****              if $rA[31] == 1 $pc <- $pc + unmunge(OFFSET)
+0xf0f. 0x****              if $rA[0]  == 1 $pc <- $pc + VALUE
+0xf1f. 0x****              if $rA[1]  == 1 $pc <- $pc + VALUE
+0xf2f. 0x****              if $rA[2]  == 1 $pc <- $pc + VALUE
+0xf3f. 0x****              if $rA[3]  == 1 $pc <- $pc + VALUE
+0xf4f. 0x****              if $rA[4]  == 1 $pc <- $pc + VALUE
+0xf5f. 0x****              if $rA[5]  == 1 $pc <- $pc + VALUE
+0xf6f. 0x****              if $rA[6]  == 1 $pc <- $pc + VALUE
+0xf7f. 0x****              if $rA[7]  == 1 $pc <- $pc + VALUE
+0xf8f. 0x****              if $rA[8]  == 1 $pc <- $pc + VALUE
+0xf9f. 0x****              if $rA[9]  == 1 $pc <- $pc + VALUE
+0xfaf. 0x****              if $rA[14] == 1 $pc <- $pc + VALUE
+0xfbf. 0x****              if $rA[15] == 1 $pc <- $pc + VALUE
+0xfcf. 0x****              if $rA[16] == 1 $pc <- $pc + VALUE
+0xfdf. 0x****              if $rA[30] == 1 $pc <- $pc + VALUE
+0xfef. 0x****              if $rA[31] == 1 $pc <- $pc + VALUE
 =========================  =====================================================    ==================
 
-.. note:: unmunge: replicate LSB to bit positions [31:16], replace LSB with 0.
+.. note:: VALUE computation: replicate LSB of FIELD_E to bit positions [31:16], replace LSB with 0.
 
 .. note:: The type of $rA is ignored.
 
@@ -804,7 +807,7 @@ Bit-clear-test conditional branch group
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
-      { "name": "FIELD_E", "bits": 16 },
+      { "name": "FIELD_E", "bits": 16, attr: "VALUE" },
   ],
   }
 
@@ -820,24 +823,24 @@ Bit-clear-test conditional branch group
 =========================  =====================================================    ==================
 Instruction code           Assembly                                                 Operation
 =========================  =====================================================    ==================
-0xf0.f 0x****              if $rB[0]  == 0 $pc <- $pc + unmunge(OFFSET)
-0xf1.f 0x****              if $rB[1]  == 0 $pc <- $pc + unmunge(OFFSET)
-0xf2.f 0x****              if $rB[2]  == 0 $pc <- $pc + unmunge(OFFSET)
-0xf3.f 0x****              if $rB[3]  == 0 $pc <- $pc + unmunge(OFFSET)
-0xf4.f 0x****              if $rB[4]  == 0 $pc <- $pc + unmunge(OFFSET)
-0xf5.f 0x****              if $rB[5]  == 0 $pc <- $pc + unmunge(OFFSET)
-0xf6.f 0x****              if $rB[6]  == 0 $pc <- $pc + unmunge(OFFSET)
-0xf7.f 0x****              if $rB[7]  == 0 $pc <- $pc + unmunge(OFFSET)
-0xf8.f 0x****              if $rB[8]  == 0 $pc <- $pc + unmunge(OFFSET)
-0xf9.f 0x****              if $rB[9]  == 0 $pc <- $pc + unmunge(OFFSET)
-0xfa.f 0x****              if $rB[14] == 0 $pc <- $pc + unmunge(OFFSET)
-0xfb.f 0x****              if $rB[15] == 0 $pc <- $pc + unmunge(OFFSET)
-0xfc.f 0x****              if $rB[16] == 0 $pc <- $pc + unmunge(OFFSET)
-0xfd.f 0x****              if $rB[30] == 0 $pc <- $pc + unmunge(OFFSET)
-0xfe.f 0x****              if $rB[31] == 0 $pc <- $pc + unmunge(OFFSET)
+0xf0.f 0x****              if $rB[0]  == 0 $pc <- $pc + VALUE
+0xf1.f 0x****              if $rB[1]  == 0 $pc <- $pc + VALUE
+0xf2.f 0x****              if $rB[2]  == 0 $pc <- $pc + VALUE
+0xf3.f 0x****              if $rB[3]  == 0 $pc <- $pc + VALUE
+0xf4.f 0x****              if $rB[4]  == 0 $pc <- $pc + VALUE
+0xf5.f 0x****              if $rB[5]  == 0 $pc <- $pc + VALUE
+0xf6.f 0x****              if $rB[6]  == 0 $pc <- $pc + VALUE
+0xf7.f 0x****              if $rB[7]  == 0 $pc <- $pc + VALUE
+0xf8.f 0x****              if $rB[8]  == 0 $pc <- $pc + VALUE
+0xf9.f 0x****              if $rB[9]  == 0 $pc <- $pc + VALUE
+0xfa.f 0x****              if $rB[14] == 0 $pc <- $pc + VALUE
+0xfb.f 0x****              if $rB[15] == 0 $pc <- $pc + VALUE
+0xfc.f 0x****              if $rB[16] == 0 $pc <- $pc + VALUE
+0xfd.f 0x****              if $rB[30] == 0 $pc <- $pc + VALUE
+0xfe.f 0x****              if $rB[31] == 0 $pc <- $pc + VALUE
 =========================  =====================================================    ==================
 
-.. note:: unmunge: replicate LSB to bit positions [31:16], replace LSB with 0.
+.. note:: VALUE computation: replicate LSB of FIELD_E to bit positions [31:16], replace LSB with 0.
 
 .. note:: The type of $rA is ignored.
 
@@ -851,7 +854,7 @@ While stack operations (as in push/pull) are not supported by the ISA, special l
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
       { "name": "S",         "bits": 1, attr: "$rS" },
-      { "name": "OFS",       "bits": 7, attr: "offset" },
+      { "name": "OFS",       "bits": 7, attr: "OFFSET" },
       { "name": "FIELD_C",   "bits": 4, attr: "op kind" },
       { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
   ],
@@ -865,12 +868,15 @@ While stack operations (as in push/pull) are not supported by the ISA, special l
 ==================  ============================    ==================
 Instruction code    Assembly                        Operation
 ==================  ============================    ==================
-0x.c**              MEM[$rS + tiny OFS*4] <- $rD    Store $rD in memory
-0x.d**              $rD <- MEM[$rS + tiny OFS*4]    Load $rD from memory
+0x.c**              MEM[$rS + tiny OFFSET] <- $rD    Store $rD in memory
+0x.d**              $rD <- MEM[$rS + tiny OFFSET]    Load $rD from memory
 ==================  ============================    ==================
 
 .. warning::
   The encoding of field S is special: A=0 denotes $r12, A=1 denotes $r13
+
+.. note::
+  OFFSET must be 32-bit aligned, so it's lowest two bits are not stored. The supported offset range is from -512 to 508
 
 .. note::
   the existence of these ops complicate memory op decode as well as operation size decode, but save a *huge* amount of code-space, allowing almost all register spills and fills to be done in two bytes.
@@ -899,12 +905,12 @@ Instruction code    Assembly                        Operation
 ==================  ============================    ==================
 0x.e4.              $rD <- MEM8[$rA]                8-bit unsigned load from MEM[$rA] into $rD
 0x.e5.              $rD <- MEM16[$rA]               16-bit unsigned load from MEM[$rA] into $rD
-0x.e6.              $rD <- MEM[32][$rA]             32-bit load from MEM[$rA] into $rD
-0x.e7.              $rD <- MEMLL[32][$rA]           32-bit unsigned load-lock (exclusive load)
+0x.e6.              $rD <- MEM[$rA]                 32-bit load from MEM[$rA] into $rD
+0x.e7.              $rD <- MEMLL[$rA]               32-bit unsigned load-lock (exclusive load)
 0x.e8.              MEM8[$rA] <- $rD                8-bit store to MEM[$rA] from $rD
 0x.e9.              MEM16[$rA] <- $rD               16-bit store to MEM[$rA] from $rD
-0x.ea.              MEM[32][$rA] <- $rD             32-bit store to MEM[$rA] from $rD
-0x.eb.              MEMSC[32][$rA] <- $rD           32-bit store-conditional (exclusive store)
+0x.ea.              MEM[$rA] <- $rD                 32-bit store to MEM[$rA] from $rD
+0x.eb.              MEMSC[$rA] <- $rD               32-bit store-conditional (exclusive store)
 0x.ec.              $rD <- SMEM8[$rA]               8-bit signed load from MEM[$rA] into $rD
 0x.ed.              $rD <- SMEM16[$rA]              16-bit signed load from MEM[$rA] into $rD
 ==================  ============================    ==================
@@ -935,9 +941,9 @@ Indirect jump group
 ==================  ============================    ==================
 Instruction code    Assembly                        Operation
 ==================  ============================    ==================
-0x1ee.              INV[32][$rA]                    invalidate cache line for address $rA
-0x2ee.              $pc <- MEM[32][$rA]             32-bit load from MEM[$rA] into $PC
-0x3ee.              $tpc <- MEM[32][$rA]            32-bit load from MEM[$rA] into $TPC
+0x1ee.              INV[$rA]                        invalidate cache line for address $rA
+0x2ee.              $pc <- MEM[$rA]                 32-bit load from MEM[$rA] into $PC
+0x3ee.              $tpc <- MEM[$rA]                32-bit load from MEM[$rA] into $TPC
 ==================  ============================    ==================
 
 .. note::
@@ -962,7 +968,7 @@ Offset-indirect load/store group
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
-      { "name": "FIELD_E", "bits": 16 },
+      { "name": "FIELD_E", "bits": 16, attr: "VALUE" },
   ],
   }
 
@@ -978,16 +984,16 @@ Offset-indirect load/store group
 ==================  ====================================    ==================
 Instruction code    Assembly                                Operation
 ==================  ====================================    ==================
-0x.f4. 0x****       $rD <- MEM8[$rA+FIELD_E]                8-bit unsigned load from MEM[$rA+FIELD_E] into $rD
-0x.f5. 0x****       $rD <- MEM16[$rA+FIELD_E]               16-bit unsigned load from MEM[$rA+FIELD_E] into $rD
-0x.f6. 0x****       $rD <- MEM[32][$rA+FIELD_E]             32-bit load from MEM[$rA+FIELD_E] into $rD
-0x.f7. 0x****       $rD <- MEMLL[32][$rA+FIELD_E]           32-bit unsigned load-lock (exclusive load)
-0x.f8. 0x****       MEM8[$rA+FIELD_E] <- $rD                8-bit store to MEM[$rA+FIELD_E] from $rD
-0x.f9. 0x****       MEM16[$rA+FIELD_E] <- $rD               16-bit store to MEM[$rA+FIELD_E] from $rD
-0x.fa. 0x****       MEM[32][$rA+FIELD_E] <- $rD             32-bit store to MEM[$rA+FIELD_E] from $rD
-0x.fb. 0x****       MEMSC[32][$rA+FIELD_E] <- $rD           32-bit store-conditional (exclusive store)
-0x.fc. 0x****       $rD <- SMEM8[$rA+FIELD_E]               8-bit signed load from MEM[$rA+FIELD_E] into $rD
-0x.fd. 0x****       $rD <- SMEM16[$rA+FIELD_E]              16-bit signed load from MEM[$rA+FIELD_E] into $rD
+0x.f4. 0x****       $rD <- MEM8[$rA + VALUE]                8-bit unsigned load from MEM[$rA+FIELD_E] into $rD
+0x.f5. 0x****       $rD <- MEM16[$rA + VALUE]               16-bit unsigned load from MEM[$rA+FIELD_E] into $rD
+0x.f6. 0x****       $rD <- MEM[$rA + VALUE]                 32-bit load from MEM[$rA+FIELD_E] into $rD
+0x.f7. 0x****       $rD <- MEMLL[$rA + VALUE]               32-bit unsigned load-lock (exclusive load)
+0x.f8. 0x****       MEM8[$rA + VALUE] <- $rD                8-bit store to MEM[$rA+FIELD_E] from $rD
+0x.f9. 0x****       MEM16[$rA + VALUE] <- $rD               16-bit store to MEM[$rA+FIELD_E] from $rD
+0x.fa. 0x****       MEM[$rA + VALUE] <- $rD                 32-bit store to MEM[$rA+FIELD_E] from $rD
+0x.fb. 0x****       MEMSC[$rA + VALUE] <- $rD               32-bit store-conditional (exclusive store)
+0x.fc. 0x****       $rD <- SMEM8[$rA + VALUE]               8-bit signed load from MEM[$rA+FIELD_E] into $rD
+0x.fd. 0x****       $rD <- SMEM16[$rA + VALUE]              16-bit signed load from MEM[$rA+FIELD_E] into $rD
 ==================  ====================================    ==================
 
 .. note:: FIELD_E is sign-extended before addition
@@ -1011,7 +1017,7 @@ Offset-indirect jump group
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
-      { "name": "FIELD_E", "bits": 16 },
+      { "name": "FIELD_E", "bits": 16, attr: "VALUE" },
   ],
   }
 
@@ -1027,9 +1033,9 @@ Offset-indirect jump group
 ==================  ====================================    ==================
 Instruction code    Assembly                                Operation
 ==================  ====================================    ==================
-0x1fe. 0x****       INV[32][$rA+FIELD_E]                    invalidate cache line for address $rA+FIELD_E
-0x2fe. 0x****       $pc <- MEM[32][$rA+FIELD_E]             32-bit load from MEM[$rA+FIELD_E] into $PC
-0x3fe. 0x****       $tpc <- MEM[32][$rA+FIELD_E]            32-bit load from MEM[$rA+FIELD_E] into $TPC
+0x1fe. 0x****       INV[$rA + VALUE]                        invalidate cache line for address $rA+FIELD_E
+0x2fe. 0x****       $pc <- MEM[$rA + VALUE]                 32-bit load from MEM[$rA+FIELD_E] into $PC
+0x3fe. 0x****       $tpc <- MEM[$rA + VALUE]                32-bit load from MEM[$rA+FIELD_E] into $TPC
 ==================  ====================================    ==================
 
 .. note::
@@ -1039,6 +1045,8 @@ Instruction code    Assembly                                Operation
 
 Load/store multiple
 -------------------
+
+.. todo:: These should probably be called load/store machine state instructions.
 
 .. wavedrom::
 
@@ -1098,7 +1106,7 @@ For a load multiple where the base register is marked for load, the implementati
 *Exception behavior*: If a exception (due to access violation during memory access) is raised, $tpc points to the load/store multiple instruction. It however is generally not guaranteed that no loads or stores have been performed. Consequently, some of the side-effects might have already taken place and the exception handler is in no position to know which ones. It is however safe to assume that the operation can be retried, as long as the following conditions are met:
 
 * Address translation after the retry generates the same physical addresses for store multiple operations
-* The target address is in regular memory as opposed to I/O or CSR space
+* The target address is in regular memory as opposed to I/O space
 
 The requirement to be able to retry means that if the base register is part of the set of registers to be loaded, it's value/type can only change after it is determined that no more exceptions can fire. This can be achieved by loading the base register last (i.e. not loading registers in order), or load the value into a temporary storage and update the base register as the last step.
 
@@ -1136,7 +1144,7 @@ Absolute load/store group
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
-      { "name": "FIELD_E lower 16 bits", "bits": 16 },
+      { "name": "FIELD_E lower 16 bits", "bits": 16, attr: "VALUE lower 16 bits" },
   ],
   }
 
@@ -1144,7 +1152,7 @@ Absolute load/store group
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
-      { "name": "FIELD_E upper 16 bits", "bits": 16 },
+      { "name": "FIELD_E upper 16 bits", "bits": 16, attr: "VALUE upper 16 bits" },
   ]
   }
 
@@ -1164,16 +1172,16 @@ Absolute load/store group
 =========================  ==========================  ==================
 Instruction code           Assembly                    Operation
 =========================  ==========================  ==================
-0x.f4f 0x**** 0x****       $rD <- MEM8[FIELD_E]        8-bit unsigned load from MEM[FIELD_E] into $rD
-0x.f5f 0x**** 0x****       $rD <- MEM16[FIELD_E]       16-bit unsigned load from MEM[FIELD_E] into $rD
-0x.f6f 0x**** 0x****       $rD <- MEM[32][FIELD_E]     32-bit load from MEM[FIELD_E] into $rD
-0x.f7f 0x**** 0x****       $rD <- MEMLL[32][FIELD_E]   32-bit unsigned load-lock (exclusive load)
-0x.f8f 0x**** 0x****       MEM8[FIELD_E] <- $rD        8-bit store to MEM[FIELD_E] from $rD
-0x.f9f 0x**** 0x****       MEM16[FIELD_E] <- $rD       16-bit store to MEM[FIELD_E] from $rD
-0x.faf 0x**** 0x****       MEM[32][FIELD_E] <- $rD     32-bit store to MEM[FIELD_E] from $rD
-0x.fbf 0x**** 0x****       MEMSC[32][FIELD_E] <- $rD   32-bit store-conditional (exclusive store)
-0x.fcf 0x**** 0x****       $rD <- SMEM8[FIELD_E]       8-bit signed load from MEM[FIELD_E] into $rD
-0x.fdf 0x**** 0x****       $rD <- SMEM16[FIELD_E]      16-bit signed load from MEM[FIELD_E] into $rD
+0x.f4f 0x**** 0x****       $rD <- MEM8[VALUE]          8-bit unsigned load from MEM[FIELD_E] into $rD
+0x.f5f 0x**** 0x****       $rD <- MEM16[VALUE]         16-bit unsigned load from MEM[FIELD_E] into $rD
+0x.f6f 0x**** 0x****       $rD <- MEM[VALUE]           32-bit load from MEM[FIELD_E] into $rD
+0x.f7f 0x**** 0x****       $rD <- MEMLL[VALUE]         32-bit unsigned load-lock (exclusive load)
+0x.f8f 0x**** 0x****       MEM8[VALUE] <- $rD          8-bit store to MEM[FIELD_E] from $rD
+0x.f9f 0x**** 0x****       MEM16[VALUE] <- $rD         16-bit store to MEM[FIELD_E] from $rD
+0x.faf 0x**** 0x****       MEM[VALUE] <- $rD           32-bit store to MEM[FIELD_E] from $rD
+0x.fbf 0x**** 0x****       MEMSC[VALUE] <- $rD         32-bit store-conditional (exclusive store)
+0x.fcf 0x**** 0x****       $rD <- SMEM8[VALUE]         8-bit signed load from MEM[FIELD_E] into $rD
+0x.fdf 0x**** 0x****       $rD <- SMEM16[VALUE]        16-bit signed load from MEM[FIELD_E] into $rD
 =========================  ==========================  ==================
 
 .. note:: Loads don't change the type of a register.
@@ -1196,7 +1204,7 @@ Absolute jump group
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
-      { "name": "FIELD_E lower 16 bits", "bits": 16 },
+      { "name": "FIELD_E lower 16 bits", "bits": 16, attr: "VALUE lower 16 bits" },
   ],
   }
 
@@ -1204,7 +1212,7 @@ Absolute jump group
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
-      { "name": "FIELD_E upper 16 bits", "bits": 16 },
+      { "name": "FIELD_E upper 16 bits", "bits": 16, attr: "VALUE upper 16 bits" },
   ]
   }
 
@@ -1224,9 +1232,9 @@ Absolute jump group
 =========================  ========================    ==================
 Instruction code           Assembly                    Operation
 =========================  ========================    ==================
-0x1fef 0x**** 0x****       INV[32][FIELD_E]            invalidate cache line for address FIELD_E
-0x2fef 0x**** 0x****       $pc <- MEM[32][FIELD_E]     32-bit load from MEM[FIELD_E] into $PC
-0x3fef 0x**** 0x****       $tpc <- MEM[32][FIELD_E]    32-bit load from MEM[FIELD_E] into $TPC
+0x1fef 0x**** 0x****       INV[VALUE]                  invalidate cache line for address FIELD_E
+0x2fef 0x**** 0x****       $pc <- MEM[VALUE]           32-bit load from MEM[FIELD_E] into $PC
+0x3fef 0x**** 0x****       $tpc <- MEM[VALUE]          32-bit load from MEM[FIELD_E] into $TPC
 =========================  ========================    ==================
 
 .. note::

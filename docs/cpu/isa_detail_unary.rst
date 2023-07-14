@@ -1,68 +1,109 @@
 $rD <- tiny CONST
 --------------------------
 
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_A",   "bits": 4, attr: "CONST" },
+      { "name": "1",         "bits": 4 },
+      { "name": "0",         "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ]}
+
 *Instruction code*: 0x.01.
 
-::
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |       0       |       1       |    FIELD_A    |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
 *Exceptions*: None
-
-*Type variants*: No
 
 Description
 ~~~~~~~~~~~
 
-Load $rD with constant stored in FIELD_A. Constant value is one-s complement of FIELD_A. Range is -7 to +7. The destination type is not altered.
+Load $rD with constant stored in FIELD_A. Constant value is one-s complement of FIELD_A. Range is -7 to +7, which is sign-extended to 32 bits. The destination type is not altered.
+
+::
+    $rD.value := CONST
+    $rD.type := $rD.type
+    $rD.size := 4
+    $rD.dirty := true
+
+
 
 
 $rD <- $pc + CONST
 --------------------------
 
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_A",   "bits": 4, attr: "CONST" },
+      { "name": "2",         "bits": 4 },
+      { "name": "0",         "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ]}
+
 *Instruction code*: 0x.02.
 
-::
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |       0       |       2       |    FIELD_A    |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
 *Exceptions*: None
-
-*Type variants*: No
 
 Description
 ~~~~~~~~~~~
 
-Load $rD with $pc + constant stored in FIELD_A. Constant value is twice the one-s complement of FIELD_A. Range is -14 to +14. Useful for call return address calculation. The destination type is set to INT32.
+Load $rD with $pc + constant stored in FIELD_A. Constant value is twice the one-s complement of FIELD_A. Range is -14 to +14, which is sign-extended to 32 bits. Useful for call return address calculation. The destination type is set to INT32.
+
+::
+    $rD.value := $pc + CONST
+    $rD.type := INT32
+    $rD.size := 4
+    $rD.dirty := true
+
 
 
 
 $rD <- -$rA
 --------------------------
 
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
+      { "name": "3",         "bits": 4 },
+      { "name": "0",         "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ]}
+
 *Instruction code*: 0x.03.
 
-::
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |       0       |       3       |    FIELD_A    |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
 *Exceptions*: None
-
-*Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
 
-Negative operation. The actual negation depends on the type. For vector types lane-wise negation is used. For floating point types, floating-point negation is used. The destination type is set to that of :code:`$rA`.
+Negation operation. The actual negation depends on the type. For vector types lane-wise negation is used. For floating point types, floating-point negation is used. For integer types, 2-s complement negation is used. The destination type is set to that of :code:`$rA`.
+
+::
+    $rD.value(i) := -$A.value(i) for i in lane_range(vstart, vend)
+    $rD.type := $rA.type
+    $rD.size := vend
+    $rD.dirty := true
+
+
+
+
 
 $rD <- ~$rA
 --------------------------
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
+      { "name": "4",         "bits": 4 },
+      { "name": "0",         "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ]}
 
 *Instruction code*: 0x.04.
 
@@ -81,7 +122,13 @@ Description
 
 Binary inversion. Destination type is set to that of :code:`$rA`.
 
+::
+    $rD.value := ~$A.value
+    $rD.type := $rA.type
+    $rD.size := $rA.size
+    $rD.dirty := true
 
+.. note:: binary inversion is the same operation independent of type.
 
 $rD <- bse $rA
 --------------------------

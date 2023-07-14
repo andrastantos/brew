@@ -3,7 +3,7 @@
 $rD <- $rA == 0
 ----------------------------------------------------------
 
-*Instruction code*: 0xfff0 0x.00.
+*Instruction code*: 0xf0ff 0x.00.
 
 *Exceptions*: None
 
@@ -17,7 +17,7 @@ Lane prediction operation. For each lane of :code:`$rA`, the condition is evalua
 $rD <- $rA != 0
 ----------------------------------------------------------
 
-*Instruction code*: 0xfff0 0x.01.
+*Instruction code*: 0xf0ff 0x.01.
 
 *Exceptions*: None
 
@@ -30,7 +30,7 @@ Lane prediction operation. For each lane of :code:`$rA`, the condition is evalua
 $rD <- $rA < 0
 ----------------------------------------------------------
 
-*Instruction code*: 0xfff0 0x.02.
+*Instruction code*: 0xf0ff 0x.02.
 
 *Exceptions*: None
 
@@ -43,7 +43,7 @@ Lane prediction operation. For each lane of :code:`$rA`, the condition is evalua
 $rD <- $rA >= 0
 ----------------------------------------------------------
 
-*Instruction code*: 0xfff0 0x.03.
+*Instruction code*: 0xf0ff 0x.03.
 
 *Exceptions*: None
 
@@ -56,7 +56,7 @@ Lane prediction operation. For each lane of :code:`$rA`, the condition is evalua
 $rD <- $rA > 0
 ----------------------------------------------------------
 
-*Instruction code*: 0xfff0 0x.04.
+*Instruction code*: 0xf0ff 0x.04.
 
 *Exceptions*: None
 
@@ -69,7 +69,7 @@ Lane prediction operation. For each lane of :code:`$rA`, the condition is evalua
 $rD <- $rA <= 0
 ----------------------------------------------------------
 
-*Instruction code*: 0xfff0 0x.05.
+*Instruction code*: 0xf0ff 0x.05.
 
 *Exceptions*: None
 
@@ -91,7 +91,7 @@ Lane prediction operation. For each lane of :code:`$rA`, the condition is evalua
 $rD <- $rB == $rA
 ----------------------------------------------------------
 
-*Instruction code*: 0xfff0 0x.1..
+*Instruction code*: 0xf0ff 0x.1..
 
 *Exceptions*: None
 
@@ -105,7 +105,7 @@ Lane prediction operation. The type of the operation is determined by the type o
 $rD <- $rB != $rA
 ----------------------------------------------------------
 
-*Instruction code*: 0xfff0 0x.2..
+*Instruction code*: 0xf0ff 0x.2..
 
 *Exceptions*: None
 
@@ -118,7 +118,7 @@ Lane prediction operation. The type of the operation is determined by the type o
 $rD <- signed $rB < $rA
 ----------------------------------------------------------
 
-*Instruction code*: 0xfff0 0x.3..
+*Instruction code*: 0xf0ff 0x.3..
 
 *Exceptions*: None
 
@@ -132,7 +132,7 @@ Lane prediction operation. The type of the operation is determined by the type o
 $rD <- signed $rB >= $rA
 ----------------------------------------------------------
 
-*Instruction code*: 0xfff0 0x.4..
+*Instruction code*: 0xf0ff 0x.4..
 
 *Exceptions*: None
 
@@ -147,7 +147,7 @@ Lane prediction operation. The type of the operation is determined by the type o
 $rD <- $rB < $rA
 ----------------------------------------------------------
 
-*Instruction code*: 0xfff0 0x.5..
+*Instruction code*: 0xf0ff 0x.5..
 
 *Exceptions*: None
 
@@ -161,7 +161,7 @@ Lane prediction operation. The type of the operation is determined by the type o
 $rD <- $rB >= $rA
 ----------------------------------------------------------
 
-*Instruction code*: 0xfff0 0x.6..
+*Instruction code*: 0xf0ff 0x.6..
 
 *Exceptions*: None
 
@@ -177,7 +177,7 @@ Lane prediction operation. The type of the operation is determined by the type o
 $rD <- interpolate $rA, $rB
 ---------------------------------
 
-*Instruction code*: 0xfff1 0x.0..
+*Instruction code*: 0xf1ff 0x.1..
 
 *Exceptions*: None
 
@@ -205,7 +205,10 @@ In the above the indices of the registers denote lane indices. For floating-poin
 $rD <- full $rA * $rB >>> VALUE
 -----------------------------------
 
-*Instruction code*: 0xfff4 0x.*..; 0xfff5 0x.*..; 0xfff6 0x.*..; 0xfff7 0x.*..;
+*Instruction code*: 0xf4ff 0x.*..
+*Instruction code*: 0xf5ff 0x.*..
+*Instruction code*: 0xf6ff 0x.*..
+*Instruction code*: 0xf7ff 0x.*..
 
 ::
 
@@ -233,7 +236,10 @@ A scaled multiply operation. The result of the 64-bit product of :code:`$rA` and
 $rD <- full $rA * $rB >> VALUE
 -----------------------------------
 
-*Instruction code*: 0xfff8 0x.*..; 0xfff9 0x.*..; 0xfffa 0x.*..; 0xfffb 0x.*..;
+*Instruction code*: 0xf8ff 0x.*..
+*Instruction code*: 0xf9ff 0x.*..
+*Instruction code*: 0xfaff 0x.*..
+*Instruction code*: 0xfbff 0x.*..
 
 ::
 

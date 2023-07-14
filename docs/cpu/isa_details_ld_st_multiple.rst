@@ -54,22 +54,24 @@ If POP specifies $rD as its return set, the value and type of $rD is restored fr
 
 Suggested storage layout:
 
-========== ====================
-Size       Contents
-========== ====================
-2          Mask used during store (value of FIELD_E)
-2          DIRTY
-2          VSTART
-2          VEND
-8          Type info for all 15 registers.
-.          PAD to allow for aligned storage of 1st register value
-.          Value of 1st register
-.          PAD to allow for aligned storage of 2nd register value
-.          Value of 2nd register
-...        ...
-.          PAD to allow for aligned storage of Nth register value
-.          Value of Nth register
-========== ====================
+========== ================= ====================
+Size       Used for inst.    Contents
+========== ================= ====================
+2          all               Mask used during store (value of FIELD_E)
+2          ld/st only        DIRTY
+1          ld/st only        VSTART
+1          ld/st only        VEND
+1          ld/st only        FP status and control register
+1          ld/st only        padding
+8          all               Type info for all 15 registers.
+.          all               PAD to allow for aligned storage of 1st register value
+.          all               Value of 1st register
+.          all               PAD to allow for aligned storage of 2nd register value
+.          all               Value of 2nd register
+...        all               ...
+.          all               PAD to allow for aligned storage of Nth register value
+.          all               Value of Nth register
+========== ================= ====================
 
 PUSH (being a decrementing operation) writes the structure backwards. POP reads it forwards, which means that the first things it reads are the fixed length fields, which allows it to reconstruct the rest of the structure. Since loads and stores always have a pointer to the beginning of the structure, they don't have a problem with size determination.
 

@@ -17,7 +17,7 @@ Dirty lines in data-caches are flushed to memory as they are invalidated.
 The implementation is not allowed to throw exceptions even if the memory location violates access permissions. In these cases, the invalidation request is silently ignored.
 
 
-$pc <- MEM32[$rA]
+$pc <- MEM[$rA]
 ---------------------------------------------
 
 *Instruction code*: 0x2ee.
@@ -33,7 +33,7 @@ Loads the 32-bit value from memory location pointed to by :code:`$rA`. The value
 The implementation is allowed to throw exceptions if the memory access violates access permissions. If the resulting memory reference is not aligned to a 32-bit word boundary, an unaligned access exception is thrown.
 
 
-$tpc <- MEM32[$rA]
+$tpc <- MEM[$rA]
 ---------------------------------------------
 
 *Instruction code*: 0x3ee.
@@ -76,7 +76,7 @@ Dirty lines in data-caches are flushed to memory as they are invalidated.
 The implementation is not allowed to throw exceptions even if the memory location violates access permissions. In these cases, the invalidation request is silently ignored.
 
 
-$pc <- MEM32[$rA + VALUE]
+$pc <- MEM[$rA + VALUE]
 ---------------------------------------------
 
 *Instruction code*: 0x2fe. 0x****
@@ -94,7 +94,7 @@ The value of FIELD_E is computed by truncating VALUE to 16 bits. The implementat
 The implementation is allowed to throw exceptions if the memory access violates access permissions. If the resulting memory reference is not aligned to a 32-bit word boundary, an unaligned access exception is thrown.
 
 
-$tpc <- MEM32[$rA + VALUE]
+$tpc <- MEM[$rA + VALUE]
 ---------------------------------------------
 
 *Instruction code*: 0x3fe. 0x****
@@ -137,7 +137,7 @@ Dirty lines in data-caches are flushed to memory as they are invalidated.
 The implementation is not allowed to throw exceptions even if the memory location violates access permissions. In these cases, the invalidation request is silently ignored.
 
 
-$pc <- MEM32[VALUE]
+$pc <- MEM[VALUE]
 ---------------------------------------------
 
 *Instruction code*: 0x2fef 0x**** 0x****
@@ -155,7 +155,7 @@ FIELD_E simply stores VALUE.
 The implementation is allowed to throw exceptions if the memory access violates access permissions. If the resulting memory reference is not aligned to a 32-bit word boundary, an unaligned access exception is thrown.
 
 
-$tpc <- MEM32[VALUE]
+$tpc <- MEM[VALUE]
 ---------------------------------------------
 
 *Instruction code*: 0x3fef 0x**** 0x****

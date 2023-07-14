@@ -44,7 +44,7 @@ Loads the 16-bit value from memory location pointed to by :code:`$rA`. The value
 
 The implementation is allowed to throw exceptions if the memory access violates access permissions. If the resulting memory reference is not aligned to a 16-bit word boundary, an unaligned access exception is thrown.
 
-$rD <- MEM32[$rA]
+$rD <- MEM[$rA]
 ---------------------------------------------
 
 *Instruction code*: 0x.e6.
@@ -66,7 +66,7 @@ Loads the 32-bit value from memory location pointed to by :code:`$rA`. The value
 
 The implementation is allowed to throw exceptions if the memory access violates access permissions. If the resulting memory reference is not aligned to a 32-bit word boundary, an unaligned access exception is thrown.
 
-$rD <- MEMLL32[$rA]
+$rD <- MEMLL[$rA]
 ---------------------------------------------
 
 *Instruction code*: 0x.e7.
@@ -133,7 +133,7 @@ The lowest 16 bits of :code:`$rD` is stored in the memory location pointed to by
 The implementation is allowed to throw exceptions if the memory access violates access permissions. If the resulting memory reference is not aligned to a 16-bit word boundary, an unaligned access exception is thrown.
 
 
-MEM[32][$rA] <- $rD
+MEM[$rA] <- $rD
 ---------------------------------------------
 
 *Instruction code*: 0x.ea.
@@ -157,10 +157,10 @@ The implementation is allowed to throw exceptions if the memory access violates 
 
 
 
-MEMSC[32][$rA] <- $rD
+MEMSC[$rA] <- $rD
 ---------------------------------------------
 
-*Instruction code*: 0x.e9.
+*Instruction code*: 0x.eb.
 
 ::
 
@@ -260,7 +260,7 @@ Instruction code    Assembly                                Operation
 0x.f4. 0x****       $rD <- MEM8[$rA+FIELD_E]                8-bit unsigned load from MEM[$rA+FIELD_E] into $rD
 0x.f5. 0x****       $rD <- MEM16[$rA+FIELD_E]               16-bit unsigned load from MEM[$rA+FIELD_E] into $rD
 0x.f6. 0x****       $rD <- MEM[32][$rA+FIELD_E]             32-bit load from MEM[$rA+FIELD_E] into $rD
-0x.f7. 0x****       $rD <- MEMLL[32][$rA+FIELD_E]           32-bit unsigned load-reserve (exclusive load)
+0x.f7. 0x****       $rD <- MEMLL[$rA+FIELD_E]           32-bit unsigned load-reserve (exclusive load)
 0x.f8. 0x****       MEM8[$rA+FIELD_E] <- $rD                8-bit store to MEM[$rA+FIELD_E] from $rD
 0x.f9. 0x****       MEM16[$rA+FIELD_E] <- $rD               16-bit store to MEM[$rA+FIELD_E] from $rD
 0x.fa. 0x****       MEM[32][$rA+FIELD_E] <- $rD             32-bit store to MEM[$rA+FIELD_E] from $rD
@@ -297,7 +297,7 @@ Instruction code           Assembly                    Operation
 0x.f4f 0x**** 0x****       $rD <- MEM8[FIELD_E]        8-bit unsigned load from MEM[FIELD_E] into $rD
 0x.f5f 0x**** 0x****       $rD <- MEM16[FIELD_E]       16-bit unsigned load from MEM[FIELD_E] into $rD
 0x.f6f 0x**** 0x****       $rD <- MEM[32][FIELD_E]     32-bit load from MEM[FIELD_E] into $rD
-0x.f7f 0x**** 0x****       $rD <- MEMLL[32][FIELD_E]   32-bit unsigned load-reserve (exclusive load)
+0x.f7f 0x**** 0x****       $rD <- MEMLL[FIELD_E]   32-bit unsigned load-reserve (exclusive load)
 0x.f8f 0x**** 0x****       MEM8[FIELD_E] <- $rD        8-bit store to MEM[FIELD_E] from $rD
 0x.f9f 0x**** 0x****       MEM16[FIELD_E] <- $rD       16-bit store to MEM[FIELD_E] from $rD
 0x.faf 0x**** 0x****       MEM[32][FIELD_E] <- $rD     32-bit store to MEM[FIELD_E] from $rD
