@@ -1,5 +1,5 @@
 ###!/usr/bin/python
-from typing import Sequence, Union
+from typing import Sequence, Union, Generator, Tuple
 
 def get_inst_len(inst_code):
     field_d = (inst_code >> 12) & 0xf
@@ -34,38 +34,49 @@ def list_inst_codes(inst_code: str) -> 'Generator':
                     inst_code_int = digit1 << 12 | digit2 << 8 | digit3 << 4 | digit4
                     yield inst_code_int
 
+from dataclasses import dataclass
+
+@dataclass
+class InstInfo(object):
+    inst_code: str
+    asm: str
+    operation: str
+    detail: bool = False
+
+    def __str__(self) -> str:
+        return f"{self.inst_code}    {self.asm}   :   {self.operation}"
+
+def split_inst_words(inst_code: str) -> Tuple[Sequence[str], int]:
+    inst_len = None
+    inst_words = inst_code.split()
+    inst_len = len(inst_words) * 16
+    if len(inst_words) > 1 and inst_words[1] == "...": inst_len = None
+    return inst_words, inst_len
+
 class InstCodes(object):
     def __init__(self):
         self.codes = []
         for inst_code in range(0x10000):
             self.codes.append(None)
 
-    def add_code(self, line: str, start: int, sub_code: bool = False):
-        inst_len = None
-        inst_code = line[start:start+4]
-        if not sub_code:
-            inst_len = 16
-            try:
-                if line[start+5:].startswith("..."): inst_len = None
-                if line[start+5:].startswith("0x"): inst_len += 16
-                if line[start+12:].startswith("0x"): inst_len += 16
-            except IndexError:
-                pass
+    def add_code(self, inst_code: str, asm: str, operation: str, start: int, sub_code: bool = False):
+        inst_words, inst_len = split_inst_words(inst_code)
         size_conflict_reported = False
         for inst_code_int in list_inst_codes(inst_code):
             #print(f"0x{inst_code_int:04x}", end=" ")
-            if inst_len is not None and inst_len != get_inst_len(inst_code_int) and not size_conflict_reported:
+            if inst_len is not None and inst_len != get_inst_len(inst_code_int) and not size_conflict_reported and not sub_code:
                 print(f"!!!!!!!!!!!!!!!! SIZE CONFLICT !!!!!!!!!!!!!!!!")
-                print(f"    {line}")
+                print(f"    {inst_code} {asm}")
                 print(f"    should be {get_inst_len(inst_code_int)} bits long")
                 size_conflict_reported = True
             if is_ext_group(inst_code_int):
-                group = inst_codes._add_group(inst_code_int, line)
-                group.add_code(line, start+7, sub_code=True)
+                group = inst_codes._add_group(inst_code_int, asm)
+                group.add_code(" ".join(inst_words[1:]), asm, operation, start+7, sub_code=True)
             else:
-                self._add(inst_code_int, line)
+                self._add(inst_code_int, inst_code, asm, operation)
 
-    def _add(self, code: int, content: str):
+    def _add(self, code: int, inst_code: str, asm: str, operation: str):
+        content = InstInfo(inst_code, asm, operation)
         if self.codes[code] is not None:
             print(f"!!!!!!!!!!!!!!!! CONFLICT !!!!!!!!!!!!!!!!")
             print(f"between:")
@@ -75,7 +86,7 @@ class InstCodes(object):
         self.codes[code] = content
 
     def _add_group(self, code: int, group: str) -> 'InstCodes':
-        if isinstance(self.codes[code], str):
+        if isinstance(self.codes[code], InstInfo):
             print(f"!!!!!!!!!!!!!!!! CONFLICT !!!!!!!!!!!!!!!!")
             print(f"between:")
             print(f"    {self.codes[code]}")
@@ -88,17 +99,32 @@ class InstCodes(object):
 inst_codes = InstCodes()
 
 with open("isa.rst", "rt") as file:
+    sections = None
     while file:
         line = file.readline()
         if line == "":
             break
         if line.endswith("\n"): line = line[:-1]
         if "see below" in line: continue
-        start = 2
-        if line.startswith("EXT"):
-            start += 4
-        if line[start-2:].startswith("0x"):
-            inst_codes.add_code(line, start)
+        if line.startswith("====="):
+            sections = []
+            pc = None
+            for idx, c in enumerate(line):
+                if c == "=" and pc == " ":
+                    sections.append(idx)
+                if c not in "= ":
+                    sections = None
+                    break
+                pc = c
+            if sections is not None:
+                sections.append(idx)
+            pass
+        if line.startswith("0x") and len(sections) >= 3:
+            inst_code = line[0:sections[0]].strip()
+            asm = line[sections[0]:sections[1]].strip()
+            operation = line[sections[1]:].strip()
+
+            inst_codes.add_code(inst_code, asm, operation, 0)
             #print(line)
             pass
 
@@ -115,11 +141,6 @@ for inst_code, line in enumerate(inst_codes.codes):
         print(f"    0x{inst_code:04x} - {line}")
 
 # Try to collate groups of unused codes
-
-print("Unused codes:")
-#for inst_code, line in enumerate(inst_codes):
-#    if line is None:
-#        print(f"    0x{inst_code:04x}")
 
 # Try to collate groups of unused codes
 
@@ -200,20 +221,46 @@ for detail_file_name in glob("isa_detail*.rst"):
                 inst_code_str = sline[len("*Instruction code*:")+1:].strip()
                 if inst_name is None:
                     print("========== CONSISTENCY ERROR ===============")
-                    print(f"    {detail_file_name}:{line_num} - instruction code: {inst_code_str} occurs without instruction name in ")
+                    print(f"    {detail_file_name}:{line_num} - instruction code: {inst_code_str} occurs without instruction name")
                 else:
+                    inst_words, inst_len = split_inst_words(inst_code_str)
+                    size_conflict_reported = False
                     for inst_code_int in list_inst_codes(inst_code_str):
+                        if inst_len is not None and inst_len != get_inst_len(inst_code_int) and not size_conflict_reported:
+                            print(f"========== SIZE CONFLICT ==========")
+                            print(f"    {detail_file_name}:{line_num} - instruction code: {inst_code_str} should be {get_inst_len(inst_code_int)} bits long")
+                            size_conflict_reported = True
                         summary = inst_codes.codes[inst_code_int]
-                        if isinstance(summary, str):
-                            if inst_name not in summary: # This could be more stringent by parsing the summary by (probably) understanding the table structure of RTS.
-                                if "Type override" in summary and inst_name.startswith("Type override"):
+                        if summary is None:
+                            print("========== CONSISTENCY ERROR ===============")
+                            print(f"    {detail_file_name}:{line_num} - instruction detail:")
+                            print(f"         '{inst_name}'")
+                            print(f"    for code 0x{inst_code_int:04x} doesn't have summary")
+                        if isinstance(summary, InstInfo):
+                            summary.detail = True
+                            if inst_name not in summary.asm: # This could be more stringent by parsing the summary by (probably) understanding the table structure of RTS.
+                                if "Type override" in summary.operation and inst_name.startswith("Type override"):
                                     continue
-                                if inst_name.startswith("if $rA[C]") and "if $rA[" in summary:
+                                if inst_name.startswith("if $rA[C]") and "if $rA[" in summary.asm:
                                     continue
-                                if inst_name.startswith("if $rB[C]") and "if $rB[" in summary:
+                                if inst_name.startswith("if $rB[C]") and "if $rB[" in summary.asm:
                                     continue
                                 print("========== CONSISTENCY ERROR ===============")
                                 print(f"    {detail_file_name}:{line_num} - instruction detail:")
                                 print(f"         '{inst_name}'")
                                 print(f"    for code 0x{inst_code_int:04x} doesn't match summary")
                                 print(f"         '{summary}'")
+
+print("Instructions with no detail:")
+for inst_code, line in enumerate(inst_codes.codes):
+    if line is None:
+        continue
+    elif isinstance(line, InstCodes):
+        #for sub_inst_code, sub_line in enumerate(line.codes):
+        #    if sub_line is not None:
+        #        print(f"    0x{inst_code:04x} 0x{sub_inst_code:04x} - {sub_line}")
+        #print(f"    0x{inst_code:04x} - MULTIPLE")
+        pass
+    else:
+        if not line.detail:
+            print(f"    0x{inst_code:04x} - {line}")

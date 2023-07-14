@@ -8,7 +8,7 @@ In the following tables
 '*':
  means any value in [0x0:0xf] Can be a different number at every occurrence.
 
-Instructions are fully decoded. Any instruction not explicitly mentioned in the tables below generate an 'invalid instruction exception' and is functionally equivalent to the SII instruction.
+Instructions are fully decoded. Any instruction not explicitly mentioned in the tables below generate an :code:`exc_unkown_inst` exception.
 
 Exception group
 ---------------
@@ -30,18 +30,18 @@ Exception group
 
 All instructions in this group enter SCHEDULER mode. After execution $tpc points to the current instruction (the one generating the exception)
 
-=================  ========    ============      ==================
-Instruction code   Assembly    Alternative       Operation
-=================  ========    ============      ==================
-0x0000             SWI 0       FILL              Used to fill unused code-pages;
-0x1000             SWI 1       BREAK             Used for software breakpoints
-0x2000             SWI 2       SYSCALL           Used to implement system calls
+=================  ========    ==================
+Instruction code   Assembly    Operation
+=================  ========    ==================
+0x0000             SWI 0       Used to fill unused code-pages;
+0x1000             SWI 1       Used for software breakpoints
+0x2000             SWI 2       Used to implement system calls
 0x3000             SWI 3
 0x4000             SWI 4
 0x5000             SWI 5
 0x6000             SWI 6
-0x7000             SWI 7       SII               Functionally equivalent to invalid instruction exception
-=================  ========    ============      ==================
+0x7000             SWI 7       Functionally equivalent to invalid instruction exception
+=================  ========    ==================
 
 .. TODO::
   The toolset might still think SII is 0x6000 and HWI is 0x7000! Need to follow-up
@@ -71,10 +71,6 @@ Instruction code   Assembly    Operation
 0x8000             STM         Enters TASK mode, enables interrupts; $spc points to the NEXT instruction
 0x9000             WOI         Wake on interrupt. Waits for interrupt in both TASK and SCHEDULER mode
 0xa000             PFLUSH      Flushes the pipeline
-0xb000             SII
-0xc000             SII
-0xd000             SII
-0xe000             SII
 =================  ========    ==================
 
 Atomic group
@@ -99,25 +95,25 @@ Atomic group
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 
-=================  ========
-Instruction code   Assembly
-=================  ========
-0x0001             FENCE_RW_RW
-0x1001             FENCE__W_RW
-0x2001             FENCE_R__RW
-0x3001             FENCE____RW
-0x4001             FENCE_RW__W
-0x5001             FENCE__W__W
-0x6001             FENCE_R___W
-0x7001             FENCE_____W
-0x8001             FENCE_RW_R\_
-0x9001             FENCE__W_R\_
-0xa001             FENCE_R__R\_
-0xb001             FENCE____R\_
-0xc001             FENCE_RW___
-0xd001             FENCE__W___
-0xe001             FENCE_R____
-=================  ========
+=================  =============   ==================
+Instruction code   Assembly        Operation
+=================  =============   ==================
+0x0001             FENCE_RW_RW     Fence reads/writes before reads/writes after
+0x1001             FENCE__W_RW     Fence writes before reads/writes after
+0x2001             FENCE_R__RW     Fence reads before reads/writes after
+0x3001             FENCE____RW     Fence reads/writes after
+0x4001             FENCE_RW__W     Fence reads/writes before writes after
+0x5001             FENCE__W__W     Fence writes before writes after
+0x6001             FENCE_R___W     Fence reads before writes after
+0x7001             FENCE_____W     Fence writes after
+0x8001             FENCE_RW_R\_    Fence reads/writes before reads after
+0x9001             FENCE__W_R\_    Fence writes before reads after
+0xa001             FENCE_R__R\_    Fence reads before reads after
+0xb001             FENCE____R\_    Fence reads after
+0xc001             FENCE_RW___     Fence reads/writes before
+0xd001             FENCE__W___     Fence writes before
+0xe001             FENCE_R____     Fence reads before
+=================  =============   ==================
 
 Every instruction in this group implements a fence, or an ordering between loads and stores. The top-most 4 bits of the instruction code is used the encode the fence type:
 
@@ -466,8 +462,6 @@ Instruction code           Assembly                    Operation
 0x.7.f 0x**** 0x****       $rD <- VALUE >> $rB         Binary right-shift [#note_binary_shift]_
 0x.8.f 0x**** 0x****       $rD <- VALUE >>> $rB        Arithmetic right-shift [#note_binary_shift]_
 0x.9.f 0x**** 0x****       $rD <- VALUE * $rB          Type-dependent multiply
-0x.a.f 0x**** 0x****       SII                         Reserved for future ISA expansion
-0x.b.f 0x**** 0x****       SII                         Reserved for future ISA expansion
 0x.c.f 0x**** 0x****       see below (stack ops)
 0x.d.f 0x**** 0x****       see below (stack ops)
 0x.e.f 0x**** 0x****       see below (mem ops)
@@ -644,15 +638,12 @@ Instruction code           Assembly                                           Op
 0xf03. 0x****              if any $rA >= 0  $pc <- $pc + VALUE                signed compare
 0xf04. 0x****              if any $rA > 0   $pc <- $pc + VALUE                signed compare
 0xf05. 0x****              if any $rA <= 0  $pc <- $pc + VALUE                signed compare
-0xf06. 0x****              SII
-0xf07. 0x****              SII
 0xf08. 0x****              if all $rA == 0  $pc <- $pc + VALUE
 0xf09. 0x****              if all $rA != 0  $pc <- $pc + VALUE
 0xf0a. 0x****              if all $rA < 0   $pc <- $pc + VALUE                signed compare
 0xf0b. 0x****              if all $rA >= 0  $pc <- $pc + VALUE                signed compare
 0xf0c. 0x****              if all $rA > 0   $pc <- $pc + VALUE                signed compare
 0xf0d. 0x****              if all $rA <= 0  $pc <- $pc + VALUE                signed compare
-0xf0e. 0x****              SII
 =========================  ===============================================    ==================
 
 .. note::
@@ -700,8 +691,6 @@ Instruction code           Assembly                                             
 0xf4.. 0x****              if any signed $rB >= $rA $pc <- $pc + VALUE              signed compare
 0xf5.. 0x****              if any $rB < $rA    $pc <- $pc + VALUE
 0xf6.. 0x****              if any $rB >= $rA   $pc <- $pc + VALUE
-0xf7.. 0x****              SII
-0xf8.. 0x****              SII
 0xf9.. 0x****              if all $rB == $rA   $pc <- $pc + VALUE
 0xfa.. 0x****              if all $rB != $rA   $pc <- $pc + VALUE
 0xfb.. 0x****              if all signed $rB < $rA  $pc <- $pc + VALUE              signed compare
@@ -1746,11 +1735,11 @@ This prefix instruction allows for the changing the way the subsequent operation
   |       f       |       f       |     TYPE_A    |    TYPE_B     | ...
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-=========================  ===========================================================
-Instruction code           Operation
-=========================  ===========================================================
-0xff** ...                 Type override for $rA (TYPE_A) and $rB (TYPE_B).
-=========================  ===========================================================
+========================= =============== ===========================================================
+Instruction code          Assembly        Operation
+========================= =============== ===========================================================
+0xff** ...                (type) (type)   Type override for $rA (TYPE_A) and $rB (TYPE_B).
+========================= =============== ===========================================================
 
 Type override for $rA (TYPE_A) and $rB (TYPE_B).
 

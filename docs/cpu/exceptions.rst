@@ -22,22 +22,22 @@ Exception sources
 
 The following base set of exceptions are supported by all Brew processors:
 
-====================== =================================
-Name                   Description
-====================== =================================
-:code:`exc_swi_0`      SWI 0 instruction executed (FILL)
-:code:`exc_swi_1`      SWI 1 instruction executed (BREAK)
-:code:`exc_swi_2`      SWI 2 instruction executed (SYSCALL)
-:code:`exc_swi_3`      SWI 3 instruction executed
-:code:`exc_swi_4`      SWI 4 instruction executed
-:code:`exc_swi_5`      SWI 5 instruction executed
-:code:`exc_swi_6`      SWI 6 instruction executed
-:code:`exc_swi_7`      SWI 7 instruction executedh
-:code:`exc_undefined`  Undefined instruction
-:code:`exc_unaligned`  Unaligned memory access
-:code:`exc_type`       Type error in instruction operands
-:code:`exc_hwi`        Hardware interrupt (only in TASK mode)
-====================== =================================
+======================== =================================
+Name                     Description
+======================== =================================
+:code:`exc_swi_0`        SWI 0 instruction executed (FILL)
+:code:`exc_swi_1`        SWI 1 instruction executed (BREAK)
+:code:`exc_swi_2`        SWI 2 instruction executed (SYSCALL)
+:code:`exc_swi_3`        SWI 3 instruction executed
+:code:`exc_swi_4`        SWI 4 instruction executed
+:code:`exc_swi_5`        SWI 5 instruction executed
+:code:`exc_swi_6`        SWI 6 instruction executed
+:code:`exc_swi_7`        SWI 7 instruction executedh
+:code:`exc_unkown_inst`  Undefined instruction
+:code:`exc_unaligned`    Unaligned memory access
+:code:`exc_type`         Type error in instruction operands
+:code:`exc_hwi`          Hardware interrupt (only in TASK mode)
+======================== =================================
 
 An implementation can define many additional exceptions, such as ones related to memory protection.
 
