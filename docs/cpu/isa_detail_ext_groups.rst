@@ -174,8 +174,48 @@ Lane prediction operation. The type of the operation is determined by the type o
 
 
 
+
+
+
+
+
+$rD <- sum $rA
+----------------------------------------------------------
+
+*Instruction code*: 0xf1ff 0x.01.
+
+*Exceptions*: None
+
+*Type variants*: Yes
+
+Description
+~~~~~~~~~~~
+
+Computes the reduction sum of $rA, puts the total in $rD. If $rA is of a float type, the type of $rD is set to :code:`FP32`. Otherwise, the type of $rD is set to :code:`INT32`.
+
+
+
+
+$rD <- set_vend $rA
+----------------------------------------------------------
+
+*Instruction code*: 0xf1ff 0x.02.
+
+*Exceptions*: None
+
+*Type variants*: Yes
+
+Description
+~~~~~~~~~~~
+
+This instruction, given a desired vector length in bytes in $rA returns (and sets :code:`vend` to) the number of bytes to be processed in a vector register.
+
+The returned value is the smaller of :code:`vlen` and $rA.
+
+.. note:: Since element type is not known to this instruction, its possible that the returned :code:`vend` is not aligned to an element boundary. While an unaligned :code:`vend` will get truncated by the subsequent vector instructions, $rD also contains an unaligned value which can be misused. It is the responsibility of the programmer to make sure that the requested byte count is a multiple of the size of the vector elements.
+
 $rD <- interpolate $rA, $rB
----------------------------------
+----------------------------------------------------------
 
 *Instruction code*: 0xf1ff 0x.1..
 
@@ -185,21 +225,76 @@ $rD <- interpolate $rA, $rB
 
 Description
 ~~~~~~~~~~~
-This instruction performs linear interpolation between adjacent lanes of $rA using the value of $rB as a fractional 32-bit value.
 
-A 2-lane operation is as follows::
+This instruction performs linear interpolation between adjacent lanes of $rA using the value of $rB as the interpolator.
 
-  $rD(0) <- $rA(0) *    $rB  + $rA(1) * (1-$rB)
-  $rD(1) <- $rA(0) * (1-$rB) + $rA(1) *    $rB
+If $rB is of an integral type, it is assumed to be a fractional value between 0 and 1. If it's a floating-point type, its value must be between 0.0 and 1.0.
 
-A 4-lane operation is as follows::
+If the value of $rB is not within the requisite range, the outcome of the operation is implementation-defined.
 
-  $rD(0) <- $rA(0) *    $rB  + $rA(1) * (1-$rB)
-  $rD(1) <- $rA(0) * (1-$rB) + $rA(1) *    $rB
-  $rD(3) <- $rA(3) *    $rB  + $rA(4) * (1-$rB)
-  $rD(4) <- $rA(3) * (1-$rB) + $rA(4) *    $rB
+If $rB is a scalar type, it's broadcast to all lanes. If $rB is a vector type, its value is used lane-wise::
 
-In the above the indices of the registers denote lane indices. For floating-point or scalar types an invalid instruction exception is thrown. The type of the operation and the destination type is determined by the type of :code:`$rA`.
+  $rD(i*2+0) <- $rA(i*2+0) *    $rB(i*2+0)  + $rA(i*2+1) *    $rB(i*2+1)
+  $rD(i*2+1) <- $rA(i*2+0) * (1-$rB(i*2+0)) + $rA(i*2+1) * (1-$rB(i*2+1))
+
+.. todo:: Extension group encoding changed. Toolset needs updating.
+
+.. todo:: Do we really want to support this for floating-point types? There are a boat-load of multiplies here!
+
+
+
+$rD <- $rD(i) <- $rA($rB(i))
+----------------------------------------------------------
+
+*Instruction code*: 0xf1ff 0x.2..
+
+*Exceptions*: None
+
+*Type variants*: Yes
+
+Description
+~~~~~~~~~~~
+
+Each lane of $rD is set to the lane of $rA referenced by the corresponding lane of $rB.
+
+.. todo:: Original lane-swizzle:
+  0x.af. 0x****              $rD <- lane_swizzle $rA, VALUE
+  got removed. Toolset needs updating.
+
+
+
+$rD <- (cast TYPE_B)$rA
+----------------------------------------------------------
+
+*Instruction code*: 0xf1ff 0x.3..
+
+*Exceptions*: None
+
+*Type variants*: Yes
+
+Description
+~~~~~~~~~~~
+
+Element-wise type-cast $rA to TYPE_B
+
+
+
+
+$rD <- compress $rA & $rB
+----------------------------------------------------------
+
+*Instruction code*: 0xf1ff 0x.4..
+
+*Exceptions*: None
+
+*Type variants*: Yes
+
+Description
+~~~~~~~~~~~
+
+Element-wise compressed selection of $rA, $rB being the selector
+
+
 
 
 $rD <- full $rA * $rB >>> VALUE

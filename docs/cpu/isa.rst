@@ -1569,9 +1569,7 @@ Unary vector operation group
 Instruction code           Assembly                      Operation
 =========================  ============================  ==================
 0xf1ff 0x.01.              $rD <- sum $rA                Reduction sum
-0xf1ff 0x.02.              $rD <- SET_VEND $rA           Load VEND register and return it's value based on $rA
-0xf1ff 0x.03.              $rD <- (cast TYPE_B)$rA       Element-wise type-cast $rA to TYPE_B
-0xf1ff 0x.04.              $rD <- compress $rA & $rB     Element-wise compressed selection of $rA, $rB being the selector
+0xf1ff 0x.02.              $rD <- set_vend $rA           Load VEND register and return it's value based on $rA
 =========================  ============================  ==================
 
 Binary vector operation group
@@ -1615,7 +1613,6 @@ Instruction code           Assembly                      Operation
 0xf1ff 0x.2..              $rD(i) <- $rA($rB(i))         [#note_lane_swizzle]_
 0xf1ff 0x.3..              $rD <- (cast TYPE_B)$rA       Element-wise type-cast $rA to TYPE_B
 0xf1ff 0x.4..              $rD <- compress $rA & $rB     Element-wise compressed selection of $rA, $rB being the selector
-0xf1ff 0x.5..              $rD <- $rB + sum $rA          Reduction sum-accumulate
 =========================  ============================  ==================
 
 .. [#note_interpolation]

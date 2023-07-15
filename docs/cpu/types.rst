@@ -23,25 +23,25 @@ The meaning of various instruction opcodes depend on the register types they ope
 
 There are up to 15 register types supported by the ISA, but only the following are defined:
 
-==========    =========   ==========
-Type code     Type        Note
-==========    =========   ==========
-0x0           INT32       32-bit integer: this is the default type of all registers after reset
-0x1           FP32        32-bit float
-0x2           RES1        reserved
-0x3           RES2        reserved
-0x4           VINT32      32-bit integer vector
-0x5           VFP32       32-bit float vector
-0x6           VINT16      16-bit integer vector
-0x7           VINT8       8-bit integer vector
-0x8           VFP16       16-bit float vector
-0x9           VUINT32S    Unsigned, saturated version on VINT32
-0xa           VSINT32S    Signed, saturated version on VINT32
-0xb           VUINT16S    Unsigned, saturated version on VINT16
-0xc           VSINT16S    Signed, saturated version on VINT16
-0xd           VUINT8X4S   Unsigned, saturated version on VINT8
-0xe           VSINT8X4S   Signed, saturated version on VINT8
-==========    =========   ==========
+==========    =========  ============== ======================== ==========
+Type code     Type name  Scalar/Vector  Fixed/Floating point     Note
+==========    =========  ============== ======================== ==========
+0x0           INT32      Scalar         Fixed                    32-bit integer: this is the default type of all registers after reset
+0x1           FP32       Scalar         Float                    32-bit float
+0x2           RES1                                               reserved
+0x3           RES2                                               reserved
+0x4           VINT32     Vector         Fixed                    32-bit integer vector
+0x5           VFP32      Vector         Fixed                    32-bit float vector
+0x6           VINT16     Vector         Fixed                    16-bit integer vector
+0x7           VINT8      Vector         Fixed                    8-bit integer vector
+0x8           VFP16      Vector         Float                    16-bit float vector
+0x9           VUINT32S   Vector         Fixed                    Unsigned, saturated version on VINT32
+0xa           VSINT32S   Vector         Fixed                    Signed, saturated version on VINT32
+0xb           VUINT16S   Vector         Fixed                    Unsigned, saturated version on VINT16
+0xc           VSINT16S   Vector         Fixed                    Signed, saturated version on VINT16
+0xd           VUINT8X4S  Vector         Fixed                    Unsigned, saturated version on VINT8
+0xe           VSINT8X4S  Vector         Fixed                    Signed, saturated version on VINT8
+==========    =========  ============== ======================== ==========
 
 Type-less variant
 -----------------

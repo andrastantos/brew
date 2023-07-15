@@ -1,31 +1,22 @@
 Vector operations
 =================
 
-Here are some initial thoughts on how vector operations should work.
+.. note::
+    The `RiscV vector extension <https://inst.eecs.berkeley.edu/~cs152/sp20/handouts/sp20/riscv-v-spec.pdf>`_ is a good source for how others are doing this.
 
-The `RiscV vector extension <https://inst.eecs.berkeley.edu/~cs152/sp20/handouts/sp20/riscv-v-spec.pdf>`_ is a good source for how others are doing this.
+The vector architecture of the Brew ISA uses variable operational vector lengths and combines them with fixed HW vector register length. It allows for independent vector register widths and vector execution unit widths. Brew integrates vector functionality using its type system. Many instructions perform both scalar and vector operations based on the register types they are presented with.
 
-In Brew, vector registers are any register with a vector type associated with it. These registers have an implementation-defined length, which must be a power of two bits and a multiple of 32 bits.
+Vector registers have an implementation-defined length, which must be a power of two bits and a multiple of 32 bits. Any register can be associated with a scalar or vector type, consequently there are up to 15 vector registers.
 
-Consequently there are up to 15 vector registers.
+To support vector operations, the following status registers are maintained:
 
-There is some additional internal state corresponding to vector operations:
+#. :code:`vstart`: This register controls the first byte of a vector registers that is processed. This register is normally set to 0 after the execution of every vector operation. If a vector operation raises an exception mid-execution (such as an access violation after a partial vector store), the :code:`vstart` register points to the first byte whose processing has not completed.
+#. :code:`vend`: This register controls the last byte of the vector registers that is processed, effectively setting the active vector length. This register is normally set by the :code:`set_vend` instruction. which is the byte pointer to after the last element in the vector register to be processed (it must be aligned to an element boundary)
+#. :code:`vlen`: This implementation-defined constant defines length of the HW vector registers in bytes
 
-#. VSTART: which is a byte pointer to the first element in the vector register to be processed (it must be aligned to an element boundary)
-#. VEND: which is the byte pointer to after the last element in the vector register to be processed (it must be aligned to an element boundary)
-#. VLEN: implementation-defined length of a vector register in bytes. (this is a static, read-only value)
+Normally vector operations only access elements between :code:`vstart` and :code:`vend`. Load/store element offsets however always calculated from element 0, even if :code:`vstart` is non-0. (In other words :code:`vstart` only impacts byte-enable signals, but not offset calculations). There are some exceptions to these rules, namely special load/store operations that ignore the value held in :code:`vstart` and :code:`vend`. These instructions are useful for saving and restoring context.
 
-Only elements between VSTART and VEND are altered or modified by an operation. Load/store element offsets however always calculated from element 0, even if VSTART is non-0. (In other words VSTART only impacts byte-enable signals, but not offset calculations).
-
-There is an instruction, which, given a desired vector length (in bytes) returns the number of bytes to be processed::
-
-    $rD <- SETVEND($rS)
-
-This instruction returns (and also sets VEND to) the greater of VLEN and $rS.
-
-.. todo:: do we want to set these things in bytes or in elements?
-
-Let's say we want to add two vectors: V1, V2 and put the result into V3. Let's say also that these vectors contain 16-bit floats.
+To understand the basic concept, let's look at a simple example: we want to add two vectors: V1, V2 and put the result into V3. Let's say also that these vectors contain 16-bit floats. Their length is the same and known, but can be arbitrarily large or small.
 
 ::
 
@@ -36,7 +27,7 @@ Let's say we want to add two vectors: V1, V2 and put the result into V3. Let's s
         type $r0 <- VFP16
         type $r1 <- VFP16
     loop:
-        $r2 <- SET_VEND $r7      # Set and store number of elements *actually* processed in the iteration in $r2
+        $r2 <- set_vend $r7      # Set and store number of elements *actually* processed in the iteration in $r2
         $r0 <- MEM[$r4]          # Load source
         $r1 <- MEM[$r5]          # Load source
         $r1 <- $r0 + $r1         # Do math
@@ -47,19 +38,26 @@ Let's say we want to add two vectors: V1, V2 and put the result into V3. Let's s
         $r7 <- $r7 - $r2         # Decrement count
         if $r7 != 0 $pc <- loop  # Loop, if needed
 
-Notice, how we re-set VEND in every iteration of the loop. That's the crucial idea behind scalable vector implementations, of which Brew is one example.
+Notice, how we re-set :code:`vend` in every iteration of the loop. That's the crucial idea behind scalable vector implementations, of which Brew is one example.
 
-Also notice how the type-system allows us to use the vector extension with the definition of a single custom instructions: SETVEND.
 
 Exception handling
 ------------------
 
-If an exception (or interrupt) is raised during any vector operation, VSTART will be set to point to the next element to be processed. This is especially important for load-store operations in cases when vector length is longer then the bus interface length. :code:`$tpc` points to the offending instruction. If a retry is attempted at that point VSTART will ensure that only the remaining portion of the vector operation is going to be performed.
+If an exception (or interrupt) is raised during any vector operation, :code:`vstart` will be set to point to the next element to be processed. This is especially important for load-store operations in cases when vector length is longer then the bus interface length. :code:`$tpc` points to the offending instruction. If a retry is attempted at that point :code:`vstart` will ensure that only the remaining portion of the vector operation is going to be performed.
+
 
 State management
 ----------------
 
-This is the ugly part: we now have two internal state registers (VSTART and VEND) that needs to be maintained during context switches. RiscV simply delegates these to CSRs and throws its arms in the air. That's certainly a way to deal (or rather not to deal) with the problem.
+The status registers :code:`vstart`, :code:`vend` and :code:`vlen` are accessible as CSRs. :code:`vend` can also be set by the :code:`set_vlen` instruction. The :code:`vstart` and :code:`vend` CSRs can only be modified from SCHEDULER-mode. All three registers can be read from TASK-mode.
+
+
+
+
+
+
+
 
 The problem is more complex though: upon entering SCHEDULER mode, we don't have any free registers. And normal load/store operations use VSTART/VEND.
 
