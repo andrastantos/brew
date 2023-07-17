@@ -1,5 +1,6 @@
 ###!/usr/bin/python
-from typing import Sequence, Union, Generator, Tuple
+from typing import Sequence, Union, Generator, Tuple, List, Optional
+from pathlib import Path
 
 def get_inst_len(inst_code):
     field_d = (inst_code >> 12) & 0xf
@@ -98,6 +99,33 @@ class InstCodes(object):
 
 inst_codes = InstCodes()
 
+def extract_asm(asm: str) -> Tuple[str, Optional[str]]:
+    if asm.startswith(":ref:"):
+        # we already have a reference. Ensure it's what we would insert and move on...
+        target_start = asm.rfind("<")
+        if target_start != -1:
+            target = asm[target_start+1:]
+            if target[-2:] != ">`":
+                print("=========== CONSISTENCY ERROR =============")
+                print(f"      can't parse reference target in: '{asm}'")
+                return asm, None
+            target = target[:-2]
+            asm_start = asm.find("`")
+            if asm_start != -1:
+                true_asm = asm[asm_start+1:target_start].strip()
+                return true_asm, target
+            else:
+                print("=========== CONSISTENCY ERROR =============")
+                print(f"      can't parse reference target in: '{asm}'")
+                return asm, None
+        else:
+            print("=========== CONSISTENCY ERROR =============")
+            print(f"      can't parse reference target in: '{asm}'")
+            return asm, None
+    else:
+        return asm, None
+
+
 with open("isa.rst", "rt") as file:
     sections = None
     while file:
@@ -121,7 +149,7 @@ with open("isa.rst", "rt") as file:
             pass
         if line.startswith("0x") and len(sections) >= 3:
             inst_code = line[0:sections[0]].strip()
-            asm = line[sections[0]:sections[1]].strip()
+            asm = extract_asm(line[sections[0]:sections[1]].strip())[0]
             operation = line[sections[1]:].strip()
 
             inst_codes.add_code(inst_code, asm, operation, 0)
@@ -196,13 +224,55 @@ for code in unused_codes_48:
 # Look through detailed instruction specs for inconsistencies
 from glob import glob
 
-pass
+import re
+
+def canonical_asm(asm: str) -> str:
+    asm = re.sub(r"\$rA\[([0-9])+\]", "$rA[C]", asm)
+    asm = re.sub(r"\$rB\[([0-9])+\]", "$rB[C]", asm)
+    asm = " ".join(x for x in asm.split(sep=" ") if len(x) > 0)
+    return asm
+
+
+inst_to_anchor_map = {}
+def name_to_anchor(inst_name: str) -> str:
+    c_inst_name = canonical_asm(inst_name)
+    if c_inst_name in inst_to_anchor_map:
+        return inst_to_anchor_map[c_inst_name]
+    inst_name = inst_name.replace('<-', 'eq')
+    inst_name = inst_name.replace('-$', 'minus_')
+    inst_name = inst_name.replace('$', '')
+    inst_name = inst_name.replace('[.]', '_bit')
+    inst_name = inst_name.replace('[', '_')
+    inst_name = inst_name.replace(']', '')
+    inst_name = inst_name.replace('>>>', 'asr')
+    inst_name = inst_name.replace('>>', 'lsr')
+    inst_name = inst_name.replace('<<', 'lsl')
+    inst_name = inst_name.replace('&', 'and')
+    inst_name = inst_name.replace('|', 'or')
+    inst_name = inst_name.replace('^', 'xor')
+    inst_name = inst_name.replace('+', 'plus')
+    inst_name = inst_name.replace('-', 'minus')
+    inst_name = inst_name.replace('*', 'times')
+    inst_name = inst_name.replace('~', 'not')
+    inst_name = inst_name.replace('<=', 'le')
+    inst_name = inst_name.replace('>=', 'ge')
+    inst_name = inst_name.replace('<', 'lt')
+    inst_name = inst_name.replace('>', 'gt')
+    inst_name = inst_name.replace('==', 'eq')
+    inst_name = inst_name.replace('!=', 'ne')
+    inst_name = inst_name.replace(' ', '_')
+    if inst_name[-1] == "_": inst_name = inst_name[:-1] + "\\_"
+    inst_name = inst_name.lower()
+    inst_to_anchor_map[c_inst_name] = inst_name
+    return inst_name
 
 for detail_file_name in glob("isa_detail*.rst"):
     def is_underscore(s: str) -> bool:
         return all(s == "-" for s in s) and len(s) > 0
 
     inst_name = None
+    inst_start_line = None
+    out_file = open(Path(detail_file_name).with_suffix(".out_rst"), "wt")
     with open(detail_file_name, "rt") as file:
         line = None
         line_num = 0
@@ -211,11 +281,16 @@ for detail_file_name in glob("isa_detail*.rst"):
             prev_line = line
             line = file.readline()
             if line == "":
+                out_file.write(f"{prev_line}\n")
+                out_file.close()
                 break
             if line.endswith("\n"): line = line[:-1]
             if is_underscore(line):
                 # We've found a new instruction
                 inst_name = prev_line
+                inst_start_line = line_num - 1
+                out_file.write(f".. _{name_to_anchor(inst_name)}:\n\n")
+            out_file.write(f"{prev_line}\n")
             sline = line.strip()
             if sline.startswith("*Instruction code*:"):
                 inst_code_str = sline[len("*Instruction code*:")+1:].strip()
@@ -285,3 +360,122 @@ with open("isa_detail_new.rst", "wt") as new_inst_file:
                     new_inst_file.write(f"\n");
                     new_inst_file.write(f"\n");
                 reported_missing.add(line.inst_code)
+
+# re-write summary with links to details
+
+from enum import Enum
+
+class TableStates(Enum):
+    outside = 0
+    header = 1
+    body = 2
+
+out_file = open("isa.out_rst", "wt")
+table_layout = ""
+table_states = TableStates.outside
+table_headers = None
+table_content = None
+
+def split_table_row(line: str) -> List[str]:
+    fields = []
+    start = 0
+    for end in sections[:-1] + [len(line)]:
+        header = line[start:end].strip()
+        fields.append(header)
+        start = end
+    return fields
+
+
+with open("isa.rst", "rt") as file:
+    sections = None
+    line_idx = 0
+    while file:
+        line = file.readline()
+        line_idx += 1
+        if line == "":
+            break
+        if line.endswith("\n"): line = line[:-1]
+        if line.startswith("====="):
+            sections = []
+            pc = None
+            for idx, c in enumerate(line):
+                if c == "=" and pc == " ":
+                    sections.append(idx)
+                if c not in "= ":
+                    sections = None
+                    break
+                pc = c
+            if sections is not None:
+                sections.append(idx+2)
+            if len(sections) >= 3:
+                if table_states == TableStates.outside:
+                    table_states = TableStates.header
+                    table_layout = line
+                    table_headers = None
+                    table_content = None
+                elif table_states == TableStates.header:
+                    if table_layout != line:
+                        print(f"======= Table parsing error at line {line_idx}")
+                    table_states = TableStates.body
+                elif table_states == TableStates.body:
+                    if table_layout != line:
+                        print(f"======= Table parsing error at line {line_idx}")
+                    table_states = TableStates.outside
+                    if table_content is None or table_headers is None:
+                        print(f"======= Table parsing error at line {line_idx}: no header or content")
+                    # Re-create the table with potentially adjusted field sizes
+                    field_sizes = []
+                    start = 0
+                    for end in sections:
+                        field_sizes.append(end-start-1)
+                        start = end
+                    for idx, field in enumerate(table_headers):
+                        field_sizes[idx] = max(field_sizes[idx], len(field))
+                    for row in table_content:
+                        for idx, field in enumerate(row):
+                            field_sizes[idx] = max(field_sizes[idx], len(field))
+                    table_def = " ".join("="*f for f in field_sizes)
+                    out_file.write(f"{table_def}\n")
+                    out_line = ""
+                    for idx, field in enumerate(table_headers):
+                        out_line += f"{field:{field_sizes[idx]}} "
+                    out_file.write(f"{out_line.rstrip()}\n")
+                    out_file.write(f"{table_def}\n")
+                    for row in table_content:
+                        out_line = ""
+                        for idx, field in enumerate(row):
+                            out_line += f"{field:{field_sizes[idx]}} "
+                        out_file.write(f"{out_line.rstrip()}\n")
+                    out_file.write(f"{table_def}\n")
+            else:
+                out_file.write(f"{line}\n")
+        else:
+            if table_states == TableStates.header:
+                table_headers = split_table_row(line)
+            elif table_states == TableStates.body:
+                fields = split_table_row(line)
+                if fields[0].startswith("0x") and len(sections) >= 3:
+                    asm = fields[1]
+                    true_asm, target = extract_asm(asm)
+                    if target is None:
+                        if "see below" not in asm:
+                            try:
+                                link = inst_to_anchor_map[canonical_asm(asm)]
+                                fields[1] = f":ref:`{asm}<{link}>`"
+                            except KeyError:
+                                print("=========== CONSISTENCY ERROR =============")
+                                print(f"      asm: '{asm}' for inst code '{fields[0]}' is not in anchor map")
+                    else:
+                        try:
+                            link = inst_to_anchor_map[canonical_asm(true_asm)]
+                            if link != target:
+                                print("=========== CONSISTENCY ERROR =============")
+                                print(f"      asm: '{asm}' points to '{target}' instead if {link}")
+                        except KeyError:
+                            print("=========== CONSISTENCY ERROR =============")
+                            print(f"      asm: '{asm}' points to '{target}', yet somehow it's missing from anchor map")
+                if table_content is None: table_content = []
+                table_content.append(fields.copy())
+            else:
+                out_file.write(f"{line}\n")
+out_file.close()
