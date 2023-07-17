@@ -21,3 +21,4 @@
 .libs
 
 **/_build/**
+*.out_rst
