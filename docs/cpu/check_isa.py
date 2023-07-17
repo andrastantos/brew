@@ -99,31 +99,83 @@ class InstCodes(object):
 
 inst_codes = InstCodes()
 
+
+import re
+
+def canonical_asm(asm: str) -> str:
+    #asm = re.sub(r"\$rA\[([0-9])+\]", "$rA[C]", asm)
+    #asm = re.sub(r"\$rB\[([0-9])+\]", "$rB[C]", asm)
+    asm = " ".join(x for x in asm.split(sep=" ") if len(x) > 0)
+    asm = asm.replace("&lt;", "<")
+    asm = asm.replace("&gt;", ">")
+    return asm
+
+def escape_link_text(link_text: str) -> str:
+    link_text = link_text.replace("<", "&lt;")
+    link_text = link_text.replace(">", "&gt;")
+    return link_text
+
+inst_to_anchor_map = {}
+def name_to_anchor(inst_name: str) -> str:
+    c_inst_name = canonical_asm(inst_name)
+    if c_inst_name in inst_to_anchor_map:
+        return inst_to_anchor_map[c_inst_name]
+    inst_name = inst_name.replace('<-', 'eq')
+    inst_name = inst_name.replace('-$', 'minus_')
+    inst_name = inst_name.replace('$', '')
+    inst_name = inst_name.replace('[.]', '_bit')
+    inst_name = inst_name.replace('[', '_')
+    inst_name = inst_name.replace(']', '')
+    inst_name = inst_name.replace('>>>', 'asr')
+    inst_name = inst_name.replace('>>', 'lsr')
+    inst_name = inst_name.replace('<<', 'lsl')
+    inst_name = inst_name.replace('&', 'and')
+    inst_name = inst_name.replace('|', 'or')
+    inst_name = inst_name.replace('^', 'xor')
+    inst_name = inst_name.replace('+', 'plus')
+    inst_name = inst_name.replace('-', 'minus')
+    inst_name = inst_name.replace('*', 'times')
+    inst_name = inst_name.replace('~', 'not')
+    inst_name = inst_name.replace('<=', 'le')
+    inst_name = inst_name.replace('>=', 'ge')
+    inst_name = inst_name.replace('<', 'lt')
+    inst_name = inst_name.replace('>', 'gt')
+    inst_name = inst_name.replace('==', 'eq')
+    inst_name = inst_name.replace('!=', 'ne')
+    inst_name = inst_name.replace(' ', '_')
+    if inst_name[-1] == "_": inst_name = inst_name[:-1] + "\\_"
+    inst_name = inst_name.lower()
+    inst_to_anchor_map[c_inst_name] = inst_name
+    return inst_name
+
 def extract_asm(asm: str) -> Tuple[str, Optional[str]]:
-    if asm.startswith(":ref:"):
-        # we already have a reference. Ensure it's what we would insert and move on...
-        target_start = asm.rfind("<")
-        if target_start != -1:
-            target = asm[target_start+1:]
-            if target[-2:] != ">`":
-                print("=========== CONSISTENCY ERROR =============")
-                print(f"      can't parse reference target in: '{asm}'")
-                return asm, None
-            target = target[:-2]
-            asm_start = asm.find("`")
-            if asm_start != -1:
-                true_asm = asm[asm_start+1:target_start].strip()
-                return true_asm, target
+    def _extract_asm(asm):
+        if asm.startswith(":ref:"):
+            # we already have a reference. Ensure it's what we would insert and move on...
+            target_start = asm.rfind("<")
+            if target_start != -1:
+                target = asm[target_start+1:]
+                if target[-2:] != ">`":
+                    print("=========== CONSISTENCY ERROR =============")
+                    print(f"      can't parse reference target in: '{asm}'")
+                    return asm, None
+                target = target[:-2]
+                asm_start = asm.find("`")
+                if asm_start != -1:
+                    true_asm = asm[asm_start+1:target_start].strip()
+                    return true_asm, target
+                else:
+                    print("=========== CONSISTENCY ERROR =============")
+                    print(f"      can't parse reference target in: '{asm}'")
+                    return asm, None
             else:
                 print("=========== CONSISTENCY ERROR =============")
                 print(f"      can't parse reference target in: '{asm}'")
                 return asm, None
         else:
-            print("=========== CONSISTENCY ERROR =============")
-            print(f"      can't parse reference target in: '{asm}'")
             return asm, None
-    else:
-        return asm, None
+    asm, target = _extract_asm(asm)
+    return canonical_asm(asm), target
 
 
 with open("isa.rst", "rt") as file:
@@ -224,48 +276,6 @@ for code in unused_codes_48:
 # Look through detailed instruction specs for inconsistencies
 from glob import glob
 
-import re
-
-def canonical_asm(asm: str) -> str:
-    asm = re.sub(r"\$rA\[([0-9])+\]", "$rA[C]", asm)
-    asm = re.sub(r"\$rB\[([0-9])+\]", "$rB[C]", asm)
-    asm = " ".join(x for x in asm.split(sep=" ") if len(x) > 0)
-    return asm
-
-
-inst_to_anchor_map = {}
-def name_to_anchor(inst_name: str) -> str:
-    c_inst_name = canonical_asm(inst_name)
-    if c_inst_name in inst_to_anchor_map:
-        return inst_to_anchor_map[c_inst_name]
-    inst_name = inst_name.replace('<-', 'eq')
-    inst_name = inst_name.replace('-$', 'minus_')
-    inst_name = inst_name.replace('$', '')
-    inst_name = inst_name.replace('[.]', '_bit')
-    inst_name = inst_name.replace('[', '_')
-    inst_name = inst_name.replace(']', '')
-    inst_name = inst_name.replace('>>>', 'asr')
-    inst_name = inst_name.replace('>>', 'lsr')
-    inst_name = inst_name.replace('<<', 'lsl')
-    inst_name = inst_name.replace('&', 'and')
-    inst_name = inst_name.replace('|', 'or')
-    inst_name = inst_name.replace('^', 'xor')
-    inst_name = inst_name.replace('+', 'plus')
-    inst_name = inst_name.replace('-', 'minus')
-    inst_name = inst_name.replace('*', 'times')
-    inst_name = inst_name.replace('~', 'not')
-    inst_name = inst_name.replace('<=', 'le')
-    inst_name = inst_name.replace('>=', 'ge')
-    inst_name = inst_name.replace('<', 'lt')
-    inst_name = inst_name.replace('>', 'gt')
-    inst_name = inst_name.replace('==', 'eq')
-    inst_name = inst_name.replace('!=', 'ne')
-    inst_name = inst_name.replace(' ', '_')
-    if inst_name[-1] == "_": inst_name = inst_name[:-1] + "\\_"
-    inst_name = inst_name.lower()
-    inst_to_anchor_map[c_inst_name] = inst_name
-    return inst_name
-
 for detail_file_name in glob("isa_detail*.rst"):
     def is_underscore(s: str) -> bool:
         return all(s == "-" for s in s) and len(s) > 0
@@ -313,7 +323,7 @@ for detail_file_name in glob("isa_detail*.rst"):
                             print(f"    for code 0x{inst_code_int:04x} doesn't have summary")
                         if isinstance(summary, InstInfo):
                             summary.detail = True
-                            if inst_name not in summary.asm: # This could be more stringent by parsing the summary by (probably) understanding the table structure of RTS.
+                            if canonical_asm(inst_name) != summary.asm:
                                 if "Type override" in summary.operation and inst_name.startswith("Type override"):
                                     continue
                                 if inst_name.startswith("if $rA[C]") and "if $rA[" in summary.asm:
@@ -461,7 +471,7 @@ with open("isa.rst", "rt") as file:
                         if "see below" not in asm:
                             try:
                                 link = inst_to_anchor_map[canonical_asm(asm)]
-                                fields[1] = f":ref:`{asm}<{link}>`"
+                                fields[1] = f":ref:`{escape_link_text(asm)}<{link}>`"
                             except KeyError:
                                 print("=========== CONSISTENCY ERROR =============")
                                 print(f"      asm: '{asm}' for inst code '{fields[0]}' is not in anchor map")
