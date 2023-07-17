@@ -1610,7 +1610,7 @@ Binary vector operation group
 Instruction code                               Assembly                      Operation
 ============================================== ============================= ================================================================
 :ref:`0xf1ff 0x.1..<rd_eq_interpolate_ra,_rb>` $rD <- interpolate $rA, $rB   [#note_interpolation]_
-0xf1ff 0x.2..                                  $rD(i) <- $rA($rB(i))         [#note_lane_swizzle]_
+:ref:`0xf1ff 0x.2..<rd_eq_rd(i)_eq_ra(rb(i))>` $rD(i) <- $rA($rB(i))         [#note_lane_swizzle]_
 :ref:`0xf1ff 0x.3..<rd_eq_(cast_type_b)ra>`    $rD <- (cast TYPE_B)$rA       Element-wise type-cast $rA to TYPE_B
 :ref:`0xf1ff 0x.4..<rd_eq_compress_ra_and_rb>` $rD <- compress $rA & $rB     Element-wise compressed selection of $rA, $rB being the selector
 ============================================== ============================= ================================================================
@@ -1678,18 +1678,18 @@ Scaled multiply group
   |    FIELD_D    |    FIELD_C    |    FIELD_B    |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-========================== ========================================== ==================
-Instruction code           Assembly                                   Operation
-========================== ========================================== ==================
-0xf4ff 0x.*..              $rD <- full $rA * $rB >>> FIELD_C + 0
-0xf5ff 0x.*..              $rD <- full $rA * $rB >>> FIELD_C + 8
-0xf6ff 0x.*..              $rD <- full $rA * $rB >>> FIELD_C + 16
-0xf7ff 0x.*..              $rD <- full $rA * $rB >>> FIELD_C + 32
-0xf8ff 0x.*..              $rD <- full $rA * $rB >> FIELD_C + 0
-0xf9ff 0x.*..              $rD <- full $rA * $rB >> FIELD_C + 8
-0xfaff 0x.*..              $rD <- full $rA * $rB >> FIELD_C + 16
-0xfbff 0x.*..              $rD <- full $rA * $rB >> FIELD_C + 32
-========================== ========================================== ==================
+========================================================== ========================================== ==================
+Instruction code                                           Assembly                                   Operation
+========================================================== ========================================== ==================
+:ref:`0xf4ff 0x.*..<rd_eq_full_ra_times_rb_asr_value>`     $rD <- full $rA * $rB >>> FIELD_C + 0
+:ref:`0xf5ff 0x.*..<rd_eq_full_ra_times_rb_asr_value>`     $rD <- full $rA * $rB >>> FIELD_C + 8
+:ref:`0xf6ff 0x.*..<rd_eq_full_ra_times_rb_asr_value>`     $rD <- full $rA * $rB >>> FIELD_C + 16
+:ref:`0xf7ff 0x.*..<rd_eq_full_ra_times_rb_asr_value>`     $rD <- full $rA * $rB >>> FIELD_C + 32
+:ref:`0xf8ff 0x.*..<rd_eq_full_ra_times_rb_lsr_value>`     $rD <- full $rA * $rB >> FIELD_C + 0
+:ref:`0xf9ff 0x.*..<rd_eq_full_ra_times_rb_lsr_value>`     $rD <- full $rA * $rB >> FIELD_C + 8
+:ref:`0xfaff 0x.*..<rd_eq_full_ra_times_rb_lsr_value>`     $rD <- full $rA * $rB >> FIELD_C + 16
+:ref:`0xfbff 0x.*..<rd_eq_full_ra_times_rb_lsr_value>`     $rD <- full $rA * $rB >> FIELD_C + 32
+========================================================== ========================================== ==================
 
 .. todo::
   This is not how BINUTILS is coded up at the moment. We need to follow-up with the changes there.
@@ -1732,11 +1732,11 @@ This prefix instruction allows for the changing the way the subsequent operation
   |       f       |       f       |     TYPE_A    |    TYPE_B     | ...
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-========================= =============== ===========================================================
-Instruction code          Assembly        Operation
-========================= =============== ===========================================================
-0xff** ...                (type) (type)   Type override for $rA (TYPE_A) and $rB (TYPE_B).
-========================= =============== ===========================================================
+========================================== =============== ===========================================================
+Instruction code                           Assembly        Operation
+========================================== =============== ===========================================================
+:ref:`0xff** ...<type_overrides_detail>`   (type) (type)   Type override for $rA (TYPE_A) and $rB (TYPE_B).
+========================================== =============== ===========================================================
 
 Type override for $rA (TYPE_A) and $rB (TYPE_B).
 

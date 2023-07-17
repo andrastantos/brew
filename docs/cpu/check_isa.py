@@ -177,6 +177,8 @@ def extract_inst_code(asm: str) -> Tuple[str, Optional[str]]:
     asm, target = _extract_inst_code(asm)
     return asm, target
 
+def is_summary_line(line: str) -> bool:
+    return line.startswith("0x") or line.startswith(":ref:`0x")
 
 with open("isa.rst", "rt") as file:
     sections = None
@@ -199,7 +201,7 @@ with open("isa.rst", "rt") as file:
             if sections is not None:
                 sections.append(idx)
             pass
-        if (line.startswith("0x") or line.startswith(":ref:`0x")) and len(sections) >= 3:
+        if is_summary_line(line) and len(sections) >= 3:
             inst_code, _ = extract_inst_code(line[0:sections[0]].strip())
             asm = canonical_asm(line[sections[0]:sections[1]].strip())
             operation = line[sections[1]:].strip()
@@ -306,6 +308,8 @@ for detail_file_name in glob("isa_detail*.rst"):
                 inst_start_line = line_num - 1
                 if last_anchor is None:
                     out_file.write(f".. _{name_to_anchor(inst_name)}:\n\n")
+                else:
+                    inst_to_anchor_map[canonical_asm(inst_name)] = last_anchor
                 last_anchor = None
             if prev_line is not None: out_file.write(f"{prev_line}\n")
             sline = line.strip()
@@ -467,7 +471,7 @@ with open("isa.rst", "rt") as file:
                 table_headers = split_table_row(line)
             elif table_states == TableStates.body:
                 fields = split_table_row(line)
-                if fields[0].startswith("0x") and len(sections) >= 3:
+                if is_summary_line(fields[0]) and len(sections) >= 3:
                     _, target = extract_inst_code(fields[0])
                     asm = fields[1]
                     if target is None:

@@ -1,4 +1,4 @@
-.. _type_overrides_(lttypegt):
+.. _type_overrides_detail:
 
 Type overrides (<type>)
 -----------------------
