@@ -30,7 +30,7 @@ $rD <- CSR[ADDR]
   |                         FIELD_E                               |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-*instruction code*: 0x.0f8 0x****
+*Instruction code*: 0x.0f8 0x****
 
 Description
 ~~~~~~~~~~~
@@ -71,7 +71,7 @@ CSR[ADDR] <- $rD
   |                         FIELD_E                               |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-*instruction code*: 0x.0f9 0x****
+*Instruction code*: 0x.0f9 0x****
 
 Description
 ~~~~~~~~~~~
