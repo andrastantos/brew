@@ -103,8 +103,8 @@ inst_codes = InstCodes()
 import re
 
 def canonical_asm(asm: str) -> str:
-    #asm = re.sub(r"\$rA\[([0-9])+\]", "$rA[C]", asm)
-    #asm = re.sub(r"\$rB\[([0-9])+\]", "$rB[C]", asm)
+    asm = re.sub(r"\$rA\[([0-9])+\]", "$rA[C]", asm)
+    asm = re.sub(r"\$rB\[([0-9])+\]", "$rB[C]", asm)
     asm = " ".join(x for x in asm.split(sep=" ") if len(x) > 0)
     #asm = asm.replace("&lt;", "<")
     #asm = asm.replace("&gt;", ">")
@@ -199,7 +199,7 @@ with open("isa.rst", "rt") as file:
             if sections is not None:
                 sections.append(idx)
             pass
-        if line.startswith("0x") and len(sections) >= 3:
+        if (line.startswith("0x") or line.startswith(":ref:`0x")) and len(sections) >= 3:
             inst_code, _ = extract_inst_code(line[0:sections[0]].strip())
             asm = canonical_asm(line[sections[0]:sections[1]].strip())
             operation = line[sections[1]:].strip()
@@ -276,15 +276,18 @@ for code in unused_codes_48:
 # Look through detailed instruction specs for inconsistencies
 from glob import glob
 
+last_anchor = None
 for detail_file_name in glob("isa_detail*.rst"):
     def is_underscore(s: str) -> bool:
         return all(s == "-" for s in s) and len(s) > 0
 
+    if detail_file_name == "isa_detail_new.rst":
+        continue
     inst_name = None
     inst_start_line = None
     out_file = open(Path(detail_file_name).with_suffix(".out_rst"), "wt")
     with open(detail_file_name, "rt") as file:
-        line = None
+        line : str = None
         line_num = 0
         while file:
             line_num += 1
@@ -295,11 +298,15 @@ for detail_file_name in glob("isa_detail*.rst"):
                 out_file.close()
                 break
             if line.endswith("\n"): line = line[:-1]
+            if line.startswith(".. _") and line.endswith(":"):
+                last_anchor = line[4:-1]
             if is_underscore(line):
                 # We've found a new instruction
                 inst_name = prev_line
                 inst_start_line = line_num - 1
-                out_file.write(f".. _{name_to_anchor(inst_name)}:\n\n")
+                if last_anchor is None:
+                    out_file.write(f".. _{name_to_anchor(inst_name)}:\n\n")
+                last_anchor = None
             if prev_line is not None: out_file.write(f"{prev_line}\n")
             sline = line.strip()
             if sline.startswith("*Instruction code*:"):
@@ -323,12 +330,8 @@ for detail_file_name in glob("isa_detail*.rst"):
                             print(f"    for code 0x{inst_code_int:04x} doesn't have summary")
                         if isinstance(summary, InstInfo):
                             summary.detail = True
-                            if canonical_asm(inst_name) != summary.asm:
+                            if canonical_asm(inst_name) != canonical_asm(summary.asm):
                                 if "Type override" in summary.operation and inst_name.startswith("Type override"):
-                                    continue
-                                if inst_name.startswith("if $rA[C]") and "if $rA[" in summary.asm:
-                                    continue
-                                if inst_name.startswith("if $rB[C]") and "if $rB[" in summary.asm:
                                     continue
                                 print("========== CONSISTENCY ERROR ===============")
                                 print(f"    {detail_file_name}:{line_num} - instruction detail:")
