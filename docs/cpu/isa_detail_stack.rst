@@ -3,6 +3,8 @@
 
 
 
+.. _mem_rs_plus_tiny_offset_eq_rd:
+
 MEM[$rS + tiny OFFSET] <- $rD
 ---------------------------------------------
 
@@ -25,6 +27,8 @@ Store the 32-bit value of :code:`$rD` at memory location :code:`$rS + OFFSET`. T
 
 The implementation is allowed to throw exceptions if the memory access violates access permissions. If the resulting memory reference is unaligned, an unaligned access exception is thrown.
 
+
+.. _rd_eq_mem_rs_plus_tiny_offset:
 
 $rD <- MEM[$rS + tiny OFFSET]
 ---------------------------------------------

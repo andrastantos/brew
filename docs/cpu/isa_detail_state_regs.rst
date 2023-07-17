@@ -1,3 +1,5 @@
+.. _rd_eq_cpu_id:
+
 $rD <- CPU_ID
 -------------
 
@@ -20,6 +22,8 @@ Load 'dirty' mask into $rD
 .. todo::
   What are the consequences of manipulating VSTART/VEND/DIRTY in TASK mode?
 
+.. _dirty_eq_rd:
+
 DIRTY <- $rD
 ------------
 
@@ -40,6 +44,8 @@ Set 'dirty' mask based on $rD
 
 .. todo::
   What are the consequences of manipulating VSTART/VEND/DIRTY in TASK mode?
+
+.. _rd_eq_vstart:
 
 $rD <- VSTART
 -------------
@@ -62,6 +68,8 @@ Load 'vstart' into $rD
 .. todo::
   What are the consequences of manipulating VSTART/VEND/DIRTY in TASK mode?
 
+.. _vstart_eq_rd:
+
 VSTART <- $rD
 -------------
 
@@ -82,6 +90,8 @@ Set 'vstart' from $rD
 
 .. todo::
   What are the consequences of manipulating VSTART/VEND/DIRTY in TASK mode?
+
+.. _rd_eq_vend:
 
 $rD <- VEND
 -----------
@@ -104,6 +114,8 @@ Load 'vend' into $rD
 .. todo::
   What are the consequences of manipulating VSTART/VEND/DIRTY in TASK mode?
 
+.. _vend_eq_rd:
+
 VEND <- $rD
 -----------
 
@@ -124,6 +136,8 @@ Set 'vend' from $rD
 
 .. todo::
   What are the consequences of manipulating VSTART/VEND/DIRTY in TASK mode?
+
+.. _rd_eq_vlen:
 
 $rD <- VLEN
 -----------

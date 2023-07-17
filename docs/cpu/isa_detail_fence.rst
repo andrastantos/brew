@@ -1,3 +1,5 @@
+.. _fence_rw_rw:
+
 FENCE_RW_RW
 --------------
 
@@ -35,6 +37,8 @@ Depending on the implementation, some or all of these fence operations might be 
 Care should be taken to ensure proper fence behavior for writes that leave in-order but have their side-effects out-of-order due to latency-differences through the interconnect.
 
 
+
+.. _fence__w_rw:
 
 FENCE__W_RW
 --------------
@@ -75,6 +79,8 @@ Care should be taken to ensure proper fence behavior for writes that leave in-or
 
 
 
+.. _fence_r__rw:
+
 FENCE_R__RW
 --------------
 
@@ -112,6 +118,8 @@ Depending on the implementation, some or all of these fence operations might be 
 Care should be taken to ensure proper fence behavior for writes that leave in-order but have their side-effects out-of-order due to latency-differences through the interconnect.
 
 
+
+.. _fence____rw:
 
 FENCE____RW
 --------------
@@ -152,6 +160,8 @@ Care should be taken to ensure proper fence behavior for writes that leave in-or
 
 
 
+.. _fence_rw__w:
+
 FENCE_RW__W
 --------------
 
@@ -190,6 +200,8 @@ Care should be taken to ensure proper fence behavior for writes that leave in-or
 
 
 
+
+.. _fence__w__w:
 
 FENCE__W__W
 --------------
@@ -230,6 +242,8 @@ Care should be taken to ensure proper fence behavior for writes that leave in-or
 
 
 
+.. _fence_r___w:
+
 FENCE_R___W
 --------------
 
@@ -268,6 +282,8 @@ Care should be taken to ensure proper fence behavior for writes that leave in-or
 
 
 
+
+.. _fence_____w:
 
 FENCE_____W
 --------------
@@ -308,6 +324,8 @@ Care should be taken to ensure proper fence behavior for writes that leave in-or
 
 
 
+.. _fence_rw_r\\_:
+
 FENCE_RW_R\_
 --------------
 
@@ -346,6 +364,8 @@ Care should be taken to ensure proper fence behavior for writes that leave in-or
 
 
 
+
+.. _fence__w_r\\_:
 
 FENCE__W_R\_
 --------------
@@ -386,6 +406,8 @@ Care should be taken to ensure proper fence behavior for writes that leave in-or
 
 
 
+.. _fence_r__r\\_:
+
 FENCE_R__R\_
 --------------
 
@@ -424,6 +446,8 @@ Care should be taken to ensure proper fence behavior for writes that leave in-or
 
 
 
+
+.. _fence____r\\_:
 
 FENCE____R\_
 --------------
@@ -464,6 +488,8 @@ Care should be taken to ensure proper fence behavior for writes that leave in-or
 
 
 
+.. _fence_rw__\_:
+
 FENCE_RW___
 --------------
 
@@ -503,6 +529,8 @@ Care should be taken to ensure proper fence behavior for writes that leave in-or
 
 
 
+.. _fence__w__\_:
+
 FENCE__W___
 --------------
 
@@ -541,6 +569,8 @@ Care should be taken to ensure proper fence behavior for writes that leave in-or
 
 
 
+
+.. _fence_r___\_:
 
 FENCE_R____
 --------------

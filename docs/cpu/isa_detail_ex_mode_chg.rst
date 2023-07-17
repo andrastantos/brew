@@ -1,3 +1,5 @@
+.. _swi_0:
+
 SWI 0
 -----
 
@@ -13,6 +15,8 @@ Description
 ~~~~~~~~~~~
 
 Raises the :code:`exc_swi_0` exception. Used to fill unused space.
+
+.. _swi_1:
 
 SWI 1
 -----
@@ -30,6 +34,8 @@ Description
 
 Raises the :code:`exc_swi_1` exception. Used to implement software breakpoints.
 
+.. _swi_2:
+
 SWI 2
 -----
 
@@ -46,6 +52,8 @@ Description
 
 Raises the :code:`exc_swi_2` exception. Used to implement operating system calls
 
+.. _swi_3:
+
 SWI 3
 -----
 
@@ -59,6 +67,8 @@ Description
 ~~~~~~~~~~~
 
 Raises the :code:`exc_swi_3` exception.
+
+.. _swi_4:
 
 SWI 4
 -----
@@ -74,6 +84,8 @@ Description
 
 Raises the :code:`exc_swi_4` exception.
 
+.. _swi_5:
+
 SWI 5
 -----
 
@@ -87,6 +99,8 @@ Description
 ~~~~~~~~~~~
 
 Raises the :code:`exc_swi_5` exception.
+
+.. _swi_6:
 
 SWI 6
 -----
@@ -102,6 +116,8 @@ Description
 
 Raises the :code:`exc_swi_6` exception.
 
+.. _swi_7:
+
 SWI 7
 -----
 
@@ -115,6 +131,8 @@ Description
 ~~~~~~~~~~~
 
 Raises the :code:`exc_swi_7` exception.
+
+.. _stm:
 
 STM
 ---
@@ -130,6 +148,8 @@ Description
 
 Returns execution to TASK mode. If already in TASK mode, the instruction as no effect. Execution continues in TASK mode from the address pointed to by :code:`$tpc`
 
+.. _woi:
+
 WOI
 ---
 
@@ -143,6 +163,8 @@ Description
 ~~~~~~~~~~~
 
 Wake-on-interrupt. The processor enters a low-power state and waits for an interrupt. When an interrupt occurs, the processor continues execution. This operation waits for an interrupt, even if executed in SCHEDULER mode. In TASK mode, of course once execution is resumed, the processor switches to SCHEDULER mode, due to the pending interrupt.
+
+.. _pflush:
 
 PFLUSH
 ------

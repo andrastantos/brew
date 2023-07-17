@@ -1,3 +1,5 @@
+.. _r0...r14_eq_mem_rd_@_ra:
+
 $r0...$r14 <- MEM[$rD] @ $rA
 ----------------------------
 
@@ -12,6 +14,8 @@ Description
 
 load any combination of registers with FIELD_E as mask; skip-mask in $rA
 
+
+.. _r0...r14_eq_mem_rd:
 
 $r0...$r14 <- MEM[$rD]
 ----------------------
@@ -28,6 +32,8 @@ Description
 load any combination of registers with FIELD_E as mask
 
 
+.. _mem_rd_eq_r0...r14_@_ra:
+
 MEM[$rD] <- $r0...$r14 @ $rA
 ----------------------------
 
@@ -42,6 +48,8 @@ Description
 
 store any combination of registers with FIELD_E as mask; skip-mask in $rA
 
+
+.. _mem_rd_eq_r0...r14:
 
 MEM[$rD] <- $r0...$r14
 ----------------------
@@ -58,6 +66,8 @@ Description
 store any combination of registers with FIELD_E as mask
 
 
+.. _r0...r14_eq_pop_rd_@_ra:
+
 $r0...$r14 <- POP[$rD] @ $rA
 ----------------------------
 
@@ -72,6 +82,8 @@ Description
 
 pop any combination of registers with FIELD_E as mask; skip-mask in $rA
 
+
+.. _r0...r14_eq_pop_rd:
 
 $r0...$r14 <- POP[$rD]
 ----------------------
@@ -88,6 +100,8 @@ Description
 pop any combination of registers with FIELD_E as mask
 
 
+.. _push_rd_eq_r0...r14_@_ra:
+
 PUSH[$rD] <- $r0...$r14 @ $rA
 -----------------------------
 
@@ -102,6 +116,8 @@ Description
 
 push any combination of registers with FIELD_E as mask; skip-mask in $rA
 
+
+.. _push_rd_eq_r0...r14:
 
 PUSH[$rD] <- $r0...$r14
 -----------------------

@@ -1,3 +1,5 @@
+.. _rd_eq_csr_addr:
+
 $rD <- CSR[ADDR]
 ----------------
 
@@ -36,6 +38,8 @@ Description
 Load CSR value into $rD
 
 
+
+.. _csr_addr_eq_rd:
 
 CSR[ADDR] <- $rD
 ----------------

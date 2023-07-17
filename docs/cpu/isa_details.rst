@@ -12,11 +12,7 @@ Instruction Set Details
 .. include:: isa_detail_stack.rst
 .. include:: isa_detail_pc_ldst.rst
 .. include:: isa_detail_ldst.rst
-
-
-
-
-.. include:: isa_details_binary_alu.rst
-.. include:: isa_details_ext_groups.rst
-.. include:: isa_details_prefix_groups.rst
-.. include:: isa_details_ld_st_multiple.rst
+.. include:: isa_detail_binary_alu.rst
+.. include:: isa_detail_ext_groups.rst
+.. include:: isa_detail_prefix_groups.rst
+.. include:: isa_detail_ld_st_multiple.rst
