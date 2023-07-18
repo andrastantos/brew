@@ -1,3 +1,5 @@
+.. _if_any_ra_eq_0__pc_eq_pc_plus_value:
+
 if any $rA == 0  $pc <- $pc + VALUE
 ----------------------------------------------------------
 
@@ -17,6 +19,8 @@ In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value
 
 The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
 
+
+.. _if_any_ra_ne_0__pc_eq_pc_plus_value:
 
 if any $rA != 0  $pc <- $pc + VALUE
 ----------------------------------------------------------
@@ -38,6 +42,8 @@ In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value
 The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
 
 
+.. _if_any_ra_lt_0___pc_eq_pc_plus_value:
+
 if any $rA < 0   $pc <- $pc + VALUE
 ----------------------------------------------------------
 
@@ -57,6 +63,8 @@ In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value
 
 The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
 
+
+.. _if_any_ra_ge_0__pc_eq_pc_plus_value:
 
 if any $rA >= 0  $pc <- $pc + VALUE
 ----------------------------------------------------------
@@ -78,6 +86,8 @@ In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value
 The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
 
 
+.. _if_any_ra_gt_0___pc_eq_pc_plus_value:
+
 if any $rA > 0   $pc <- $pc + VALUE
 ----------------------------------------------------------
 
@@ -97,6 +107,8 @@ In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value
 
 The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
 
+
+.. _if_any_ra_le_0__pc_eq_pc_plus_value:
 
 if any $rA <= 0  $pc <- $pc + VALUE
 ----------------------------------------------------------
@@ -118,6 +130,8 @@ In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value
 The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
 
 
+.. _if_all_ra_eq_0__pc_eq_pc_plus_value:
+
 if all $rA == 0  $pc <- $pc + VALUE
 ----------------------------------------------------------
 
@@ -137,6 +151,8 @@ In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value
 
 The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
 
+
+.. _if_all_ra_ne_0__pc_eq_pc_plus_value:
 
 if all $rA != 0  $pc <- $pc + VALUE
 ----------------------------------------------------------
@@ -158,6 +174,8 @@ In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value
 The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
 
 
+.. _if_all_ra_lt_0___pc_eq_pc_plus_value:
+
 if all $rA < 0   $pc <- $pc + VALUE
 ----------------------------------------------------------
 
@@ -178,10 +196,12 @@ In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value
 The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
 
 
+.. _if_all_ra_ge_0__pc_eq_pc_plus_value:
+
 if all $rA >= 0  $pc <- $pc + VALUE
 ----------------------------------------------------------
 
-*Instruction code*: 0xf0b3. 0x****
+*Instruction code*: 0xf0b. 0x****
 
 *Exceptions*: None
 
@@ -197,6 +217,8 @@ In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value
 
 The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
 
+
+.. _if_all_ra_gt_0___pc_eq_pc_plus_value:
 
 if all $rA > 0   $pc <- $pc + VALUE
 ----------------------------------------------------------
@@ -217,6 +239,8 @@ In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value
 
 The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
 
+
+.. _if_all_ra_le_0__pc_eq_pc_plus_value:
 
 if all $rA <= 0  $pc <- $pc + VALUE
 ----------------------------------------------------------
@@ -239,6 +263,8 @@ The implementation can raise exceptions if the jump results in a violation of th
 
 
 
+.. _if_any_rb_eq_ra___pc_eq_pc_plus_value:
+
 if any $rB == $rA   $pc <- $pc + VALUE
 ----------------------------------------------------------
 
@@ -259,6 +285,8 @@ In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value
 The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
 
 
+
+.. _if_any_rb_ne_ra___pc_eq_pc_plus_value:
 
 if any $rB != $rA   $pc <- $pc + VALUE
 ----------------------------------------------------------
@@ -281,6 +309,8 @@ The implementation can raise exceptions if the jump results in a violation of th
 
 
 
+.. _if_any_signed_rb_lt_ra__pc_eq_pc_plus_value:
+
 if any signed $rB < $rA  $pc <- $pc + VALUE
 ----------------------------------------------------------
 
@@ -300,6 +330,8 @@ In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value
 
 The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
 
+
+.. _if_any_signed_rb_ge_ra_pc_eq_pc_plus_value:
 
 if any signed $rB >= $rA $pc <- $pc + VALUE
 ----------------------------------------------------------
@@ -322,6 +354,8 @@ The implementation can raise exceptions if the jump results in a violation of th
 
 
 
+.. _if_any_rb_lt_ra____pc_eq_pc_plus_value:
+
 if any $rB < $rA    $pc <- $pc + VALUE
 ----------------------------------------------------------
 
@@ -341,6 +375,8 @@ In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value
 
 The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
 
+
+.. _if_any_rb_ge_ra___pc_eq_pc_plus_value:
 
 if any $rB >= $rA   $pc <- $pc + VALUE
 ----------------------------------------------------------
@@ -372,6 +408,8 @@ The implementation can raise exceptions if the jump results in a violation of th
 
 
 
+.. _if_all_rb_eq_ra___pc_eq_pc_plus_value:
+
 if all $rB == $rA   $pc <- $pc + VALUE
 ----------------------------------------------------------
 
@@ -392,6 +430,8 @@ In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value
 The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
 
 
+
+.. _if_all_rb_ne_ra___pc_eq_pc_plus_value:
 
 if all $rB != $rA   $pc <- $pc + VALUE
 ----------------------------------------------------------
@@ -414,6 +454,8 @@ The implementation can raise exceptions if the jump results in a violation of th
 
 
 
+.. _if_all_signed_rb_lt_ra__pc_eq_pc_plus_value:
+
 if all signed $rB < $rA  $pc <- $pc + VALUE
 ----------------------------------------------------------
 
@@ -433,6 +475,8 @@ In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value
 
 The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
 
+
+.. _if_all_signed_rb_ge_ra_pc_eq_pc_plus_value:
 
 if all signed $rB >= $rA $pc <- $pc + VALUE
 ----------------------------------------------------------
@@ -455,6 +499,8 @@ The implementation can raise exceptions if the jump results in a violation of th
 
 
 
+.. _if_all_rb_lt_ra____pc_eq_pc_plus_value:
+
 if all $rB < $rA    $pc <- $pc + VALUE
 ----------------------------------------------------------
 
@@ -474,6 +520,8 @@ In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value
 
 The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
 
+
+.. _if_all_rb_ge_ra___pc_eq_pc_plus_value:
 
 if all $rB >= $rA   $pc <- $pc + VALUE
 ----------------------------------------------------------
@@ -495,6 +543,8 @@ In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value
 The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
 
 
+
+.. _if_ra_c__eq_1_pc_eq_pc_plus_value:
 
 if $rA[C]  == 1 $pc <- $pc + VALUE
 ---------------------------------------------
@@ -538,6 +588,8 @@ e       31
 The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
 
 
+
+.. _if_rb_c__eq_0_pc_eq_pc_plus_value:
 
 if $rB[C]  == 0 $pc <- $pc + VALUE
 ---------------------------------------------
@@ -584,6 +636,8 @@ The implementation can raise exceptions if the jump results in a violation of th
 
 
 
+.. _if_any_type_r0...r3___ne_types_pc_eq_pc_plus_br_offs:
+
 if any type $r0...$r3   != types $pc <- $pc + br_offs
 -------------------------------------------------------
 
@@ -599,6 +653,8 @@ Description
 Jump if type of registers is not what's expected
 
 
+.. _if_all_type_r0...r3___ne_types_pc_eq_pc_plus_br_offs:
+
 if all type $r0...$r3   != types $pc <- $pc + br_offs
 -------------------------------------------------------
 
@@ -613,6 +669,8 @@ Description
 
 Jump if type of registers is not what's expected
 
+
+.. _if_type_rd_not_in_field_f_pc_eq_pc_plus_field_e:
 
 if type $rD not in FIELD_F $pc <- $pc + FIELD_E
 -----------------------------------------------
@@ -630,8 +688,10 @@ Jump if type of registers is not what's expected
 
 
 
+.. _if_any_type_r4...r7___ne_types_pc_eq_pc_plus_br_offs:
+
 if any type $r4...$r7   != types $pc <- $pc + br_offs
-----------------------------------------------------
+-----------------------------------------------------
 
 *Instruction code*: 0x101f 0x**** 0x****
 
@@ -645,8 +705,10 @@ Description
 Jump if type of registers is not what's expected
 
 
+.. _if_all_type_r4...r7___ne_types_pc_eq_pc_plus_br_offs:
+
 if all type $r4...$r7   != types $pc <- $pc + br_offs
-----------------------------------------------------
+-----------------------------------------------------
 
 *Instruction code*: 0x102f 0x**** 0x****
 
@@ -660,8 +722,10 @@ Description
 Jump if type of registers is not what's expected
 
 
+.. _if_any_type_r8...r11__ne_types_pc_eq_pc_plus_br_offs:
+
 if any type $r8...$r11  != types $pc <- $pc + br_offs
-----------------------------------------------------
+-----------------------------------------------------
 
 *Instruction code*: 0x201f 0x**** 0x****
 
@@ -675,8 +739,10 @@ Description
 Jump if type of registers is not what's expected
 
 
+.. _if_all_type_r8...r11__ne_types_pc_eq_pc_plus_br_offs:
+
 if all type $r8...$r11  != types $pc <- $pc + br_offs
-----------------------------------------------------
+-----------------------------------------------------
 
 *Instruction code*: 0x202f 0x**** 0x****
 
@@ -690,8 +756,10 @@ Description
 Jump if type of registers is not what's expected
 
 
+.. _if_any_type_r12...r14_ne_types_pc_eq_pc_plus_br_offs:
+
 if any type $r12...$r14 != types $pc <- $pc + br_offs
-----------------------------------------------------
+-----------------------------------------------------
 
 *Instruction code*: 0x301f 0x**** 0x****
 
@@ -705,8 +773,10 @@ Description
 Jump if type of registers is not what's expected
 
 
+.. _if_all_type_r12...r14_ne_types_pc_eq_pc_plus_br_offs:
+
 if all type $r12...$r14 != types $pc <- $pc + br_offs
-----------------------------------------------------
+-----------------------------------------------------
 
 *Instruction code*: 0x302f 0x**** 0x****
 
@@ -720,7 +790,9 @@ Description
 Jump if type of registers is not what's expected
 
 
-if any type $r0...$r3   == types $pc <- $pc + br_offs
+.. _if_any_type_r0...r3_eq_types_pc_eq_pc_plus_br_offs:
+
+if any type $r0...$r3 == types $pc <- $pc + br_offs
 ----------------------------------------------------
 
 *Instruction code*: 0x401f 0x**** 0x****
@@ -735,7 +807,9 @@ Description
 Jump if type of registers is not what's expected
 
 
-if all type $r0...$r3   == types $pc <- $pc + br_offs
+.. _if_all_type_r0...r3_eq_types_pc_eq_pc_plus_br_offs:
+
+if all type $r0...$r3 == types $pc <- $pc + br_offs
 ----------------------------------------------------
 
 *Instruction code*: 0x402f 0x**** 0x****
@@ -750,8 +824,10 @@ Description
 Jump if type of registers is not what's expected
 
 
-if any type $r4...$r7   == types $pc <- $pc + br_offs
-----------------------------------------------------
+.. _if_any_type_r4...r7_eq_types_pc_eq_pc_plus_br_offs:
+
+if any type $r4...$r7 == types $pc <- $pc + br_offs
+-------------------------------------------------------
 
 *Instruction code*: 0x501f 0x**** 0x****
 
@@ -765,8 +841,11 @@ Description
 Jump if type of registers is not what's expected
 
 
-if all type $r4...$r7   == types $pc <- $pc + br_offs
-----------------------------------------------------
+.. _if_all_type_r4...r7_eq_types_pc_eq_pc_plus_br_offs:
+
+if all type $r4...$r7 == types $pc <- $pc + br_offs
+-------------------------------------------------------
+
 
 *Instruction code*: 0x502f 0x**** 0x****
 
@@ -780,8 +859,11 @@ Description
 Jump if type of registers is not what's expected
 
 
+.. _if_any_type_r8...r11__eq_types_pc_eq_pc_plus_br_offs:
+
 if any type $r8...$r11  == types $pc <- $pc + br_offs
-----------------------------------------------------
+-------------------------------------------------------
+
 
 *Instruction code*: 0x601f 0x**** 0x****
 
@@ -795,8 +877,10 @@ Description
 Jump if type of registers is not what's expected
 
 
+.. _if_all_type_r8...r11__eq_types_pc_eq_pc_plus_br_offs:
+
 if all type $r8...$r11  == types $pc <- $pc + br_offs
-----------------------------------------------------
+-------------------------------------------------------
 
 *Instruction code*: 0x602f 0x**** 0x****
 
@@ -810,8 +894,10 @@ Description
 Jump if type of registers is not what's expected
 
 
+.. _if_any_type_r12...r14_eq_types_pc_eq_pc_plus_br_offs:
+
 if any type $r12...$r14 == types $pc <- $pc + br_offs
-----------------------------------------------------
+-------------------------------------------------------
 
 *Instruction code*: 0x701f 0x**** 0x****
 
@@ -825,8 +911,10 @@ Description
 Jump if type of registers is not what's expected
 
 
+.. _if_all_type_r12...r14_eq_types_pc_eq_pc_plus_br_offs:
+
 if all type $r12...$r14 == types $pc <- $pc + br_offs
-----------------------------------------------------
+-------------------------------------------------------
 
 *Instruction code*: 0x702f 0x**** 0x****
 
@@ -838,20 +926,3 @@ Description
 ~~~~~~~~~~~
 
 Jump if type of registers is not what's expected
-
-
-if all $rA >= 0  $pc <- $pc + VALUE
------------------------------------
-
-*Instruction code*: 0xf0b. 0x****
-
-*Exceptions*: TBD
-
-*Type variants*: TBD
-
-Description
-~~~~~~~~~~~
-
-signed compare
-
-

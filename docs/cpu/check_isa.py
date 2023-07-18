@@ -103,16 +103,16 @@ inst_codes = InstCodes()
 import re
 
 def canonical_asm(asm: str) -> str:
-    #asm = re.sub(r"\$rA\[([0-9])+\]", "$rA[C]", asm)
-    #asm = re.sub(r"\$rB\[([0-9])+\]", "$rB[C]", asm)
+    asm = re.sub(r"\$rA\[([0-9])+\]", "$rA[C]", asm)
+    asm = re.sub(r"\$rB\[([0-9])+\]", "$rB[C]", asm)
     asm = " ".join(x for x in asm.split(sep=" ") if len(x) > 0)
-    asm = asm.replace("&lt;", "<")
-    asm = asm.replace("&gt;", ">")
+    #asm = asm.replace("&lt;", "<")
+    #asm = asm.replace("&gt;", ">")
     return asm
 
 def escape_link_text(link_text: str) -> str:
-    link_text = link_text.replace("<", "&lt;")
-    link_text = link_text.replace(">", "&gt;")
+    #link_text = link_text.replace("<", "&lt;")
+    #link_text = link_text.replace(">", "&gt;")
     return link_text
 
 inst_to_anchor_map = {}
@@ -148,8 +148,8 @@ def name_to_anchor(inst_name: str) -> str:
     inst_to_anchor_map[c_inst_name] = inst_name
     return inst_name
 
-def extract_asm(asm: str) -> Tuple[str, Optional[str]]:
-    def _extract_asm(asm):
+def extract_inst_code(asm: str) -> Tuple[str, Optional[str]]:
+    def _extract_inst_code(asm):
         if asm.startswith(":ref:"):
             # we already have a reference. Ensure it's what we would insert and move on...
             target_start = asm.rfind("<")
@@ -174,9 +174,11 @@ def extract_asm(asm: str) -> Tuple[str, Optional[str]]:
                 return asm, None
         else:
             return asm, None
-    asm, target = _extract_asm(asm)
-    return canonical_asm(asm), target
+    asm, target = _extract_inst_code(asm)
+    return asm, target
 
+def is_summary_line(line: str) -> bool:
+    return line.startswith("0x") or line.startswith(":ref:`0x")
 
 with open("isa.rst", "rt") as file:
     sections = None
@@ -199,9 +201,9 @@ with open("isa.rst", "rt") as file:
             if sections is not None:
                 sections.append(idx)
             pass
-        if line.startswith("0x") and len(sections) >= 3:
-            inst_code = line[0:sections[0]].strip()
-            asm = extract_asm(line[sections[0]:sections[1]].strip())[0]
+        if is_summary_line(line) and len(sections) >= 3:
+            inst_code, _ = extract_inst_code(line[0:sections[0]].strip())
+            asm = canonical_asm(line[sections[0]:sections[1]].strip())
             operation = line[sections[1]:].strip()
 
             inst_codes.add_code(inst_code, asm, operation, 0)
@@ -276,15 +278,18 @@ for code in unused_codes_48:
 # Look through detailed instruction specs for inconsistencies
 from glob import glob
 
+last_anchor = None
 for detail_file_name in glob("isa_detail*.rst"):
     def is_underscore(s: str) -> bool:
         return all(s == "-" for s in s) and len(s) > 0
 
+    if detail_file_name == "isa_detail_new.rst":
+        continue
     inst_name = None
     inst_start_line = None
     out_file = open(Path(detail_file_name).with_suffix(".out_rst"), "wt")
     with open(detail_file_name, "rt") as file:
-        line = None
+        line : str = None
         line_num = 0
         while file:
             line_num += 1
@@ -295,12 +300,18 @@ for detail_file_name in glob("isa_detail*.rst"):
                 out_file.close()
                 break
             if line.endswith("\n"): line = line[:-1]
+            if line.startswith(".. _") and line.endswith(":"):
+                last_anchor = line[4:-1]
             if is_underscore(line):
                 # We've found a new instruction
                 inst_name = prev_line
                 inst_start_line = line_num - 1
-                out_file.write(f".. _{name_to_anchor(inst_name)}:\n\n")
-            out_file.write(f"{prev_line}\n")
+                if last_anchor is None:
+                    out_file.write(f".. _{name_to_anchor(inst_name)}:\n\n")
+                else:
+                    inst_to_anchor_map[canonical_asm(inst_name)] = last_anchor
+                last_anchor = None
+            if prev_line is not None: out_file.write(f"{prev_line}\n")
             sline = line.strip()
             if sline.startswith("*Instruction code*:"):
                 inst_code_str = sline[len("*Instruction code*:")+1:].strip()
@@ -323,12 +334,8 @@ for detail_file_name in glob("isa_detail*.rst"):
                             print(f"    for code 0x{inst_code_int:04x} doesn't have summary")
                         if isinstance(summary, InstInfo):
                             summary.detail = True
-                            if canonical_asm(inst_name) != summary.asm:
+                            if canonical_asm(inst_name) != canonical_asm(summary.asm):
                                 if "Type override" in summary.operation and inst_name.startswith("Type override"):
-                                    continue
-                                if inst_name.startswith("if $rA[C]") and "if $rA[" in summary.asm:
-                                    continue
-                                if inst_name.startswith("if $rB[C]") and "if $rB[" in summary.asm:
                                     continue
                                 print("========== CONSISTENCY ERROR ===============")
                                 print(f"    {detail_file_name}:{line_num} - instruction detail:")
@@ -355,7 +362,7 @@ with open("isa_detail_new.rst", "wt") as new_inst_file:
                 print(f"    0x{inst_code:04x} - {line}")
                 if line.inst_code not in reported_missing:
                     new_inst_file.write(f"{line.asm}\n");
-                    new_inst_file.write(f"{'-'*len(line.asm)}\n");
+                    new_inst_file.write(f"{'-'*(len(line.asm)+1)}\n");
                     new_inst_file.write(f"\n");
                     new_inst_file.write(f"*Instruction code*: {line.inst_code}\n");
                     new_inst_file.write(f"\n");
@@ -464,20 +471,20 @@ with open("isa.rst", "rt") as file:
                 table_headers = split_table_row(line)
             elif table_states == TableStates.body:
                 fields = split_table_row(line)
-                if fields[0].startswith("0x") and len(sections) >= 3:
+                if is_summary_line(fields[0]) and len(sections) >= 3:
+                    _, target = extract_inst_code(fields[0])
                     asm = fields[1]
-                    true_asm, target = extract_asm(asm)
                     if target is None:
                         if "see below" not in asm:
                             try:
                                 link = inst_to_anchor_map[canonical_asm(asm)]
-                                fields[1] = f":ref:`{escape_link_text(asm)}<{link}>`"
+                                fields[0] = f":ref:`{escape_link_text(fields[0])}<{link}>`"
                             except KeyError:
                                 print("=========== CONSISTENCY ERROR =============")
                                 print(f"      asm: '{asm}' for inst code '{fields[0]}' is not in anchor map")
                     else:
                         try:
-                            link = inst_to_anchor_map[canonical_asm(true_asm)]
+                            link = inst_to_anchor_map[canonical_asm(asm)]
                             if link != target:
                                 print("=========== CONSISTENCY ERROR =============")
                                 print(f"      asm: '{asm}' points to '{target}' instead if {link}")

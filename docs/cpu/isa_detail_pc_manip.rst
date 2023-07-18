@@ -1,3 +1,5 @@
+.. _pc_eq_rd:
+
 $pc <- $rD
 ----------
 
@@ -21,6 +23,8 @@ Description
 *Notes*: The CPU implementation can define various exceptions, based on its memory protection mechanism employed. The LSB of the target address carries implementation-defined meaning. If such a meaning is not defined, an implementation ignores the LSB.
 
 
+.. _tpc_eq_rd:
+
 $tpc <- $rD
 -----------
 
@@ -43,6 +47,8 @@ Description
 
 *Notes*: The CPU implementation can define various exceptions, based on its memory protection mechanism. These exceptions only apply in TASK mode. If the instruction is executed in SCHEDULER-mode, the only exceptions that are allowed to be raised are the ones related to the LSB of :code:`$rD`. The LSB of the target address carries implementation-defined meaning. If such a meaning is not defined, an implementation ignores the LSB.
 
+.. _rd_eq_pc:
+
 $rD <- $pc
 ----------
 
@@ -62,6 +68,8 @@ Description
 ~~~~~~~~~~~
 
 :code:`$rD` is loaded with the value in :code:`$pc`, which points to the currently executing instruction. The LSB loaded into :code:`$rD` carries implementation-defined meaning. There's no guarantee that the LSB is preserved between a pair of :code:`$pc <- $rD` and :code:`$rD <- $pc` instructions.
+
+.. _rd_eq_tpc:
 
 $rD <- $tpc
 -----------

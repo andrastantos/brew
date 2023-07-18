@@ -1,3 +1,5 @@
+.. _rd_eq_tiny_const:
+
 $rD <- tiny CONST
 --------------------------
 
@@ -28,6 +30,8 @@ Load $rD with constant stored in FIELD_A. Constant value is one-s complement of 
 
 
 
+
+.. _rd_eq_pc_plus_const:
 
 $rD <- $pc + CONST
 --------------------------
@@ -60,6 +64,8 @@ Load $rD with $pc + constant stored in FIELD_A. Constant value is twice the one-
 
 
 
+.. _rd_eq_minus_ra:
+
 $rD <- -$rA
 --------------------------
 
@@ -91,6 +97,8 @@ Negation operation. The actual negation depends on the type. For vector types la
 
 
 
+
+.. _rd_eq_notra:
 
 $rD <- ~$rA
 --------------------------
@@ -130,6 +138,8 @@ Binary inversion. Destination type is set to that of :code:`$rA`.
 
 .. note:: binary inversion is the same operation independent of type.
 
+.. _rd_eq_bse_ra:
+
 $rD <- bse $rA
 --------------------------
 
@@ -151,6 +161,8 @@ Description
 Sign-extend from byte. For vector types, operation is per-lane. Floating point types are treated as integer. Destination type is set to that of :code:`$rA`
 
 
+
+.. _rd_eq_wse_ra:
 
 $rD <- wse $rA
 --------------------------
@@ -174,6 +186,8 @@ Sign-extend from word. For vector types, this operation is per-lane. Floating po
 
 
 
+.. _rd_eq_float_ra:
+
 $rD <- float $rA
 --------------------------
 
@@ -195,6 +209,8 @@ Description
 Convert to float. No-op if $rA is already a float
 
 
+.. _rd_eq_int_ra:
+
 $rD <- int $rA
 --------------------------
 
@@ -214,6 +230,8 @@ Description
 ~~~~~~~~~~~
 
 Convert to integer. No-op if $rA is already integer
+
+.. _rd_eq_1_/_ra:
 
 $rD <- 1 / $rA
 --------------------------
@@ -236,6 +254,8 @@ Description
 Reciprocal if :code:`$rA` is of a float type. Otherwise, an invalid instruction exception is thrown
 
 
+.. _rd_eq_rsqrt_ra:
+
 $rD <- rsqrt $rA
 --------------------------
 
@@ -256,6 +276,8 @@ Description
 
 Reciprocal square-root if :code:`$rA` is of a float type. Otherwise, an invalid instruction exception is thrown.
 
+
+.. _rd_eq_size_ra:
 
 $rD <- size $rA
 --------------------------
@@ -282,6 +304,8 @@ Reduction sum if :code:`$rA` is of a vector type. Otherwise and invalid instruct
 .. todo:: This used to be the reduction sum. No toolset support at the moment.
 
 
+.. _type_rd_eq_ra:
+
 type $rD <- $rA
 --------------------------
 
@@ -302,6 +326,8 @@ Description
 
 Sets type of $rD as denoted by $rA. All 32 bits of :code:`$rA` are meaningful in this instruction. If an unsupported type is used, an invalid instruction exception is thrown. This instruction doesn't change the bit-pattern stored in :code:`$rD`.
 
+
+.. _rd_eq_type_ra:
 
 $rD <- type $rA
 --------------------------
@@ -324,6 +350,8 @@ Description
 Loads type value of $rA into $rD
 
 
+
+.. _type_rd_eq_field_a:
 
 type $rD <- FIELD_A
 --------------------------

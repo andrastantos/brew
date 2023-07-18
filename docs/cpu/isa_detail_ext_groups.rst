@@ -1,5 +1,7 @@
 
 
+.. _rd_eq_ra_eq_0:
+
 $rD <- $rA == 0
 ----------------------------------------------------------
 
@@ -14,6 +16,8 @@ Description
 Lane prediction operation. For each lane of :code:`$rA`, the condition is evaluated. If the condition is true, all corresponding bits on :code:`$rD` are set to 1. If the condition is false, those same bits are set to 0. For 8-bit wide lanes, 8-bits of :code:`$rD` are set per lane. For 16-bit wide lanes, 16-bits of :code:`$rD` are set per lane. For scalar types, all bits of :code:`$rD` are set at once. The destination type is set to INT32, independent of the source type.
 
 
+.. _rd_eq_ra_ne_0:
+
 $rD <- $rA != 0
 ----------------------------------------------------------
 
@@ -26,6 +30,8 @@ $rD <- $rA != 0
 Description
 ~~~~~~~~~~~
 Lane prediction operation. For each lane of :code:`$rA`, the condition is evaluated. If the condition is true, all corresponding bits on :code:`$rD` are set to 1. If the condition is false, those same bits are set to 0. For 8-bit wide lanes, 8-bits of :code:`$rD` are set per lane. For 16-bit wide lanes, 16-bits of :code:`$rD` are set per lane. For scalar types, all bits of :code:`$rD` are set at once. The destination type is set to INT32, independent of the source type.
+
+.. _rd_eq_ra_lt_0:
 
 $rD <- $rA < 0
 ----------------------------------------------------------
@@ -40,6 +46,8 @@ Description
 ~~~~~~~~~~~
 Lane prediction operation. For each lane of :code:`$rA`, the condition is evaluated. If the condition is true, all corresponding bits on :code:`$rD` are set to 1. If the condition is false, those same bits are set to 0. For 8-bit wide lanes, 8-bits of :code:`$rD` are set per lane. For 16-bit wide lanes, 16-bits of :code:`$rD` are set per lane. For scalar types, all bits of :code:`$rD` are set at once. The destination type is set to INT32, independent of the source type.
 
+.. _rd_eq_ra_ge_0:
+
 $rD <- $rA >= 0
 ----------------------------------------------------------
 
@@ -53,6 +61,8 @@ Description
 ~~~~~~~~~~~
 Lane prediction operation. For each lane of :code:`$rA`, the condition is evaluated. If the condition is true, all corresponding bits on :code:`$rD` are set to 1. If the condition is false, those same bits are set to 0. For 8-bit wide lanes, 8-bits of :code:`$rD` are set per lane. For 16-bit wide lanes, 16-bits of :code:`$rD` are set per lane. For scalar types, all bits of :code:`$rD` are set at once. The destination type is set to INT32, independent of the source type.
 
+.. _rd_eq_ra_gt_0:
+
 $rD <- $rA > 0
 ----------------------------------------------------------
 
@@ -65,6 +75,8 @@ $rD <- $rA > 0
 Description
 ~~~~~~~~~~~
 Lane prediction operation. For each lane of :code:`$rA`, the condition is evaluated. If the condition is true, all corresponding bits on :code:`$rD` are set to 1. If the condition is false, those same bits are set to 0. For 8-bit wide lanes, 8-bits of :code:`$rD` are set per lane. For 16-bit wide lanes, 16-bits of :code:`$rD` are set per lane. For scalar types, all bits of :code:`$rD` are set at once. The destination type is set to INT32, independent of the source type.
+
+.. _rd_eq_ra_le_0:
 
 $rD <- $rA <= 0
 ----------------------------------------------------------
@@ -88,6 +100,8 @@ Lane prediction operation. For each lane of :code:`$rA`, the condition is evalua
 
 
 
+.. _rd_eq_rb_eq_ra:
+
 $rD <- $rB == $rA
 ----------------------------------------------------------
 
@@ -102,6 +116,8 @@ Description
 Lane prediction operation. The type of the operation is determined by the type of :code:`$rA`. The type of :code:`$rB` is ignored and is assumed to be that of :code:`$rA`. For each lane of :code:`$rA` and :code:`$rB`, the condition is evaluated. If the condition is true, all corresponding bits on :code:`$rD` are set to 1. If the condition is false, those same bits are set to 0. For 8-bit wide lanes, 8-bits of :code:`$rD` are set per lane. For 16-bit wide lanes, 16-bits of :code:`$rD` are set per lane. For scalar types, all bits of :code:`$rD` are set at once. The destination type is set to INT32, independent of the operation type.
 
 
+.. _rd_eq_rb_ne_ra:
+
 $rD <- $rB != $rA
 ----------------------------------------------------------
 
@@ -114,6 +130,8 @@ $rD <- $rB != $rA
 Description
 ~~~~~~~~~~~
 Lane prediction operation. The type of the operation is determined by the type of :code:`$rA`. The type of :code:`$rB` is ignored and is assumed to be that of :code:`$rA`. For each lane of :code:`$rA` and :code:`$rB`, the condition is evaluated. If the condition is true, all corresponding bits on :code:`$rD` are set to 1. If the condition is false, those same bits are set to 0. For 8-bit wide lanes, 8-bits of :code:`$rD` are set per lane. For 16-bit wide lanes, 16-bits of :code:`$rD` are set per lane. For scalar types, all bits of :code:`$rD` are set at once. The destination type is set to INT32, independent of the operation type.
+
+.. _rd_eq_signed_rb_lt_ra:
 
 $rD <- signed $rB < $rA
 ----------------------------------------------------------
@@ -128,6 +146,8 @@ Description
 ~~~~~~~~~~~
 Lane prediction operation. The type of the operation is determined by the type of :code:`$rA`. The type of :code:`$rB` is ignored and is assumed to be that of :code:`$rA`. For each lane of :code:`$rA` and :code:`$rB`, the condition is evaluated. If the condition is true, all corresponding bits on :code:`$rD` are set to 1. If the condition is false, those same bits are set to 0. For 8-bit wide lanes, 8-bits of :code:`$rD` are set per lane. For 16-bit wide lanes, 16-bits of :code:`$rD` are set per lane. For scalar types, all bits of :code:`$rD` are set at once. The destination type is set to INT32, independent of the operation type. For integral types, the comparison is done using signed arithmetic. For floating point types, a normal floating-point comparison is performed.
 
+
+.. _rd_eq_signed_rb_ge_ra:
 
 $rD <- signed $rB >= $rA
 ----------------------------------------------------------
@@ -144,6 +164,8 @@ Lane prediction operation. The type of the operation is determined by the type o
 
 
 
+.. _rd_eq_rb_lt_ra:
+
 $rD <- $rB < $rA
 ----------------------------------------------------------
 
@@ -157,6 +179,8 @@ Description
 ~~~~~~~~~~~
 Lane prediction operation. The type of the operation is determined by the type of :code:`$rA`. The type of :code:`$rB` is ignored and is assumed to be that of :code:`$rA`. For each lane of :code:`$rA` and :code:`$rB`, the condition is evaluated. If the condition is true, all corresponding bits on :code:`$rD` are set to 1. If the condition is false, those same bits are set to 0. For 8-bit wide lanes, 8-bits of :code:`$rD` are set per lane. For 16-bit wide lanes, 16-bits of :code:`$rD` are set per lane. For scalar types, all bits of :code:`$rD` are set at once. The destination type is set to INT32, independent of the operation type.
 
+
+.. _rd_eq_rb_ge_ra:
 
 $rD <- $rB >= $rA
 ----------------------------------------------------------
@@ -179,6 +203,8 @@ Lane prediction operation. The type of the operation is determined by the type o
 
 
 
+.. _rd_eq_sum_ra:
+
 $rD <- sum $rA
 ----------------------------------------------------------
 
@@ -195,6 +221,8 @@ Computes the reduction sum of $rA, puts the total in $rD. If $rA is of a float t
 
 
 
+
+.. _rd_eq_set_vend_ra:
 
 $rD <- set_vend $rA
 ----------------------------------------------------------
@@ -213,6 +241,8 @@ This instruction, given a desired vector length in bytes in $rA returns (and set
 The returned value is the smaller of :code:`vlen` and $rA.
 
 .. note:: Since element type is not known to this instruction, its possible that the returned :code:`vend` is not aligned to an element boundary. While an unaligned :code:`vend` will get truncated by the subsequent vector instructions, $rD also contains an unaligned value which can be misused. It is the responsibility of the programmer to make sure that the requested byte count is a multiple of the size of the vector elements.
+
+.. _rd_eq_interpolate_ra,_rb:
 
 $rD <- interpolate $rA, $rB
 ----------------------------------------------------------
@@ -243,6 +273,8 @@ If $rB is a scalar type, it's broadcast to all lanes. If $rB is a vector type, i
 
 
 
+.. _rd_eq_rd(i)_eq_ra(rb(i)):
+
 $rD <- $rD(i) <- $rA($rB(i))
 ----------------------------------------------------------
 
@@ -263,6 +295,8 @@ Each lane of $rD is set to the lane of $rA referenced by the corresponding lane 
 
 
 
+.. _rd_eq_(cast_type_b)ra:
+
 $rD <- (cast TYPE_B)$rA
 ----------------------------------------------------------
 
@@ -280,6 +314,8 @@ Element-wise type-cast $rA to TYPE_B
 
 
 
+.. _rd_eq_compress_ra_and_rb:
+
 $rD <- compress $rA & $rB
 ----------------------------------------------------------
 
@@ -296,6 +332,8 @@ Element-wise compressed selection of $rA, $rB being the selector
 
 
 
+
+.. _rd_eq_full_ra_times_rb_asr_value:
 
 $rD <- full $rA * $rB >>> VALUE
 -----------------------------------
@@ -327,6 +365,8 @@ A scaled multiply operation. The result of the 64-bit product of :code:`$rA` and
 
 .. todo::
   This is not how BINUTILS is coded up at the moment. We need to follow-up with the changes there.
+
+.. _rd_eq_full_ra_times_rb_lsr_value:
 
 $rD <- full $rA * $rB >> VALUE
 -----------------------------------

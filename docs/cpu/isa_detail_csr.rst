@@ -1,3 +1,5 @@
+.. _rd_eq_csr_addr:
+
 $rD <- CSR[ADDR]
 ----------------
 
@@ -28,7 +30,7 @@ $rD <- CSR[ADDR]
   |                         FIELD_E                               |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-*instruction code*: 0x.0f8 0x****
+*Instruction code*: 0x.0f8 0x****
 
 Description
 ~~~~~~~~~~~
@@ -36,6 +38,8 @@ Description
 Load CSR value into $rD
 
 
+
+.. _csr_addr_eq_rd:
 
 CSR[ADDR] <- $rD
 ----------------
@@ -67,7 +71,7 @@ CSR[ADDR] <- $rD
   |                         FIELD_E                               |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-*instruction code*: 0x.0f9 0x****
+*Instruction code*: 0x.0f9 0x****
 
 Description
 ~~~~~~~~~~~

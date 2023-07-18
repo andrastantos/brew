@@ -1,3 +1,5 @@
+.. _type_overrides_detail:
+
 Type overrides (<type>)
 -----------------------
 

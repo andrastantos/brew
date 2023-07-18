@@ -1,4 +1,6 @@
 
+.. _inv_ra:
+
 INV[$rA]
 ---------------------
 
@@ -17,6 +19,8 @@ Dirty lines in data-caches are flushed to memory as they are invalidated.
 The implementation is not allowed to throw exceptions even if the memory location violates access permissions. In these cases, the invalidation request is silently ignored.
 
 
+.. _pc_eq_mem_ra:
+
 $pc <- MEM[$rA]
 ---------------------------------------------
 
@@ -32,6 +36,8 @@ Loads the 32-bit value from memory location pointed to by :code:`$rA`. The value
 
 The implementation is allowed to throw exceptions if the memory access violates access permissions. If the resulting memory reference is not aligned to a 32-bit word boundary, an unaligned access exception is thrown.
 
+
+.. _tpc_eq_mem_ra:
 
 $tpc <- MEM[$rA]
 ---------------------------------------------
@@ -56,6 +62,8 @@ The implementation is allowed to throw exceptions if the memory access violates 
 
 
 
+.. _inv_ra_plus_value:
+
 INV[$rA + VALUE]
 ---------------------
 
@@ -76,6 +84,8 @@ Dirty lines in data-caches are flushed to memory as they are invalidated.
 The implementation is not allowed to throw exceptions even if the memory location violates access permissions. In these cases, the invalidation request is silently ignored.
 
 
+.. _pc_eq_mem_ra_plus_value:
+
 $pc <- MEM[$rA + VALUE]
 ---------------------------------------------
 
@@ -93,6 +103,8 @@ The value of FIELD_E is computed by truncating VALUE to 16 bits. The implementat
 
 The implementation is allowed to throw exceptions if the memory access violates access permissions. If the resulting memory reference is not aligned to a 32-bit word boundary, an unaligned access exception is thrown.
 
+
+.. _tpc_eq_mem_ra_plus_value:
 
 $tpc <- MEM[$rA + VALUE]
 ---------------------------------------------
@@ -117,6 +129,8 @@ The implementation is allowed to throw exceptions if the memory access violates 
 
 
 
+.. _inv_value:
+
 INV[VALUE]
 ---------------------
 
@@ -137,6 +151,8 @@ Dirty lines in data-caches are flushed to memory as they are invalidated.
 The implementation is not allowed to throw exceptions even if the memory location violates access permissions. In these cases, the invalidation request is silently ignored.
 
 
+.. _pc_eq_mem_value:
+
 $pc <- MEM[VALUE]
 ---------------------------------------------
 
@@ -154,6 +170,8 @@ FIELD_E simply stores VALUE.
 
 The implementation is allowed to throw exceptions if the memory access violates access permissions. If the resulting memory reference is not aligned to a 32-bit word boundary, an unaligned access exception is thrown.
 
+
+.. _tpc_eq_mem_value:
 
 $tpc <- MEM[VALUE]
 ---------------------------------------------

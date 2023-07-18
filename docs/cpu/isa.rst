@@ -30,18 +30,18 @@ Exception group
 
 All instructions in this group enter SCHEDULER mode. After execution $tpc points to the current instruction (the one generating the exception)
 
-=================  ========    ==================
-Instruction code   Assembly    Operation
-=================  ========    ==================
-0x0000             SWI 0       Used to fill unused code-pages;
-0x1000             SWI 1       Used for software breakpoints
-0x2000             SWI 2       Used to implement system calls
-0x3000             SWI 3
-0x4000             SWI 4
-0x5000             SWI 5
-0x6000             SWI 6
-0x7000             SWI 7       Functionally equivalent to invalid instruction exception
-=================  ========    ==================
+==================== =========== ========================================================
+Instruction code     Assembly    Operation
+==================== =========== ========================================================
+:ref:`0x0000<swi_0>` SWI 0       Used to fill unused code-pages;
+:ref:`0x1000<swi_1>` SWI 1       Used for software breakpoints
+:ref:`0x2000<swi_2>` SWI 2       Used to implement system calls
+:ref:`0x3000<swi_3>` SWI 3
+:ref:`0x4000<swi_4>` SWI 4
+:ref:`0x5000<swi_5>` SWI 5
+:ref:`0x6000<swi_6>` SWI 6
+:ref:`0x7000<swi_7>` SWI 7       Functionally equivalent to invalid instruction exception
+==================== =========== ========================================================
 
 .. TODO::
   The toolset might still think SII is 0x6000 and HWI is 0x7000! Need to follow-up
@@ -65,13 +65,13 @@ Mode change and power management group
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 
-=================  ========    ==================
-Instruction code   Assembly    Operation
-=================  ========    ==================
-0x8000             STM         Enters TASK mode, enables interrupts; $spc points to the NEXT instruction
-0x9000             WOI         Wake on interrupt. Waits for interrupt in both TASK and SCHEDULER mode
-0xa000             PFLUSH      Flushes the pipeline
-=================  ========    ==================
+===================== =========== =========================================================================
+Instruction code      Assembly    Operation
+===================== =========== =========================================================================
+:ref:`0x8000<stm>`    STM         Enters TASK mode, enables interrupts; $spc points to the NEXT instruction
+:ref:`0x9000<woi>`    WOI         Wake on interrupt. Waits for interrupt in both TASK and SCHEDULER mode
+:ref:`0xa000<pflush>` PFLUSH      Flushes the pipeline
+===================== =========== =========================================================================
 
 Atomic group
 ------------
@@ -95,25 +95,25 @@ Atomic group
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 
-=================  =============   ==================
-Instruction code   Assembly        Operation
-=================  =============   ==================
-0x0001             FENCE_RW_RW     Fence reads/writes before reads/writes after
-0x1001             FENCE__W_RW     Fence writes before reads/writes after
-0x2001             FENCE_R__RW     Fence reads before reads/writes after
-0x3001             FENCE____RW     Fence reads/writes after
-0x4001             FENCE_RW__W     Fence reads/writes before writes after
-0x5001             FENCE__W__W     Fence writes before writes after
-0x6001             FENCE_R___W     Fence reads before writes after
-0x7001             FENCE_____W     Fence writes after
-0x8001             FENCE_RW_R\_    Fence reads/writes before reads after
-0x9001             FENCE__W_R\_    Fence writes before reads after
-0xa001             FENCE_R__R\_    Fence reads before reads after
-0xb001             FENCE____R\_    Fence reads after
-0xc001             FENCE_RW___     Fence reads/writes before
-0xd001             FENCE__W___     Fence writes before
-0xe001             FENCE_R____     Fence reads before
-=================  =============   ==================
+============================ =============== ============================================
+Instruction code             Assembly        Operation
+============================ =============== ============================================
+:ref:`0x0001<fence_rw_rw>`   FENCE_RW_RW     Fence reads/writes before reads/writes after
+:ref:`0x1001<fence__w_rw>`   FENCE__W_RW     Fence writes before reads/writes after
+:ref:`0x2001<fence_r__rw>`   FENCE_R__RW     Fence reads before reads/writes after
+:ref:`0x3001<fence____rw>`   FENCE____RW     Fence reads/writes after
+:ref:`0x4001<fence_rw__w>`   FENCE_RW__W     Fence reads/writes before writes after
+:ref:`0x5001<fence__w__w>`   FENCE__W__W     Fence writes before writes after
+:ref:`0x6001<fence_r___w>`   FENCE_R___W     Fence reads before writes after
+:ref:`0x7001<fence_____w>`   FENCE_____W     Fence writes after
+:ref:`0x8001<fence_rw_r\\_>` FENCE_RW_R\_    Fence reads/writes before reads after
+:ref:`0x9001<fence__w_r\\_>` FENCE__W_R\_    Fence writes before reads after
+:ref:`0xa001<fence_r__r\\_>` FENCE_R__R\_    Fence reads before reads after
+:ref:`0xb001<fence____r\\_>` FENCE____R\_    Fence reads after
+:ref:`0xc001<fence_rw__\_>`  FENCE_RW___     Fence reads/writes before
+:ref:`0xd001<fence__w__\_>`  FENCE__W___     Fence writes before
+:ref:`0xe001<fence_r___\_>`  FENCE_R____     Fence reads before
+============================ =============== ============================================
 
 Every instruction in this group implements a fence, or an ordering between loads and stores. The top-most 4 bits of the instruction code is used the encode the fence type:
 
@@ -154,14 +154,14 @@ PC manipulation group
   |    FIELD_D    |       0       |       0       |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-=================  ===========    ==================
-Instruction code   Assembly       Operation
-=================  ===========    ==================
-0x.002             $pc <- $rD     Indirect jump
-0x.003             $tpc <- $rD    Update $tpc
-0x.004             $rD <- $pc     Load $pc into register
-0x.005             $rD <- $tpc    Load $tpc into register
-=================  ===========    ==================
+======================== ============== =======================
+Instruction code         Assembly       Operation
+======================== ============== =======================
+:ref:`0x.002<pc_eq_rd>`  $pc <- $rD     Indirect jump
+:ref:`0x.003<tpc_eq_rd>` $tpc <- $rD    Update $tpc
+:ref:`0x.004<rd_eq_pc>`  $rD <- $pc     Load $pc into register
+:ref:`0x.005<rd_eq_tpc>` $rD <- $tpc    Load $tpc into register
+======================== ============== =======================
 
 .. note::
   All instruction codes in this group are treated as jump instructions by the branch predictor, if exists. After warming up, some will always be predicted taken, some will not be. In TASK mode indirect jump (0x.002) and $tpc update (0x.003) instructions have the exact same behavior, however might have different latencies.
@@ -198,12 +198,12 @@ CSR access group
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 
-=================  =========================  ==================
-Instruction code   Assembly                   Operation
-=================  =========================  ==================
-0x.0f8 0x****      $rD <- CSR[ADDR]           Load CSR value into $rD
-0x.0f9 0x****      CSR[ADDR] <- $rD           Store $rD in CSR
-=================  =========================  ==================
+==================================== ========================== =======================
+Instruction code                     Assembly                   Operation
+==================================== ========================== =======================
+:ref:`0x.0f8 0x****<rd_eq_csr_addr>` $rD <- CSR[ADDR]           Load CSR value into $rD
+:ref:`0x.0f9 0x****<csr_addr_eq_rd>` CSR[ADDR] <- $rD           Store $rD in CSR
+==================================== ========================== =======================
 
 .. note::
   These instructions access CSR registers. This address space is unique to each CPU (or thread within a CPU) though some addresses might actually access the same underlying register. CSRs are always 32-bits long. While the instructions themselves are not privileged, certain CSRs might not be accessible from TASK mode.
@@ -229,24 +229,24 @@ Unary group
   |    FIELD_D    |       0       |    FIELD_B    |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-=================  ========================    ==================
-Instruction code   Assembly                    Operation
-=================  ========================    ==================
-0x.01.             $rD <- tiny CONST           Load $rD with constant [#note0xX01X]_
-0x.02.             $rD <- $pc + CONST          Call return address calculation [#note0xX02X]_
-0x.03.             $rD <- -$rA                 Negative operation, depending on type
-0x.04.             $rD <- ~$rA                 Binary inversion
-0x.05.             $rD <- bse $rA              Sign-extend from byte [#note0xX05X]_
-0x.06.             $rD <- wse $rA              Sign-extend from word
-0x.07.             $rD <- float $rA            Convert to float. No-op if $rA is already a float
-0x.08.             $rD <- int $rA              Convert to integer. No-op if $rA is already integer
-0x.09.             $rD <- 1 / $rA              Reciprocal for floats [#note0xX09X]_
-0x.0a.             $rD <- rsqrt $rA            Reciprocal square-root for floats [#note0xX0aX]_
-0x.0b.             $rD <- size $rA             Load the run-time size of $rA into $rD
-0x.0c.             type $rD <- $rA             Sets type of $rD as denoted by $rA [#note0xX0cX]_
-0x.0d.             $rD <- type $rA             Loads type value of $rA into $rD
-0x.0e.             type $rD <- FIELD_A         Sets type of $rD
-=================  ========================    ==================
+================================== =========================== ===================================================
+Instruction code                   Assembly                    Operation
+================================== =========================== ===================================================
+:ref:`0x.01.<rd_eq_tiny_const>`    $rD <- tiny CONST           Load $rD with constant [#note0xX01X]_
+:ref:`0x.02.<rd_eq_pc_plus_const>` $rD <- $pc + CONST          Call return address calculation [#note0xX02X]_
+:ref:`0x.03.<rd_eq_minus_ra>`      $rD <- -$rA                 Negative operation, depending on type
+:ref:`0x.04.<rd_eq_notra>`         $rD <- ~$rA                 Binary inversion
+:ref:`0x.05.<rd_eq_bse_ra>`        $rD <- bse $rA              Sign-extend from byte [#note0xX05X]_
+:ref:`0x.06.<rd_eq_wse_ra>`        $rD <- wse $rA              Sign-extend from word
+:ref:`0x.07.<rd_eq_float_ra>`      $rD <- float $rA            Convert to float. No-op if $rA is already a float
+:ref:`0x.08.<rd_eq_int_ra>`        $rD <- int $rA              Convert to integer. No-op if $rA is already integer
+:ref:`0x.09.<rd_eq_1_/_ra>`        $rD <- 1 / $rA              Reciprocal for floats [#note0xX09X]_
+:ref:`0x.0a.<rd_eq_rsqrt_ra>`      $rD <- rsqrt $rA            Reciprocal square-root for floats [#note0xX0aX]_
+:ref:`0x.0b.<rd_eq_size_ra>`       $rD <- size $rA             Load the run-time size of $rA into $rD
+:ref:`0x.0c.<type_rd_eq_ra>`       type $rD <- $rA             Sets type of $rD as denoted by $rA [#note0xX0cX]_
+:ref:`0x.0d.<rd_eq_type_ra>`       $rD <- type $rA             Loads type value of $rA into $rD
+:ref:`0x.0e.<type_rd_eq_field_a>`  type $rD <- FIELD_A         Sets type of $rD
+================================== =========================== ===================================================
 
 .. [#note0xX01X] CONST=FIELD_A. FIELD_A is one-s complement; range is -7...7
 .. [#note0xX02X] CONST=FIELD_A*2. FIELD_A is one-s complement; range is -7...7; NOTE: WE COULD MAKE THE RANGE A LITTLE HIGHER IF NOT ALLOW 0
@@ -282,24 +282,24 @@ Binary ALU group
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 
-=================  ==========================  ==================
-Instruction code   Assembly                    Operation
-=================  ==========================  ==================
-0x.1..             $rD <- $rA ^ $rB            Bit-wise 'xor' [#note_logical]_
-0x.2..             $rD <- $rA | $rB            Bit-wise 'or'  [#note_logical]_
-0x.3..             $rD <- $rA & $rB            Bit-wise 'and' [#note_logical]_
-0x.4..             $rD <- $rA + $rB            Type-dependent add
-0x.5..             $rD <- $rA - $rB            Type-dependent subtract
-0x.6..             $rD <- $rA << $rB           Binary left-shift [#note_binary_shift]_
-0x.7..             $rD <- $rA >> $rB           Binary right-shift [#note_binary_shift]_
-0x.8..             $rD <- $rA >>> $rB          Arithmetic right-shift [#note_binary_shift]_
-0x.9..             $rD <- $rA * $rB            Type-dependent multiply
-0x.a..             $rD <- ~$rA & $rB           Bit-wise 'not'-'and' [#note0xXaXX]_
-0x.b..             $rD <- tiny $rB + CONST     Integer add [#note0xXbXX]_
-0x.c..             see below (stack ops)
-0x.d..             see below (stack ops)
-0x.e..             see below (mem ops)
-=================  ==========================  ==================
+======================================= =========================== ============================================
+Instruction code                        Assembly                    Operation
+======================================= =========================== ============================================
+:ref:`0x.1..<rd_eq_ra_xor_rb>`          $rD <- $rA ^ $rB            Bit-wise 'xor' [#note_logical]_
+:ref:`0x.2..<rd_eq_ra_or_rb>`           $rD <- $rA | $rB            Bit-wise 'or'  [#note_logical]_
+:ref:`0x.3..<rd_eq_ra_and_rb>`          $rD <- $rA & $rB            Bit-wise 'and' [#note_logical]_
+:ref:`0x.4..<rd_eq_ra_plus_rb>`         $rD <- $rA + $rB            Type-dependent add
+:ref:`0x.5..<rd_eq_ra_minus_rb>`        $rD <- $rA - $rB            Type-dependent subtract
+:ref:`0x.6..<rd_eq_ra_lsl_rb>`          $rD <- $rA << $rB           Binary left-shift [#note_binary_shift]_
+:ref:`0x.7..<rd_eq_ra_lsr_rb>`          $rD <- $rA >> $rB           Binary right-shift [#note_binary_shift]_
+:ref:`0x.8..<rd_eq_ra_asr_rb>`          $rD <- $rA >>> $rB          Arithmetic right-shift [#note_binary_shift]_
+:ref:`0x.9..<rd_eq_ra_times_rb>`        $rD <- $rA * $rB            Type-dependent multiply
+:ref:`0x.a..<rd_eq_notra_and_rb>`       $rD <- ~$rA & $rB           Bit-wise 'not'-'and' [#note0xXaXX]_
+:ref:`0x.b..<rd_eq_tiny_rb_plus_const>` $rD <- tiny $rB + CONST     Integer add [#note0xXbXX]_
+0x.c..                                  see below (stack ops)
+0x.d..                                  see below (stack ops)
+0x.e..                                  see below (mem ops)
+======================================= =========================== ============================================
 
 .. [#note_logical] This operation ignore type info, but sets destination type to be the same as that of $rA
 .. [#note_binary_shift] This operation only uses the lane-setup part of the type information. It sets the destination type to that of $rA
@@ -391,15 +391,15 @@ or
   ...                       FIELD_E   upper 16 bits               |
   ...-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-=========================  ========================    ==================
-Instruction code           Assembly                    Operation
-=========================  ========================    ==================
-0x.00f 0x**** 0x****       $rD <- VALUE                Load immediate
-0x20ef 0x**** 0x****       $pc <- VALUE                Unconditional jump
-0x30ef 0x**** 0x****       $tpc <- VALUE               Load immediate to $tpc
-0x80ef 0x**** 0x****       type $r0...$r7 <- VALUE     Load immediate type values [#note_immedate_types]_
-0x90ef 0x**** 0x****       type $r8...$r14 <- VALUE    Load immediate type values [#note_immedate_types]_
-=========================  ========================    ==================
+=================================================== =========================== ==================================================
+Instruction code                                    Assembly                    Operation
+=================================================== =========================== ==================================================
+:ref:`0x.00f 0x**** 0x****<rd_eq_value>`            $rD <- VALUE                Load immediate
+:ref:`0x20ef 0x**** 0x****<pc_eq_value>`            $pc <- VALUE                Unconditional jump
+:ref:`0x30ef 0x**** 0x****<tpc_eq_value>`           $tpc <- VALUE               Load immediate to $tpc
+:ref:`0x80ef 0x**** 0x****<type_r0...r7_eq_value>`  type $r0...$r7 <- VALUE     Load immediate type values [#note_immedate_types]_
+:ref:`0x90ef 0x**** 0x****<type_r8...r14_eq_value>` type $r8...$r14 <- VALUE    Load immediate type values [#note_immedate_types]_
+=================================================== =========================== ==================================================
 
 .. note::
   Destination type is not changed, except of course for type load operations.
@@ -450,22 +450,22 @@ Constant ALU group
   ...                       FIELD_E   upper 16 bits               |
   ...-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-=========================  ========================    ==================
-Instruction code           Assembly                    Operation
-=========================  ========================    ==================
-0x.1.f 0x**** 0x****       $rD <- VALUE ^ $rB          Bit-wise 'xor' [#note_logical]_
-0x.2.f 0x**** 0x****       $rD <- VALUE | $rB          Bit-wise 'or'  [#note_logical]_
-0x.3.f 0x**** 0x****       $rD <- VALUE & $rB          Bit-wise 'and' [#note_logical]_
-0x.4.f 0x**** 0x****       $rD <- VALUE + $rB          Type-dependent add
-0x.5.f 0x**** 0x****       $rD <- VALUE - $rB          Type-dependent subtract
-0x.6.f 0x**** 0x****       $rD <- VALUE << $rB         Binary left-shift [#note_binary_shift]_
-0x.7.f 0x**** 0x****       $rD <- VALUE >> $rB         Binary right-shift [#note_binary_shift]_
-0x.8.f 0x**** 0x****       $rD <- VALUE >>> $rB        Arithmetic right-shift [#note_binary_shift]_
-0x.9.f 0x**** 0x****       $rD <- VALUE * $rB          Type-dependent multiply
-0x.c.f 0x**** 0x****       see below (stack ops)
-0x.d.f 0x**** 0x****       see below (stack ops)
-0x.e.f 0x**** 0x****       see below (mem ops)
-=========================  ========================    ==================
+================================================= =========================== ============================================
+Instruction code                                  Assembly                    Operation
+================================================= =========================== ============================================
+:ref:`0x.1.f 0x**** 0x****<rd_eq_value_xor_rb>`   $rD <- VALUE ^ $rB          Bit-wise 'xor' [#note_logical]_
+:ref:`0x.2.f 0x**** 0x****<rd_eq_value_or_rb>`    $rD <- VALUE | $rB          Bit-wise 'or'  [#note_logical]_
+:ref:`0x.3.f 0x**** 0x****<rd_eq_value_and_rb>`   $rD <- VALUE & $rB          Bit-wise 'and' [#note_logical]_
+:ref:`0x.4.f 0x**** 0x****<rd_eq_value_plus_rb>`  $rD <- VALUE + $rB          Type-dependent add
+:ref:`0x.5.f 0x**** 0x****<rd_eq_value_minus_rb>` $rD <- VALUE - $rB          Type-dependent subtract
+:ref:`0x.6.f 0x**** 0x****<rd_eq_value_lsl_rb>`   $rD <- VALUE << $rB         Binary left-shift [#note_binary_shift]_
+:ref:`0x.7.f 0x**** 0x****<rd_eq_value_lsr_rb>`   $rD <- VALUE >> $rB         Binary right-shift [#note_binary_shift]_
+:ref:`0x.8.f 0x**** 0x****<rd_eq_value_asr_rb>`   $rD <- VALUE >>> $rB        Arithmetic right-shift [#note_binary_shift]_
+:ref:`0x.9.f 0x**** 0x****<rd_eq_value_times_rb>` $rD <- VALUE * $rB          Type-dependent multiply
+0x.c.f 0x**** 0x****                              see below (stack ops)
+0x.d.f 0x**** 0x****                              see below (stack ops)
+0x.e.f 0x**** 0x****                              see below (mem ops)
+================================================= =========================== ============================================
 
 .. note:: Result type is that of $rB (even for shifts). FIELD_E is assumed to have the same type as $rB
 
@@ -524,13 +524,13 @@ or
   |                         FIELD_E                               |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-=========================  ========================    ==================
-Instruction code           Assembly                    Operation
-=========================  ========================    ==================
-0x.0f0 0x****              $rD <- short VALUE          Load sign-extended 16-bit immediate
-0x20fe 0x****              $pc <- short VALUE          Immediate short jump (value is sign-extended)
-0x30fe 0x****              $tpc <- short VALUE         Load sign-extended value into $tpc
-=========================  ========================    ==================
+======================================== =========================== =============================================
+Instruction code                         Assembly                    Operation
+======================================== =========================== =============================================
+:ref:`0x.0f0 0x****<rd_eq_short_value>`  $rD <- short VALUE          Load sign-extended 16-bit immediate
+:ref:`0x20fe 0x****<pc_eq_short_value>`  $pc <- short VALUE          Immediate short jump (value is sign-extended)
+:ref:`0x30fe 0x****<tpc_eq_short_value>` $tpc <- short VALUE         Load sign-extended value into $tpc
+======================================== =========================== =============================================
 
 .. note::
   Destination type is not changed.
@@ -566,22 +566,22 @@ Short constant ALU group
   |                         FIELD_E                               |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-=========================  =================================    ==================
-Instruction code           Assembly                             Operation
-=========================  =================================    ==================
-0x.1f. 0x****              $rD <- short VALUE ^ $rA             Bit-wise 'xor' [#note_logical]_
-0x.2f. 0x****              $rD <- short VALUE | $rA             Bit-wise 'or'  [#note_logical]_
-0x.3f. 0x****              $rD <- short VALUE & $rA             Bit-wise 'and' [#note_logical]_
-0x.4f. 0x****              $rD <- short VALUE + $rA             Type-dependent add
-0x.5f. 0x****              $rD <- short VALUE - $rA             Type-dependent subtract
-0x.6f. 0x****              $rD <- short $rA << VALUE            Binary left-shift [#note_binary_shift]_
-0x.7f. 0x****              $rD <- short $rA >> VALUE            Binary right-shift [#note_binary_shift]_
-0x.8f. 0x****              $rD <- short $rA >>> VALUE           Arithmetic right-shift [#note_binary_shift]_
-0x.9f. 0x****              $rD <- short VALUE * $rA             Type-dependent multiply
-0x.cf. 0x****              see below (stack ops)
-0x.df. 0x****              see below (stack ops)
-0x.ef. 0x****              see below (mem ops)
-=========================  =================================    ==================
+================================================ ==================================== ============================================
+Instruction code                                 Assembly                             Operation
+================================================ ==================================== ============================================
+:ref:`0x.1f. 0x****<rd_eq_short_value_xor_ra>`   $rD <- short VALUE ^ $rA             Bit-wise 'xor' [#note_logical]_
+:ref:`0x.2f. 0x****<rd_eq_short_value_or_ra>`    $rD <- short VALUE | $rA             Bit-wise 'or'  [#note_logical]_
+:ref:`0x.3f. 0x****<rd_eq_short_value_and_ra>`   $rD <- short VALUE & $rA             Bit-wise 'and' [#note_logical]_
+:ref:`0x.4f. 0x****<rd_eq_short_value_plus_ra>`  $rD <- short VALUE + $rA             Type-dependent add
+:ref:`0x.5f. 0x****<rd_eq_short_value_minus_ra>` $rD <- short VALUE - $rA             Type-dependent subtract
+:ref:`0x.6f. 0x****<rd_eq_short_ra_lsl_value>`   $rD <- short $rA << VALUE            Binary left-shift [#note_binary_shift]_
+:ref:`0x.7f. 0x****<rd_eq_short_ra_lsr_value>`   $rD <- short $rA >> VALUE            Binary right-shift [#note_binary_shift]_
+:ref:`0x.8f. 0x****<rd_eq_short_ra_asr_value>`   $rD <- short $rA >>> VALUE           Arithmetic right-shift [#note_binary_shift]_
+:ref:`0x.9f. 0x****<rd_eq_short_value_times_ra>` $rD <- short VALUE * $rA             Type-dependent multiply
+0x.cf. 0x****                                    see below (stack ops)
+0x.df. 0x****                                    see below (stack ops)
+0x.ef. 0x****                                    see below (mem ops)
+================================================ ==================================== ============================================
 
 .. note::
   VALUE is assumed to be of matching scalar type for $rA. It is sign-extended to 32-bits, then replicated for each lane.
@@ -629,22 +629,22 @@ Zero-compare conditional branch group
   |                         FIELD_E                               |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-=========================  ===============================================    ==================
-Instruction code           Assembly                                           Operation
-=========================  ===============================================    ==================
-0xf00. 0x****              if any $rA == 0  $pc <- $pc + VALUE
-0xf01. 0x****              if any $rA != 0  $pc <- $pc + VALUE
-0xf02. 0x****              if any $rA < 0   $pc <- $pc + VALUE                signed compare
-0xf03. 0x****              if any $rA >= 0  $pc <- $pc + VALUE                signed compare
-0xf04. 0x****              if any $rA > 0   $pc <- $pc + VALUE                signed compare
-0xf05. 0x****              if any $rA <= 0  $pc <- $pc + VALUE                signed compare
-0xf08. 0x****              if all $rA == 0  $pc <- $pc + VALUE
-0xf09. 0x****              if all $rA != 0  $pc <- $pc + VALUE
-0xf0a. 0x****              if all $rA < 0   $pc <- $pc + VALUE                signed compare
-0xf0b. 0x****              if all $rA >= 0  $pc <- $pc + VALUE                signed compare
-0xf0c. 0x****              if all $rA > 0   $pc <- $pc + VALUE                signed compare
-0xf0d. 0x****              if all $rA <= 0  $pc <- $pc + VALUE                signed compare
-=========================  ===============================================    ==================
+========================================================== ================================================== ==================
+Instruction code                                           Assembly                                           Operation
+========================================================== ================================================== ==================
+:ref:`0xf00. 0x****<if_any_ra_eq_0__pc_eq_pc_plus_value>`  if any $rA == 0  $pc <- $pc + VALUE
+:ref:`0xf01. 0x****<if_any_ra_ne_0__pc_eq_pc_plus_value>`  if any $rA != 0  $pc <- $pc + VALUE
+:ref:`0xf02. 0x****<if_any_ra_lt_0___pc_eq_pc_plus_value>` if any $rA < 0   $pc <- $pc + VALUE                signed compare
+:ref:`0xf03. 0x****<if_any_ra_ge_0__pc_eq_pc_plus_value>`  if any $rA >= 0  $pc <- $pc + VALUE                signed compare
+:ref:`0xf04. 0x****<if_any_ra_gt_0___pc_eq_pc_plus_value>` if any $rA > 0   $pc <- $pc + VALUE                signed compare
+:ref:`0xf05. 0x****<if_any_ra_le_0__pc_eq_pc_plus_value>`  if any $rA <= 0  $pc <- $pc + VALUE                signed compare
+:ref:`0xf08. 0x****<if_all_ra_eq_0__pc_eq_pc_plus_value>`  if all $rA == 0  $pc <- $pc + VALUE
+:ref:`0xf09. 0x****<if_all_ra_ne_0__pc_eq_pc_plus_value>`  if all $rA != 0  $pc <- $pc + VALUE
+:ref:`0xf0a. 0x****<if_all_ra_lt_0___pc_eq_pc_plus_value>` if all $rA < 0   $pc <- $pc + VALUE                signed compare
+:ref:`0xf0b. 0x****<if_all_ra_ge_0__pc_eq_pc_plus_value>`  if all $rA >= 0  $pc <- $pc + VALUE                signed compare
+:ref:`0xf0c. 0x****<if_all_ra_gt_0___pc_eq_pc_plus_value>` if all $rA > 0   $pc <- $pc + VALUE                signed compare
+:ref:`0xf0d. 0x****<if_all_ra_le_0__pc_eq_pc_plus_value>`  if all $rA <= 0  $pc <- $pc + VALUE                signed compare
+========================================================== ================================================== ==================
 
 .. note::
   For scalar types, FIELD_C MSB (inst[15]) is irrelevant; In other words, any/all selection doesn't matter
@@ -682,22 +682,22 @@ Conditional branch group
   |                         FIELD_E                               |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-=========================  =====================================================    ==================
-Instruction code           Assembly                                                 Operation
-=========================  =====================================================    ==================
-0xf1.. 0x****              if any $rB == $rA   $pc <- $pc + VALUE
-0xf2.. 0x****              if any $rB != $rA   $pc <- $pc + VALUE
-0xf3.. 0x****              if any signed $rB < $rA  $pc <- $pc + VALUE              signed compare
-0xf4.. 0x****              if any signed $rB >= $rA $pc <- $pc + VALUE              signed compare
-0xf5.. 0x****              if any $rB < $rA    $pc <- $pc + VALUE
-0xf6.. 0x****              if any $rB >= $rA   $pc <- $pc + VALUE
-0xf9.. 0x****              if all $rB == $rA   $pc <- $pc + VALUE
-0xfa.. 0x****              if all $rB != $rA   $pc <- $pc + VALUE
-0xfb.. 0x****              if all signed $rB < $rA  $pc <- $pc + VALUE              signed compare
-0xfc.. 0x****              if all signed $rB >= $rA $pc <- $pc + VALUE              signed compare
-0xfd.. 0x****              if all $rB < $rA    $pc <- $pc + VALUE
-0xfe.. 0x****              if all $rB >= $rA   $pc <- $pc + VALUE
-=========================  =====================================================    ==================
+================================================================= ======================================================== ==================
+Instruction code                                                  Assembly                                                 Operation
+================================================================= ======================================================== ==================
+:ref:`0xf1.. 0x****<if_any_rb_eq_ra___pc_eq_pc_plus_value>`       if any $rB == $rA   $pc <- $pc + VALUE
+:ref:`0xf2.. 0x****<if_any_rb_ne_ra___pc_eq_pc_plus_value>`       if any $rB != $rA   $pc <- $pc + VALUE
+:ref:`0xf3.. 0x****<if_any_signed_rb_lt_ra__pc_eq_pc_plus_value>` if any signed $rB < $rA  $pc <- $pc + VALUE              signed compare
+:ref:`0xf4.. 0x****<if_any_signed_rb_ge_ra_pc_eq_pc_plus_value>`  if any signed $rB >= $rA $pc <- $pc + VALUE              signed compare
+:ref:`0xf5.. 0x****<if_any_rb_lt_ra____pc_eq_pc_plus_value>`      if any $rB < $rA    $pc <- $pc + VALUE
+:ref:`0xf6.. 0x****<if_any_rb_ge_ra___pc_eq_pc_plus_value>`       if any $rB >= $rA   $pc <- $pc + VALUE
+:ref:`0xf9.. 0x****<if_all_rb_eq_ra___pc_eq_pc_plus_value>`       if all $rB == $rA   $pc <- $pc + VALUE
+:ref:`0xfa.. 0x****<if_all_rb_ne_ra___pc_eq_pc_plus_value>`       if all $rB != $rA   $pc <- $pc + VALUE
+:ref:`0xfb.. 0x****<if_all_signed_rb_lt_ra__pc_eq_pc_plus_value>` if all signed $rB < $rA  $pc <- $pc + VALUE              signed compare
+:ref:`0xfc.. 0x****<if_all_signed_rb_ge_ra_pc_eq_pc_plus_value>`  if all signed $rB >= $rA $pc <- $pc + VALUE              signed compare
+:ref:`0xfd.. 0x****<if_all_rb_lt_ra____pc_eq_pc_plus_value>`      if all $rB < $rA    $pc <- $pc + VALUE
+:ref:`0xfe.. 0x****<if_all_rb_ge_ra___pc_eq_pc_plus_value>`       if all $rB >= $rA   $pc <- $pc + VALUE
+================================================================= ======================================================== ==================
 
 .. note::
   For scalar types, FIELD_C MSB (inst[15]) is irrelevant; In other words, any/all selection doesn't matter
@@ -752,9 +752,9 @@ Bit-set-test conditional branch group
   |                         FIELD_E                               |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-=========================  =====================================================    ==================
+========================== ======================================================== ==================
 Instruction code           Assembly                                                 Operation
-=========================  =====================================================    ==================
+========================== ======================================================== ==================
 0xf0f. 0x****              if $rA[0]  == 1 $pc <- $pc + VALUE
 0xf1f. 0x****              if $rA[1]  == 1 $pc <- $pc + VALUE
 0xf2f. 0x****              if $rA[2]  == 1 $pc <- $pc + VALUE
@@ -770,7 +770,7 @@ Instruction code           Assembly                                             
 0xfcf. 0x****              if $rA[16] == 1 $pc <- $pc + VALUE
 0xfdf. 0x****              if $rA[30] == 1 $pc <- $pc + VALUE
 0xfef. 0x****              if $rA[31] == 1 $pc <- $pc + VALUE
-=========================  =====================================================    ==================
+========================== ======================================================== ==================
 
 .. note:: VALUE computation: replicate LSB of FIELD_E to bit positions [31:16], replace LSB with 0.
 
@@ -807,9 +807,9 @@ Bit-clear-test conditional branch group
   |                         FIELD_E                               |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-=========================  =====================================================    ==================
+========================== ======================================================== ==================
 Instruction code           Assembly                                                 Operation
-=========================  =====================================================    ==================
+========================== ======================================================== ==================
 0xf0.f 0x****              if $rB[0]  == 0 $pc <- $pc + VALUE
 0xf1.f 0x****              if $rB[1]  == 0 $pc <- $pc + VALUE
 0xf2.f 0x****              if $rB[2]  == 0 $pc <- $pc + VALUE
@@ -825,7 +825,7 @@ Instruction code           Assembly                                             
 0xfc.f 0x****              if $rB[16] == 0 $pc <- $pc + VALUE
 0xfd.f 0x****              if $rB[30] == 0 $pc <- $pc + VALUE
 0xfe.f 0x****              if $rB[31] == 0 $pc <- $pc + VALUE
-=========================  =====================================================    ==================
+========================== ======================================================== ==================
 
 .. note:: VALUE computation: replicate LSB of FIELD_E to bit positions [31:16], replace LSB with 0.
 
@@ -852,12 +852,12 @@ While stack operations (as in push/pull) are not supported by the ISA, special l
   |    FIELD_D    |    FIELD_C    |            OFS            | S |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-==================  =============================    ==================
-Instruction code    Assembly                         Operation
-==================  =============================    ==================
-0x.c**              MEM[$rS + tiny OFFSET] <- $rD    Store $rD in memory
-0x.d**              $rD <- MEM[$rS + tiny OFFSET]    Load $rD from memory
-==================  =============================    ==================
+============================================ ================================ ====================
+Instruction code                             Assembly                         Operation
+============================================ ================================ ====================
+:ref:`0x.c**<mem_rs_plus_tiny_offset_eq_rd>` MEM[$rS + tiny OFFSET] <- $rD    Store $rD in memory
+:ref:`0x.d**<rd_eq_mem_rs_plus_tiny_offset>` $rD <- MEM[$rS + tiny OFFSET]    Load $rD from memory
+============================================ ================================ ====================
 
 .. warning::
   The encoding of field S is special: A=0 denotes $r12, A=1 denotes $r13
@@ -887,20 +887,20 @@ Indirect load/Store group
   |    FIELD_D    |       e       |    FIELD_B    |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-==================  ============================    ==================
-Instruction code    Assembly                        Operation
-==================  ============================    ==================
-0x.e4.              $rD <- MEM8[$rA]                8-bit unsigned load from MEM[$rA] into $rD
-0x.e5.              $rD <- MEM16[$rA]               16-bit unsigned load from MEM[$rA] into $rD
-0x.e6.              $rD <- MEM[$rA]                 32-bit load from MEM[$rA] into $rD
-0x.e7.              $rD <- MEMLL[$rA]               32-bit unsigned load-lock (exclusive load)
-0x.e8.              MEM8[$rA] <- $rD                8-bit store to MEM[$rA] from $rD
-0x.e9.              MEM16[$rA] <- $rD               16-bit store to MEM[$rA] from $rD
-0x.ea.              MEM[$rA] <- $rD                 32-bit store to MEM[$rA] from $rD
-0x.eb.              MEMSC[$rA] <- $rD               32-bit store-conditional (exclusive store)
-0x.ec.              $rD <- SMEM8[$rA]               8-bit signed load from MEM[$rA] into $rD
-0x.ed.              $rD <- SMEM16[$rA]              16-bit signed load from MEM[$rA] into $rD
-==================  ============================    ==================
+============================== =============================== ===========================================
+Instruction code               Assembly                        Operation
+============================== =============================== ===========================================
+:ref:`0x.e4.<rd_eq_mem8_ra>`   $rD <- MEM8[$rA]                8-bit unsigned load from MEM[$rA] into $rD
+:ref:`0x.e5.<rd_eq_mem16_ra>`  $rD <- MEM16[$rA]               16-bit unsigned load from MEM[$rA] into $rD
+:ref:`0x.e6.<rd_eq_mem_ra>`    $rD <- MEM[$rA]                 32-bit load from MEM[$rA] into $rD
+:ref:`0x.e7.<rd_eq_memll_ra>`  $rD <- MEMLL[$rA]               32-bit unsigned load-lock (exclusive load)
+:ref:`0x.e8.<mem8_ra_eq_rd>`   MEM8[$rA] <- $rD                8-bit store to MEM[$rA] from $rD
+:ref:`0x.e9.<mem16_ra_eq_rd>`  MEM16[$rA] <- $rD               16-bit store to MEM[$rA] from $rD
+:ref:`0x.ea.<mem_ra_eq_rd>`    MEM[$rA] <- $rD                 32-bit store to MEM[$rA] from $rD
+:ref:`0x.eb.<memsc_ra_eq_rd>`  MEMSC[$rA] <- $rD               32-bit store-conditional (exclusive store)
+:ref:`0x.ec.<rd_eq_smem8_ra>`  $rD <- SMEM8[$rA]               8-bit signed load from MEM[$rA] into $rD
+:ref:`0x.ed.<rd_eq_smem16_ra>` $rD <- SMEM16[$rA]              16-bit signed load from MEM[$rA] into $rD
+============================== =============================== ===========================================
 
 .. note::
   Loads don't change the type of their destination register.
@@ -925,13 +925,13 @@ Indirect jump group
   |    FIELD_D    |       e       |    FIELD_B    |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-==================  ============================    ==================
-Instruction code    Assembly                        Operation
-==================  ============================    ==================
-0x1ee.              INV[$rA]                        invalidate cache line for address $rA
-0x2ee.              $pc <- MEM[$rA]                 32-bit load from MEM[$rA] into $PC
-0x3ee.              $tpc <- MEM[$rA]                32-bit load from MEM[$rA] into $TPC
-==================  ============================    ==================
+============================ =============================== =====================================
+Instruction code             Assembly                        Operation
+============================ =============================== =====================================
+:ref:`0x1ee.<inv_ra>`        INV[$rA]                        invalidate cache line for address $rA
+:ref:`0x2ee.<pc_eq_mem_ra>`  $pc <- MEM[$rA]                 32-bit load from MEM[$rA] into $PC
+:ref:`0x3ee.<tpc_eq_mem_ra>` $tpc <- MEM[$rA]                32-bit load from MEM[$rA] into $TPC
+============================ =============================== =====================================
 
 .. note::
   Cache invalidation applies to all caches and to all levels of caches: L1D L1I; L2, if exists. System-level caches (L3) are not invalidated. In a multi-processor system, only local caches (caches that are in the path-to-memory for the core executing the instruction) are invalidated.
@@ -968,20 +968,20 @@ Offset-indirect load/store group
   |                         FIELD_E                               |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-==================  ====================================    ==================
-Instruction code    Assembly                                Operation
-==================  ====================================    ==================
-0x.f4. 0x****       $rD <- MEM8[$rA + VALUE]                8-bit unsigned load from MEM[$rA+VALUE] into $rD
-0x.f5. 0x****       $rD <- MEM16[$rA + VALUE]               16-bit unsigned load from MEM[$rA+VALUE] into $rD
-0x.f6. 0x****       $rD <- MEM[$rA + VALUE]                 32-bit load from MEM[$rA+VALUE] into $rD
-0x.f7. 0x****       $rD <- MEMLL[$rA + VALUE]               32-bit unsigned load-lock (exclusive load)
-0x.f8. 0x****       MEM8[$rA + VALUE] <- $rD                8-bit store to MEM[$rA+VALUE] from $rD
-0x.f9. 0x****       MEM16[$rA + VALUE] <- $rD               16-bit store to MEM[$rA+VALUE] from $rD
-0x.fa. 0x****       MEM[$rA + VALUE] <- $rD                 32-bit store to MEM[$rA+VALUE] from $rD
-0x.fb. 0x****       MEMSC[$rA + VALUE] <- $rD               32-bit store-conditional (exclusive store)
-0x.fc. 0x****       $rD <- SMEM8[$rA + VALUE]               8-bit signed load from MEM[$rA+VALUE] into $rD
-0x.fd. 0x****       $rD <- SMEM16[$rA + VALUE]              16-bit signed load from MEM[$rA+VALUE] into $rD
-==================  ====================================    ==================
+================================================ ======================================= =================================================
+Instruction code                                 Assembly                                Operation
+================================================ ======================================= =================================================
+:ref:`0x.f4. 0x****<rd_eq_mem8_ra_plus_value>`   $rD <- MEM8[$rA + VALUE]                8-bit unsigned load from MEM[$rA+VALUE] into $rD
+:ref:`0x.f5. 0x****<rd_eq_mem16_ra_plus_value>`  $rD <- MEM16[$rA + VALUE]               16-bit unsigned load from MEM[$rA+VALUE] into $rD
+:ref:`0x.f6. 0x****<rd_eq_mem_ra_plus_value>`    $rD <- MEM[$rA + VALUE]                 32-bit load from MEM[$rA+VALUE] into $rD
+:ref:`0x.f7. 0x****<rd_eq_memll_ra_plus_value>`  $rD <- MEMLL[$rA + VALUE]               32-bit unsigned load-lock (exclusive load)
+:ref:`0x.f8. 0x****<mem8_ra_plus_value_eq_rd>`   MEM8[$rA + VALUE] <- $rD                8-bit store to MEM[$rA+VALUE] from $rD
+:ref:`0x.f9. 0x****<mem16_ra_plus_value_eq_rd>`  MEM16[$rA + VALUE] <- $rD               16-bit store to MEM[$rA+VALUE] from $rD
+:ref:`0x.fa. 0x****<mem_ra_plus_value_eq_rd>`    MEM[$rA + VALUE] <- $rD                 32-bit store to MEM[$rA+VALUE] from $rD
+:ref:`0x.fb. 0x****<memsc_ra_plus_value_eq_rd>`  MEMSC[$rA + VALUE] <- $rD               32-bit store-conditional (exclusive store)
+:ref:`0x.fc. 0x****<rd_eq_smem8_ra_plus_value>`  $rD <- SMEM8[$rA + VALUE]               8-bit signed load from MEM[$rA+VALUE] into $rD
+:ref:`0x.fd. 0x****<rd_eq_smem16_ra_plus_value>` $rD <- SMEM16[$rA + VALUE]              16-bit signed load from MEM[$rA+VALUE] into $rD
+================================================ ======================================= =================================================
 
 .. note:: FIELD_E is sign-extended before addition
 .. note:: Loads don't change the type of a register.
@@ -1017,13 +1017,13 @@ Offset-indirect jump group
   |                         FIELD_E                               |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-==================  ====================================    ==================
-Instruction code    Assembly                                Operation
-==================  ====================================    ==================
-0x1fe. 0x****       INV[$rA + VALUE]                        invalidate cache line for address $rA+FIELD_E
-0x2fe. 0x****       $pc <- MEM[$rA + VALUE]                 32-bit load from MEM[$rA+VALUE] into $PC
-0x3fe. 0x****       $tpc <- MEM[$rA + VALUE]                32-bit load from MEM[$rA+VALUE] into $TPC
-==================  ====================================    ==================
+============================================== ======================================= =============================================
+Instruction code                               Assembly                                Operation
+============================================== ======================================= =============================================
+:ref:`0x1fe. 0x****<inv_ra_plus_value>`        INV[$rA + VALUE]                        invalidate cache line for address $rA+FIELD_E
+:ref:`0x2fe. 0x****<pc_eq_mem_ra_plus_value>`  $pc <- MEM[$rA + VALUE]                 32-bit load from MEM[$rA+VALUE] into $PC
+:ref:`0x3fe. 0x****<tpc_eq_mem_ra_plus_value>` $tpc <- MEM[$rA + VALUE]                32-bit load from MEM[$rA+VALUE] into $TPC
+============================================== ======================================= =============================================
 
 .. note::
   Cache invalidation applies to all caches and to all levels of caches: L1D L1I; L2, if exists. System-level caches (L3) are not invalidated. In a multi-processor system, only local caches (caches that are in the path-to-memory for the core executing the instruction) are invalidated.
@@ -1063,18 +1063,18 @@ Load/store multiple
   |                         FIELD_E                               |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-==================  =======================================    ==================
-Instruction code    Assembly                                   Operation
-==================  =======================================    ==================
-0x.f0. 0x****       $r0...$r14 <- MEM[$rD] @ $rA               load any combination of registers with FIELD_E as mask; skip-mask in $rA
-0x.f1. 0x****       MEM[$rD] <- $r0...$r14 @ $rA               store any combination of registers with FIELD_E as mask; skip-mask in $rA
-0x.f2. 0x****       $r0...$r14 <- POP[$rD] @ $rA               pop any combination of registers with FIELD_E as mask; skip-mask in $rA
-0x.f3. 0x****       PUSH[$rD] <- $r0...$r14 @ $rA              push any combination of registers with FIELD_E as mask; skip-mask in $rA
-0x.f0f 0x****       $r0...$r14 <- MEM[$rD]                     load any combination of registers with FIELD_E as mask
-0x.f1f 0x****       MEM[$rD] <- $r0...$r14                     store any combination of registers with FIELD_E as mask
-0x.f2f 0x****       $r0...$r14 <- POP[$rD]                     pop any combination of registers with FIELD_E as mask
-0x.f3f 0x****       PUSH[$rD] <- $r0...$r14                    push any combination of registers with FIELD_E as mask
-==================  =======================================    ==================
+============================================== ========================================== =========================================================================
+Instruction code                               Assembly                                   Operation
+============================================== ========================================== =========================================================================
+:ref:`0x.f0. 0x****<r0...r14_eq_mem_rd_@_ra>`  $r0...$r14 <- MEM[$rD] @ $rA               load any combination of registers with FIELD_E as mask; skip-mask in $rA
+:ref:`0x.f1. 0x****<mem_rd_eq_r0...r14_@_ra>`  MEM[$rD] <- $r0...$r14 @ $rA               store any combination of registers with FIELD_E as mask; skip-mask in $rA
+:ref:`0x.f2. 0x****<r0...r14_eq_pop_rd_@_ra>`  $r0...$r14 <- POP[$rD] @ $rA               pop any combination of registers with FIELD_E as mask; skip-mask in $rA
+:ref:`0x.f3. 0x****<push_rd_eq_r0...r14_@_ra>` PUSH[$rD] <- $r0...$r14 @ $rA              push any combination of registers with FIELD_E as mask; skip-mask in $rA
+:ref:`0x.f0f 0x****<r0...r14_eq_mem_rd>`       $r0...$r14 <- MEM[$rD]                     load any combination of registers with FIELD_E as mask
+:ref:`0x.f1f 0x****<mem_rd_eq_r0...r14>`       MEM[$rD] <- $r0...$r14                     store any combination of registers with FIELD_E as mask
+:ref:`0x.f2f 0x****<r0...r14_eq_pop_rd>`       $r0...$r14 <- POP[$rD]                     pop any combination of registers with FIELD_E as mask
+:ref:`0x.f3f 0x****<push_rd_eq_r0...r14>`      PUSH[$rD] <- $r0...$r14                    push any combination of registers with FIELD_E as mask
+============================================== ========================================== =========================================================================
 
 .. note::
   0x.f0f decodes to the wrong FIELD_E size. Otherwise, this is not a bad encoding.
@@ -1156,20 +1156,20 @@ Absolute load/store group
   ...                       FIELD_E   upper 16 bits               |
   ...-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-=========================  ==========================  ==================
-Instruction code           Assembly                    Operation
-=========================  ==========================  ==================
-0x.f4f 0x**** 0x****       $rD <- MEM8[VALUE]          8-bit unsigned load from MEM[VALUE] into $rD
-0x.f5f 0x**** 0x****       $rD <- MEM16[VALUE]         16-bit unsigned load from MEM[VALUE] into $rD
-0x.f6f 0x**** 0x****       $rD <- MEM[VALUE]           32-bit load from MEM[VALUE] into $rD
-0x.f7f 0x**** 0x****       $rD <- MEMLL[VALUE]         32-bit unsigned load-lock (exclusive load)
-0x.f8f 0x**** 0x****       MEM8[VALUE] <- $rD          8-bit store to MEM[VALUE] from $rD
-0x.f9f 0x**** 0x****       MEM16[VALUE] <- $rD         16-bit store to MEM[VALUE] from $rD
-0x.faf 0x**** 0x****       MEM[VALUE] <- $rD           32-bit store to MEM[VALUE] from $rD
-0x.fbf 0x**** 0x****       MEMSC[VALUE] <- $rD         32-bit store-conditional (exclusive store)
-0x.fcf 0x**** 0x****       $rD <- SMEM8[VALUE]         8-bit signed load from MEM[VALUE] into $rD
-0x.fdf 0x**** 0x****       $rD <- SMEM16[VALUE]        16-bit signed load from MEM[VALUE] into $rD
-=========================  ==========================  ==================
+=============================================== =========================== =============================================
+Instruction code                                Assembly                    Operation
+=============================================== =========================== =============================================
+:ref:`0x.f4f 0x**** 0x****<rd_eq_mem8_value>`   $rD <- MEM8[VALUE]          8-bit unsigned load from MEM[VALUE] into $rD
+:ref:`0x.f5f 0x**** 0x****<rd_eq_mem16_value>`  $rD <- MEM16[VALUE]         16-bit unsigned load from MEM[VALUE] into $rD
+:ref:`0x.f6f 0x**** 0x****<rd_eq_mem_value>`    $rD <- MEM[VALUE]           32-bit load from MEM[VALUE] into $rD
+:ref:`0x.f7f 0x**** 0x****<rd_eq_memll_value>`  $rD <- MEMLL[VALUE]         32-bit unsigned load-lock (exclusive load)
+:ref:`0x.f8f 0x**** 0x****<mem8_value_eq_rd>`   MEM8[VALUE] <- $rD          8-bit store to MEM[VALUE] from $rD
+:ref:`0x.f9f 0x**** 0x****<mem16_value_eq_rd>`  MEM16[VALUE] <- $rD         16-bit store to MEM[VALUE] from $rD
+:ref:`0x.faf 0x**** 0x****<mem_value_eq_rd>`    MEM[VALUE] <- $rD           32-bit store to MEM[VALUE] from $rD
+:ref:`0x.fbf 0x**** 0x****<memsc_value_eq_rd>`  MEMSC[VALUE] <- $rD         32-bit store-conditional (exclusive store)
+:ref:`0x.fcf 0x**** 0x****<rd_eq_smem8_value>`  $rD <- SMEM8[VALUE]         8-bit signed load from MEM[VALUE] into $rD
+:ref:`0x.fdf 0x**** 0x****<rd_eq_smem16_value>` $rD <- SMEM16[VALUE]        16-bit signed load from MEM[VALUE] into $rD
+=============================================== =========================== =============================================
 
 .. note:: Loads don't change the type of a register.
 
@@ -1216,13 +1216,13 @@ Absolute jump group
   ...                       FIELD_E   upper 16 bits               |
   ...-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-=========================  ========================    ==================
-Instruction code           Assembly                    Operation
-=========================  ========================    ==================
-0x1fef 0x**** 0x****       INV[VALUE]                  invalidate cache line for address FIELD_E
-0x2fef 0x**** 0x****       $pc <- MEM[VALUE]           32-bit load from MEM[VALUE] into $PC
-0x3fef 0x**** 0x****       $tpc <- MEM[VALUE]          32-bit load from MEM[VALUE] into $TPC
-=========================  ========================    ==================
+============================================= =========================== =========================================
+Instruction code                              Assembly                    Operation
+============================================= =========================== =========================================
+:ref:`0x1fef 0x**** 0x****<inv_value>`        INV[VALUE]                  invalidate cache line for address FIELD_E
+:ref:`0x2fef 0x**** 0x****<pc_eq_mem_value>`  $pc <- MEM[VALUE]           32-bit load from MEM[VALUE] into $PC
+:ref:`0x3fef 0x**** 0x****<tpc_eq_mem_value>` $tpc <- MEM[VALUE]          32-bit load from MEM[VALUE] into $TPC
+============================================= =========================== =========================================
 
 .. note::
   Cache invalidation applies to all caches and to all levels of caches: L1D L1I; L2, if exists. System-level caches (L3) are not invalidated. In a multi-processor system, only local caches (caches that are in the path-to-memory for the core executing the instruction) are invalidated.
@@ -1271,12 +1271,12 @@ Special immediate load-store group
   ...                       FIELD_E   upper 16 bits               |
   ...-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-=========================  ==================================    ==================
-Instruction code           Assembly                              Operation
-=========================  ==================================    ==================
-0x.eff 0x**** 0x****       MEM[VALUE] <- full $rD                Store full $rD (no use/modification of vstart vend)
-0x.fff 0x**** 0x****       full $rD <- MEM[VALUE]                Load full $rD (no use/modification of vstart vend)
-=========================  ==================================    ==================
+================================================= ===================================== ===================================================
+Instruction code                                  Assembly                              Operation
+================================================= ===================================== ===================================================
+:ref:`0x.eff 0x**** 0x****<mem_value_eq_full_rd>` MEM[VALUE] <- full $rD                Store full $rD (no use/modification of vstart vend)
+:ref:`0x.fff 0x**** 0x****<full_rd_eq_mem_value>` full $rD <- MEM[VALUE]                Load full $rD (no use/modification of vstart vend)
+================================================= ===================================== ===================================================
 
 
 Special indirect load-store group
@@ -1298,12 +1298,12 @@ Special indirect load-store group
   |    FIELD_D    |    FIELD_C    |       f       |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-=========================  ==================================    ==================
-Instruction code           Assembly                              Operation
-=========================  ==================================    ==================
-0x.ef.                     MEM[$rA] <- full $rD                  Store full $rD (no use/modification of vstart vend)
-0x.ff.                     full $rD <- MEM[$rA]                  Load full $rD (no use/modification of vstart vend)
-=========================  ==================================    ==================
+================================ ===================================== ===================================================
+Instruction code                 Assembly                              Operation
+================================ ===================================== ===================================================
+:ref:`0x.ef.<mem_ra_eq_full_rd>` MEM[$rA] <- full $rD                  Store full $rD (no use/modification of vstart vend)
+:ref:`0x.ff.<full_rd_eq_mem_ra>` full $rD <- MEM[$rA]                  Load full $rD (no use/modification of vstart vend)
+================================ ===================================== ===================================================
 
 Register block type test group
 ------------------------------
@@ -1348,26 +1348,26 @@ Register block type test group
   |                            FIELD_F                            |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-=========================  =========================================================    ==================
-Instruction code           Assembly                                                     Operation
-=========================  =========================================================    ==================
-0x001f 0x**** 0x****       if any type $r0...$r3   != types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
-0x101f 0x**** 0x****       if any type $r4...$r7   != types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
-0x201f 0x**** 0x****       if any type $r8...$r11  != types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
-0x301f 0x**** 0x****       if any type $r12...$r14 != types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
-0x401f 0x**** 0x****       if any type $r0...$r3   == types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
-0x501f 0x**** 0x****       if any type $r4...$r7   == types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
-0x601f 0x**** 0x****       if any type $r8...$r11  == types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
-0x701f 0x**** 0x****       if any type $r12...$r14 == types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
-0x002f 0x**** 0x****       if all type $r0...$r3   != types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
-0x102f 0x**** 0x****       if all type $r4...$r7   != types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
-0x202f 0x**** 0x****       if all type $r8...$r11  != types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
-0x302f 0x**** 0x****       if all type $r12...$r14 != types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
-0x402f 0x**** 0x****       if all type $r0...$r3   == types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
-0x502f 0x**** 0x****       if all type $r4...$r7   == types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
-0x602f 0x**** 0x****       if all type $r8...$r11  == types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
-0x702f 0x**** 0x****       if all type $r12...$r14 == types $pc <- $pc + br_offs         Jump if type of registers is not what's expected
-=========================  =========================================================    ==================
+================================================================================= ============================================================ ================================================
+Instruction code                                                                  Assembly                                                     Operation
+================================================================================= ============================================================ ================================================
+:ref:`0x001f 0x**** 0x****<if_any_type_r0...r3___ne_types_pc_eq_pc_plus_br_offs>` if any type $r0...$r3   != types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
+:ref:`0x101f 0x**** 0x****<if_any_type_r4...r7___ne_types_pc_eq_pc_plus_br_offs>` if any type $r4...$r7   != types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
+:ref:`0x201f 0x**** 0x****<if_any_type_r8...r11__ne_types_pc_eq_pc_plus_br_offs>` if any type $r8...$r11  != types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
+:ref:`0x301f 0x**** 0x****<if_any_type_r12...r14_ne_types_pc_eq_pc_plus_br_offs>` if any type $r12...$r14 != types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
+:ref:`0x401f 0x**** 0x****<if_any_type_r0...r3_eq_types_pc_eq_pc_plus_br_offs>`   if any type $r0...$r3   == types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
+:ref:`0x501f 0x**** 0x****<if_any_type_r4...r7_eq_types_pc_eq_pc_plus_br_offs>`   if any type $r4...$r7   == types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
+:ref:`0x601f 0x**** 0x****<if_any_type_r8...r11__eq_types_pc_eq_pc_plus_br_offs>` if any type $r8...$r11  == types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
+:ref:`0x701f 0x**** 0x****<if_any_type_r12...r14_eq_types_pc_eq_pc_plus_br_offs>` if any type $r12...$r14 == types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
+:ref:`0x002f 0x**** 0x****<if_all_type_r0...r3___ne_types_pc_eq_pc_plus_br_offs>` if all type $r0...$r3   != types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
+:ref:`0x102f 0x**** 0x****<if_all_type_r4...r7___ne_types_pc_eq_pc_plus_br_offs>` if all type $r4...$r7   != types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
+:ref:`0x202f 0x**** 0x****<if_all_type_r8...r11__ne_types_pc_eq_pc_plus_br_offs>` if all type $r8...$r11  != types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
+:ref:`0x302f 0x**** 0x****<if_all_type_r12...r14_ne_types_pc_eq_pc_plus_br_offs>` if all type $r12...$r14 != types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
+:ref:`0x402f 0x**** 0x****<if_all_type_r0...r3_eq_types_pc_eq_pc_plus_br_offs>`   if all type $r0...$r3   == types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
+:ref:`0x502f 0x**** 0x****<if_all_type_r4...r7_eq_types_pc_eq_pc_plus_br_offs>`   if all type $r4...$r7   == types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
+:ref:`0x602f 0x**** 0x****<if_all_type_r8...r11__eq_types_pc_eq_pc_plus_br_offs>` if all type $r8...$r11  == types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
+:ref:`0x702f 0x**** 0x****<if_all_type_r12...r14_eq_types_pc_eq_pc_plus_br_offs>` if all type $r12...$r14 == types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
+================================================================================= ============================================================ ================================================
 
 These instructions dedicate a nibble to each register in FIELD_F. The instruction perform a set of comparisons between the expected and actual types and jump if the conditions prescribed in the instructions are met. A register can be excluded from the test by setting their corresponding nibble in FIELD_F to 0xf.
 
@@ -1417,11 +1417,11 @@ Individual register type test group
   |                            FIELD_F                            |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-=========================  =========================================================    ==================
-Instruction code           Assembly                                                     Operation
-=========================  =========================================================    ==================
-0x.03f 0x**** 0x****       if type $rD not in FIELD_F $pc <- $pc + FIELD_E              Jump if type of registers is not what's expected
-=========================  =========================================================    ==================
+============================================================================ ============================================================ ================================================
+Instruction code                                                             Assembly                                                     Operation
+============================================================================ ============================================================ ================================================
+:ref:`0x.03f 0x**** 0x****<if_type_rd_not_in_field_f_pc_eq_pc_plus_field_e>` if type $rD not in FIELD_F $pc <- $pc + FIELD_E              Jump if type of registers is not what's expected
+============================================================================ ============================================================ ================================================
 
 This instruction provides a type-mask in FIELD_F. An allowed type is represented by a '1'. The instruction branches if the bit corresponding to tye type of $rD is not set in FIELD_F. The MSB of FIELD_F is reserved and should be set to 0.
 
@@ -1467,16 +1467,16 @@ Zero compare lane predication group
   |    FIELD_D    |       0       |    FIELD_B    |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-=========================  ========================    ==================
-Instruction code           Assembly                    Operation
-=========================  ========================    ==================
-0xf0ff 0x.00.              $rD <- $rA == 0
-0xf0ff 0x.01.              $rD <- $rA != 0
-0xf0ff 0x.02.              $rD <- $rA < 0                signed compare
-0xf0ff 0x.03.              $rD <- $rA >= 0               signed compare
-0xf0ff 0x.04.              $rD <- $rA > 0                signed compare
-0xf0ff 0x.05.              $rD <- $rA <= 0               signed compare
-=========================  ========================    ==================
+=================================== =========================== ==================
+Instruction code                    Assembly                    Operation
+=================================== =========================== ==================
+:ref:`0xf0ff 0x.00.<rd_eq_ra_eq_0>` $rD <- $rA == 0
+:ref:`0xf0ff 0x.01.<rd_eq_ra_ne_0>` $rD <- $rA != 0
+:ref:`0xf0ff 0x.02.<rd_eq_ra_lt_0>` $rD <- $rA < 0              signed compare
+:ref:`0xf0ff 0x.03.<rd_eq_ra_ge_0>` $rD <- $rA >= 0             signed compare
+:ref:`0xf0ff 0x.04.<rd_eq_ra_gt_0>` $rD <- $rA > 0              signed compare
+:ref:`0xf0ff 0x.05.<rd_eq_ra_le_0>` $rD <- $rA <= 0             signed compare
+=================================== =========================== ==================
 
 These instructions perform lane-wise comparisons of the prescribed type. The result (0 for FALSE, 1 for TRUE) is replicated across the length of each lane (8- 16- or 32-times) and placed in the destination register.
 
@@ -1516,16 +1516,16 @@ Lane predication group
   |    FIELD_D    |    FIELD_C    |    FIELD_B    |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-=========================  ========================    ==================
-Instruction code           Assembly                    Operation
-=========================  ========================    ==================
-0xf0ff 0x.1..              $rD <- $rB == $rA
-0xf0ff 0x.2..              $rD <- $rB != $rA
-0xf0ff 0x.3..              $rD <- signed $rB < $rA       signed compare
-0xf0ff 0x.4..              $rD <- signed $rB >= $rA      signed compare
-0xf0ff 0x.5..              $rD <- $rB < $rA
-0xf0ff 0x.6..              $rD <- $rB >= $rA
-=========================  ========================    ==================
+=========================================== =========================== ==================
+Instruction code                            Assembly                    Operation
+=========================================== =========================== ==================
+:ref:`0xf0ff 0x.1..<rd_eq_rb_eq_ra>`        $rD <- $rB == $rA
+:ref:`0xf0ff 0x.2..<rd_eq_rb_ne_ra>`        $rD <- $rB != $rA
+:ref:`0xf0ff 0x.3..<rd_eq_signed_rb_lt_ra>` $rD <- signed $rB < $rA     signed compare
+:ref:`0xf0ff 0x.4..<rd_eq_signed_rb_ge_ra>` $rD <- signed $rB >= $rA    signed compare
+:ref:`0xf0ff 0x.5..<rd_eq_rb_lt_ra>`        $rD <- $rB < $rA
+:ref:`0xf0ff 0x.6..<rd_eq_rb_ge_ra>`        $rD <- $rB >= $rA
+=========================================== =========================== ==================
 
 These instructions perform lane-wise comparisons of the prescribed type. The result (0 for FALSE, 1 for TRUE) is replicated across the length of each lane (8- 16- or 32-times) and placed in the destination register.
 
@@ -1565,12 +1565,12 @@ Unary vector operation group
   |    FIELD_D    |       0       |    FIELD_B    |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-=========================  ============================  ==================
-Instruction code           Assembly                      Operation
-=========================  ============================  ==================
-0xf1ff 0x.01.              $rD <- sum $rA                Reduction sum
-0xf1ff 0x.02.              $rD <- set_vend $rA           Load VEND register and return it's value based on $rA
-=========================  ============================  ==================
+======================================= ============================= =====================================================
+Instruction code                        Assembly                      Operation
+======================================= ============================= =====================================================
+:ref:`0xf1ff 0x.01.<rd_eq_sum_ra>`      $rD <- sum $rA                Reduction sum
+:ref:`0xf1ff 0x.02.<rd_eq_set_vend_ra>` $rD <- set_vend $rA           Load VEND register and return it's value based on $rA
+======================================= ============================= =====================================================
 
 Binary vector operation group
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -1606,14 +1606,14 @@ Binary vector operation group
   |    FIELD_D    |    FIELD_C    |    FIELD_B    |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-=========================  ============================  ==================
-Instruction code           Assembly                      Operation
-=========================  ============================  ==================
-0xf1ff 0x.1..              $rD <- interpolate $rA, $rB   [#note_interpolation]_
-0xf1ff 0x.2..              $rD(i) <- $rA($rB(i))         [#note_lane_swizzle]_
-0xf1ff 0x.3..              $rD <- (cast TYPE_B)$rA       Element-wise type-cast $rA to TYPE_B
-0xf1ff 0x.4..              $rD <- compress $rA & $rB     Element-wise compressed selection of $rA, $rB being the selector
-=========================  ============================  ==================
+============================================== ============================= ================================================================
+Instruction code                               Assembly                      Operation
+============================================== ============================= ================================================================
+:ref:`0xf1ff 0x.1..<rd_eq_interpolate_ra,_rb>` $rD <- interpolate $rA, $rB   [#note_interpolation]_
+:ref:`0xf1ff 0x.2..<rd_eq_rd(i)_eq_ra(rb(i))>` $rD(i) <- $rA($rB(i))         [#note_lane_swizzle]_
+:ref:`0xf1ff 0x.3..<rd_eq_(cast_type_b)ra>`    $rD <- (cast TYPE_B)$rA       Element-wise type-cast $rA to TYPE_B
+:ref:`0xf1ff 0x.4..<rd_eq_compress_ra_and_rb>` $rD <- compress $rA & $rB     Element-wise compressed selection of $rA, $rB being the selector
+============================================== ============================= ================================================================
 
 .. [#note_interpolation]
   This instruction performs linear interpolation between adjacent lanes of $rA using the value of $rB as the interpolator.
@@ -1678,18 +1678,18 @@ Scaled multiply group
   |    FIELD_D    |    FIELD_C    |    FIELD_B    |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-=========================  =========================================  ==================
-Instruction code           Assembly                                   Operation
-=========================  =========================================  ==================
-0xf4ff 0x.*..              $rD <- full $rA * $rB >>> FIELD_C + 0
-0xf5ff 0x.*..              $rD <- full $rA * $rB >>> FIELD_C + 8
-0xf6ff 0x.*..              $rD <- full $rA * $rB >>> FIELD_C + 16
-0xf7ff 0x.*..              $rD <- full $rA * $rB >>> FIELD_C + 32
-0xf8ff 0x.*..              $rD <- full $rA * $rB >> FIELD_C + 0
-0xf9ff 0x.*..              $rD <- full $rA * $rB >> FIELD_C + 8
-0xfaff 0x.*..              $rD <- full $rA * $rB >> FIELD_C + 16
-0xfbff 0x.*..              $rD <- full $rA * $rB >> FIELD_C + 32
-=========================  =========================================  ==================
+========================================================== ========================================== ==================
+Instruction code                                           Assembly                                   Operation
+========================================================== ========================================== ==================
+:ref:`0xf4ff 0x.*..<rd_eq_full_ra_times_rb_asr_value>`     $rD <- full $rA * $rB >>> FIELD_C + 0
+:ref:`0xf5ff 0x.*..<rd_eq_full_ra_times_rb_asr_value>`     $rD <- full $rA * $rB >>> FIELD_C + 8
+:ref:`0xf6ff 0x.*..<rd_eq_full_ra_times_rb_asr_value>`     $rD <- full $rA * $rB >>> FIELD_C + 16
+:ref:`0xf7ff 0x.*..<rd_eq_full_ra_times_rb_asr_value>`     $rD <- full $rA * $rB >>> FIELD_C + 32
+:ref:`0xf8ff 0x.*..<rd_eq_full_ra_times_rb_lsr_value>`     $rD <- full $rA * $rB >> FIELD_C + 0
+:ref:`0xf9ff 0x.*..<rd_eq_full_ra_times_rb_lsr_value>`     $rD <- full $rA * $rB >> FIELD_C + 8
+:ref:`0xfaff 0x.*..<rd_eq_full_ra_times_rb_lsr_value>`     $rD <- full $rA * $rB >> FIELD_C + 16
+:ref:`0xfbff 0x.*..<rd_eq_full_ra_times_rb_lsr_value>`     $rD <- full $rA * $rB >> FIELD_C + 32
+========================================================== ========================================== ==================
 
 .. todo::
   This is not how BINUTILS is coded up at the moment. We need to follow-up with the changes there.
@@ -1732,11 +1732,11 @@ This prefix instruction allows for the changing the way the subsequent operation
   |       f       |       f       |     TYPE_A    |    TYPE_B     | ...
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-========================= =============== ===========================================================
-Instruction code          Assembly        Operation
-========================= =============== ===========================================================
-0xff** ...                (type) (type)   Type override for $rA (TYPE_A) and $rB (TYPE_B).
-========================= =============== ===========================================================
+========================================== =============== ===========================================================
+Instruction code                           Assembly        Operation
+========================================== =============== ===========================================================
+:ref:`0xff** ...<type_overrides_detail>`   (type) (type)   Type override for $rA (TYPE_A) and $rB (TYPE_B).
+========================================== =============== ===========================================================
 
 Type override for $rA (TYPE_A) and $rB (TYPE_B).
 
