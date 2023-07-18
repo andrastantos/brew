@@ -1,0 +1,36 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Current File",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "cwd": "${fileDirname}",
+            "justMyCode": false
+        },
+        {
+            "name": "BREW DOCUMENTATION",
+            "type": "python",
+            "request": "launch",
+            "module": "sphinx.cmd.build",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/../brew/docs/cpu",
+            "justMyCode": false,
+            "args": ["-M", "html", ".", "_build", "-E", "-a"]
+        },
+        {
+            "name": "BREW ISA check",
+            "type": "python",
+            "request": "launch",
+            "program": "check_isa.py",
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}/../brew/docs/cpu",
+            "justMyCode": false,
+        },
+    ]
+}
