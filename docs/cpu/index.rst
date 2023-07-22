@@ -33,6 +33,7 @@ Brew Processor
    isa
    memory_model
    isa_details
+   load_store_multiple
    csrs
    compatibility
    abi

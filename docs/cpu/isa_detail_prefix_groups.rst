@@ -1,6 +1,6 @@
 .. _type_overrides_detail:
 
-Type overrides (<type>)
+Type override (<type>)
 -----------------------
 
 *Instruction code*: 0xff** ...
@@ -11,7 +11,7 @@ Type overrides (<type>)
 
 Description
 ~~~~~~~~~~~
-Type overrides provide a way to momentarily change the apparent type of any of the operands of an instruction, without actually changing the stored type of the associated register. The override prefix changes the way types are interpreted in the immediately succeeding instruction. Any valid instruction can be preceded by a type override prefix. While in principle cascading prefix instructions is valid, this version of the ISA specifies only a single prefix instruction. The only conceivable cascading prefix sequence thus is multiple type overrides, which is invalid and raises an invalid instruction exception.
+Type override provides a way to momentarily change the apparent type of any of the operands of an instruction, without actually changing the stored type of the associated register. The override prefix changes the way types are interpreted in the immediately succeeding instruction. Any valid instruction can be preceded by a type override prefix. While in principle cascading prefix instructions is valid, this version of the ISA specifies only a single prefix instruction. The only conceivable cascading prefix sequence thus is multiple type overrides, which is invalid and raises an :code:`exc_unkown_inst` exception.
 
 In assembly, any appearance of an operand register can be prefixed with a type override in the form of :code:`(<type>)`. For instance::
 
@@ -31,8 +31,8 @@ The result type that is written into the destination along with its result is th
   *Exception behavior*: If a prefixed instruction throws an exception, $tpc points to the (first) prefix instruction after entering SCHEDULER mode. This allows the recovery code to decode and potentially retry the excepted instruction.
 
 .. note::
-  *Interrupt behavior*: If an interrupt is handled during the execution of a prefixed instruction, $tpc points to the (first) prefix instruction after entering SCHEDULER mode. None of the side-effects of the prefixed instruction take effect. If any of the side-effects of the prefixed instruction have taken effect, the whole instruction must be carried to completion and $tpc points to the subsequent instruction after entering SCHEDULER mode. In other words, under no circumstances can $tpc point anywhere between the first prefix and it's corresponding instruction when entering SCHEDULER mode.
+  *Interrupt behavior*: If an interrupt is handled during the execution of a prefixed instruction, $tpc points to the (first) prefix instruction after entering SCHEDULER mode.
 
 .. note::
-  *Prefix concatenation*: Every processor implementation has a maximum instruction length it supports. In this version of the spec, it's 64 bits. If an instruction with all its prefixes exceeds this limit, the processor raises an invalid instruction exception, with $tpc pointing to the first prefix instruction. Without this provision it would be possible to create arbitrarily long instruction sequences in TASK mode. That in turn would prevent interrupts from being raised, effectively locking up the system (at least up to the point of exhausting the addressable RAM space).
+  *Prefix concatenation*: Every processor implementation has a maximum instruction length it supports. In this version of the spec, it's 64 bits. If an instruction with all its prefixes exceeds this limit, the processor raises an :code:`exc_unkown_inst` exception, with $tpc pointing to the first prefix instruction. Without this provision it would be possible to create arbitrarily long instruction sequences in TASK mode. That in turn would prevent interrupts from being raised, effectively locking up the system (at least up to the point of exhausting the addressable RAM space).
 

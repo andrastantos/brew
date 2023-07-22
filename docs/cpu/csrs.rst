@@ -13,6 +13,8 @@ CSR registers
 
 Currently the following registers are defined:
 
+Registers only accessible from SCHEDULER mode:
+
 ========== ============== ============== ===================================================
 Address    Name           Access type    Description
 ========== ============== ============== ===================================================
@@ -21,11 +23,18 @@ Address    Name           Access type    Description
 0x0100     DIRTY          RW             Register dirty mask
 0x0101     VSTART         RW             Vector operation start in bytes
 0x0102     VEND           RW             Vector operation end in bytes
+========== ============== ============== ===================================================
+
+Registers accessible from both TASK and SCHEDULER mode:
+
+========== ============== ============== ===================================================
+Address    Name           Access type    Description
+========== ============== ============== ===================================================
 0x8000     MARCH          R              Machine architecture and version register
 0x8001     CAPABILITY     R              Capability bit-field
 0x8010     FPSTAT         RW             Floating-point accumulated status and control register
-0x8101     VSTART         R              Vector operation start in bytes
-0x8102     VEND           R              Vector operation end in bytes
+0x8101     VSTART_RO      R              Vector operation start in bytes
+0x8102     VEND_RO        R              Vector operation end in bytes
 0x8103     VLEN           R              HW vector length in bytes
 ========== ============== ============== ===================================================
 

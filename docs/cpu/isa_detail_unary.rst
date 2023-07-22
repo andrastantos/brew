@@ -17,16 +17,12 @@ $rD <- tiny CONST
 
 *Exceptions*: None
 
+*Type variants*: Yes
+
 Description
 ~~~~~~~~~~~
 
-Load $rD with constant stored in FIELD_A. Constant value is one-s complement of FIELD_A. Range is -7 to +7, which is sign-extended to 32 bits. The destination type is not altered.
-
-::
-    $rD.value := CONST
-    $rD.type := $rD.type
-    $rD.size := 4
-    $rD.dirty := true
+This operation uses :ref:`load type handling<load_type_handling>` to determine if :ref:`broadcasting<type_broadcast>` needs to be performed. The immediate CONST is stored in FIELD_A. Constant value is one-s complement of FIELD_A. Range is -7 to +7, which is sign-extended to 32 bits.
 
 
 
@@ -50,16 +46,13 @@ $rD <- $pc + CONST
 
 *Exceptions*: None
 
+*Type variants*: Yes
+
 Description
 ~~~~~~~~~~~
 
 Load $rD with $pc + constant stored in FIELD_A. Constant value is twice the one-s complement of FIELD_A. Range is -14 to +14, which is sign-extended to 32 bits. Useful for call return address calculation. The destination type is set to INT32.
 
-::
-    $rD.value := $pc + CONST
-    $rD.type := INT32
-    $rD.size := 4
-    $rD.dirty := true
 
 
 
@@ -86,13 +79,7 @@ $rD <- -$rA
 Description
 ~~~~~~~~~~~
 
-Negation operation. The actual negation depends on the type. For vector types lane-wise negation is used. For floating point types, floating-point negation is used. For integer types, 2-s complement negation is used. The destination type is set to that of :code:`$rA`.
-
-::
-    $rD.value(i) := -$A.value(i) for i in lane_range(vstart, vend)
-    $rD.type := $rA.type
-    $rD.size := vend
-    $rD.dirty := true
+The operation uses :ref:`standard type handling<std_type_handling>` to determine operand and destination types. On the resulting type either an integer or a float-point lane-wise negation is performed.
 
 
 
@@ -128,15 +115,7 @@ $rD <- ~$rA
 Description
 ~~~~~~~~~~~
 
-Binary inversion. Destination type is set to that of :code:`$rA`.
-
-::
-    $rD.value := ~$A.value
-    $rD.type := $rA.type
-    $rD.size := $rA.size
-    $rD.dirty := true
-
-.. note:: binary inversion is the same operation independent of type.
+The operation uses :ref:`logic type handling<logic_type_handling>` to determine operand and destination types. On the resulting type a bit-wise inversion is performed.
 
 .. _rd_eq_bse_ra:
 
@@ -158,7 +137,9 @@ $rD <- bse $rA
 Description
 ~~~~~~~~~~~
 
-Sign-extend from byte. For vector types, operation is per-lane. Floating point types are treated as integer. Destination type is set to that of :code:`$rA`
+The operation uses :ref:`logic type handling<logic_type_handling>` to determine operand and destination types. On the resulting type a lane-wise sign-extension from 8 bits to the lane width is performed. If the lane-width is less then or equal to 8 bits, the operation simply assigns the input to the output.
+
+
 
 
 
@@ -182,7 +163,8 @@ $rD <- wse $rA
 Description
 ~~~~~~~~~~~
 
-Sign-extend from word. For vector types, this operation is per-lane. Floating point types are treated as integer. Destination type is set to that of :code:`$rA`
+The operation uses :ref:`logic type handling<logic_type_handling>` to determine operand and destination types. On the resulting type a lane-wise sign-extension from 16 bits to the lane width is performed. If the lane-width is less then or equal to 16 bits, the operation simply assigns the input to the output.
+
 
 
 
@@ -199,15 +181,25 @@ $rD <- float $rA
   |    FIELD_D    |       0       |       7       |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
 *Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
 
-Convert to float. No-op if $rA is already a float
+The operation uses :ref:`standard type handling<std_type_handling>` to determine operand and destination types *with modifications*; the output type is set according to the following table:
 
+================   ===============
+Input logic type   Output type
+================   ===============
+INT32              FP32
+VINT32             VFP32
+VINT16             VFP16
+VINT8              type error: :code:`exc_type` is raised
+================   ===============
+
+After the types are determined, each lane is converted to a corresponding floating point number. If the input is already of a floating point type, the values are simply assigned to the output without alteration.
 
 .. _rd_eq_int_ra:
 
@@ -222,14 +214,29 @@ $rD <- int $rA
   |    FIELD_D    |       0       |       8       |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
 *Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
 
-Convert to integer. No-op if $rA is already integer
+
+The operation uses :ref:`standard type handling<std_type_handling>` to determine operand and destination types *with modifications*; the output type is set according to the following table:
+
+================   ===============
+Input logic type   Output type
+================   ===============
+INT32              INT32
+VINT32             VINT32
+VINT16             VINT16
+VINT8              VINT8
+================   ===============
+
+After the types are determined, each lane is converted to a corresponding integer number. If the input is already of a fixed point type, the values are simply assigned to the output without alteration.
+
+.. todo:: What to do in case of an overflow? Set an FP sticky-bit?
+
 
 .. _rd_eq_1_/_ra:
 
@@ -244,15 +251,18 @@ $rD <- 1 / $rA
   |    FIELD_D    |       0       |       9       |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-*Exceptions*: SII
+*Exceptions*: :code:`exc_type`
 
 *Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
 
-Reciprocal if :code:`$rA` is of a float type. Otherwise, an invalid instruction exception is thrown
+The operation uses :ref:`standard type handling<std_type_handling>` to determine operand and destination types. If the input type is not of a floating point type, an :code:`exc_type` exception is raised.
 
+After the types are determined, the reciprocal of each lane is computed.
+
+.. todo:: what to do with divide-by-zero issues? Set a sticky-bit? Assign NaN? What does the standard say?
 
 .. _rd_eq_rsqrt_ra:
 
@@ -267,14 +277,19 @@ $rD <- rsqrt $rA
   |    FIELD_D    |       0       |       a       |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
 *Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
 
-Reciprocal square-root if :code:`$rA` is of a float type. Otherwise, an invalid instruction exception is thrown.
+The operation uses :ref:`standard type handling<std_type_handling>` to determine operand and destination types. If the input type is not of a floating point type, an :code:`exc_type` exception is raised.
+
+After the types are determined, the reciprocal-square-root of each lane is computed.
+
+.. todo:: what to do with divide-by-zero and negative input issues? Set a sticky-bit? Assign NaN? What does the standard say?
+
 
 
 .. _rd_eq_size_ra:
@@ -292,14 +307,12 @@ $rD <- size $rA
 
 *Exceptions*: None
 
-*Type variants*: Yes
+*Type variants*: No
 
 Description
 ~~~~~~~~~~~
 
-Reduction sum if :code:`$rA` is of a vector type. Otherwise and invalid instruction exception is thrown.
-
-.. todo:: Detail result type.
+Load the run-time size (in bytes) of $rA into $rD.
 
 .. todo:: This used to be the reduction sum. No toolset support at the moment.
 
@@ -317,14 +330,14 @@ type $rD <- $rA
   |    FIELD_D    |       0       |       c       |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
 *Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
 
-Sets type of $rD as denoted by $rA. All 32 bits of :code:`$rA` are meaningful in this instruction. If an unsupported type is used, an invalid instruction exception is thrown. This instruction doesn't change the bit-pattern stored in :code:`$rD`.
+Sets type of $rD as denoted by $rA. All 32 bits of :code:`$rA` are meaningful in this instruction. If an unsupported type is specified, a :code:`exc_type` exception is raised. The runtime size of the destination is adjusted per the :ref:`size handling<size_handling>` rules. Otherwise the bit-pattern stored in :code:`$rD` is not changed.
 
 
 .. _rd_eq_type_ra:
@@ -342,12 +355,12 @@ $rD <- type $rA
 
 *Exceptions*: None
 
-*Type variants*: Yes
+*Type variants*: No
 
 Description
 ~~~~~~~~~~~
 
-Loads type value of $rA into $rD
+Loads type value of $rA into $rD. The type of $rA is set to INT32.
 
 
 
@@ -364,14 +377,14 @@ type $rD <- FIELD_A
   |    FIELD_D    |       0       |       e       |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
-*Type variants*: No
+*Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
 
-Sets type of $rD as denoted by FIELD_A.
+Sets type of $rD as denoted by FIELD_A. If an unsupported type is specified, a :code:`exc_type` exception is raised. The runtime size of the destination is adjusted per the :ref:`size handling<size_handling>` rules. Otherwise the bit-pattern stored in :code:`$rD` is not changed.
 
 .. todo:: assembly should use descriptive type names, instead of numeric values.
 

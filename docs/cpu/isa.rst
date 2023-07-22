@@ -1305,6 +1305,8 @@ Instruction code                 Assembly                              Operation
 :ref:`0x.ff.<full_rd_eq_mem_ra>` full $rD <- MEM[$rA]                  Load full $rD (no use/modification of vstart vend)
 ================================ ===================================== ===================================================
 
+.. _register_block_type_test_group:
+
 Register block type test group
 ------------------------------
 
@@ -1331,7 +1333,10 @@ Register block type test group
 
   {config: {bits: 16}, config: {hspace: 500},
   reg: [
-      { "name": "FIELD_F", "bits": 16, attr: "types" },
+      { "name": "TYPE_A", "bits": 4, attr: "types A" },
+      { "name": "TYPE_B", "bits": 4, attr: "types B" },
+      { "name": "TYPE_C", "bits": 4, attr: "types C" },
+      { "name": "TYPE_D", "bits": 4, attr: "types D" },
   ]
   }
 
@@ -1345,7 +1350,7 @@ Register block type test group
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |                            FIELD_F                            |
+  |     TYPE_D    |     TYPE_C    |     TYPE_B    |     TYPE_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 ================================================================================= ============================================================ ================================================

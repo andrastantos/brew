@@ -13,9 +13,11 @@ Instructions that store at most a single, aligned 32-bit quantity and at most mo
 
 Exceptions in TASK mode cause the processor to enter SCHEDULER mode. Interrupts are considered one of the possible exceptions.
 
-When a TASK mode exception occurs, Espresso starts execution in SCHEDULER mode. :code:`$tpc` points to the excepting instruction.
+When a TASK mode exception occurs, execution commences in SCHEDULER mode. :code:`$tpc` points to the excepting instruction.
 
 Exceptions in SCHEDULER mode cause the processor to jump to address 0 (the reset vector). Interrupts in SCHEDULER mode are masked and don't take effect.
+
+If an exception or interrupt occurs during the execution of a prefix instruction :code:`$tpc` points to the first prefix instruction. The same precise exception guarantees are honored for prefixed instructions as normal ones. In other words, prefixes are considered part of the instruction with regards to exception or interrupt handling.
 
 Exception sources
 -----------------

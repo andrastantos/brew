@@ -28,7 +28,7 @@ Bit-field    Meaning
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
-Depending on the implementation, some or all of these fence operations might be no-ops.
+Depending on the implementation, some or all fence operations might be no-ops.
 
 'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
@@ -68,7 +68,7 @@ Bit-field    Meaning
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
-Depending on the implementation, some or all of these fence operations might be no-ops.
+Depending on the implementation, some or all fence operations might be no-ops.
 
 'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
@@ -109,7 +109,7 @@ Bit-field    Meaning
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
-Depending on the implementation, some or all of these fence operations might be no-ops.
+Depending on the implementation, some or all fence operations might be no-ops.
 
 'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
@@ -149,7 +149,7 @@ Bit-field    Meaning
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
-Depending on the implementation, some or all of these fence operations might be no-ops.
+Depending on the implementation, some or all fence operations might be no-ops.
 
 'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
@@ -190,7 +190,7 @@ Bit-field    Meaning
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
-Depending on the implementation, some or all of these fence operations might be no-ops.
+Depending on the implementation, some or all fence operations might be no-ops.
 
 'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
@@ -231,7 +231,7 @@ Bit-field    Meaning
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
-Depending on the implementation, some or all of these fence operations might be no-ops.
+Depending on the implementation, some or all fence operations might be no-ops.
 
 'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
@@ -272,7 +272,7 @@ Bit-field    Meaning
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
-Depending on the implementation, some or all of these fence operations might be no-ops.
+Depending on the implementation, some or all fence operations might be no-ops.
 
 'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
@@ -313,7 +313,7 @@ Bit-field    Meaning
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
-Depending on the implementation, some or all of these fence operations might be no-ops.
+Depending on the implementation, some or all fence operations might be no-ops.
 
 'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
@@ -354,7 +354,7 @@ Bit-field    Meaning
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
-Depending on the implementation, some or all of these fence operations might be no-ops.
+Depending on the implementation, some or all fence operations might be no-ops.
 
 'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
@@ -395,7 +395,7 @@ Bit-field    Meaning
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
-Depending on the implementation, some or all of these fence operations might be no-ops.
+Depending on the implementation, some or all fence operations might be no-ops.
 
 'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
@@ -436,7 +436,7 @@ Bit-field    Meaning
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
-Depending on the implementation, some or all of these fence operations might be no-ops.
+Depending on the implementation, some or all fence operations might be no-ops.
 
 'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
@@ -477,7 +477,7 @@ Bit-field    Meaning
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
-Depending on the implementation, some or all of these fence operations might be no-ops.
+Depending on the implementation, some or all fence operations might be no-ops.
 
 'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
@@ -518,7 +518,7 @@ Bit-field    Meaning
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
-Depending on the implementation, some or all of these fence operations might be no-ops.
+Depending on the implementation, some or all fence operations might be no-ops.
 
 'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
@@ -559,7 +559,7 @@ Bit-field    Meaning
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
-Depending on the implementation, some or all of these fence operations might be no-ops.
+Depending on the implementation, some or all fence operations might be no-ops.
 
 'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
@@ -600,7 +600,7 @@ Bit-field    Meaning
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
-Depending on the implementation, some or all of these fence operations might be no-ops.
+Depending on the implementation, some or all fence operations might be no-ops.
 
 'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 

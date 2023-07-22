@@ -1,3 +1,5 @@
+
+
 .. _if_any_ra_eq_0__pc_eq_pc_plus_value:
 
 if any $rA == 0  $pc <- $pc + VALUE
@@ -5,19 +7,25 @@ if any $rA == 0  $pc <- $pc + VALUE
 
 *Instruction code*: 0xf00. 0x****
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
-*Type variants*: No
+*Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
-Conditional branch operation. If any lanes of :code:`$rA` is equal to 0, the instruction flow is branched. The comparison is type-dependent in theory, but in practice all supported types represent the value 0 with the bit-pattern 0. The value of FIELD_E is computed as follows::
+
+This operation uses :ref:`conditional branch type handling<cbranch_type_handling>` to determine the source operand types. It then evaluates the condition: for vector types, the condition for each lane up to value based on :code:`VEND` is evaluated and then aggregated. For scalar types, a single comparison is performed.
+
+.. note:: The value of :code:`VSTART` is ignored during the comparison. If the instruction is retried, all lanes are compared again.
+
+If the condition evaluates true, the branch is taken. The value of FIELD_E is computed as follows::
 
   FIELD_E = (VALUE & 0xfffe) | ((VALUE >> 31) & 1)
 
-In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65535, in increments of 2 bytes.
+In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65534, in increments of 2 bytes.
 
-The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
+.. todo:: How to handle NaN and INF values? Should we have special branches for those?
+
 
 
 .. _if_any_ra_ne_0__pc_eq_pc_plus_value:
@@ -27,19 +35,24 @@ if any $rA != 0  $pc <- $pc + VALUE
 
 *Instruction code*: 0xf01. 0x****
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
-*Type variants*: No
+*Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
-Conditional branch operation. If any lanes of :code:`$rA` is non-0, the instruction flow is branched. The comparison is type-dependent in theory, but in practice all supported types represent the value 0 with the bit-pattern 0. The value of FIELD_E is computed as follows::
+
+This operation uses :ref:`conditional branch type handling<cbranch_type_handling>` to determine the source operand types. It then evaluates the condition: for vector types, the condition for each lane up to value based on :code:`VEND` is evaluated and then aggregated. For scalar types, a single comparison is performed.
+
+.. note:: The value of :code:`VSTART` is ignored during the comparison. If the instruction is retried, all lanes are compared again.
+
+If the condition evaluates true, the branch is taken. The value of FIELD_E is computed as follows::
 
   FIELD_E = (VALUE & 0xfffe) | ((VALUE >> 31) & 1)
 
-In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65535, in increments of 2 bytes.
+In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65534, in increments of 2 bytes.
 
-The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
+.. todo:: How to handle NaN and INF values? Should we have special branches for those?
 
 
 .. _if_any_ra_lt_0___pc_eq_pc_plus_value:
@@ -49,19 +62,24 @@ if any $rA < 0   $pc <- $pc + VALUE
 
 *Instruction code*: 0xf02. 0x****
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
-*Type variants*: No
+*Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
-Conditional branch operation. If any lanes of :code:`$rA` is less than 0, the instruction flow is branched. The comparison is type-dependent, for integral types, it's always carried out using signed arithmetic. The value of FIELD_E is computed as follows::
+
+This operation uses :ref:`conditional branch type handling<cbranch_type_handling>` to determine the source operand types. It then evaluates the condition: for vector types, the condition for each lane up to value based on :code:`VEND` is evaluated and then aggregated. For scalar types, a single comparison is performed. For fixed point types, a signed comparison is performed, even for VUINT16S and VUINT8S types.
+
+.. note:: The value of :code:`VSTART` is ignored during the comparison. If the instruction is retried, all lanes are compared again.
+
+If the condition evaluates true, the branch is taken. The value of FIELD_E is computed as follows::
 
   FIELD_E = (VALUE & 0xfffe) | ((VALUE >> 31) & 1)
 
-In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65535, in increments of 2 bytes.
+In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65534, in increments of 2 bytes.
 
-The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
+.. todo:: How to handle NaN and INF values? Should we have special branches for those?
 
 
 .. _if_any_ra_ge_0__pc_eq_pc_plus_value:
@@ -71,19 +89,24 @@ if any $rA >= 0  $pc <- $pc + VALUE
 
 *Instruction code*: 0xf03. 0x****
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
-*Type variants*: No
+*Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
-Conditional branch operation. If any lanes of :code:`$rA` is greater than or equal to 0, the instruction flow is branched. The comparison is type-dependent, for integral types, it's always carried out using signed arithmetic. The value of FIELD_E is computed as follows::
+
+This operation uses :ref:`conditional branch type handling<cbranch_type_handling>` to determine the source operand types. It then evaluates the condition: for vector types, the condition for each lane up to value based on :code:`VEND` is evaluated and then aggregated. For scalar types, a single comparison is performed. For fixed point types, a signed comparison is performed, even for VUINT16S and VUINT8S types.
+
+.. note:: The value of :code:`VSTART` is ignored during the comparison. If the instruction is retried, all lanes are compared again.
+
+If the condition evaluates true, the branch is taken. The value of FIELD_E is computed as follows::
 
   FIELD_E = (VALUE & 0xfffe) | ((VALUE >> 31) & 1)
 
-In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65535, in increments of 2 bytes.
+In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65534, in increments of 2 bytes.
 
-The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
+.. todo:: How to handle NaN and INF values? Should we have special branches for those?
 
 
 .. _if_any_ra_gt_0___pc_eq_pc_plus_value:
@@ -93,19 +116,24 @@ if any $rA > 0   $pc <- $pc + VALUE
 
 *Instruction code*: 0xf04. 0x****
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
-*Type variants*: No
+*Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
-Conditional branch operation. If any lanes of :code:`$rA` is greater than 0, the instruction flow is branched. The comparison is type-dependent, for integral types, it's always carried out using signed arithmetic. The value of FIELD_E is computed as follows::
+
+This operation uses :ref:`conditional branch type handling<cbranch_type_handling>` to determine the source operand types. It then evaluates the condition: for vector types, the condition for each lane up to value based on :code:`VEND` is evaluated and then aggregated. For scalar types, a single comparison is performed. For fixed point types, a signed comparison is performed, even for VUINT16S and VUINT8S types.
+
+.. note:: The value of :code:`VSTART` is ignored during the comparison. If the instruction is retried, all lanes are compared again.
+
+If the condition evaluates true, the branch is taken. The value of FIELD_E is computed as follows::
 
   FIELD_E = (VALUE & 0xfffe) | ((VALUE >> 31) & 1)
 
-In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65535, in increments of 2 bytes.
+In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65534, in increments of 2 bytes.
 
-The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
+.. todo:: How to handle NaN and INF values? Should we have special branches for those?
 
 
 .. _if_any_ra_le_0__pc_eq_pc_plus_value:
@@ -115,19 +143,24 @@ if any $rA <= 0  $pc <- $pc + VALUE
 
 *Instruction code*: 0xf05. 0x****
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
-*Type variants*: No
+*Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
-Conditional branch operation. If any lanes of :code:`$rA` is less than or equal to 0, the instruction flow is branched. The comparison is type-dependent, for integral types, it's always carried out using signed arithmetic. The value of FIELD_E is computed as follows::
+
+This operation uses :ref:`conditional branch type handling<cbranch_type_handling>` to determine the source operand types. It then evaluates the condition: for vector types, the condition for each lane up to value based on :code:`VEND` is evaluated and then aggregated. For scalar types, a single comparison is performed. For fixed point types, a signed comparison is performed, even for VUINT16S and VUINT8S types.
+
+.. note:: The value of :code:`VSTART` is ignored during the comparison. If the instruction is retried, all lanes are compared again.
+
+If the condition evaluates true, the branch is taken. The value of FIELD_E is computed as follows::
 
   FIELD_E = (VALUE & 0xfffe) | ((VALUE >> 31) & 1)
 
-In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65535, in increments of 2 bytes.
+In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65534, in increments of 2 bytes.
 
-The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
+.. todo:: How to handle NaN and INF values? Should we have special branches for those?
 
 
 .. _if_all_ra_eq_0__pc_eq_pc_plus_value:
@@ -137,19 +170,24 @@ if all $rA == 0  $pc <- $pc + VALUE
 
 *Instruction code*: 0xf08. 0x****
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
-*Type variants*: No
+*Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
-Conditional branch operation. If all lanes of :code:`$rA` is equal to 0, the instruction flow is branched. The comparison is type-dependent in theory, but in practice all supported types represent the value 0 with the bit-pattern 0. The value of FIELD_E is computed as follows::
+
+This operation uses :ref:`conditional branch type handling<cbranch_type_handling>` to determine the source operand types. It then evaluates the condition: for vector types, the condition for each lane up to value based on :code:`VEND` is evaluated and then aggregated. For scalar types, a single comparison is performed.
+
+.. note:: The value of :code:`VSTART` is ignored during the comparison. If the instruction is retried, all lanes are compared again.
+
+If the condition evaluates true, the branch is taken. The value of FIELD_E is computed as follows::
 
   FIELD_E = (VALUE & 0xfffe) | ((VALUE >> 31) & 1)
 
-In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65535, in increments of 2 bytes.
+In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65534, in increments of 2 bytes.
 
-The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
+.. todo:: How to handle NaN and INF values? Should we have special branches for those?
 
 
 .. _if_all_ra_ne_0__pc_eq_pc_plus_value:
@@ -159,19 +197,24 @@ if all $rA != 0  $pc <- $pc + VALUE
 
 *Instruction code*: 0xf09. 0x****
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
-*Type variants*: No
+*Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
-Conditional branch operation. If all lanes of :code:`$rA` is non-0, the instruction flow is branched. The comparison is type-dependent in theory, but in practice all supported types represent the value 0 with the bit-pattern 0. The value of FIELD_E is computed as follows::
+
+This operation uses :ref:`conditional branch type handling<cbranch_type_handling>` to determine the source operand types. It then evaluates the condition: for vector types, the condition for each lane up to value based on :code:`VEND` is evaluated and then aggregated. For scalar types, a single comparison is performed.
+
+.. note:: The value of :code:`VSTART` is ignored during the comparison. If the instruction is retried, all lanes are compared again.
+
+If the condition evaluates true, the branch is taken. The value of FIELD_E is computed as follows::
 
   FIELD_E = (VALUE & 0xfffe) | ((VALUE >> 31) & 1)
 
-In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65535, in increments of 2 bytes.
+In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65534, in increments of 2 bytes.
 
-The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
+.. todo:: How to handle NaN and INF values? Should we have special branches for those?
 
 
 .. _if_all_ra_lt_0___pc_eq_pc_plus_value:
@@ -181,19 +224,24 @@ if all $rA < 0   $pc <- $pc + VALUE
 
 *Instruction code*: 0xf0a. 0x****
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
-*Type variants*: No
+*Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
-Conditional branch operation. If all lanes of :code:`$rA` is less than 0, the instruction flow is branched. The comparison is type-dependent, for integral types, it's always carried out using signed arithmetic. The value of FIELD_E is computed as follows::
+
+This operation uses :ref:`conditional branch type handling<cbranch_type_handling>` to determine the source operand types. It then evaluates the condition: for vector types, the condition for each lane up to value based on :code:`VEND` is evaluated and then aggregated. For scalar types, a single comparison is performed. For fixed point types, a signed comparison is performed, even for VUINT16S and VUINT8S types.
+
+.. note:: The value of :code:`VSTART` is ignored during the comparison. If the instruction is retried, all lanes are compared again.
+
+If the condition evaluates true, the branch is taken. The value of FIELD_E is computed as follows::
 
   FIELD_E = (VALUE & 0xfffe) | ((VALUE >> 31) & 1)
 
-In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65535, in increments of 2 bytes.
+In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65534, in increments of 2 bytes.
 
-The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
+.. todo:: How to handle NaN and INF values? Should we have special branches for those?
 
 
 .. _if_all_ra_ge_0__pc_eq_pc_plus_value:
@@ -203,19 +251,24 @@ if all $rA >= 0  $pc <- $pc + VALUE
 
 *Instruction code*: 0xf0b. 0x****
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
-*Type variants*: No
+*Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
-Conditional branch operation. If all lanes of :code:`$rA` is greater than or equal to 0, the instruction flow is branched. The comparison is type-dependent, for integral types, it's always carried out using signed arithmetic. The value of FIELD_E is computed as follows::
+
+This operation uses :ref:`conditional branch type handling<cbranch_type_handling>` to determine the source operand types. It then evaluates the condition: for vector types, the condition for each lane up to value based on :code:`VEND` is evaluated and then aggregated. For scalar types, a single comparison is performed. For fixed point types, a signed comparison is performed, even for VUINT16S and VUINT8S types.
+
+.. note:: The value of :code:`VSTART` is ignored during the comparison. If the instruction is retried, all lanes are compared again.
+
+If the condition evaluates true, the branch is taken. The value of FIELD_E is computed as follows::
 
   FIELD_E = (VALUE & 0xfffe) | ((VALUE >> 31) & 1)
 
-In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65535, in increments of 2 bytes.
+In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65534, in increments of 2 bytes.
 
-The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
+.. todo:: How to handle NaN and INF values? Should we have special branches for those?
 
 
 .. _if_all_ra_gt_0___pc_eq_pc_plus_value:
@@ -225,19 +278,24 @@ if all $rA > 0   $pc <- $pc + VALUE
 
 *Instruction code*: 0xf0c. 0x****
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
-*Type variants*: No
+*Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
-Conditional branch operation. If all lanes of :code:`$rA` is greater than 0, the instruction flow is branched. The comparison is type-dependent, for integral types, it's always carried out using signed arithmetic. The value of FIELD_E is computed as follows::
+
+This operation uses :ref:`conditional branch type handling<cbranch_type_handling>` to determine the source operand types. It then evaluates the condition: for vector types, the condition for each lane up to value based on :code:`VEND` is evaluated and then aggregated. For scalar types, a single comparison is performed. For fixed point types, a signed comparison is performed, even for VUINT16S and VUINT8S types.
+
+.. note:: The value of :code:`VSTART` is ignored during the comparison. If the instruction is retried, all lanes are compared again.
+
+If the condition evaluates true, the branch is taken. The value of FIELD_E is computed as follows::
 
   FIELD_E = (VALUE & 0xfffe) | ((VALUE >> 31) & 1)
 
-In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65535, in increments of 2 bytes.
+In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65534, in increments of 2 bytes.
 
-The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
+.. todo:: How to handle NaN and INF values? Should we have special branches for those?
 
 
 .. _if_all_ra_le_0__pc_eq_pc_plus_value:
@@ -247,20 +305,24 @@ if all $rA <= 0  $pc <- $pc + VALUE
 
 *Instruction code*: 0xf0d. 0x****
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
-*Type variants*: No
+*Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
-Conditional branch operation. If all lanes of :code:`$rA` is less than or equal to 0, the instruction flow is branched. The comparison is type-dependent, for integral types, it's always carried out using signed arithmetic. The value of FIELD_E is computed as follows::
+
+This operation uses :ref:`conditional branch type handling<cbranch_type_handling>` to determine the source operand types. It then evaluates the condition: for vector types, the condition for each lane up to value based on :code:`VEND` is evaluated and then aggregated. For scalar types, a single comparison is performed. For fixed point types, a signed comparison is performed, even for VUINT16S and VUINT8S types.
+
+.. note:: The value of :code:`VSTART` is ignored during the comparison. If the instruction is retried, all lanes are compared again.
+
+If the condition evaluates true, the branch is taken. The value of FIELD_E is computed as follows::
 
   FIELD_E = (VALUE & 0xfffe) | ((VALUE >> 31) & 1)
 
-In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65535, in increments of 2 bytes.
+In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65534, in increments of 2 bytes.
 
-The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
-
+.. todo:: How to handle NaN and INF values? Should we have special branches for those?
 
 
 .. _if_any_rb_eq_ra___pc_eq_pc_plus_value:
@@ -270,20 +332,24 @@ if any $rB == $rA   $pc <- $pc + VALUE
 
 *Instruction code*: 0xf1.. 0x****
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
 *Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
-Conditional branch operation. If any lanes of :code:`$rA` is equal to the same lane of :code:`$rB`, the instruction flow is branched. The comparison is type-dependent. The value of FIELD_E is computed as follows::
+
+This operation uses :ref:`conditional branch type handling<cbranch_type_handling>` to determine the source operand types. It then evaluates the condition: for vector types, the condition for each lane up to value based on :code:`VEND` is evaluated and then aggregated. For scalar types, a single comparison is performed.
+
+.. note:: The value of :code:`VSTART` is ignored during the comparison. If the instruction is retried, all lanes are compared again.
+
+If the condition evaluates true, the branch is taken. The value of FIELD_E is computed as follows::
 
   FIELD_E = (VALUE & 0xfffe) | ((VALUE >> 31) & 1)
 
-In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65535, in increments of 2 bytes.
+In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65534, in increments of 2 bytes.
 
-The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
-
+.. todo:: How to handle NaN and INF values? Should we have special branches for those?
 
 
 .. _if_any_rb_ne_ra___pc_eq_pc_plus_value:
@@ -293,20 +359,24 @@ if any $rB != $rA   $pc <- $pc + VALUE
 
 *Instruction code*: 0xf2.. 0x****
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
 *Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
-Conditional branch operation. If any lanes of :code:`$rA` is unequal to the same lane of :code:`$rB`, the instruction flow is branched. The comparison is type-dependent. The type is determined by the type of :code:`$rA`. The type of :code:`$rB` is ignored and assumed to be the same as that of :code:`$rA`. The value of FIELD_E is computed as follows::
+
+This operation uses :ref:`conditional branch type handling<cbranch_type_handling>` to determine the source operand types. It then evaluates the condition: for vector types, the condition for each lane up to value based on :code:`VEND` is evaluated and then aggregated. For scalar types, a single comparison is performed.
+
+.. note:: The value of :code:`VSTART` is ignored during the comparison. If the instruction is retried, all lanes are compared again.
+
+If the condition evaluates true, the branch is taken. The value of FIELD_E is computed as follows::
 
   FIELD_E = (VALUE & 0xfffe) | ((VALUE >> 31) & 1)
 
-In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65535, in increments of 2 bytes.
+In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65534, in increments of 2 bytes.
 
-The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
-
+.. todo:: How to handle NaN and INF values? Should we have special branches for those?
 
 
 .. _if_any_signed_rb_lt_ra__pc_eq_pc_plus_value:
@@ -316,19 +386,24 @@ if any signed $rB < $rA  $pc <- $pc + VALUE
 
 *Instruction code*: 0xf3.. 0x****
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
 *Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
-Conditional branch operation. If any lanes of :code:`$rB` is less then the same lane of :code:`$rA`, the instruction flow is branched. The comparison is type-dependent. The type is determined by the type of :code:`$rA`. The type of :code:`$rB` is ignored and assumed to be the same as that of :code:`$rA`. For integral types, the comparison is done using signed arithmetic. For floating point types, a normal floating-point comparison is performed. The value of FIELD_E is computed as follows::
+
+This operation uses :ref:`conditional branch type handling<cbranch_type_handling>` to determine the source operand types. It then evaluates the condition: for vector types, the condition for each lane up to value based on :code:`VEND` is evaluated and then aggregated. For scalar types, a single comparison is performed. For fixed point types, an signed comparison is performed, even for VUINT16S and VUINT8S types.
+
+.. note:: The value of :code:`VSTART` is ignored during the comparison. If the instruction is retried, all lanes are compared again.
+
+If the condition evaluates true, the branch is taken. The value of FIELD_E is computed as follows::
 
   FIELD_E = (VALUE & 0xfffe) | ((VALUE >> 31) & 1)
 
-In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65535, in increments of 2 bytes.
+In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65534, in increments of 2 bytes.
 
-The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
+.. todo:: How to handle NaN and INF values? Should we have special branches for those?
 
 
 .. _if_any_signed_rb_ge_ra_pc_eq_pc_plus_value:
@@ -338,20 +413,24 @@ if any signed $rB >= $rA $pc <- $pc + VALUE
 
 *Instruction code*: 0xf4.. 0x****
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
 *Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
-Conditional branch operation. If any lanes of :code:`$rB` is greater then or equal to the same lane of :code:`$rA`, the instruction flow is branched. The comparison is type-dependent. The type is determined by the type of :code:`$rA`. The type of :code:`$rB` is ignored and assumed to be the same as that of :code:`$rA`. For integral types, the comparison is done using signed arithmetic. For floating point types, a normal floating-point comparison is performed. The value of FIELD_E is computed as follows::
+
+This operation uses :ref:`conditional branch type handling<cbranch_type_handling>` to determine the source operand types. It then evaluates the condition: for vector types, the condition for each lane up to value based on :code:`VEND` is evaluated and then aggregated. For scalar types, a single comparison is performed. For fixed point types, a signed comparison is performed, even for VUINT16S and VUINT8S types.
+
+.. note:: The value of :code:`VSTART` is ignored during the comparison. If the instruction is retried, all lanes are compared again.
+
+If the condition evaluates true, the branch is taken. The value of FIELD_E is computed as follows::
 
   FIELD_E = (VALUE & 0xfffe) | ((VALUE >> 31) & 1)
 
-In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65535, in increments of 2 bytes.
+In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65534, in increments of 2 bytes.
 
-The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
-
+.. todo:: How to handle NaN and INF values? Should we have special branches for those?
 
 
 .. _if_any_rb_lt_ra____pc_eq_pc_plus_value:
@@ -361,19 +440,24 @@ if any $rB < $rA    $pc <- $pc + VALUE
 
 *Instruction code*: 0xf5.. 0x****
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
 *Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
-Conditional branch operation. If any lanes of :code:`$rB` is less then the same lane of :code:`$rA`, the instruction flow is branched. The comparison is type-dependent. The type is determined by the type of :code:`$rA`. The type of :code:`$rB` is ignored and assumed to be the same as that of :code:`$rA`. For integral types, the comparison is done using unsigned arithmetic. For floating point types, a normal floating-point comparison is performed. The value of FIELD_E is computed as follows::
+
+This operation uses :ref:`conditional branch type handling<cbranch_type_handling>` to determine the source operand types. It then evaluates the condition: for vector types, the condition for each lane up to value based on :code:`VEND` is evaluated and then aggregated. For scalar types, a single comparison is performed. For fixed point types, a unsigned comparison is performed, even for VSINT16S and VSINT8S types.
+
+.. note:: The value of :code:`VSTART` is ignored during the comparison. If the instruction is retried, all lanes are compared again.
+
+If the condition evaluates true, the branch is taken. The value of FIELD_E is computed as follows::
 
   FIELD_E = (VALUE & 0xfffe) | ((VALUE >> 31) & 1)
 
-In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65535, in increments of 2 bytes.
+In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65534, in increments of 2 bytes.
 
-The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
+.. todo:: How to handle NaN and INF values? Should we have special branches for those?
 
 
 .. _if_any_rb_ge_ra___pc_eq_pc_plus_value:
@@ -383,29 +467,24 @@ if any $rB >= $rA   $pc <- $pc + VALUE
 
 *Instruction code*: 0xf6.. 0x****
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
 *Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
-Conditional branch operation. If any lanes of :code:`$rB` is greater then or equal to the same lane of :code:`$rA`, the instruction flow is branched. The comparison is type-dependent. The type is determined by the type of :code:`$rA`. The type of :code:`$rB` is ignored and assumed to be the same as that of :code:`$rA`. For integral types, the comparison is done using unsigned arithmetic. For floating point types, a normal floating-point comparison is performed. The value of FIELD_E is computed as follows::
+
+This operation uses :ref:`conditional branch type handling<cbranch_type_handling>` to determine the source operand types. It then evaluates the condition: for vector types, the condition for each lane up to value based on :code:`VEND` is evaluated and then aggregated. For scalar types, a single comparison is performed. For fixed point types, a unsigned comparison is performed, even for VSINT16S and VSINT8S types.
+
+.. note:: The value of :code:`VSTART` is ignored during the comparison. If the instruction is retried, all lanes are compared again.
+
+If the condition evaluates true, the branch is taken. The value of FIELD_E is computed as follows::
 
   FIELD_E = (VALUE & 0xfffe) | ((VALUE >> 31) & 1)
 
-In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65535, in increments of 2 bytes.
+In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65534, in increments of 2 bytes.
 
-The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
-
-
-
-
-
-
-
-
-
-
+.. todo:: How to handle NaN and INF values? Should we have special branches for those?
 
 
 .. _if_all_rb_eq_ra___pc_eq_pc_plus_value:
@@ -415,20 +494,24 @@ if all $rB == $rA   $pc <- $pc + VALUE
 
 *Instruction code*: 0xf9.. 0x****
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
 *Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
-Conditional branch operation. If all lanes of :code:`$rA` is equal to the same lane of :code:`$rB`, the instruction flow is branched. The comparison is type-dependent. The value of FIELD_E is computed as follows::
+
+This operation uses :ref:`conditional branch type handling<cbranch_type_handling>` to determine the source operand types. It then evaluates the condition: for vector types, the condition for each lane up to value based on :code:`VEND` is evaluated and then aggregated. For scalar types, a single comparison is performed.
+
+.. note:: The value of :code:`VSTART` is ignored during the comparison. If the instruction is retried, all lanes are compared again.
+
+If the condition evaluates true, the branch is taken. The value of FIELD_E is computed as follows::
 
   FIELD_E = (VALUE & 0xfffe) | ((VALUE >> 31) & 1)
 
-In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65535, in increments of 2 bytes.
+In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65534, in increments of 2 bytes.
 
-The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
-
+.. todo:: How to handle NaN and INF values? Should we have special branches for those?
 
 
 .. _if_all_rb_ne_ra___pc_eq_pc_plus_value:
@@ -438,20 +521,24 @@ if all $rB != $rA   $pc <- $pc + VALUE
 
 *Instruction code*: 0xfa.. 0x****
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
 *Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
-Conditional branch operation. If all lanes of :code:`$rA` is unequal to the same lane of :code:`$rB`, the instruction flow is branched. The comparison is type-dependent. The type is determined by the type of :code:`$rA`. The type of :code:`$rB` is ignored and assumed to be the same as that of :code:`$rA`. The value of FIELD_E is computed as follows::
+
+This operation uses :ref:`conditional branch type handling<cbranch_type_handling>` to determine the source operand types. It then evaluates the condition: for vector types, the condition for each lane up to value based on :code:`VEND` is evaluated and then aggregated. For scalar types, a single comparison is performed.
+
+.. note:: The value of :code:`VSTART` is ignored during the comparison. If the instruction is retried, all lanes are compared again.
+
+If the condition evaluates true, the branch is taken. The value of FIELD_E is computed as follows::
 
   FIELD_E = (VALUE & 0xfffe) | ((VALUE >> 31) & 1)
 
-In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65535, in increments of 2 bytes.
+In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65534, in increments of 2 bytes.
 
-The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
-
+.. todo:: How to handle NaN and INF values? Should we have special branches for those?
 
 
 .. _if_all_signed_rb_lt_ra__pc_eq_pc_plus_value:
@@ -461,19 +548,24 @@ if all signed $rB < $rA  $pc <- $pc + VALUE
 
 *Instruction code*: 0xfb.. 0x****
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
 *Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
-Conditional branch operation. If all lanes of :code:`$rB` is less then the same lane of :code:`$rA`, the instruction flow is branched. The comparison is type-dependent. The type is determined by the type of :code:`$rA`. The type of :code:`$rB` is ignored and assumed to be the same as that of :code:`$rA`. For integral types, the comparison is done using signed arithmetic. For floating point types, a normal floating-point comparison is performed. The value of FIELD_E is computed as follows::
+
+This operation uses :ref:`conditional branch type handling<cbranch_type_handling>` to determine the source operand types. It then evaluates the condition: for vector types, the condition for each lane up to value based on :code:`VEND` is evaluated and then aggregated. For scalar types, a single comparison is performed. For fixed point types, a signed comparison is performed, even for VUINT16S and VUINT8S types.
+
+.. note:: The value of :code:`VSTART` is ignored during the comparison. If the instruction is retried, all lanes are compared again.
+
+If the condition evaluates true, the branch is taken. The value of FIELD_E is computed as follows::
 
   FIELD_E = (VALUE & 0xfffe) | ((VALUE >> 31) & 1)
 
-In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65535, in increments of 2 bytes.
+In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65534, in increments of 2 bytes.
 
-The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
+.. todo:: How to handle NaN and INF values? Should we have special branches for those?
 
 
 .. _if_all_signed_rb_ge_ra_pc_eq_pc_plus_value:
@@ -483,20 +575,24 @@ if all signed $rB >= $rA $pc <- $pc + VALUE
 
 *Instruction code*: 0xfc.. 0x****
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
 *Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
-Conditional branch operation. If all lanes of :code:`$rB` is greater then or equal to the same lane of :code:`$rA`, the instruction flow is branched. The comparison is type-dependent. The type is determined by the type of :code:`$rA`. The type of :code:`$rB` is ignored and assumed to be the same as that of :code:`$rA`. For integral types, the comparison is done using signed arithmetic. For floating point types, a normal floating-point comparison is performed. The value of FIELD_E is computed as follows::
+
+This operation uses :ref:`conditional branch type handling<cbranch_type_handling>` to determine the source operand types. It then evaluates the condition: for vector types, the condition for each lane up to value based on :code:`VEND` is evaluated and then aggregated. For scalar types, a single comparison is performed. For fixed point types, a signed comparison is performed, even for VUINT16S and VUINT8S types.
+
+.. note:: The value of :code:`VSTART` is ignored during the comparison. If the instruction is retried, all lanes are compared again.
+
+If the condition evaluates true, the branch is taken. The value of FIELD_E is computed as follows::
 
   FIELD_E = (VALUE & 0xfffe) | ((VALUE >> 31) & 1)
 
-In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65535, in increments of 2 bytes.
+In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65534, in increments of 2 bytes.
 
-The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
-
+.. todo:: How to handle NaN and INF values? Should we have special branches for those?
 
 
 .. _if_all_rb_lt_ra____pc_eq_pc_plus_value:
@@ -506,19 +602,24 @@ if all $rB < $rA    $pc <- $pc + VALUE
 
 *Instruction code*: 0xfd.. 0x****
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
 *Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
-Conditional branch operation. If all lanes of :code:`$rB` is less then the same lane of :code:`$rA`, the instruction flow is branched. The comparison is type-dependent. The type is determined by the type of :code:`$rA`. The type of :code:`$rB` is ignored and assumed to be the same as that of :code:`$rA`. For integral types, the comparison is done using unsigned arithmetic. For floating point types, a normal floating-point comparison is performed. The value of FIELD_E is computed as follows::
+
+This operation uses :ref:`conditional branch type handling<cbranch_type_handling>` to determine the source operand types. It then evaluates the condition: for vector types, the condition for each lane up to value based on :code:`VEND` is evaluated and then aggregated. For scalar types, a single comparison is performed. For fixed point types, a unsigned comparison is performed, even for VSINT16S and VSINT8S types.
+
+.. note:: The value of :code:`VSTART` is ignored during the comparison. If the instruction is retried, all lanes are compared again.
+
+If the condition evaluates true, the branch is taken. The value of FIELD_E is computed as follows::
 
   FIELD_E = (VALUE & 0xfffe) | ((VALUE >> 31) & 1)
 
-In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65535, in increments of 2 bytes.
+In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65534, in increments of 2 bytes.
 
-The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
+.. todo:: How to handle NaN and INF values? Should we have special branches for those?
 
 
 .. _if_all_rb_ge_ra___pc_eq_pc_plus_value:
@@ -528,19 +629,38 @@ if all $rB >= $rA   $pc <- $pc + VALUE
 
 *Instruction code*: 0xfe.. 0x****
 
-*Exceptions*: None
+*Exceptions*: :code:`exc_type`
 
 *Type variants*: Yes
 
 Description
 ~~~~~~~~~~~
-Conditional branch operation. If all lanes of :code:`$rB` is greater then or equal to the same lane of :code:`$rA`, the instruction flow is branched. The comparison is type-dependent. The type is determined by the type of :code:`$rA`. The type of :code:`$rB` is ignored and assumed to be the same as that of :code:`$rA`. For integral types, the comparison is done using unsigned arithmetic. For floating point types, a normal floating-point comparison is performed. The value of FIELD_E is computed as follows::
+
+This operation uses :ref:`conditional branch type handling<cbranch_type_handling>` to determine the source operand types. It then evaluates the condition: for vector types, the condition for each lane up to value based on :code:`VEND` is evaluated and then aggregated. For scalar types, a single comparison is performed. For fixed point types, a unsigned comparison is performed, even for VSINT16S and VSINT8S types.
+
+.. note:: The value of :code:`VSTART` is ignored during the comparison. If the instruction is retried, all lanes are compared again.
+
+If the condition evaluates true, the branch is taken. The value of FIELD_E is computed as follows::
 
   FIELD_E = (VALUE & 0xfffe) | ((VALUE >> 31) & 1)
 
-In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65535, in increments of 2 bytes.
+In other words, the MSB of VALUE is copied to the LSB of FIELD_E, then the value is truncated to 16 bits. The relative branch target thus can be between -65536 and 65534, in increments of 2 bytes.
 
-The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
+.. todo:: How to handle NaN and INF values? Should we have special branches for those?
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -585,7 +705,6 @@ d       30
 e       31
 ======= ===============
 
-The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
 
 
 
@@ -630,8 +749,6 @@ d       30
 e       31
 ======= ===============
 
-The implementation can raise exceptions if the jump results in a violation of the memory access rights set up for the execution context.
-
 
 
 
@@ -645,12 +762,69 @@ if any type $r0...$r3   != types $pc <- $pc + br_offs
 
 *Exceptions*: None
 
-*Type variants*: No
+*Type variants*: Yes
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_B ",  "bits": 4, attr: "op kind" },
+      { "name": "0"          "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16, attr: "br_offs" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "TYPE_A", "bits": 4, attr: "types A" },
+      { "name": "TYPE_B", "bits": 4, attr: "types B" },
+      { "name": "TYPE_C", "bits": 4, attr: "types C" },
+      { "name": "TYPE_D", "bits": 4, attr: "types D" },
+  ]
+  }
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |       0       |    FIELD_B    |       f       |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |                            FIELD_E                            |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |     TYPE_D    |     TYPE_C    |     TYPE_B    |     TYPE_A    |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 Description
 ~~~~~~~~~~~
 
-Jump if type of registers is not what's expected
+Conditional branch operation. The instruction performs a set of comparisons between the expected and actual types and branches if the conditions prescribed in the instructions are met. A register can be excluded from the test by setting their corresponding type field to 0xf.
+
+Registers are assigned to their type fields as follows:
+
+========== ===============
+Register   Type field
+========== ===============
+$r0        TYPE_A
+$r1        TYPE_B
+$r2        TYPE_C
+$r3        TYPE_D
+========== ===============
+
+This instruction can be used in function prologs to check that operands passed in registers are indeed of the expected type. Variants are provided for both checking for allowed types or disallowed ones.
+
 
 
 .. _if_all_type_r0...r3___ne_types_pc_eq_pc_plus_br_offs:
@@ -662,12 +836,68 @@ if all type $r0...$r3   != types $pc <- $pc + br_offs
 
 *Exceptions*: None
 
-*Type variants*: No
+*Type variants*: Yes
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_B ",  "bits": 4, attr: "op kind" },
+      { "name": "0"          "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16, attr: "br_offs" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "TYPE_A", "bits": 4, attr: "types A" },
+      { "name": "TYPE_B", "bits": 4, attr: "types B" },
+      { "name": "TYPE_C", "bits": 4, attr: "types C" },
+      { "name": "TYPE_D", "bits": 4, attr: "types D" },
+  ]
+  }
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |       0       |    FIELD_B    |       f       |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |                            FIELD_E                            |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |     TYPE_D    |     TYPE_C    |     TYPE_B    |     TYPE_A    |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 Description
 ~~~~~~~~~~~
 
-Jump if type of registers is not what's expected
+Conditional branch operation. The instruction performs a set of comparisons between the expected and actual types and branches if the conditions prescribed in the instructions are met. A register can be excluded from the test by setting their corresponding type field to 0xf.
+
+Registers are assigned to their type fields as follows:
+
+========== ===============
+Register   Type field
+========== ===============
+$r0        TYPE_A
+$r1        TYPE_B
+$r2        TYPE_C
+$r3        TYPE_D
+========== ===============
+
+This instruction can be used in function prologs to check that operands passed in registers are indeed of the expected type. Variants are provided for both checking for allowed types or disallowed ones.
 
 
 .. _if_type_rd_not_in_field_f_pc_eq_pc_plus_field_e:
@@ -679,12 +909,55 @@ if type $rD not in FIELD_F $pc <- $pc + FIELD_E
 
 *Exceptions*: None
 
-*Type variants*: No
+*Type variants*: Yes
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_B ",  "bits": 4, attr: "op kind" },
+      { "name": "0"          "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16, attr: "br_offs" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "bits": 1 },
+      { "name": "TYPE_MASK", "bits": 15, attr: "types mask" },
+  ]
+  }
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |       0       |    FIELD_B    |       f       |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |                            FIELD_E                            |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |   |                           TYPE MASK                       |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 Description
 ~~~~~~~~~~~
 
-Jump if type of registers is not what's expected
+Conditional branch operation. The instruction compares the type of $rD to the mask provided. If the bit corresponding to the type in the type mask is set to 0, the instruction branches.
+
+This instruction can be used in function prologs to check that operands passed in registers are indeed of the expected type.
 
 
 
@@ -695,14 +968,70 @@ if any type $r4...$r7   != types $pc <- $pc + br_offs
 
 *Instruction code*: 0x101f 0x**** 0x****
 
-*Exceptions*: TBD
+*Exceptions*: None
 
-*Type variants*: TBD
+*Type variants*: Yes
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_B ",  "bits": 4, attr: "op kind" },
+      { "name": "0"          "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16, attr: "br_offs" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "TYPE_A", "bits": 4, attr: "types A" },
+      { "name": "TYPE_B", "bits": 4, attr: "types B" },
+      { "name": "TYPE_C", "bits": 4, attr: "types C" },
+      { "name": "TYPE_D", "bits": 4, attr: "types D" },
+  ]
+  }
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |       0       |    FIELD_B    |       f       |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |                            FIELD_E                            |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |     TYPE_D    |     TYPE_C    |     TYPE_B    |     TYPE_A    |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 Description
 ~~~~~~~~~~~
 
-Jump if type of registers is not what's expected
+Conditional branch operation. The instruction performs a set of comparisons between the expected and actual types and branches if the conditions prescribed in the instructions are met. A register can be excluded from the test by setting their corresponding type field to 0xf.
+
+Registers are assigned to their type fields as follows:
+
+========== ===============
+Register   Type field
+========== ===============
+$r4        TYPE_A
+$r5        TYPE_B
+$r6        TYPE_C
+$r7        TYPE_D
+========== ===============
+
+This instruction can be used in function prologs to check that operands passed in registers are indeed of the expected type. Variants are provided for both checking for allowed types or disallowed ones.
 
 
 .. _if_all_type_r4...r7___ne_types_pc_eq_pc_plus_br_offs:
@@ -712,14 +1041,70 @@ if all type $r4...$r7   != types $pc <- $pc + br_offs
 
 *Instruction code*: 0x102f 0x**** 0x****
 
-*Exceptions*: TBD
+*Exceptions*: None
 
-*Type variants*: TBD
+*Type variants*: Yes
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_B ",  "bits": 4, attr: "op kind" },
+      { "name": "0"          "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16, attr: "br_offs" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "TYPE_A", "bits": 4, attr: "types A" },
+      { "name": "TYPE_B", "bits": 4, attr: "types B" },
+      { "name": "TYPE_C", "bits": 4, attr: "types C" },
+      { "name": "TYPE_D", "bits": 4, attr: "types D" },
+  ]
+  }
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |       0       |    FIELD_B    |       f       |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |                            FIELD_E                            |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |     TYPE_D    |     TYPE_C    |     TYPE_B    |     TYPE_A    |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 Description
 ~~~~~~~~~~~
 
-Jump if type of registers is not what's expected
+Conditional branch operation. The instruction performs a set of comparisons between the expected and actual types and branches if the conditions prescribed in the instructions are met. A register can be excluded from the test by setting their corresponding type field to 0xf.
+
+Registers are assigned to their type fields as follows:
+
+========== ===============
+Register   Type field
+========== ===============
+$r4        TYPE_A
+$r5        TYPE_B
+$r6        TYPE_C
+$r7        TYPE_D
+========== ===============
+
+This instruction can be used in function prologs to check that operands passed in registers are indeed of the expected type. Variants are provided for both checking for allowed types or disallowed ones.
 
 
 .. _if_any_type_r8...r11__ne_types_pc_eq_pc_plus_br_offs:
@@ -729,14 +1114,70 @@ if any type $r8...$r11  != types $pc <- $pc + br_offs
 
 *Instruction code*: 0x201f 0x**** 0x****
 
-*Exceptions*: TBD
+*Exceptions*: None
 
-*Type variants*: TBD
+*Type variants*: Yes
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_B ",  "bits": 4, attr: "op kind" },
+      { "name": "0"          "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16, attr: "br_offs" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "TYPE_A", "bits": 4, attr: "types A" },
+      { "name": "TYPE_B", "bits": 4, attr: "types B" },
+      { "name": "TYPE_C", "bits": 4, attr: "types C" },
+      { "name": "TYPE_D", "bits": 4, attr: "types D" },
+  ]
+  }
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |       0       |    FIELD_B    |       f       |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |                            FIELD_E                            |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |     TYPE_D    |     TYPE_C    |     TYPE_B    |     TYPE_A    |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 Description
 ~~~~~~~~~~~
 
-Jump if type of registers is not what's expected
+Conditional branch operation. The instruction performs a set of comparisons between the expected and actual types and branches if the conditions prescribed in the instructions are met. A register can be excluded from the test by setting their corresponding type field to 0xf.
+
+Registers are assigned to their type fields as follows:
+
+========== ===============
+Register   Type field
+========== ===============
+$r8        TYPE_A
+$r9        TYPE_B
+$r10       TYPE_C
+$r11       TYPE_D
+========== ===============
+
+This instruction can be used in function prologs to check that operands passed in registers are indeed of the expected type. Variants are provided for both checking for allowed types or disallowed ones.
 
 
 .. _if_all_type_r8...r11__ne_types_pc_eq_pc_plus_br_offs:
@@ -746,14 +1187,70 @@ if all type $r8...$r11  != types $pc <- $pc + br_offs
 
 *Instruction code*: 0x202f 0x**** 0x****
 
-*Exceptions*: TBD
+*Exceptions*: None
 
-*Type variants*: TBD
+*Type variants*: Yes
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_B ",  "bits": 4, attr: "op kind" },
+      { "name": "0"          "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16, attr: "br_offs" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "TYPE_A", "bits": 4, attr: "types A" },
+      { "name": "TYPE_B", "bits": 4, attr: "types B" },
+      { "name": "TYPE_C", "bits": 4, attr: "types C" },
+      { "name": "TYPE_D", "bits": 4, attr: "types D" },
+  ]
+  }
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |       0       |    FIELD_B    |       f       |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |                            FIELD_E                            |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |     TYPE_D    |     TYPE_C    |     TYPE_B    |     TYPE_A    |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 Description
 ~~~~~~~~~~~
 
-Jump if type of registers is not what's expected
+Conditional branch operation. The instruction performs a set of comparisons between the expected and actual types and branches if the conditions prescribed in the instructions are met. A register can be excluded from the test by setting their corresponding type field to 0xf.
+
+Registers are assigned to their type fields as follows:
+
+========== ===============
+Register   Type field
+========== ===============
+$r8        TYPE_A
+$r9        TYPE_B
+$r10       TYPE_C
+$r11       TYPE_D
+========== ===============
+
+This instruction can be used in function prologs to check that operands passed in registers are indeed of the expected type. Variants are provided for both checking for allowed types or disallowed ones.
 
 
 .. _if_any_type_r12...r14_ne_types_pc_eq_pc_plus_br_offs:
@@ -763,14 +1260,69 @@ if any type $r12...$r14 != types $pc <- $pc + br_offs
 
 *Instruction code*: 0x301f 0x**** 0x****
 
-*Exceptions*: TBD
+*Exceptions*: None
 
-*Type variants*: TBD
+*Type variants*: Yes
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_B ",  "bits": 4, attr: "op kind" },
+      { "name": "0"          "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16, attr: "br_offs" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "TYPE_A", "bits": 4, attr: "types A" },
+      { "name": "TYPE_B", "bits": 4, attr: "types B" },
+      { "name": "TYPE_C", "bits": 4, attr: "types C" },
+      { "name": "TYPE_D", "bits": 4, attr: "ignored" },
+  ]
+  }
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |       0       |    FIELD_B    |       f       |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |                            FIELD_E                            |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |     TYPE_D    |     TYPE_C    |     TYPE_B    |     TYPE_A    |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 Description
 ~~~~~~~~~~~
 
-Jump if type of registers is not what's expected
+Conditional branch operation. The instruction performs a set of comparisons between the expected and actual types and branches if the conditions prescribed in the instructions are met. A register can be excluded from the test by setting their corresponding type field to 0xf.
+
+Registers are assigned to their type fields as follows:
+
+========== ===============
+Register   Type field
+========== ===============
+$r12        TYPE_A
+$r13        TYPE_B
+$r14        TYPE_C
+========== ===============
+
+This instruction can be used in function prologs to check that operands passed in registers are indeed of the expected type. Variants are provided for both checking for allowed types or disallowed ones.
 
 
 .. _if_all_type_r12...r14_ne_types_pc_eq_pc_plus_br_offs:
@@ -780,15 +1332,69 @@ if all type $r12...$r14 != types $pc <- $pc + br_offs
 
 *Instruction code*: 0x302f 0x**** 0x****
 
-*Exceptions*: TBD
+*Exceptions*: None
 
-*Type variants*: TBD
+*Type variants*: Yes
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_B ",  "bits": 4, attr: "op kind" },
+      { "name": "0"          "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16, attr: "br_offs" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "TYPE_A", "bits": 4, attr: "types A" },
+      { "name": "TYPE_B", "bits": 4, attr: "types B" },
+      { "name": "TYPE_C", "bits": 4, attr: "types C" },
+      { "name": "TYPE_D", "bits": 4, attr: "ignored" },
+  ]
+  }
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |       0       |    FIELD_B    |       f       |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |                            FIELD_E                            |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |     TYPE_D    |     TYPE_C    |     TYPE_B    |     TYPE_A    |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 Description
 ~~~~~~~~~~~
 
-Jump if type of registers is not what's expected
+Conditional branch operation. The instruction performs a set of comparisons between the expected and actual types and branches if the conditions prescribed in the instructions are met. A register can be excluded from the test by setting their corresponding type field to 0xf.
 
+Registers are assigned to their type fields as follows:
+
+========== ===============
+Register   Type field
+========== ===============
+$r12        TYPE_A
+$r13        TYPE_B
+$r14        TYPE_C
+========== ===============
+
+This instruction can be used in function prologs to check that operands passed in registers are indeed of the expected type. Variants are provided for both checking for allowed types or disallowed ones.
 
 .. _if_any_type_r0...r3_eq_types_pc_eq_pc_plus_br_offs:
 
@@ -797,14 +1403,70 @@ if any type $r0...$r3 == types $pc <- $pc + br_offs
 
 *Instruction code*: 0x401f 0x**** 0x****
 
-*Exceptions*: TBD
+*Exceptions*: None
 
-*Type variants*: TBD
+*Type variants*: Yes
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_B ",  "bits": 4, attr: "op kind" },
+      { "name": "0"          "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16, attr: "br_offs" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "TYPE_A", "bits": 4, attr: "types A" },
+      { "name": "TYPE_B", "bits": 4, attr: "types B" },
+      { "name": "TYPE_C", "bits": 4, attr: "types C" },
+      { "name": "TYPE_D", "bits": 4, attr: "types D" },
+  ]
+  }
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |       0       |    FIELD_B    |       f       |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |                            FIELD_E                            |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |     TYPE_D    |     TYPE_C    |     TYPE_B    |     TYPE_A    |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 Description
 ~~~~~~~~~~~
 
-Jump if type of registers is not what's expected
+Conditional branch operation. The instruction performs a set of comparisons between the expected and actual types and branches if the conditions prescribed in the instructions are met. A register can be excluded from the test by setting their corresponding type field to 0xf.
+
+Registers are assigned to their type fields as follows:
+
+========== ===============
+Register   Type field
+========== ===============
+$r0        TYPE_A
+$r1        TYPE_B
+$r2        TYPE_C
+$r3        TYPE_D
+========== ===============
+
+This instruction can be used in function prologs to check that operands passed in registers are indeed of the expected type. Variants are provided for both checking for allowed types or disallowed ones.
 
 
 .. _if_all_type_r0...r3_eq_types_pc_eq_pc_plus_br_offs:
@@ -814,14 +1476,71 @@ if all type $r0...$r3 == types $pc <- $pc + br_offs
 
 *Instruction code*: 0x402f 0x**** 0x****
 
-*Exceptions*: TBD
+*Exceptions*: None
 
-*Type variants*: TBD
+*Type variants*: Yes
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_B ",  "bits": 4, attr: "op kind" },
+      { "name": "0"          "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16, attr: "br_offs" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "TYPE_A", "bits": 4, attr: "types A" },
+      { "name": "TYPE_B", "bits": 4, attr: "types B" },
+      { "name": "TYPE_C", "bits": 4, attr: "types C" },
+      { "name": "TYPE_D", "bits": 4, attr: "types D" },
+  ]
+  }
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |       0       |    FIELD_B    |       f       |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |                            FIELD_E                            |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |     TYPE_D    |     TYPE_C    |     TYPE_B    |     TYPE_A    |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 Description
 ~~~~~~~~~~~
 
-Jump if type of registers is not what's expected
+Conditional branch operation. The instruction performs a set of comparisons between the expected and actual types and branches if the conditions prescribed in the instructions are met. A register can be excluded from the test by setting their corresponding type field to 0xf.
+
+Registers are assigned to their type fields as follows:
+
+========== ===============
+Register   Type field
+========== ===============
+$r0        TYPE_A
+$r1        TYPE_B
+$r2        TYPE_C
+$r3        TYPE_D
+========== ===============
+
+This instruction can be used in function prologs to check that operands passed in registers are indeed of the expected type. Variants are provided for both checking for allowed types or disallowed ones.
+
 
 
 .. _if_any_type_r4...r7_eq_types_pc_eq_pc_plus_br_offs:
@@ -831,14 +1550,70 @@ if any type $r4...$r7 == types $pc <- $pc + br_offs
 
 *Instruction code*: 0x501f 0x**** 0x****
 
-*Exceptions*: TBD
+*Exceptions*: None
 
-*Type variants*: TBD
+*Type variants*: Yes
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_B ",  "bits": 4, attr: "op kind" },
+      { "name": "0"          "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16, attr: "br_offs" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "TYPE_A", "bits": 4, attr: "types A" },
+      { "name": "TYPE_B", "bits": 4, attr: "types B" },
+      { "name": "TYPE_C", "bits": 4, attr: "types C" },
+      { "name": "TYPE_D", "bits": 4, attr: "types D" },
+  ]
+  }
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |       0       |    FIELD_B    |       f       |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |                            FIELD_E                            |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |     TYPE_D    |     TYPE_C    |     TYPE_B    |     TYPE_A    |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 Description
 ~~~~~~~~~~~
 
-Jump if type of registers is not what's expected
+Conditional branch operation. The instruction performs a set of comparisons between the expected and actual types and branches if the conditions prescribed in the instructions are met. A register can be excluded from the test by setting their corresponding type field to 0xf.
+
+Registers are assigned to their type fields as follows:
+
+========== ===============
+Register   Type field
+========== ===============
+$r4        TYPE_A
+$r5        TYPE_B
+$r6        TYPE_C
+$r7        TYPE_D
+========== ===============
+
+This instruction can be used in function prologs to check that operands passed in registers are indeed of the expected type. Variants are provided for both checking for allowed types or disallowed ones.
 
 
 .. _if_all_type_r4...r7_eq_types_pc_eq_pc_plus_br_offs:
@@ -849,14 +1624,70 @@ if all type $r4...$r7 == types $pc <- $pc + br_offs
 
 *Instruction code*: 0x502f 0x**** 0x****
 
-*Exceptions*: TBD
+*Exceptions*: None
 
-*Type variants*: TBD
+*Type variants*: Yes
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_B ",  "bits": 4, attr: "op kind" },
+      { "name": "0"          "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16, attr: "br_offs" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "TYPE_A", "bits": 4, attr: "types A" },
+      { "name": "TYPE_B", "bits": 4, attr: "types B" },
+      { "name": "TYPE_C", "bits": 4, attr: "types C" },
+      { "name": "TYPE_D", "bits": 4, attr: "types D" },
+  ]
+  }
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |       0       |    FIELD_B    |       f       |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |                            FIELD_E                            |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |     TYPE_D    |     TYPE_C    |     TYPE_B    |     TYPE_A    |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 Description
 ~~~~~~~~~~~
 
-Jump if type of registers is not what's expected
+Conditional branch operation. The instruction performs a set of comparisons between the expected and actual types and branches if the conditions prescribed in the instructions are met. A register can be excluded from the test by setting their corresponding type field to 0xf.
+
+Registers are assigned to their type fields as follows:
+
+========== ===============
+Register   Type field
+========== ===============
+$r4        TYPE_A
+$r5        TYPE_B
+$r6        TYPE_C
+$r7        TYPE_D
+========== ===============
+
+This instruction can be used in function prologs to check that operands passed in registers are indeed of the expected type. Variants are provided for both checking for allowed types or disallowed ones.
 
 
 .. _if_any_type_r8...r11__eq_types_pc_eq_pc_plus_br_offs:
@@ -867,14 +1698,70 @@ if any type $r8...$r11  == types $pc <- $pc + br_offs
 
 *Instruction code*: 0x601f 0x**** 0x****
 
-*Exceptions*: TBD
+*Exceptions*: None
 
-*Type variants*: TBD
+*Type variants*: Yes
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_B ",  "bits": 4, attr: "op kind" },
+      { "name": "0"          "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16, attr: "br_offs" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "TYPE_A", "bits": 4, attr: "types A" },
+      { "name": "TYPE_B", "bits": 4, attr: "types B" },
+      { "name": "TYPE_C", "bits": 4, attr: "types C" },
+      { "name": "TYPE_D", "bits": 4, attr: "types D" },
+  ]
+  }
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |       0       |    FIELD_B    |       f       |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |                            FIELD_E                            |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |     TYPE_D    |     TYPE_C    |     TYPE_B    |     TYPE_A    |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 Description
 ~~~~~~~~~~~
 
-Jump if type of registers is not what's expected
+Conditional branch operation. The instruction performs a set of comparisons between the expected and actual types and branches if the conditions prescribed in the instructions are met. A register can be excluded from the test by setting their corresponding type field to 0xf.
+
+Registers are assigned to their type fields as follows:
+
+========== ===============
+Register   Type field
+========== ===============
+$r8        TYPE_A
+$r9        TYPE_B
+$r10       TYPE_C
+$r11       TYPE_D
+========== ===============
+
+This instruction can be used in function prologs to check that operands passed in registers are indeed of the expected type. Variants are provided for both checking for allowed types or disallowed ones.
 
 
 .. _if_all_type_r8...r11__eq_types_pc_eq_pc_plus_br_offs:
@@ -884,14 +1771,70 @@ if all type $r8...$r11  == types $pc <- $pc + br_offs
 
 *Instruction code*: 0x602f 0x**** 0x****
 
-*Exceptions*: TBD
+*Exceptions*: None
 
-*Type variants*: TBD
+*Type variants*: Yes
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_B ",  "bits": 4, attr: "op kind" },
+      { "name": "0"          "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16, attr: "br_offs" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "TYPE_A", "bits": 4, attr: "types A" },
+      { "name": "TYPE_B", "bits": 4, attr: "types B" },
+      { "name": "TYPE_C", "bits": 4, attr: "types C" },
+      { "name": "TYPE_D", "bits": 4, attr: "types D" },
+  ]
+  }
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |       0       |    FIELD_B    |       f       |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |                            FIELD_E                            |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |     TYPE_D    |     TYPE_C    |     TYPE_B    |     TYPE_A    |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 Description
 ~~~~~~~~~~~
 
-Jump if type of registers is not what's expected
+Conditional branch operation. The instruction performs a set of comparisons between the expected and actual types and branches if the conditions prescribed in the instructions are met. A register can be excluded from the test by setting their corresponding type field to 0xf.
+
+Registers are assigned to their type fields as follows:
+
+========== ===============
+Register   Type field
+========== ===============
+$r8        TYPE_A
+$r9        TYPE_B
+$r10       TYPE_C
+$r11       TYPE_D
+========== ===============
+
+This instruction can be used in function prologs to check that operands passed in registers are indeed of the expected type. Variants are provided for both checking for allowed types or disallowed ones.
 
 
 .. _if_any_type_r12...r14_eq_types_pc_eq_pc_plus_br_offs:
@@ -901,14 +1844,69 @@ if any type $r12...$r14 == types $pc <- $pc + br_offs
 
 *Instruction code*: 0x701f 0x**** 0x****
 
-*Exceptions*: TBD
+*Exceptions*: None
 
-*Type variants*: TBD
+*Type variants*: Yes
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_B ",  "bits": 4, attr: "op kind" },
+      { "name": "0"          "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16, attr: "br_offs" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "TYPE_A", "bits": 4, attr: "types A" },
+      { "name": "TYPE_B", "bits": 4, attr: "types B" },
+      { "name": "TYPE_C", "bits": 4, attr: "types C" },
+      { "name": "TYPE_D", "bits": 4, attr: "ignored" },
+  ]
+  }
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |       0       |    FIELD_B    |       f       |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |                            FIELD_E                            |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |     TYPE_D    |     TYPE_C    |     TYPE_B    |     TYPE_A    |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 Description
 ~~~~~~~~~~~
 
-Jump if type of registers is not what's expected
+Conditional branch operation. The instruction performs a set of comparisons between the expected and actual types and branches if the conditions prescribed in the instructions are met. A register can be excluded from the test by setting their corresponding type field to 0xf.
+
+Registers are assigned to their type fields as follows:
+
+========== ===============
+Register   Type field
+========== ===============
+$r12        TYPE_A
+$r13        TYPE_B
+$r14        TYPE_C
+========== ===============
+
+This instruction can be used in function prologs to check that operands passed in registers are indeed of the expected type. Variants are provided for both checking for allowed types or disallowed ones.
 
 
 .. _if_all_type_r12...r14_eq_types_pc_eq_pc_plus_br_offs:
@@ -918,11 +1916,66 @@ if all type $r12...$r14 == types $pc <- $pc + br_offs
 
 *Instruction code*: 0x702f 0x**** 0x****
 
-*Exceptions*: TBD
+*Exceptions*: None
 
-*Type variants*: TBD
+*Type variants*: Yes
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "f",         "bits": 4 },
+      { "name": "FIELD_B ",  "bits": 4, attr: "op kind" },
+      { "name": "0"          "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_E", "bits": 16, attr: "br_offs" },
+  ],
+  }
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "TYPE_A", "bits": 4, attr: "types A" },
+      { "name": "TYPE_B", "bits": 4, attr: "types B" },
+      { "name": "TYPE_C", "bits": 4, attr: "types C" },
+      { "name": "TYPE_D", "bits": 4, attr: "ignored" },
+  ]
+  }
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |       0       |    FIELD_B    |       f       |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |                            FIELD_E                            |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |     TYPE_D    |     TYPE_C    |     TYPE_B    |     TYPE_A    |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
 Description
 ~~~~~~~~~~~
 
-Jump if type of registers is not what's expected
+Conditional branch operation. The instruction performs a set of comparisons between the expected and actual types and branches if the conditions prescribed in the instructions are met. A register can be excluded from the test by setting their corresponding type field to 0xf.
+
+Registers are assigned to their type fields as follows:
+
+========== ===============
+Register   Type field
+========== ===============
+$r12        TYPE_A
+$r13        TYPE_B
+$r14        TYPE_C
+========== ===============
+
+This instruction can be used in function prologs to check that operands passed in registers are indeed of the expected type. Variants are provided for both checking for allowed types or disallowed ones.
