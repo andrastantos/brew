@@ -49,17 +49,12 @@ The following data fields are stored with every register:
 
 * Value
 * Type
-* Size
 * Dirty
 
 These fields can be accessed using the '.' notation.
-The :code:`value` field holds the result of the latest write to the register.
-The :code:`type` field contains the type of the value held in the register. This field is updated by most operations that modify the value, except for load/store operations. It is also updated by type overrides and type-casts.
-The :code:`size` field contains the number of valid bytes held in the :code:`value` field of the register. The :code:`size` field is set to the :code:`min($rX.size, sizeof(type))` when type alone is changed. When :code:`value` changes, the :code:`size` field is adjusted to reflect the total number of bytes held in :code:`value`. For vector operations that use :code:`vstart` and :code:`vend`, :code:`size` reflects :code:`vend`, not the size of the source, nor the size of the destination type.
-
-The :code:`dirty` bit is set whenever either :code:`type` or :code:`value` fields are changed. It can be cleared through by writing to the appropriate CSR.
-
-.. todo:: We have a security hole still: what if someone sets vstart to a high value? Then we won't write many of the destination lanes, yet set size as if we did. So, previously held values could be unmasked. Should we hold a start field as well? Should we zero out elements below vstart? Should not allow modification of vstart from task mode? Man, this is getting convoluted real fast!
+* The :code:`value` field holds the result of the latest write to the register.
+* The :code:`type` field contains the type of the value held in the register. This field is updated by most operations that modify the value, except for load/store operations. It is also updated by type overrides and type-casts.
+* The :code:`dirty` bit is set whenever either :code:`type` or :code:`value` fields are changed. It can be cleared through by writing to the appropriate CSR.
 
 Register value access
 ---------------------
@@ -69,3 +64,74 @@ Each register contains VLEN number of bytes. However not all of these bytes hold
 For certain operations, wrap-around addressing of vector registers is used: if the byte index is greater than :code:`VLEN`, indexing is restarted at 0.
 
 .. note:: since :code:`VLEN` is required to be a power of 2, this means truncating byte address to :code:`log2(VLEN)` number of bits.
+
+
+.. _register_value_and_type_updates:
+
+Register value and type updates
+-------------------------------
+
+When a value of a register is updated, it's possible that only part of the full HW register receives a new value. This can be due to the following reasons:
+
+* The type of the register is one where the value is shorter than the HW register length
+* The :code:`vend` value is lower then :code:`vlen`
+
+It is also possible that the accessible size of a register is adjusted in run-time to be greater then size of the latest update. Some instances of that:
+
+* A scalar registers type is changed to a vector type
+* A 'full' store operation is performed on a vector register
+* :code:`vend` is adjusted to be greater than what was used during the latest updates
+
+In all of these cases, values stored in the upper portions of a register could be unmasked and accessed. This poses a potential security risk. It is paramount that such unmasking is prevented.
+
+.. note:: Imagine the following scenario: the kernel uses a vector-register based :code:`memcpy` implementation to copy sensitive data from one place to another. This means that some vector registers contain sensitive data. Upon return to user mode, the context is restored and new register values (and types) are loaded from memory. Let's say these new types are scalar types. Still, the higher bytes of the HW register contain sensitive data. If user code, for instance, could change the register type and gain access to the upper bytes of the vector register, this sensitive data could be exposed.
+
+To mitigate such information leak, Brew specifies the following logic:
+
+* Whenever a vector value is written to a register, the bytes between :code:`vend` and :code:`vlen` are effectively written as 0.
+* Whenever a scalar value is written to a register, the bytes beyond the size of the scalar type are effectively written as 0.
+* Whenever the type of a register is changed to a scalar type, the bytes beyond the size of the scalar type are effectively written as 0.
+
+It is important to note that some implementations may chose not to physically zero out the upper bytes of a register. This is especially true for implementations where the HW register size is wider than the access width of the register file.
+
+These implementations can maintain side-band information (a size field) next to each register, which is used to 'simulate' the prescribed behavior.
+
+.. note:: Another security hole could emerge in an implementation using the 'size' field the following scenario: let's say that :code:`$r0` was used in a vector operation and is now holding sensitive information. It's type is adjusted to :code:`INT32`, so the size field is set to 4. Yet, sensitive values are held in upper bytes of the HW register. In user code, we could change the type back to - say - :code:`VINT32`, set :code:`vend` to :code:`vlen`, but *also* set :code:`vstart` to :code:`vlen` or some other high value. Now, let's perform a vector load operation. The load will not do anything, and per the definition of :code:`vstart` it will not touch low bytes of the destination register. Finally, it'll change the 'size' field to that of :code:`vstart`, unmasking sensitive data. Notice, that this problem would not occur with an implementation that physically zeros out register value: the point where we change the type to :code:`INT32` would have destroyed all sensitive information.
+
+The :code:`vstart` register is writable only in SCHEDULER-mode. TASK mode only has read-only access to this register.
+
+
+Size handling
+~~~~~~~~~~~~~
+
+Whenever either a new type and/or a new value is assigned to a register, it's run-time size needs to be adjusted. The following rules are applied:
+
+* If both value and type is assigned, the run-time size is set to:
+  * For scalar types, the size is set to the size of the type
+  * For vector types, the size is set to the size of :code:`VEND` if that controlled the production of the result, otherwise the size of the type is used.
+* If only a type is assigned, the run-time size is set to the minimum of the current run-time size and the size of the new type.
+* If only the value is changed, the run-time size of the destination is set to:
+  * For scalar types, the size is not changed
+  * For vector types, the size is set to the size of :code:`VEND` if that controlled the production of the result, otherwise the size of the destination type is used.
+
+:code:`vstart` handling
+-----------------------
+
+The :code:`vstart` register controls the first byte (and through that element) a vector load/store operation considers. The :code:`vstart` register can be set through the following means:
+
+* The successful completion of any vector load/store operation sets this register to 0
+* An exception during the execution of a vector operation sets this register to the byte-index of the first element to be retried.
+* In SCHEDULER-mode, the register can be set using a CSR write
+
+Vector operations that don't load or store vector registers from memory ignore the setting of :code:`vstart` and don't alter its value either. If an exception is raised during the execution of these operations, they are fully retried, if necessary.
+
+.. note:: most operations raise exceptions prior any side-effects and that includes vector operations as well. It's only multi-cycle vector operations that can't test for potential exceptions prior starting execution that are different. The only class of exceptions that can't easily be tested for a-priory are memory access violations in a long, multi-cycle vector load/store operation.
+
+:code:`vend` handling
+---------------------
+
+The :code:`vend` register controls the last byte (and through that element) any vector operation considers. The :code:`vend` register can be set through the following means:
+
+* By the :ref:`set_vend<rd_eq_set_vend_ra>` operation.
+* In SCEDULER mode, by writing to the appropriate CSR register.
+

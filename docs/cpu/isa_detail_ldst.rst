@@ -20,7 +20,7 @@ $rD <- MEM8[$rA]
 Description
 ~~~~~~~~~~~
 
-This operation uses :ref:`load type handling<load_type_handling>` to determine if register :code:`$rD` is loaded. If the load is permitted to proceed, an 8-bit value is loaded from memory location :code:`$rA`, zero-extended to 32-bits and assigned to :code:`$rD`. The size of the destination register is set to 4.
+This operation uses :ref:`load type handling<load_type_handling>` to determine if register :code:`$rD` is loaded. If the load is permitted to proceed, an 8-bit value is loaded from memory location :code:`$rA`, zero-extended to 32-bits and assigned to :code:`$rD`. The 32-bit result is written to :code:`$rD`.
 
 This operation only handles scalar types.
 
@@ -47,7 +47,7 @@ $rD <- MEM16[$rA]
 Description
 ~~~~~~~~~~~
 
-This operation uses :ref:`load type handling<load_type_handling>` to determine if register :code:`$rD` is loaded. If the load is permitted to proceed, a 16-bit value is loaded from memory location :code:`$rA`, zero-extended to 32-bits and assigned to :code:`$rD`. The size of the destination register is set to 4.
+This operation uses :ref:`load type handling<load_type_handling>` to determine if register :code:`$rD` is loaded. If the load is permitted to proceed, a 16-bit value is loaded from memory location :code:`$rA`, zero-extended to 32-bits and assigned to :code:`$rD`. The 32-bit result is written to :code:`$rD`.
 
 This operation only handles scalar types.
 
@@ -244,7 +244,7 @@ $rD <- SMEM8[$rA]
 Description
 ~~~~~~~~~~~
 
-This operation uses :ref:`load type handling<load_type_handling>` to determine if register :code:`$rD` is loaded. If the load is permitted to proceed, an 8-bit value is loaded from memory location :code:`$rA`, sign-extended to 32-bits and assigned to :code:`$rD`. The size of the destination register is set to 4.
+This operation uses :ref:`load type handling<load_type_handling>` to determine if register :code:`$rD` is loaded. If the load is permitted to proceed, an 8-bit value is loaded from memory location :code:`$rA`, sign-extended to 32-bits and assigned to :code:`$rD`. The 32-bit result is written to :code:`$rD`.
 
 This operation only handles scalar types.
 
@@ -270,7 +270,7 @@ $rD <- SMEM16[$rA]
 Description
 ~~~~~~~~~~~
 
-This operation uses :ref:`load type handling<load_type_handling>` to determine if register :code:`$rD` is loaded. If the load is permitted to proceed, a 16-bit value is loaded from memory location :code:`$rA`, sign-extended to 32-bits and assigned to :code:`$rD`. The size of the destination register is set to 4.
+This operation uses :ref:`load type handling<load_type_handling>` to determine if register :code:`$rD` is loaded. If the load is permitted to proceed, a 16-bit value is loaded from memory location :code:`$rA`, sign-extended to 32-bits and assigned to :code:`$rD`. The 32-bit result is written to :code:`$rD`.
 
 This operation only handles scalar types.
 
@@ -296,7 +296,7 @@ $rD <- MEM8[$rA + VALUE]
 Description
 ~~~~~~~~~~~
 
-This operation uses :ref:`load type handling<load_type_handling>` to determine if register :code:`$rD` is loaded. If the load is permitted to proceed, an 8-bit value is loaded from memory location :code:`$rA + VALUE`, zero-extended to 32-bits and assigned to :code:`$rD`. The size of the destination register is set to 4.
+This operation uses :ref:`load type handling<load_type_handling>` to determine if register :code:`$rD` is loaded. If the load is permitted to proceed, an 8-bit value is loaded from memory location :code:`$rA + VALUE`, zero-extended to 32-bits and assigned to :code:`$rD`. The 32-bit result is written to :code:`$rD`.
 
 :code:`VALUE` is computed from FIELD_e by sign-extending it to 32 bits.
 
@@ -319,7 +319,7 @@ $rD <- MEM8[VALUE]
 Description
 ~~~~~~~~~~~
 
-This operation uses :ref:`load type handling<load_type_handling>` to determine if register :code:`$rD` is loaded. If the load is permitted to proceed, an 8-bit value is loaded from memory location :code:`VALUE`, zero-extended to 32-bits and assigned to :code:`$rD`. The size of the destination register is set to 4.
+This operation uses :ref:`load type handling<load_type_handling>` to determine if register :code:`$rD` is loaded. If the load is permitted to proceed, an 8-bit value is loaded from memory location :code:`VALUE`, zero-extended to 32-bits and assigned to :code:`$rD`. The 32-bit result is written to :code:`$rD`.
 
 This operation only handles scalar types.
 
@@ -340,7 +340,7 @@ $rD <- MEM16[$rA + VALUE]
 Description
 ~~~~~~~~~~~
 
-This operation uses :ref:`load type handling<load_type_handling>` to determine if register :code:`$rD` is loaded. If the load is permitted to proceed, a 16-bit value is loaded from memory location :code:`$rA + VALUE`, zero-extended to 32-bits and assigned to :code:`$rD`. The size of the destination register is set to 4.
+This operation uses :ref:`load type handling<load_type_handling>` to determine if register :code:`$rD` is loaded. If the load is permitted to proceed, a 16-bit value is loaded from memory location :code:`$rA + VALUE`, zero-extended to 32-bits and assigned to :code:`$rD`. The 32-bit result is written to :code:`$rD`.
 
 :code:`VALUE` is computed from FIELD_e by sign-extending it to 32 bits.
 
@@ -363,7 +363,7 @@ $rD <- MEM16[VALUE]
 Description
 ~~~~~~~~~~~
 
-This operation uses :ref:`load type handling<load_type_handling>` to determine if register :code:`$rD` is loaded. If the load is permitted to proceed, a 16-bit value is loaded from memory location :code:`VALUE`, zero-extended to 32-bits and assigned to :code:`$rD`. The size of the destination register is set to 4.
+This operation uses :ref:`load type handling<load_type_handling>` to determine if register :code:`$rD` is loaded. If the load is permitted to proceed, a 16-bit value is loaded from memory location :code:`VALUE`, zero-extended to 32-bits and assigned to :code:`$rD`. The 32-bit result is written to :code:`$rD`.
 
 This operation only handles scalar types.
 
@@ -646,7 +646,7 @@ $rD <- SMEM8[$rA + VALUE]
 Description
 ~~~~~~~~~~~
 
-This operation uses :ref:`load type handling<load_type_handling>` to determine if register :code:`$rD` is loaded. If the load is permitted to proceed, an 8-bit value is loaded from memory location :code:`$rA + VALUE`, sign-extended to 32-bits and assigned to :code:`$rD`. The size of the destination register is set to 4.
+This operation uses :ref:`load type handling<load_type_handling>` to determine if register :code:`$rD` is loaded. If the load is permitted to proceed, an 8-bit value is loaded from memory location :code:`$rA + VALUE`, sign-extended to 32-bits and assigned to :code:`$rD`. The 32-bit result is written to :code:`$rD`.
 
 :code:`VALUE` is computed from FIELD_e by sign-extending it to 32 bits.
 
@@ -669,7 +669,7 @@ $rD <- SMEM8[VALUE]
 Description
 ~~~~~~~~~~~
 
-This operation uses :ref:`load type handling<load_type_handling>` to determine if register :code:`$rD` is loaded. If the load is permitted to proceed, an 8-bit value is loaded from memory location :code:`VALUE`, sign-extended to 32-bits and assigned to :code:`$rD`. The size of the destination register is set to 4.
+This operation uses :ref:`load type handling<load_type_handling>` to determine if register :code:`$rD` is loaded. If the load is permitted to proceed, an 8-bit value is loaded from memory location :code:`VALUE`, sign-extended to 32-bits and assigned to :code:`$rD`. The 32-bit result is written to :code:`$rD`.
 
 This operation only handles scalar types.
 
@@ -690,7 +690,7 @@ $rD <- SMEM16[$rA + VALUE]
 Description
 ~~~~~~~~~~~
 
-This operation uses :ref:`load type handling<load_type_handling>` to determine if register :code:`$rD` is loaded. If the load is permitted to proceed, a 16-bit value is loaded from memory location :code:`$rA + VALUE`, sign-extended to 32-bits and assigned to :code:`$rD`. The size of the destination register is set to 4.
+This operation uses :ref:`load type handling<load_type_handling>` to determine if register :code:`$rD` is loaded. If the load is permitted to proceed, a 16-bit value is loaded from memory location :code:`$rA + VALUE`, sign-extended to 32-bits and assigned to :code:`$rD`. The 32-bit result is written to :code:`$rD`.
 
 :code:`VALUE` is computed from FIELD_e by sign-extending it to 32 bits.
 
@@ -714,7 +714,7 @@ $rD <- SMEM16[VALUE]
 Description
 ~~~~~~~~~~~
 
-This operation uses :ref:`load type handling<load_type_handling>` to determine if register :code:`$rD` is loaded. If the load is permitted to proceed, a 16-bit value is loaded from memory location :code:`VALUE`, sign-extended to 32-bits and assigned to :code:`$rD`. The size of the destination register is set to 4.
+This operation uses :ref:`load type handling<load_type_handling>` to determine if register :code:`$rD` is loaded. If the load is permitted to proceed, a 16-bit value is loaded from memory location :code:`VALUE`, sign-extended to 32-bits and assigned to :code:`$rD`. The 32-bit result is written to :code:`$rD`.
 
 This operation only handles scalar types.
 

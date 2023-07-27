@@ -428,9 +428,9 @@ Description
 
 This is a lane swizzle operation.
 
-If :code:`$rA` is not a vector type, a :code:`exc_type` exception is raised. If :code:`$rB` is a vector type, it must have the same lane-size as :code:`$rA`, otherwise a :code:`exc_type` exception is raised. If :code:`$rB` is INT32, it is :ref:`broadcast<type_broadcast>` to the logic type of :code:`$rA`. The result type is that of :code:`$rA`.
+If :code:`$rA` is not a vector type, a :code:`exc_type` exception is raised. If :code:`$rB` is a vector type, it must have the same element size as :code:`$rA`, otherwise a :code:`exc_type` exception is raised. If :code:`$rB` is INT32, it is :ref:`broadcast<type_broadcast>` to the logic type of :code:`$rA`. The result type is that of :code:`$rA`.
 
-Each lane of $rD (as governed by :code:`VEND`) is set to the lane of :code:`$rA`` referenced by the corresponding lane of :code:`$rB`. Lane indices in are zero-based. The lane index is wrapped by the number of lanes specified for the type by :code:`VLEN`. If lanes beyond the size of :code:`$rA` are accessed, they read as 0.
+Each lane of $rD (as governed by :code:`VEND`) is set to the lane of :code:`$rA`` referenced by the corresponding lane of :code:`$rB`. Lane indices in are zero-based. The lane index is wrapped by the number of lanes specified for the type by :code:`VLEN`.
 
 .. todo:: Original lane-swizzle: 0x.af. 0x****  ($rD <- lane_swizzle $rA, VALUE)   got removed. Toolset needs updating.
 

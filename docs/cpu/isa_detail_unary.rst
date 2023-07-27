@@ -260,9 +260,8 @@ Description
 
 The operation uses :ref:`standard type handling<std_type_handling>` to determine operand and destination types. If the input type is not of a floating point type, an :code:`exc_type` exception is raised.
 
-After the types are determined, the reciprocal of each lane is computed.
+After the types are determined, the reciprocal of each lane is computed. If a zero value is encountered in an element, the corresponding result is set to :code:`NaN`. The :code:`fdv` status bit in the :ref:`:code:`FPSTAT` <csr_fpstat>` CSR register is set.
 
-.. todo:: what to do with divide-by-zero issues? Set a sticky-bit? Assign NaN? What does the standard say?
 
 .. _rd_eq_rsqrt_ra:
 
@@ -286,9 +285,8 @@ Description
 
 The operation uses :ref:`standard type handling<std_type_handling>` to determine operand and destination types. If the input type is not of a floating point type, an :code:`exc_type` exception is raised.
 
-After the types are determined, the reciprocal-square-root of each lane is computed.
+After the types are determined, the reciprocal-square-root of each lane is computed. If a non-positive value is encountered in an element, the corresponding result is set to :code:`NaN`. The :code:`fnv` status bit in the :ref:`:code:`FPSTAT` <csr_fpstat>` CSR register is set.
 
-.. todo:: what to do with divide-by-zero and negative input issues? Set a sticky-bit? Assign NaN? What does the standard say?
 
 
 
@@ -316,6 +314,7 @@ Load the run-time size (in bytes) of $rA into $rD.
 
 .. todo:: This used to be the reduction sum. No toolset support at the moment.
 
+.. todo:: We don't specify the 'size' field anymore. This instruction is free for something else now!!!
 
 .. _type_rd_eq_ra:
 
@@ -337,8 +336,7 @@ type $rD <- $rA
 Description
 ~~~~~~~~~~~
 
-Sets type of $rD as denoted by $rA. All 32 bits of :code:`$rA` are meaningful in this instruction. If an unsupported type is specified, a :code:`exc_type` exception is raised. The runtime size of the destination is adjusted per the :ref:`size handling<size_handling>` rules. Otherwise the bit-pattern stored in :code:`$rD` is not changed.
-
+Sets type of $rD as denoted by $rA. All 32 bits of :code:`$rA` are meaningful in this instruction. If an unsupported type is specified, a :code:`exc_type` exception is raised. The value stored in the register is adjusted per :ref:`register_value_and_type_updates` rules.
 
 .. _rd_eq_type_ra:
 
@@ -384,7 +382,7 @@ type $rD <- FIELD_A
 Description
 ~~~~~~~~~~~
 
-Sets type of $rD as denoted by FIELD_A. If an unsupported type is specified, a :code:`exc_type` exception is raised. The runtime size of the destination is adjusted per the :ref:`size handling<size_handling>` rules. Otherwise the bit-pattern stored in :code:`$rD` is not changed.
+Sets type of $rD as denoted by FIELD_A. If an unsupported type is specified, a :code:`exc_type` exception is raised. The value stored in the register is adjusted per :ref:`register_value_and_type_updates` rules.
 
 .. todo:: assembly should use descriptive type names, instead of numeric values.
 

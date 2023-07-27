@@ -38,3 +38,24 @@ Address    Name           Access type    Description
 0x8103     VLEN           R              HW vector length in bytes
 ========== ============== ============== ===================================================
 
+.. _csr_fpstat:
+
+FPSTAT
+------
+
+The following bits are defined:
+
+
+.. wavedrom::
+
+  {config: {bits: 32}, config: {hspace: 500},
+  reg: [
+      { "bits": 24 },
+      { "name": "frnd", bits: 3, attr: "rounding mode" },
+      { "name": "fnv", bits: 1, attr: "invalid operation" },
+      { "name": "fdz", bits: 1, attr: "division by zero" },
+      { "name": "fof", bits: 1, attr: "overflow" },
+      { "name": "fuf", bits: 1, attr: "underflow" },
+      { "name": "fnx", bits: 1, attr: "inexact" },
+  ],
+  }

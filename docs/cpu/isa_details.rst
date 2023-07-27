@@ -104,8 +104,6 @@ An implementation is not required to guarantee in-order load of bytes within the
 
 If - during the operation - an implementation-defined access violation exception occurs, the :code:`VSTART` register will be set to the first byte that was not completely loaded. This behavior is required by all implementations, even those that ignore :code:`VSTART` during loads.
 
-The size of the target register is set to 32 bits for scalar types or to :code:`VEND` for vector types.
-
 .. todo:: this is weird. This means that vector types really only support MEM[]-style loads and stores. all the other variants make only sense for scalars. Are we sure we're using the instruction space efficiently?
 
 .. _store_type_handling:
@@ -125,7 +123,6 @@ An implementation is not required to guarantee in-order store of bytes within th
 
 If - during the operation - an implementation-defined access violation exception occurs, the :code:`VSTART` register will be set to the first byte that was not completely stored. This behavior is required by all implementations, even those that ignore :code:`VSTART` during stores.
 
-For stores, when :code:`VEND` is larger than the size of the register, 0-s are stored passed the register size.
 
 
 .. _cbranch_type_handling:
@@ -142,21 +139,6 @@ Predication Type Handling
 
 Lane predication operations use :ref:`standard type handling<std_type_handling>` to determine source types, but the result type is set to the logic type of what the normal output type would be.
 
-
-.. _size_handling:
-
-Size handling
--------------
-
-Whenever either a new type and/or a new value is assigned to a register, it's run-time size needs to be adjusted. The following rules are applied:
-
-* If both value and type is assigned, the run-time size is set to:
-  * For scalar types, the size is set to the size of the type
-  * For vector types, the size is set to the size of :code:`VEND` if that controlled the production of the result, otherwise the size of the type is used.
-* If only a type is assigned, the run-time size is set to the minimum of the current run-time size and the size of the new type.
-* If only the value is changed, the run-time size of the destination is set to:
-  * For scalar types, the size is not changed
-  * For vector types, the size is set to the size of :code:`VEND` if that controlled the production of the result, otherwise the size of the destination type is used.
 
 
 These rules make sure that now content of a register can be unmasked by type and/or value updates.

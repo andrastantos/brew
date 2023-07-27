@@ -260,7 +260,7 @@ Instruction code                   Assembly                    Operation
 .. note::
   We only have reduction sum. Is there any other *really* important reduction op we need?
 
-.. todo:: $rD <- size $rA is a new instruction, needs toolset/Espresso support.
+.. todo:: $rD <- size $rA is a new instruction is meaningless: it used to be reduction some, now it's pointless.
 
 Binary ALU group
 ----------------
