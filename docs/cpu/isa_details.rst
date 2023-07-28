@@ -29,7 +29,7 @@ The type of the up to two operands of the instruction is examined.
 
 If the two types are not compatible, an :code:`exc_type` exception is raised.
 
-Of the two compatible types, if either is a vector type, the result type is going to be the same vector type. If both are scalar, the result type is going to be the higher precision type.
+Of the two compatible types, if either is a vector type, the result type is going to be the vector type. If both are scalar, the result type is going to be the higher precision type. (If both are vector, compatibility rules require them to be the same type.)
 
 If the instruction has only one operand, the result type is the type of that single operand.
 
@@ -37,7 +37,7 @@ If one of the operands of the instruction is an immediate constant, the result t
 
 If one of the two input operands is of a scalar type, while the other is of a vector type, the scalar one is :ref:`broadcast<type_broadcast>` to the vector type of the other operand.
 
-If one of the two input operands is an immediate constant, its type is assumed to be the compatible scalar type of the non-immediate operand.
+If one of the two input operands is an immediate constant, its type is assumed to be the 32-bit compatible scalar type of the non-immediate operand.
 
 .. note:: For 16-bit immediates, the immediate value is sign-extended to 32-bits before a type is assigned to it. This means that 16-bit immediates for floating-point operations are rather meaningless, even though the operation itself will be carried out and is considered valid.
 
@@ -58,7 +58,7 @@ The result type is determined by the type of $rA for operations with two registe
 
 If one of the two input operands is of a scalar type, while the other is of a vector type, the scalar one is :ref:`broadcast<type_broadcast>` to the logic type of the other operand.
 
-If one of the two input operands is an immediate constant, its type is assumed to be the compatible scalar logic type of the non-immediate operand.
+If one of the two input operands is an immediate constant, its type is assumed to be the 32-bit compatible scalar logic type of the non-immediate operand.
 
 
 .. _shift_type_handling:
