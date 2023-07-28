@@ -68,9 +68,10 @@ Size       Used for inst.    Contents
 ========== ================= ====================
 2          all               Mask used during store (value of FIELD_E)
 2          ld/st only        DIRTY
+1          ld/st only        VSTART
 1          ld/st only        VEND
 1          ld/st only        FPSTAT
-2          ld/st only        padding
+1          ld/st only        padding
 8          all               Type info for all 15 registers.
 .          all               PAD to allow for aligned storage of 1st register value
 .          all               Value of 1st register
@@ -120,11 +121,6 @@ Skip-mask handling
 For load/pop operations a skip-mask register ($rA) can be provided. If specified, a '1' in the appropriate bit will instruct the store/push operations to skip the restoration of the type or value of the given register.
 
 .. note:: Skip-masks are useful for returning values from scheduler context to tasks upon the return from a SYSCALL for example.
-
-Special fields
---------------
-
-Both :code:`VSTART` and :code:`FPSTAT` registers are unconditionally stored and restored by these instructions. :code:`VEND` is left unmodified.
 
 Exception behavior
 ------------------
