@@ -34,6 +34,7 @@ Brew Processor
    memory_model
    isa_details
    load_store_multiple
+   floating_point_support
    csrs
    compatibility
    abi
