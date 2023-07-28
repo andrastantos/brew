@@ -8,7 +8,7 @@ In the following tables
 '*':
  means any value in [0x0:0xf] Can be a different number at every occurrence.
 
-Instructions are fully decoded. Any instruction not explicitly mentioned in the tables below generate an :code:`exc_unkown_inst` exception.
+Instructions are fully decoded. Any instruction not explicitly mentioned in the tables below generate an :code:`exc_unknown_inst` exception.
 
 Exception group
 ---------------

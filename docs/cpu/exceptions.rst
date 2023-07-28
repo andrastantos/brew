@@ -35,7 +35,7 @@ Name                     Description
 :code:`exc_swi_5`        SWI 5 instruction executed
 :code:`exc_swi_6`        SWI 6 instruction executed
 :code:`exc_swi_7`        SWI 7 instruction executedh
-:code:`exc_unkown_inst`  Undefined instruction
+:code:`exc_unknown_inst` Undefined instruction
 :code:`exc_unaligned`    Unaligned memory access
 :code:`exc_type`         Type error in instruction operands
 :code:`exc_hwi`          Hardware interrupt (only in TASK mode)

@@ -29,7 +29,7 @@ The type of the up to two operands of the instruction is examined.
 
 If the two types are not compatible, an :code:`exc_type` exception is raised.
 
-Of the two compatible types, if either is a vector type, the result type is going to be the same vector type. If both are scalar, the result type is going to be that type. (Compatibility requires that if both operands are scalar or vector, they must have the same type.)
+Of the two compatible types, if either is a vector type, the result type is going to be the same vector type. If both are scalar, the result type is going to be the higher precision type.
 
 If the instruction has only one operand, the result type is the type of that single operand.
 
