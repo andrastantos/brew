@@ -294,7 +294,7 @@ Instruction code                        Assembly                    Operation
 :ref:`0x.7..<rd_eq_ra_lsr_rb>`          $rD <- $rA >> $rB           Binary right-shift [#note_binary_shift]_
 :ref:`0x.8..<rd_eq_ra_asr_rb>`          $rD <- $rA >>> $rB          Arithmetic right-shift [#note_binary_shift]_
 :ref:`0x.9..<rd_eq_ra_times_rb>`        $rD <- $rA * $rB            Type-dependent multiply
-:ref:`0x.a..<rd_eq_notra_and_rb>`       $rD <- ~$rA & $rB           Bit-wise 'not'-'and' [#note0xXaXX]_
+:ref:`0x.a..<rd_eq_notra_and_rb>`       $rD <- $rA & ~$rB           Bit-wise 'not'-'and' [#note0xXaXX]_
 :ref:`0x.b..<rd_eq_tiny_rb_plus_const>` $rD <- tiny $rB + CONST     Integer add [#note0xXbXX]_
 0x.c..                                  see below (stack ops)
 0x.d..                                  see below (stack ops)
@@ -311,6 +311,8 @@ Instruction code                        Assembly                    Operation
 
 .. todo::
   What should the behavior be for unsupported type-combinations? One would probably want an exception so that SW emulation can fill the gaps on lower-end processors, but then again, that makes almost all operations a possible exception source, and thus forces the pipeline to be more conservative.
+
+.. todo:: The inversion is swapped from $rA to $rB on $rA & ~$rB. This needs to be followed up in the toolset and Espresso.
 
 .. note:: Output type is the type of $rA
 
@@ -1737,11 +1739,11 @@ This prefix instruction allows for the changing the way the subsequent operation
   |       f       |       f       |     TYPE_A    |    TYPE_B     | ...
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-========================================== =============== ===========================================================
-Instruction code                           Assembly        Operation
-========================================== =============== ===========================================================
-:ref:`0xff** ...<type_overrides_detail>`   (type) (type)   Type override for $rA (TYPE_A) and $rB (TYPE_B).
-========================================== =============== ===========================================================
+========================================== ====================== ===========================================================
+Instruction code                           Assembly               Operation
+========================================== ====================== ===========================================================
+:ref:`0xff** ...<type_overrides_detail>`   Type override (<type>) Type override for $rA (TYPE_A) and $rB (TYPE_B).
+========================================== ====================== ===========================================================
 
 Type override for $rA (TYPE_A) and $rB (TYPE_B).
 
