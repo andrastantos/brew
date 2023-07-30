@@ -180,6 +180,8 @@ def extract_inst_code(asm: str) -> Tuple[str, Optional[str]]:
 def is_summary_line(line: str) -> bool:
     return line.startswith("0x") or line.startswith(":ref:`0x")
 
+isa_summary = []
+
 with open("isa.rst", "rt") as file:
     sections = None
     while file:
@@ -207,6 +209,7 @@ with open("isa.rst", "rt") as file:
             operation = line[sections[1]:].strip()
 
             inst_codes.add_code(inst_code, asm, operation, 0)
+            isa_summary.append((inst_code, asm, operation))
             #print(line)
             pass
 
@@ -496,3 +499,38 @@ with open("isa.rst", "rt") as file:
             else:
                 out_file.write(f"{line}\n")
 out_file.close()
+
+#def sort_opcode(item1, item2):
+#    # opcodes are strings in the form of 0xXXXX 0xXXXX 0xXXXX ...
+#    # What we want is to sort
+#    if fitness(item1) < fitness(item2):
+#        return -1
+#    elif fitness(item1) > fitness(item2):
+#        return 1
+#    else:
+#        return 0
+
+# Writing out condensed ISA table
+with open("isa_template.rst", "wt") as out_file:
+    inst_header = "Instruction code"
+    asm_header= "Assembly"
+    operation_header = "Operation"
+    inst_code_len = len(inst_header)
+    asm_len = len(asm_header)
+    operation_len = len(operation_header)
+
+    for inst_code, asm, operation in isa_summary:
+        inst_code_len = max(inst_code_len, len(inst_code))
+        asm_len = max(asm_len, len(asm))
+        operation_len = max(operation_len, len(operation))
+
+
+    lines = f"{'='*inst_code_len}   {'='*asm_len}   ================\n"
+    out_file.write(lines)
+    out_file.write(f"{inst_header:{inst_code_len}}   {asm_header:{asm_len}}   Implemented\n")
+    out_file.write(lines)
+    #for inst_code, asm, operation in sorted(isa_summary):
+    for inst_code, asm, operation in isa_summary:
+        out_file.write(f"{inst_code:{inst_code_len}}   {asm:{asm_len}}\n")
+    out_file.write(lines)
+
