@@ -114,6 +114,8 @@ Whenever either a new type and/or a new value is assigned to a register, it's ru
   * For scalar types, the size is not changed
   * For vector types, the size is set to the size of :code:`VEND` if that controlled the production of the result, otherwise the size of the destination type is used.
 
+.. _vstart_handling:
+
 :code:`vstart` handling
 -----------------------
 
@@ -125,7 +127,11 @@ The :code:`vstart` register controls the first byte (and through that element) a
 
 Vector operations that don't load or store vector registers from memory ignore the setting of :code:`vstart` and don't alter its value either. If an exception is raised during the execution of these operations, they are fully retried, if necessary.
 
-.. note:: most operations raise exceptions prior any side-effects and that includes vector operations as well. It's only multi-cycle vector operations that can't test for potential exceptions prior starting execution that are different. The only class of exceptions that can't easily be tested for a-priory are memory access violations in a long, multi-cycle vector load/store operation.
+.. note:: most operations raise exceptions prior any side-effects and that includes vector operations as well. It's only multi-cycle vector operations that can't test for potential exceptions prior starting execution that are different. The only class of exceptions that can't easily be tested for a-priory are memory access violations in a long, multi-cycle vector load/store operation. This is the reason that :code:`vstart` is only used by load/store operations.
+
+It is up to the implementation if :code:`vstart` is implemented. After all this is really an optimization around retries for loads/stores. The implications of this are the same as that of load/store multiple. Namely, that we adhere to the normal memory semantics, where multiple stores of the same value to the same address and multiple loads from the same address are harmless. This of course isn't true for I/O, which is to say that vector loads/stores are not supported to I/O regions, or at least not guaranteed on all implementations. The other consequence is that load-lock/store-conditional operations are not really reasonable with vector types either. If the implementation doesn't support :code:`vstart` vector load/stores always operate on the full vector and :code:`vstart` is set to constant 0. The memory exception handler uses the :code:`EADDR` register to determine the target address of the violation and the right course of action to be taken, including a potential retry.
+
+.. _vend_handling:
 
 :code:`vend` handling
 ---------------------
@@ -134,4 +140,6 @@ The :code:`vend` register controls the last byte (and through that element) any 
 
 * By the :ref:`set_vend<rd_eq_set_vend_ra>` operation.
 * In SCEDULER mode, by writing to the appropriate CSR register.
+
+The value of :code:`vend` points to the byte after the last element in the vector register to be processed and must be aligned to an element boundary. In case of a misaligned :code:`vend`, vector operations truncate the value to align with the lane size. For instance, if :code:`vend` is set to 7 while the element length is 4, the two lowest order bits of :code:`vend` are ignored, and :code:`vend` is treated as if it was set to 4.
 

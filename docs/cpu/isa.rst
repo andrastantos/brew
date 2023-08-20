@@ -1032,6 +1032,8 @@ Instruction code                               Assembly                         
 
 .. note:: FIELD_E is sign-extended before addition
 
+.. _load_store_multiple:
+
 Load/store multiple
 -------------------
 
@@ -1303,8 +1305,8 @@ Special indirect load-store group
 ================================ ===================================== ===================================================
 Instruction code                 Assembly                              Operation
 ================================ ===================================== ===================================================
-:ref:`0x.ef.<mem_ra_eq_full_rd>` MEM[$rA] <- full $rD                  Store full $rD (no use/modification of vstart vend)
-:ref:`0x.ff.<full_rd_eq_mem_ra>` full $rD <- MEM[$rA]                  Load full $rD (no use/modification of vstart vend)
+:ref:`0x.ef.<mem_ra_eq_full_rd>` MEM[$rA] <- full $rD                  Store full $rD (ignore :code:`vend`)
+:ref:`0x.ff.<full_rd_eq_mem_ra>` full $rD <- MEM[$rA]                  Load full $rD (ignore :code:`vend`)
 ================================ ===================================== ===================================================
 
 .. _register_block_type_test_group:
@@ -1649,61 +1651,6 @@ Instruction code                               Assembly                      Ope
 .. todo:: reduction sum used to be in the unary group and, well, used to be unary. Need to update toolset.
 
 
-Scaled multiply group
-~~~~~~~~~~~~~~~~~~~~~
-
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "f",         "bits": 4 },
-      { "name": "f",         "bits": 4 },
-      { "name": "FLD_F",     "bits": 2, attr: "shift" },
-      { "name": "FLD_O",     "bits": 2, attr: "op kind" },
-      { "name": "f",         "bits": 4 },
-  ],
-  }
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
-      { "name": "FIELD_B",   "bits": 4, attr: "$rB" },
-      { "name": "FIELD_C",   "bits": 4, attr: "shift" },
-      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
-  ],
-  }
-
-..
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |       f       |  OP   | FLD_F |       f       |       f       |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |    FIELD_C    |    FIELD_B    |    FIELD_A    |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-========================================================== ========================================== ==================
-Instruction code                                           Assembly                                   Operation
-========================================================== ========================================== ==================
-:ref:`0xf4ff 0x.*..<rd_eq_full_ra_times_rb_asr_value>`     $rD <- full $rA * $rB >>> FIELD_C + 0
-:ref:`0xf5ff 0x.*..<rd_eq_full_ra_times_rb_asr_value>`     $rD <- full $rA * $rB >>> FIELD_C + 8
-:ref:`0xf6ff 0x.*..<rd_eq_full_ra_times_rb_asr_value>`     $rD <- full $rA * $rB >>> FIELD_C + 16
-:ref:`0xf7ff 0x.*..<rd_eq_full_ra_times_rb_asr_value>`     $rD <- full $rA * $rB >>> FIELD_C + 32
-:ref:`0xf8ff 0x.*..<rd_eq_full_ra_times_rb_lsr_value>`     $rD <- full $rA * $rB >> FIELD_C + 0
-:ref:`0xf9ff 0x.*..<rd_eq_full_ra_times_rb_lsr_value>`     $rD <- full $rA * $rB >> FIELD_C + 8
-:ref:`0xfaff 0x.*..<rd_eq_full_ra_times_rb_lsr_value>`     $rD <- full $rA * $rB >> FIELD_C + 16
-:ref:`0xfbff 0x.*..<rd_eq_full_ra_times_rb_lsr_value>`     $rD <- full $rA * $rB >> FIELD_C + 32
-========================================================== ========================================== ==================
-
-.. todo::
-  This is not how BINUTILS is coded up at the moment. We need to follow-up with the changes there.
-
-.. todo:: Extension group encoding changed. Toolset needs updating.
-
-
 Prefix instructions
 -------------------
 
@@ -1748,3 +1695,10 @@ Instruction code                           Assembly               Operation
 Type override for $rA (TYPE_A) and $rB (TYPE_B).
 
 If either TYPE_A or TYPE_B is set to 0xf, the corresponding register type is not overridden: the type from the register file is used during the subsequent operation.
+
+MISSING
+~~~~~~~
+
+.. todo:: missing operations:
+    #. Scatter/gather stores/loads
+    #. Lane injection/extraction

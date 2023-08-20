@@ -4,19 +4,22 @@ Vector operations
 .. note::
     The `RiscV vector extension <https://inst.eecs.berkeley.edu/~cs152/sp20/handouts/sp20/riscv-v-spec.pdf>`_ is a good source for how others are doing this.
 
-The vector architecture of the Brew ISA uses variable operational vector lengths and combines them with fixed HW vector register length. It allows for independent vector register widths and vector execution unit widths. Brew integrates vector functionality using its type system. Many instructions perform both scalar and vector operations based on the register types they are presented with.
+The vector architecture of the Brew ISA uses variable operational vector lengths and combines them with fixed HW vector register length. Brew integrates vector functionality using its type system. Many instructions perform both scalar and vector operations based on the register types they are presented with.
 
-Vector registers have an implementation-defined length, which must be a power of two bits and a multiple of 32 bits. Any register can be associated with a scalar or vector type, consequently there are up to 15 vector registers.
+Vector registers have an implementation-defined length, which must be a power of two number of bits and at least 32. Any register can be associated with a scalar or vector type, consequently there are up to 15 vector registers.
 
 To support vector operations, the following status registers are maintained:
 
-#. :code:`vstart`: This register controls the first byte of a vector registers that is processed. This register is normally set to 0 after the execution of every vector operation. If a vector operation raises an exception mid-execution (such as an access violation after a partial vector store), the :code:`vstart` register points to the first byte whose processing has not completed.
-#. :code:`vend`: This register controls the last byte of the vector registers that is processed, effectively setting the active vector length. This register is normally set by the :code:`set_vend` instruction. which is the byte pointer to after the last element in the vector register to be processed (it must be aligned to an element boundary)
+#. :code:`vstart`: This optional register controls the first byte of a vector registers that is processed in load-store operations. See :ref:`vstart handling<vstart_handling>` for details.
+#. :code:`vend`: This register controls the last byte of the vector registers that is processed, effectively setting the active vector length. See :ref:`vend handling<vend_handling>` for details.
 #. :code:`vlen`: This implementation-defined constant defines length of the HW vector registers in bytes
 
-Normally vector operations only access elements between :code:`vstart` and :code:`vend`. Load/store element offsets however always calculated from element 0, even if :code:`vstart` is non-0. (In other words :code:`vstart` only impacts byte-enable signals, but not offset calculations). There are some exceptions to these rules, namely special load/store operations that ignore the value held in :code:`vstart` and :code:`vend`. These instructions are useful for saving and restoring context.
 
-To understand the basic concept, let's look at a simple example: we want to add two vectors: V1, V2 and put the result into V3. Let's say also that these vectors contain 16-bit floats. Their length is the same and known, but can be arbitrarily large or small.
+Normally vector operations disregard :code:`vstart` and access elements from byte 0 through :code:`vend`. There are some exceptions to this rule, namely special load/store operations exist that ignore the value held in :code:`vend`. These instructions are useful for saving and restoring context.
+
+If :code:`vstart` is implemented, Load/store operations skip element below :code:`vstart`, but their offsets always calculated from element 0.
+
+To understand the basic concept, let's look at a simple example: we want to add two vectors: V1, V2 and put the result into V3. Let's say also that these vectors contain 32-bit floats. Their length is the same and known, but can be arbitrarily large or small.
 
 ::
 
@@ -24,10 +27,10 @@ To understand the basic concept, let's look at a simple example: we want to add 
     # $r5: points to V2
     # $r6: points to V3
     # $r7: contains vector length (in bytes)
-        type $r0 <- VFP16
-        type $r1 <- VFP16
+        type $r0 <- VFP32
+        type $r1 <- VFP32
     loop:
-        $r2 <- set_vend $r7      # Set and store number of elements *actually* processed in the iteration in $r2
+        $r2 <- set_vend $r7      # Set and store number of elements *actually* processed in the current iteration in $r2
         $r0 <- MEM[$r4]          # Load source
         $r1 <- MEM[$r5]          # Load source
         $r1 <- $r0 + $r1         # Do math
@@ -38,53 +41,49 @@ To understand the basic concept, let's look at a simple example: we want to add 
         $r7 <- $r7 - $r2         # Decrement count
         if $r7 != 0 $pc <- loop  # Loop, if needed
 
-Notice, how we re-set :code:`vend` in every iteration of the loop. That's the crucial idea behind scalable vector implementations, of which Brew is one example.
+Notice, how we re-compute :code:`vend` in every iteration of the loop. That's the crucial idea behind scalable vector implementations, of which Brew is one example.
 
+Exception handling for vector instructions
+------------------------------------------
 
-Exception handling
-------------------
+The :ref:`exception handling<exception_handling>` rules guarantee that all base-set exception with the exception of :code:`exc_unaligned` are raised at instruction boundaries. That is, a vector instruction is either fully executed or not executed at all.
 
-If an exception (or interrupt) is raised during any vector operation, :code:`vstart` will be set to point to the next element to be processed. This is especially important for load-store operations in cases when vector length is longer then the bus interface length. :code:`$tpc` points to the offending instruction. If a retry is attempted at that point :code:`vstart` will ensure that only the remaining portion of the vector operation is going to be performed.
+:code:`exc_unaligned` and other, implementation-defined memory-access exceptions (such as access right violations) can potentially be raised mid-execution for vector load-store operations, where some but not all the side-effects of the instruction have taken place.
 
+In those cases, :code:`vstart` will be set to point to the element which caused the exception. If a retry is attempted later on, :code:`vstart` will ensure that only the remaining portion of the vector operation is going to be performed.
+
+.. note:: :code:`vstart` implementation is optional. If not implemented, a retry will restart the full load-store operation. If :code:`vstart` is implemented, it requires sequential processing of elements in a vector.
 
 State management
 ----------------
 
-The status registers :code:`vstart`, :code:`vend` and :code:`vlen` are accessible as CSRs. :code:`vend` can also be set by the :code:`set_vlen` instruction. The :code:`vstart` and :code:`vend` CSRs can only be modified from SCHEDULER-mode. All three registers can be read from TASK-mode.
+With the introduction of vector types, he (effective) length of a register is not constant anymore; it depends on its type.
 
+Because of this, saving and restoring machine state is difficult. This problem occurs under a few circumstances:
 
+#. At function prologs/epilogs where callee-saved registers must be spilled to the stack
+#. Upon entering/laving SCHEDULER mode where the TASK-mode context needs to be saved/restored
+#. Spilling of registers inside a function to relieve register pressure
 
+In the first two cases, the type of the registers - and consequently the storage space required for them - is not statically known. Upper bounds of course exist, but they are wasteful both in terms of memory usage and memory access.
 
+:ref:`Store/load multiple and PUSH/POP<load_store_multiple>` operations are provided as an optimal - albeit complex - solution to these issues.
 
+The problem in the third case is that :code:`vend` may or may not be applicable to the register value we're spilling or restoring.
 
-
-
-The problem is more complex though: upon entering SCHEDULER mode, we don't have any free registers. And normal load/store operations use VSTART/VEND.
-
-The solution (however ugly it is) is to provide a set of load/store operations that work on the *full* register and ignore the setting in VSTART/VEND.
-
-These operations are potentially also useful in spilling registers to the stack: in those cases too, we don't know/care about the size of the actual vectors the user operates on. For all we know, VSTART/VEND might not even apply to the register we're trying to free up to relieve register pressure.
-
-Another, maybe safer way of dealing with this is the PUSH/POP operations, though they can't be used during context switches: not only can't we take $sp up to date - or even assume that $sp is used as the stack pointer - but we can't assume that there's room in the stack.
+A set of :ref:`load<full_rd_eq_mem_value>`/:ref:`store<mem_value_eq_full_rd>` operations exist that work on the *full* register and ignore the value of :code:`vend` to help with this situation.
 
 Loads, stores and memory alignment
 ----------------------------------
 
-Vector storage alignment must be the smaller of:
+Loading and storing of vector registers is allowed 32-bit aligned addresses.
 
-* The actual vector length
-* 256 bits
+:code:`VSTART`/:code:`VEND` alignment
+-------------------------------------
 
-In other words: if I'm dealing with a vector of 32-bit length (4 8-bit values), it needs to be aligned to 32-bit boundaries. If I'm dealing with a vector of 256 FP32 elements, it needs to be aligned to a 256-bit boundary.
+:code:`VEND` is always truncated to element size increments. So, for instance if the type is :code:`VINT32`, but :code:`vend` is set to 13, it is treated as if it was set to 12.
 
-This requirement is a compromise: if there is an implementation that uses a wider than 256-bit external bus, it must deal with unaligned storage and related issues for large vectors. However, an implementation of that complexity can presumably afford it.
-
-This alignment requirement is going to be fun for stack operations (PUSH/PULL multiple): we have to align the stack, potentially leaving a gap. Then, on POP we'd need to re-un-align the stack, which means we also have to store whatever alignment we decided upon in the PUSH block.
-
-VSTART/VEND alignment
----------------------
-
-VSTART and VEND are specified in bytes. But what happens if a vector is of type VINT32 and VSTART is 3? Or VEND is 14? The answer is that CPU has to truncate down to element boundary.
+Unaligned :code:`VSTART` handling is implementation defined: under normal circumstances SW never touches the value of this register, so no reason to define general guidelines.
 
 Special vector operations
 -------------------------
@@ -97,23 +96,15 @@ Operation                                       Notes
 Widening operations                             These are type-casts, implemented as an extension group
 Narrowing operations                            These are type-casts, implemented as an extension group
 Lane swizzle operations                         Implemented as an extension group
-Gather loads                                    Same as normal loads, if $rA is of a vector type
-Scatter stores                                  Same as normal stores, if $rA is of a vector type
+Gather loads                                    ::TODO:: NEED TO BE IMPLEMENTED The only thing that makes sense is MEM[VALUE+$rA], where VALUE is 32-bits
+Scatter stores                                  ::TODO:: NEED TO BE IMPLEMENTED The only thing that makes sense is MEM[VALUE+$rA], where VALUE is 32-bits
 Masked loads and stores                         Loads can't be supported as it would need 3 operands; dropped
 Vector compress                                 Implemented as an extension group
 Mask generation                                 Implemented as an extension group
 Predication of operations                       Not supported due to the required extra read port. Use lane-selection instead
 Mask-based lane-selection                       Has been part of the ISA from the get go (two instructions due to the 2-read-port restriction)
+Lane injection/extraction                       ::TODO:: NEED TO BE IMPLEMENTED
 =============================================   ==========================================
-
-
-Type conflicts, lane-count conflicts
-------------------------------------
-
-We need to define what happens if an operation encounters incompatible types. Either due to the element type being incompatible or the lane-count being incompatible. I think the sane thing to do is that in general:
-
-#. Require that element types are the same (i.e. can't add a float to an integer)
-#. Require that lane counts are the same, except to allow for scalar broadcasting.
 
 Lane predication, or the lack of it
 -----------------------------------
@@ -132,16 +123,14 @@ For instance, let's assume we want to compute the element-wise square of a vecto
 
 This of course can be put in an SVI loop for larger vectors.
 
-.. note:: since operations are not predicated, exceptions can still fire for elements that should be ignored.
-
-.. todo:: I don't yet know how to deal with floating point exceptions (IEEE in that regard is painful, I believe), but load-stores could also be problematic.
+.. note:: since operations themselves are not predicated, it's not possible to do masked loads/stores. Those would need to be implemented as read-modify-writes; which has potentially different exception semantics.
 
 Context changes
 ---------------
 
-There is an inherent problem with vector ISAs: they hold a lot of state. This of course is great for performance as state needs to be spilled into memory much less frequently and even when it does, it can be done much more efficiently. However, this state is a problem whenever the execution context needs to change.
+There is an inherent problem with vector ISAs: they hold a lot of state. This of course is great for performance as state needs to be spilled into memory much less frequently and even when it is, it can be done much more efficiently - using burst transfers. However, this state is a problem whenever the execution context needs to change.
 
-Drawing on the Cray experience: on the one hand, one could say that if a code doesn't touch vector registers, it's context doesn't need to include them, on the other, the Cray libraries made extensive use of vector registers for very mundane tasks, such as memcpy or strlen. These are so commonly used, it's hard to imagine many programs that would not touch vector registers.
+Drawing on the Cray experience: on the one hand, one could say that if a code doesn't touch vector registers, it's context doesn't need to include them, on the other, the Cray libraries made extensive use of vector registers for very mundane tasks, such as memcpy or strlen. These are so commonly used it's hard to imagine many programs that would not touch vector registers.
 
 What can be said though is that there could be significant sections of execution when no vector registers are touched. If a context switch happens in those sections, the previously saved vector values are still valid, no need to update them.
 
@@ -149,15 +138,17 @@ The way Cray dealt with this was to provide a 'vector-registers-are-dirty' bit t
 
 In Brew, we have a dirty bit for each register. During context switch, we can use the dirty mask to not store back registers whose value didn't change. Of course we also have to store and re-load the dirty map during the context switch, otherwise it's value can't be trusted.
 
+Just as on the Cray though, this is a massively complex operation, really not of the 'RISC' creed. However, doing it in SW is even more complex and would be hopelessly slow.
+
 Function prologs and epilogs
 ----------------------------
 
-We have a big problem in this arena: the amount of data loaded/stored depends on the pre-set register type. This is very difficult to handle in - for example - stack frames, where $sp would need to be adjusted according to the total number of bytes stored, but that isn't known, at least not statically. To handle this, PUSH/POP multiple operations are provided which can be used to spill a specified part of the architectural register state onto the stack. These create an implementation-defined structure on the stack and return the updated stack pointer. They can be used to spill/restore any combination of registers, solving two problems at once: the function prolog/epilog is very short now and the fact that the size of the stack space needed depends on the (run-time) types of the registers can be handled in the layout of the implementation defined blob.
+We have a big problem in this arena too: the amount of data loaded/stored depends on the pre-set register type. This is very difficult to handle in - for example - stack frames, where $sp would need to be adjusted according to the total number of bytes stored, but that isn't known, at least not statically. To handle this, PUSH/POP multiple operations are provided which can be used to spill a specified part of the architectural register state onto the stack. These create an implementation-defined structure on the stack and return the updated stack pointer. They can be used to spill/restore any combination of registers, solving two problems at once: the function prolog/epilog is very short now and the fact that the size of the stack space needed depends on the (run-time) types of the registers can be handled in the layout of the implementation defined blob.
 
 The down-side of course is that these instructions are extremely complex. They certainly are not single-cycle, need a complex FSM to implement, and made even more complex by the need of precise (restartable) exception handling.
 
-Loads and stores
-----------------
+Security holes everywhere
+-------------------------
 
 If the previous problem wasn't big enough, we have another one coming on its heels: every load/store now works on run-time defined sizes, which is a *huge* security hole! If one can inject the wrong type into a library or program, that code can either overwrite things it's not supposed to, or load stuff it should not have access to. This later can be used to reveal sensitive information, even if the type gets corrected later on: the extra values still exist in the registers, so re-casting the register to the right type would unmask the hidden context (this latter issue is dealt with in the next chapter).
 

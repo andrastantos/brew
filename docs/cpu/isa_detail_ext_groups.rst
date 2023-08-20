@@ -452,7 +452,7 @@ Description
 
 The result type is determined by TYPE_B.
 
-If :code:`$rA` is a vector type with a lane-count lower than that of TYPE_B, lanes indices are circularly addressed. If :code:`rA` is a scalar type, its value is reused for each lane. If TYPE_B denotes a scalar type, while :code:`$rA` is of a vector type, only the first lane of :code:`$rA` is considered.
+If :code:`$rA` is a vector type with a lane-count lower than that of TYPE_B, lanes are circularly addressed. If :code:`rA` is a scalar type, its value is reused for each lane. If TYPE_B denotes a scalar type, while :code:`$rA` is of a vector type, only the first lane of :code:`$rA` is considered.
 
 For vector results, each lane of :code:`$rD` is assigned to the corresponding lane in :code:`$rA`, converted to the result lane type. This includes conversion between scalar types, which involves potential sign- or zero-extension as well as truncation and saturation; between floating-point types, which involves adjustment of both exponent and mantissa precisions; as well as conversion between floating and fixed point types.
 
@@ -460,24 +460,27 @@ For scalar results, the sample applies, except for only a single element.
 
 For vector results, the operation is controlled by :code:`VEND`, but not by :code:`VSTART`.
 
-Circular addressing example: If TYPE_B is VFP16 while type of :code:`$rA` is INT32 and :code:`VLEN` of the implementation is 16, the following lane indexing applies::
+Circular addressing example: If TYPE_B is VFP32 while type of :code:`$rA` is VFP64 and :code:`VLEN` of the implementation is 32, the following lane indexing applies::
 
-  $rD(0) <- (FP16)$rA(0)
-  $rD(1) <- (FP16)$rA(1)
-  $rD(2) <- (FP16)$rA(2)
-  $rD(3) <- (FP16)$rA(3)
-  $rD(4) <- (FP16)$rA(0)
-  $rD(5) <- (FP16)$rA(1)
-  $rD(6) <- (FP16)$rA(2)
-  $rD(7) <- (FP16)$rA(3)
+  $rD(0) <- (FP32)$rA(0)
+  $rD(1) <- (FP32)$rA(1)
+  $rD(2) <- (FP32)$rA(2)
+  $rD(3) <- (FP32)$rA(3)
+  $rD(4) <- (FP32)$rA(0)
+  $rD(5) <- (FP32)$rA(1)
+  $rD(6) <- (FP32)$rA(2)
+  $rD(7) <- (FP32)$rA(3)
 
-Scalar example: If TYPE_B is VFP32 while type of :code:`$rA` is INT32 and :code:`VEND` is set to 4, the following lane indexing applies::
+Scalar example: If TYPE_B is VFP32 while type of :code:`$rA` is INT32 and :code:`VEND` is set to 16, the following lane indexing applies::
 
-  $rD(0) <- (FP16)$rA
-  $rD(1) <- (FP16)$rA
-  $rD(2) <- (FP16)$rA
-  $rD(3) <- (FP16)$rA
+  $rD(0) <- (FP32)$rA
+  $rD(1) <- (FP32)$rA
+  $rD(2) <- (FP32)$rA
+  $rD(3) <- (FP32)$rA
 
+Scalar result example: if TYPE_B is FP32 while type of :code:`$rA` is VINT16, the following conversion happens::
+
+  $rD <- (FP32)$rA(0)
 
 .. todo:: What to do in case of an overflow? Set an FP sticky-bit?
 
@@ -502,85 +505,4 @@ The operation examines each byte of :code:`$rB`. If the byte is 0, the correspon
 
 .. note:: If :code:`$rA` is a scalar type, it is still treated per the pervious description. Since the operation considers only bytes, not lanes, it's not dependent on the 'vector-ness' of the operands.
 
-
-
-
-.. _rd_eq_full_ra_times_rb_asr_value:
-
-$rD <- full $rA * $rB >>> VALUE
------------------------------------
-
-*Instruction code*: 0xf4ff 0x.*..
-*Instruction code*: 0xf5ff 0x.*..
-*Instruction code*: 0xf6ff 0x.*..
-*Instruction code*: 0xf7ff 0x.*..
-
-::
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 0 | 1 | FLD_F |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |    FIELD_C    |    FIELD_B    |    FIELD_A    |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-
-*Exceptions*: :code:`exc_type`
-
-*Type variants*: Yes
-
-Description
-~~~~~~~~~~~
-
-The operation uses :ref:`standard type handling<std_type_handling>` to determine operand and destination types with the following modification: if either :code:`$rA` or :code:`$rB` is a floating-point type, an :code:`exc_type` exception is raised.
-
-This is a scaled multiply operation. The result of the double-wide product of the lanes of :code:`$rA` and :code:`$rB` is arithmetically shifted to the left before being stored in the result register lane.
-
-For scalar operands, a single 64-bit multiplication followed by an arithmetic shift is performed.
-
-The bottom 4 bits of VALUE is stored in FIELD_C, the top 2 bits in FLD_F.
-
-.. todo::
-  This is not how BINUTILS is coded up at the moment. We need to follow-up with the changes there.
-
-
-.. _rd_eq_full_ra_times_rb_lsr_value:
-
-$rD <- full $rA * $rB >> VALUE
------------------------------------
-
-*Instruction code*: 0xf8ff 0x.*..
-*Instruction code*: 0xf9ff 0x.*..
-*Instruction code*: 0xfaff 0x.*..
-*Instruction code*: 0xfbff 0x.*..
-
-::
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 1 | 0 | FLD_F |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |    FIELD_C    |    FIELD_B    |    FIELD_A    |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-
-*Exceptions*: :code:`exc_type`
-
-*Type variants*: Yes
-
-Description
-~~~~~~~~~~~
-
-The operation uses :ref:`standard type handling<std_type_handling>` to determine operand and destination types with the following modification: if either :code:`$rA` or :code:`$rB` is a floating-point type, an :code:`exc_type` exception is raised.
-
-This is a scaled multiply operation. The result of the double-wide product of the lanes of :code:`$rA` and :code:`$rB` is logically shifted to the left before being stored in the result register lane.
-
-For scalar operands, a single 64-bit multiplication followed by a logical shift is performed.
-
-The bottom 4 bits of VALUE is stored in FIELD_C, the top 2 bits in FLD_F.
-
-.. todo::
-  This is not how BINUTILS is coded up at the moment. We need to follow-up with the changes there.
 

@@ -194,8 +194,9 @@ The operation uses :ref:`standard type handling<std_type_handling>` to determine
 Input logic type   Output type
 ================   ===============
 INT32              FP32
+INT32              FP64
 VINT32             VFP32
-VINT16             VFP16
+VINT16             type error: :code:`exc_type` is raised
 VINT8              type error: :code:`exc_type` is raised
 ================   ===============
 
@@ -237,6 +238,7 @@ After the types are determined, each lane is converted to a corresponding intege
 
 .. todo:: What to do in case of an overflow? Set an FP sticky-bit?
 
+.. todo:: In case of FP64 or VFP64 as the input type, the prescribed behavior would result in rather unexpected behavior. This needs more thought.
 
 .. _rd_eq_1_/_ra:
 

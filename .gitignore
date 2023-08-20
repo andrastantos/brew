@@ -56,3 +56,6 @@ __pycache__
 **/rtl/**/output/*
 
 *.vcd
+
+networking/*
+rtl/*
