@@ -269,6 +269,7 @@ compact_codes(unused_codes_16)
 compact_codes(unused_codes_32)
 compact_codes(unused_codes_48)
 
+print("Unused instruction codes:")
 for code in unused_codes_16:
     print(f"    0x{code}")
 
@@ -277,6 +278,7 @@ for code in unused_codes_32:
 
 for code in unused_codes_48:
     print(f"    0x{code} 0x**** 0x****")
+print("")
 
 # Look through detailed instruction specs for inconsistencies
 from glob import glob
