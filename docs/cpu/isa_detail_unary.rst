@@ -216,7 +216,7 @@ Description
 
 The operation uses :ref:`standard type handling<std_type_handling>` to determine operand and destination types. If the input type is not of a floating point type, an :code:`exc_type` exception is raised.
 
-After the types are determined, the reciprocal of each lane is computed. If a zero value is encountered in an element, the corresponding result is set to :code:`NaN`. The :code:`fdv` status bit in the :ref:`:code:`fpstat`<fpstat>` CSR register is set.
+After the types are determined, the reciprocal of each lane is computed. If a zero value is encountered in an element, the corresponding result is set to :code:`NaN`. The :code:`fdv` status bit in the :ref:`fpstat<fpstat>` register is set.
 
 .. todo:: Instruction code changed. Needs toolset update.
 
@@ -242,7 +242,7 @@ Description
 
 The operation uses :ref:`standard type handling<std_type_handling>` to determine operand and destination types. If the input type is not of a floating point type, an :code:`exc_type` exception is raised.
 
-After the types are determined, the reciprocal-square-root of each lane is computed. If a non-positive value is encountered in an element, the corresponding result is set to :code:`NaN`. The :code:`fnv` status bit in the :ref:`:code:`fpstat`<fpstat>` CSR register is set.
+After the types are determined, the reciprocal-square-root of each lane is computed. If a non-positive value is encountered in an element, the corresponding result is set to :code:`NaN`. The :code:`fnv` status bit in the :ref:`fpstat<fpstat>` register is set.
 
 .. todo:: Instruction code changed. Needs toolset update.
 

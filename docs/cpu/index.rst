@@ -21,13 +21,12 @@ Brew Processor
    :caption: Contents:
 
    introduction
-   interrupts
    execution_contexts
+   exceptions
    process_isolation
    registers
    types
    control_flow
-   exceptions
    isa_intro
    isa
    memory_model
@@ -37,7 +36,6 @@ Brew Processor
    compatibility
    abi
    hw_impl_notes
-   gpu
    system_sw
    competition
    interpolation

@@ -5,7 +5,7 @@ Brew (as in home-brew) is an Instruction Set Architecture to explore a few ideas
 
 Brew has a 32-bit data-path with a variable instruction length. The smallest instructions are 16-bits long, the largest are 64 bits. For an common instruction sequence, the average instruction length is around 24 bits.
 
-The ISA defines 15 general purpose registers plus a pair of program counters. Each instruction can specify up to two source registers and a single destination register
+The ISA defines 15 general purpose registers plus a pair of program counters. An instruction can specify up to two source registers and a single destination register.
 
 Each register has a type associated with it. This type is set and propagated by instructions. While types can be loaded and stored in memory, they are not automatically maintained by regular data load and store instructions.
 
