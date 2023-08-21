@@ -99,7 +99,7 @@ Description
 
 The operation uses :ref:`shift type handling<shift_type_handling>` to determine the operand and destination types.
 
-If the resulting operands are vector types, each lane if :code:`$rA` is left-shifted by the value in the corresponding lane of :code:`$rB`. If the resulting operands are scalar types, :code:`$rA` is left-shifted by :code:`$rB'. 0-s are shifted in from the right.
+If the resulting operands are vector types, each lane if :code:`$rA` is left-shifted by the value in the corresponding lane of :code:`$rB`. If the resulting operands are scalar types, :code:`$rA` is left-shifted by :code:`$rB`. 0-s are shifted in from the right.
 
 
 .. _rd_eq_ra_lsr_rb:
@@ -118,7 +118,7 @@ Description
 
 The operation uses :ref:`shift type handling<shift_type_handling>` to determine the operand and destination types.
 
-If the resulting operands are vector types, each lane if :code:`$rA` is right-shifted by the value in the corresponding lane of :code:`$rB`. If the resulting operands are scalar types, :code:`$rA` is right-shifted by :code:`$rB'. 0-s are shifted in from the left.
+If the resulting operands are vector types, each lane if :code:`$rA` is right-shifted by the value in the corresponding lane of :code:`$rB`. If the resulting operands are scalar types, :code:`$rA` is right-shifted by :code:`$rB`. 0-s are shifted in from the left.
 
 .. _rd_eq_ra_asr_rb:
 
@@ -136,7 +136,7 @@ Description
 
 The operation uses :ref:`shift type handling<shift_type_handling>` to determine the operand and destination types.
 
-If the resulting operands are vector types, each lane if :code:`$rA` is right-shifted by the value in the corresponding lane of :code:`$rB`. If the resulting operands are scalar types, :code:`$rA` is right-shifted by :code:`$rB'. The MSB of each lane is replicated as it is shifted in from the left.
+If the resulting operands are vector types, each lane if :code:`$rA` is right-shifted by the value in the corresponding lane of :code:`$rB`. If the resulting operands are scalar types, :code:`$rA` is right-shifted by :code:`$rB`. The MSB of each lane is replicated as it is shifted in from the left.
 
 .. _rd_eq_ra_times_rb:
 
@@ -311,7 +311,7 @@ Description
 
 The operation uses :ref:`shift type handling<shift_type_handling>` to determine the operand and destination types.
 
-If the resulting operands are vector types, each lane if :code:`$rA` is left-shifted by the value in the corresponding lane of :code:`$rB`. If the resulting operands are scalar types, :code:`$rA` is left-shifted by :code:`$rB'. 0-s are shifted in from the right.
+If the resulting operands are vector types, each lane if :code:`$rA` is left-shifted by the value in the corresponding lane of :code:`$rB`. If the resulting operands are scalar types, :code:`$rA` is left-shifted by :code:`$rB`. 0-s are shifted in from the right.
 
 .. _rd_eq_short_ra_lsr_value:
 
@@ -329,7 +329,7 @@ Description
 
 The operation uses :ref:`shift type handling<shift_type_handling>` to determine the operand and destination types.
 
-If the resulting operands are vector types, each lane if :code:`$rA` is right-shifted by the value in the corresponding lane of :code:`$rB`. If the resulting operands are scalar types, :code:`$rA` is right-shifted by :code:`$rB'. 0-s are shifted in from the left.
+If the resulting operands are vector types, each lane if :code:`$rA` is right-shifted by the value in the corresponding lane of :code:`$rB`. If the resulting operands are scalar types, :code:`$rA` is right-shifted by :code:`$rB`. 0-s are shifted in from the left.
 
 .. _rd_eq_short_ra_asr_value:
 
@@ -347,7 +347,7 @@ Description
 
 The operation uses :ref:`shift type handling<shift_type_handling>` to determine the operand and destination types.
 
-If the resulting operands are vector types, each lane if :code:`$rA` is right-shifted by the value in the corresponding lane of :code:`$rB`. If the resulting operands are scalar types, :code:`$rA` is right-shifted by :code:`$rB'. The MSB of each lane is replicated as it is shifted in from the left.
+If the resulting operands are vector types, each lane if :code:`$rA` is right-shifted by the value in the corresponding lane of :code:`$rB`. If the resulting operands are scalar types, :code:`$rA` is right-shifted by :code:`$rB`. The MSB of each lane is replicated as it is shifted in from the left.
 
 .. _rd_eq_short_value_times_ra:
 
@@ -485,7 +485,7 @@ Description
 
 The operation uses :ref:`shift type handling<shift_type_handling>` to determine the operand and destination types.
 
-If the resulting operands are vector types, each lane if :code:`$rA` is left-shifted by the value in the corresponding lane of :code:`$rB`. If the resulting operands are scalar types, :code:`$rA` is left-shifted by :code:`$rB'. 0-s are shifted in from the right.
+If the resulting operands are vector types, each lane if :code:`$rA` is left-shifted by the value in the corresponding lane of :code:`$rB`. If the resulting operands are scalar types, :code:`$rA` is left-shifted by :code:`$rB`. 0-s are shifted in from the right.
 
 .. _rd_eq_value_lsr_rb:
 
@@ -503,7 +503,7 @@ Description
 
 The operation uses :ref:`shift type handling<shift_type_handling>` to determine the operand and destination types.
 
-If the resulting operands are vector types, each lane if :code:`$rA` is right-shifted by the value in the corresponding lane of :code:`$rB`. If the resulting operands are scalar types, :code:`$rA` is right-shifted by :code:`$rB'. 0-s are shifted in from the left.
+If the resulting operands are vector types, each lane if :code:`$rA` is right-shifted by the value in the corresponding lane of :code:`$rB`. If the resulting operands are scalar types, :code:`$rA` is right-shifted by :code:`$rB`. 0-s are shifted in from the left.
 
 .. _rd_eq_value_asr_rb:
 
@@ -521,7 +521,7 @@ Description
 
 The operation uses :ref:`shift type handling<shift_type_handling>` to determine the operand and destination types.
 
-If the resulting operands are vector types, each lane if :code:`$rA` is right-shifted by the value in the corresponding lane of :code:`$rB`. If the resulting operands are scalar types, :code:`$rA` is right-shifted by :code:`$rB'. The MSB of each lane is replicated as it is shifted in from the left.
+If the resulting operands are vector types, each lane if :code:`$rA` is right-shifted by the value in the corresponding lane of :code:`$rB`. If the resulting operands are scalar types, :code:`$rA` is right-shifted by :code:`$rB`. The MSB of each lane is replicated as it is shifted in from the left.
 
 .. _rd_eq_value_times_rb:
 

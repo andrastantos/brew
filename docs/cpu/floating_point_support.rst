@@ -1,17 +1,11 @@
 Floating point support
 ======================
 
-There are three basic floating point types supported by Brew:
+Brew only defines support for single-precision floating point numbers, in the form of the FP32 register type.
 
-FP64: IEEE754 double-precision floating point type
-FP32: IEEE754 single precision floating point type
-FP16: IEEE754 half-precision floating point type
+Floating point computation follows the IEEE754 standard.
 
-The latter of the three types is only supported in vector form.
-
-Computation of the results for each type follow the IEEE754 standard.
-
-A status register, :code:`FPSTAT` is provided for controlling rounding behavior and floating point exception reporting.
+A status register, :code:`fpstat` is provided for controlling rounding behavior and floating point exception reporting.
 
 Exception handling
 ------------------
@@ -22,10 +16,10 @@ Under these exception results a special value (NaN for invalid results, Inf for 
 
 For vector operations each element is treated independently with regards to exceptions: just because one lane results in an exceptional sitation, all other elements are computed and normal results are stored.
 
-.. _csr_fpstat:
+.. _fpstat:
 
-FPSTAT
-------
+fpstat register
+---------------
 
 The following bits are defined:
 
@@ -56,8 +50,14 @@ frm_up    3           round up
 frm_mm    4           round to nearest, ties to max magnitude
 ========  ==========  ==============
 
-The lowest 5 bits are 'sticky' bits: they are set by any floating-point operation with the an associated exception. The values are cleared by reading them.
+The lowest 5 bits (:code:`fnv`, :code:`fdz`, :code:`fof`, :code:`fuf` and :code:`fnx`) have the following 'sticky' behavior:
 
-The value of FPSTAT is saved and restored by the :ref:`load/store multiple<load_store_multiple>` instructions.
+#. When a floating-point exception of the appropriate kind is encountered while executing a floating-point operation, the bit is set.
+#. When the :code:`$rD <- fstat` instruction is executed, these bits are cleared.
+#. When the :code:`fstat <- $rD` instruction is executed, these bits are loaded by their corresponding value.
 
 .. note:: The above layout matches that of RiscV to simply software porting.
+
+.. note:: Since there's no separate :code:`fpstat` register is provided for TASK and SCHEDULER modes, the context-switching code must store and load the register, including the 'sticky' exception bits.
+
+.. note:: Under normal operation (that is except for context switches) the exception status bits auto-clear to save the extra clearing operation. This auto-clear behavior is not problematic for context-switches as the new values are loaded from memory anyway.

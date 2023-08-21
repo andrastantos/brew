@@ -1,6 +1,6 @@
-====================   =====================================================   =========   ========   =========   ========
-Instruction code       Assembly                                                Mandatory   Float      Int V       FP V
-====================   =====================================================   =========   ========   =========   ========
+====================   =====================================================   =========   ========
+Instruction code       Assembly                                                Mandatory   Float
+====================   =====================================================   =========   ========
 0x0000                 SWI 0                                                   Yes
 0x1000                 SWI 1                                                   Yes
 0x2000                 SWI 2                                                   Yes
@@ -39,10 +39,10 @@ Instruction code       Assembly                                                M
 0x.04.                 $rD <- ~$rA                                             Yes
 0x.05.                 $rD <- bse $rA                                          Yes
 0x.06.                 $rD <- wse $rA                                          Yes
-0x.07.                 $rD <- float $rA                                                    Yes                    Yes
-0x.08.                 $rD <- int $rA                                                      Yes                    Yes
-0x.09.                 $rD <- 1 / $rA                                                      Yes                    Yes
-0x.0a.                 $rD <- rsqrt $rA                                                    Yes                    Yes
+0x.07.                 $rD <- float $rA                                                    Yes
+0x.08.                 $rD <- int $rA                                                      Yes
+0x.09.                 $rD <- 1 / $rA                                                      Yes
+0x.0a.                 $rD <- rsqrt $rA                                                    Yes
 0x.0b.                 $rD <- size $rA
 0x.0c.                 type $rD <- $rA                                         Yes
 0x.0d.                 $rD <- type $rA                                         Yes
@@ -191,63 +191,32 @@ Instruction code       Assembly                                                M
 0x.fff 0x**** 0x****   full $rD <- MEM[VALUE]                                  Yes
 0x.ef.                 MEM[$rA] <- full $rD                                    Yes
 0x.ff.                 full $rD <- MEM[$rA]                                    Yes
-0x001f 0x**** 0x****   if any type $r0...$r3 != types $pc <- $pc + br_offs     Yes*        Yes        Yes         Yes
-0x101f 0x**** 0x****   if any type $r4...$r7 != types $pc <- $pc + br_offs     Yes*        Yes        Yes         Yes
-0x201f 0x**** 0x****   if any type $r8...$r11 != types $pc <- $pc + br_offs    Yes*        Yes        Yes         Yes
-0x301f 0x**** 0x****   if any type $r12...$r14 != types $pc <- $pc + br_offs   Yes*        Yes        Yes         Yes
-0x401f 0x**** 0x****   if any type $r0...$r3 == types $pc <- $pc + br_offs     Yes*        Yes        Yes         Yes
-0x501f 0x**** 0x****   if any type $r4...$r7 == types $pc <- $pc + br_offs     Yes*        Yes        Yes         Yes
-0x601f 0x**** 0x****   if any type $r8...$r11 == types $pc <- $pc + br_offs    Yes*        Yes        Yes         Yes
-0x701f 0x**** 0x****   if any type $r12...$r14 == types $pc <- $pc + br_offs   Yes*        Yes        Yes         Yes
-0x002f 0x**** 0x****   if all type $r0...$r3 != types $pc <- $pc + br_offs     Yes*        Yes        Yes         Yes
-0x102f 0x**** 0x****   if all type $r4...$r7 != types $pc <- $pc + br_offs     Yes*        Yes        Yes         Yes
-0x202f 0x**** 0x****   if all type $r8...$r11 != types $pc <- $pc + br_offs    Yes*        Yes        Yes         Yes
-0x302f 0x**** 0x****   if all type $r12...$r14 != types $pc <- $pc + br_offs   Yes*        Yes        Yes         Yes
-0x402f 0x**** 0x****   if all type $r0...$r3 == types $pc <- $pc + br_offs     Yes*        Yes        Yes         Yes
-0x502f 0x**** 0x****   if all type $r4...$r7 == types $pc <- $pc + br_offs     Yes*        Yes        Yes         Yes
-0x602f 0x**** 0x****   if all type $r8...$r11 == types $pc <- $pc + br_offs    Yes*        Yes        Yes         Yes
-0x702f 0x**** 0x****   if all type $r12...$r14 == types $pc <- $pc + br_offs   Yes*        Yes        Yes         Yes
-0x.03f 0x**** 0x****   if type $rD not in FIELD_F $pc <- $pc + FIELD_E         Yes*        Yes        Yes         Yes
-0xf0ff 0x.00.          $rD <- $rA == 0                                                                Yes         Yes
-0xf0ff 0x.01.          $rD <- $rA != 0                                                                Yes         Yes
-0xf0ff 0x.02.          $rD <- $rA < 0                                                                 Yes         Yes
-0xf0ff 0x.03.          $rD <- $rA >= 0                                                                Yes         Yes
-0xf0ff 0x.04.          $rD <- $rA > 0                                                                 Yes         Yes
-0xf0ff 0x.05.          $rD <- $rA <= 0                                                                Yes         Yes
-0xf0ff 0x.1..          $rD <- $rB == $rA                                                              Yes         Yes
-0xf0ff 0x.2..          $rD <- $rB != $rA                                                              Yes         Yes
-0xf0ff 0x.3..          $rD <- signed $rB < $rA                                                        Yes         Yes
-0xf0ff 0x.4..          $rD <- signed $rB >= $rA                                                       Yes         Yes
-0xf0ff 0x.5..          $rD <- $rB < $rA                                                               Yes         Yes
-0xf0ff 0x.6..          $rD <- $rB >= $rA                                                              Yes         Yes
-0xf1ff 0x.01.          $rD <- sum $rA                                                                 Yes         Yes
-0xf1ff 0x.02.          $rD <- set_vend $rA                                                            Yes         Yes
-0xf1ff 0x.1..          $rD <- interpolate $rA, $rB
-0xf1ff 0x.2..          $rD(i) <- $rA($rB(i))                                                          Yes         Yes
-0xf1ff 0x.3..          $rD <- (cast TYPE_B)$rA                                             Yes        Yes         Yes
-0xf1ff 0x.4..          $rD <- compress $rA & $rB                                                      Yes         Yes
-0xf4ff 0x.*..          $rD <- full $rA * $rB >>> FIELD_C + 0
-0xf5ff 0x.*..          $rD <- full $rA * $rB >>> FIELD_C + 8
-0xf6ff 0x.*..          $rD <- full $rA * $rB >>> FIELD_C + 16
-0xf7ff 0x.*..          $rD <- full $rA * $rB >>> FIELD_C + 32
-0xf8ff 0x.*..          $rD <- full $rA * $rB >> FIELD_C + 0
-0xf9ff 0x.*..          $rD <- full $rA * $rB >> FIELD_C + 8
-0xfaff 0x.*..          $rD <- full $rA * $rB >> FIELD_C + 16
-0xfbff 0x.*..          $rD <- full $rA * $rB >> FIELD_C + 32
-0xff** ...             Type override (<type>)                                  Yes*        Yes        Yes         Yes
-====================   =====================================================   =========   ========   =========   ========
+0x001f 0x**** 0x****   if any type $r0...$r3 != types $pc <- $pc + br_offs     Yes*        Yes
+0x101f 0x**** 0x****   if any type $r4...$r7 != types $pc <- $pc + br_offs     Yes*        Yes
+0x201f 0x**** 0x****   if any type $r8...$r11 != types $pc <- $pc + br_offs    Yes*        Yes
+0x301f 0x**** 0x****   if any type $r12...$r14 != types $pc <- $pc + br_offs   Yes*        Yes
+0x401f 0x**** 0x****   if any type $r0...$r3 == types $pc <- $pc + br_offs     Yes*        Yes
+0x501f 0x**** 0x****   if any type $r4...$r7 == types $pc <- $pc + br_offs     Yes*        Yes
+0x601f 0x**** 0x****   if any type $r8...$r11 == types $pc <- $pc + br_offs    Yes*        Yes
+0x701f 0x**** 0x****   if any type $r12...$r14 == types $pc <- $pc + br_offs   Yes*        Yes
+0x002f 0x**** 0x****   if all type $r0...$r3 != types $pc <- $pc + br_offs     Yes*        Yes
+0x102f 0x**** 0x****   if all type $r4...$r7 != types $pc <- $pc + br_offs     Yes*        Yes
+0x202f 0x**** 0x****   if all type $r8...$r11 != types $pc <- $pc + br_offs    Yes*        Yes
+0x302f 0x**** 0x****   if all type $r12...$r14 != types $pc <- $pc + br_offs   Yes*        Yes
+0x402f 0x**** 0x****   if all type $r0...$r3 == types $pc <- $pc + br_offs     Yes*        Yes
+0x502f 0x**** 0x****   if all type $r4...$r7 == types $pc <- $pc + br_offs     Yes*        Yes
+0x602f 0x**** 0x****   if all type $r8...$r11 == types $pc <- $pc + br_offs    Yes*        Yes
+0x702f 0x**** 0x****   if all type $r12...$r14 == types $pc <- $pc + br_offs   Yes*        Yes
+0x.03f 0x**** 0x****   if type $rD not in FIELD_F $pc <- $pc + FIELD_E         Yes*        Yes
+0xff** ...             Type override (<type>)                                  Yes*        Yes
+====================   =====================================================   =========   ========
 
 \*: In the mandatory set these operations are no-ops
 
-================   =========   ========   =========   ========
-Type               Mandatory   Float      Int V       FP V
-================   =========   ========   =========   ========
+================   =========   ========
+Type               Mandatory   Float
+================   =========   ========
 INT32              Yes
-FP32                           Yes                    Yes
-FP64                           Optional               Optional
-VINT32                                    Yes         Yes
-VINT16                                    Optional    Optional
-VINT8                                     Optional    Optional
-VFP64                                                 Optional
-VFP32                                                 Yes
-================   =========   ========   =========   ========
+FP32                           Yes
+FP64                           Optional
+================   =========   ========

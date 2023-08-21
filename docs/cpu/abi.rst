@@ -101,7 +101,7 @@ Stack management is also the responsibility of SW: there are no instructions tha
 The stack is growing down, and the stack pointer is pre-decrement for push, and post-increment for pop. This means that :code:`$sp` points to the last valid value.
 
 .. important::
-  since the stack is SW managed, pushes and pops are not atomic. Interrupt handlers can't assume that :code:`$sp` actually points to the top of the stack.
+  since the stack is SW managed, pushes and pops are not atomic. Exception handlers can't assume that :code:`$sp` actually points to the top of the stack.
 
 Stack frame layout upon enter to function::
 
@@ -173,7 +173,7 @@ Fourth: many architectures use (a subset of) the argument/return value registers
 
 In epilog generation we need to know if we have to save the aforementioned registers. We can consult :code:`crtl->calls_eh_return` to determine that.
 
-With that, right now I'm using :code:`$r13` and :code:`$r14` for :code:`EH_RETURN_DATA_REGNO`
+With that, right now I'm using :code:`$r8` and :code:`$r9` for :code:`EH_RETURN_DATA_REGNO`
 
 .. todo::
 

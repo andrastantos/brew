@@ -22,7 +22,7 @@ $rD <- tiny CONST
 Description
 ~~~~~~~~~~~
 
-This operation uses :ref:`load type handling<load_type_handling>` to determine if :ref:`broadcasting<type_broadcast>` needs to be performed. The immediate CONST is stored in FIELD_A. Constant value is one-s complement of FIELD_A. Range is -7 to +7, which is sign-extended to 32 bits.
+The immediate CONST is stored in FIELD_A. Constant value is one-s complement of FIELD_A. Range is -7 to +7, which is sign-extended to 32 bits.
 
 
 
@@ -167,10 +167,9 @@ The operation uses :ref:`logic type handling<logic_type_handling>` to determine 
 
 
 
+.. _rd_eq_popcnt_ra:
 
-.. _rd_eq_float_ra:
-
-$rD <- float $rA
+$rD <- popcnt $rA
 --------------------------
 
 *Instruction code*: 0x.07.
@@ -181,30 +180,23 @@ $rD <- float $rA
   |    FIELD_D    |       0       |       7       |    FIELD_A    |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-*Exceptions*: :code:`exc_type`
+*Exceptions*: None
 
-*Type variants*: Yes
+*Type variants*: No
 
 Description
 ~~~~~~~~~~~
 
-The operation uses :ref:`standard type handling<std_type_handling>` to determine operand and destination types *with modifications*; the output type is set according to the following table:
+Write the number of bits set in $rA into $rD.
 
-================   ===============
-Input logic type   Output type
-================   ===============
-INT32              FP32
-INT32              FP64
-VINT32             VFP32
-VINT16             type error: :code:`exc_type` is raised
-VINT8              type error: :code:`exc_type` is raised
-================   ===============
+.. todo:: This is a new instruction. No toolset support at the moment.
 
-After the types are determined, each lane is converted to a corresponding floating point number. If the input is already of a floating point type, the values are simply assigned to the output without alteration.
 
-.. _rd_eq_int_ra:
 
-$rD <- int $rA
+
+.. _rd_eq_1_/_ra:
+
+$rD <- 1 / $rA
 --------------------------
 
 *Instruction code*: 0x.08.
@@ -222,27 +214,15 @@ $rD <- int $rA
 Description
 ~~~~~~~~~~~
 
+The operation uses :ref:`standard type handling<std_type_handling>` to determine operand and destination types. If the input type is not of a floating point type, an :code:`exc_type` exception is raised.
 
-The operation uses :ref:`standard type handling<std_type_handling>` to determine operand and destination types *with modifications*; the output type is set according to the following table:
+After the types are determined, the reciprocal of each lane is computed. If a zero value is encountered in an element, the corresponding result is set to :code:`NaN`. The :code:`fdv` status bit in the :ref:`:code:`fpstat`<fpstat>` CSR register is set.
 
-================   ===============
-Input logic type   Output type
-================   ===============
-INT32              INT32
-VINT32             VINT32
-VINT16             VINT16
-VINT8              VINT8
-================   ===============
+.. todo:: Instruction code changed. Needs toolset update.
 
-After the types are determined, each lane is converted to a corresponding integer number. If the input is already of a fixed point type, the values are simply assigned to the output without alteration.
+.. _rd_eq_rsqrt_ra:
 
-.. todo:: What to do in case of an overflow? Set an FP sticky-bit?
-
-.. todo:: In case of FP64 or VFP64 as the input type, the prescribed behavior would result in rather unexpected behavior. This needs more thought.
-
-.. _rd_eq_1_/_ra:
-
-$rD <- 1 / $rA
+$rD <- rsqrt $rA
 --------------------------
 
 *Instruction code*: 0x.09.
@@ -262,61 +242,11 @@ Description
 
 The operation uses :ref:`standard type handling<std_type_handling>` to determine operand and destination types. If the input type is not of a floating point type, an :code:`exc_type` exception is raised.
 
-After the types are determined, the reciprocal of each lane is computed. If a zero value is encountered in an element, the corresponding result is set to :code:`NaN`. The :code:`fdv` status bit in the :ref:`:code:`FPSTAT` <csr_fpstat>` CSR register is set.
+After the types are determined, the reciprocal-square-root of each lane is computed. If a non-positive value is encountered in an element, the corresponding result is set to :code:`NaN`. The :code:`fnv` status bit in the :ref:`:code:`fpstat`<fpstat>` CSR register is set.
+
+.. todo:: Instruction code changed. Needs toolset update.
 
 
-.. _rd_eq_rsqrt_ra:
-
-$rD <- rsqrt $rA
---------------------------
-
-*Instruction code*: 0x.0a.
-
-::
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |       0       |       a       |    FIELD_A    |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-*Exceptions*: :code:`exc_type`
-
-*Type variants*: Yes
-
-Description
-~~~~~~~~~~~
-
-The operation uses :ref:`standard type handling<std_type_handling>` to determine operand and destination types. If the input type is not of a floating point type, an :code:`exc_type` exception is raised.
-
-After the types are determined, the reciprocal-square-root of each lane is computed. If a non-positive value is encountered in an element, the corresponding result is set to :code:`NaN`. The :code:`fnv` status bit in the :ref:`:code:`FPSTAT` <csr_fpstat>` CSR register is set.
-
-
-
-
-.. _rd_eq_size_ra:
-
-$rD <- size $rA
---------------------------
-
-*Instruction code*: 0x.0b.
-
-::
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |       0       |       b       |    FIELD_A    |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-*Exceptions*: None
-
-*Type variants*: No
-
-Description
-~~~~~~~~~~~
-
-Load the run-time size (in bytes) of $rA into $rD.
-
-.. todo:: This used to be the reduction sum. No toolset support at the moment.
-
-.. todo:: We don't specify the 'size' field anymore. This instruction is free for something else now!!!
 
 .. _type_rd_eq_ra:
 
@@ -338,7 +268,7 @@ type $rD <- $rA
 Description
 ~~~~~~~~~~~
 
-Sets type of $rD as denoted by $rA. All 32 bits of :code:`$rA` are meaningful in this instruction. If an unsupported type is specified, a :code:`exc_type` exception is raised. The value stored in the register is adjusted per :ref:`register_value_and_type_updates` rules.
+Sets type of $rD as denoted by $rA. All 32 bits of :code:`$rA` are meaningful in this instruction. If an unsupported type is specified, a :code:`exc_type` exception is raised.
 
 .. _rd_eq_type_ra:
 
@@ -384,7 +314,7 @@ type $rD <- FIELD_A
 Description
 ~~~~~~~~~~~
 
-Sets type of $rD as denoted by FIELD_A. If an unsupported type is specified, a :code:`exc_type` exception is raised. The value stored in the register is adjusted per :ref:`register_value_and_type_updates` rules.
+Sets type of $rD as denoted by FIELD_A. If an unsupported type is specified, a :code:`exc_type` exception is raised.
 
 .. todo:: assembly should use descriptive type names, instead of numeric values.
 

@@ -26,23 +26,21 @@ Brew Processor
    process_isolation
    registers
    types
-   vectors
    control_flow
    exceptions
    isa_intro
    isa
    memory_model
    isa_details
-   load_store_multiple
    floating_point_support
    csrs
    compatibility
    abi
    hw_impl_notes
+   gpu
    system_sw
    competition
    interpolation
-   gpu
    todo
 
 Todos

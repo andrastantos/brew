@@ -167,6 +167,36 @@ Instruction code         Assembly       Operation
   All instruction codes in this group are treated as jump instructions by the branch predictor, if exists. After warming up, some will always be predicted taken, some will not be. In TASK mode indirect jump (0x.002) and $tpc update (0x.003) instructions have the exact same behavior, however might have different latencies.
 
 
+Miscellaneous group
+---------------------
+
+.. wavedrom::
+
+  {config: {bits: 16}, config: {hspace: 500},
+  reg: [
+      { "name": "FIELD_A",   "bits": 4, attr: "op kind" },
+      { "name": "0",         "bits": 4 },
+      { "name": "0",         "bits": 4 },
+      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+  ]}
+
+
+..
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+  |    FIELD_D    |       0       |       0       |    FIELD_A    |
+  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+
+=========================== ============== =======================
+Instruction code            Assembly       Operation
+=========================== ============== =======================
+:ref:`0x.008<rd_eq_fpstat>` $rD <- fpstat  Read :ref:`fpstat<fpstat>` register
+:ref:`0x.009<fpstat_eq_rd>` fpstat <- $rD  Write :ref:`fpstat<fpstat>` register
+=========================== ============== =======================
+
+.. note::
+  All instruction codes in this group could be treated as jump instructions by the branch predictor, if exists. After warming up, some will always be predicted taken, some will not be.
+
+
 CSR access group
 ----------------
 
@@ -236,13 +266,11 @@ Instruction code                   Assembly                    Operation
 :ref:`0x.02.<rd_eq_pc_plus_const>` $rD <- $pc + CONST          Call return address calculation [#note0xX02X]_
 :ref:`0x.03.<rd_eq_minus_ra>`      $rD <- -$rA                 Negative operation, depending on type
 :ref:`0x.04.<rd_eq_notra>`         $rD <- ~$rA                 Binary inversion
-:ref:`0x.05.<rd_eq_bse_ra>`        $rD <- bse $rA              Sign-extend from byte [#note0xX05X]_
+:ref:`0x.05.<rd_eq_bse_ra>`        $rD <- bse $rA              Sign-extend from byte
 :ref:`0x.06.<rd_eq_wse_ra>`        $rD <- wse $rA              Sign-extend from word
-:ref:`0x.07.<rd_eq_float_ra>`      $rD <- float $rA            Convert to float. No-op if $rA is already a float
-:ref:`0x.08.<rd_eq_int_ra>`        $rD <- int $rA              Convert to integer. No-op if $rA is already integer
-:ref:`0x.09.<rd_eq_1_/_ra>`        $rD <- 1 / $rA              Reciprocal for floats [#note0xX09X]_
-:ref:`0x.0a.<rd_eq_rsqrt_ra>`      $rD <- rsqrt $rA            Reciprocal square-root for floats [#note0xX0aX]_
-:ref:`0x.0b.<rd_eq_size_ra>`       $rD <- size $rA             Load the run-time size of $rA into $rD
+:ref:`0x.07.<rd_eq_popcnt_ra>`     $rD <- popcnt $rA           Counts number of bits set in $rA
+:ref:`0x.08.<rd_eq_1_/_ra>`        $rD <- 1 / $rA              Reciprocal for floats [#note0xX08X]_
+:ref:`0x.09.<rd_eq_rsqrt_ra>`      $rD <- rsqrt $rA            Reciprocal square-root for floats [#note0xX09X]_
 :ref:`0x.0c.<type_rd_eq_ra>`       type $rD <- $rA             Sets type of $rD as denoted by $rA [#note0xX0cX]_
 :ref:`0x.0d.<rd_eq_type_ra>`       $rD <- type $rA             Loads type value of $rA into $rD
 :ref:`0x.0e.<type_rd_eq_field_a>`  type $rD <- FIELD_A         Sets type of $rD
@@ -250,17 +278,15 @@ Instruction code                   Assembly                    Operation
 
 .. [#note0xX01X] CONST=FIELD_A. FIELD_A is one-s complement; range is -7...7
 .. [#note0xX02X] CONST=FIELD_A*2. FIELD_A is one-s complement; range is -7...7; NOTE: WE COULD MAKE THE RANGE A LITTLE HIGHER IF NOT ALLOW 0
-.. [#note0xX05X] For vector types, operation is per-lane. Floating point types are treated as integer
+.. [#note0xX08X] Operation is RESERVED for integer types.
 .. [#note0xX09X] Operation is RESERVED for integer types.
-.. [#note0xX0aX] Operation is RESERVED for integer types.
-.. [#note0xX0bX] This is a rather odd-ball instruction. Only meaningful for vector source types.
 .. [#note0xX0cX] All 32 bits of $rA are used. Any value above 0xe is RESERVED
 
 
-.. note::
-  We only have reduction sum. Is there any other *really* important reduction op we need?
-
-.. todo:: $rD <- size $rA is a new instruction is meaningless: it used to be reduction some, now it's pointless.
+.. todo:: $rD <- popcnd $rA is a new instruction
+.. todo:: reduction sum is removed from the ISA
+.. todo:: float and int conversion is removed from the ISA
+.. todo:: 1/$rA and rsqrt $rA have new op-codes.
 
 Binary ALU group
 ----------------
@@ -304,21 +330,9 @@ Instruction code                        Assembly                    Operation
 .. [#note_logical] This operation ignore type info, but sets destination type to be the same as that of $rA
 .. [#note_binary_shift] This operation only uses the lane-setup part of the type information. It sets the destination type to that of $rA
 .. [#note0xXaXX] This operation is useful for lane-combining with an inverted predicate
-.. [#note0xXbXX] CONST is FIELD_A is one's complement-coded; range is -7...7. This operation only uses the lane-setup part of the type information. It sets the destination type to that of $rA
-
-.. note::
-  If swizzle muxes are inline in the pipeline (as opposed to their own execution unit), it's possible to deal with scalar-vector combinations, where the scalar gets automatically replicated into the right number of lanes before the operation is performed. Similarly, a 2-lane-and-4-lane vector operation can replicate the 2-lane vector into 4 lanes before executing the operation.
-
-.. todo::
-  What should the behavior be for unsupported type-combinations? One would probably want an exception so that SW emulation can fill the gaps on lower-end processors, but then again, that makes almost all operations a possible exception source, and thus forces the pipeline to be more conservative.
+.. [#note0xXbXX] CONST is FIELD_A is one's complement-coded; range is -7...7.
 
 .. todo:: The inversion is swapped from $rA to $rB on $rA & ~$rB. This needs to be followed up in the toolset and Espresso.
-
-.. note:: Output type is the type of $rA
-
-.. note:: Pseudo instructions
-  NOP: encodes to 0x2222, which is $r2 <- $r2 | $r2
-  $rD <- $rS: encodes to 0xD2SS
 
 Load immediate group
 --------------------
@@ -407,7 +421,7 @@ Instruction code                                    Assembly                    
   Destination type is not changed, except of course for type load operations.
 
 .. [#note_immedate_types]
-  Types for each register are encoded in 4-bit nibbles. Lowest 4 bits determine the type of the lowest indexed register. Highest 4 bits determine the type of the highest indexed register.
+  Types for each register are encoded in 4-bit nibbles. Lowest 4 bits determine the type of the lowest indexed register. Highest 4 bits determine the type of the highest indexed register. If nibble is set to 0xf, type of corresponding register is not changed.
 
 Constant ALU group
 ------------------
@@ -586,9 +600,6 @@ Instruction code                                 Assembly                       
 ================================================ ==================================== ============================================
 
 .. note::
-  VALUE is assumed to be of matching scalar type for $rA. It is sign-extended to 32-bits, then replicated for each lane.
-
-.. note::
   result type is that of $rA
 
 .. note::
@@ -703,12 +714,6 @@ Instruction code                                                  Assembly      
 
 .. note::
   For scalar types, FIELD_C MSB (inst[15]) is irrelevant; In other words, any/all selection doesn't matter
-
-.. note::
-  Comparison type is determined by type of $rA. Type of $rB is ignored and assumed to match that of $rA
-
-.. todo::
-  Maybe we can do lane-replication in case of lane-count mismatch? After all, these are using the ALUs, the same way as binary ops do...
 
 *pseudo ops*:
 
@@ -836,7 +841,7 @@ Instruction code           Assembly                                             
 Stack group
 -----------
 
-While stack operations (as in push/pull) are not supported by the ISA, special load/store instructions are provided with small offsets and $r12 ($fp) and $r13 ($sp) as the base register to support compact form of common stack-load and store- operations. The supported offset range us -256 to +252 bytes.
+While stack operations (as in push/pull) are not supported by the ISA, special load/store instructions are provided with small offsets and $r12 ($fp) and $r13 ($sp) as the base register to support compact form of common stack operations. The supported offset range is -256 to +252 bytes.
 
 .. wavedrom::
 
@@ -1032,91 +1037,6 @@ Instruction code                               Assembly                         
 
 .. note:: FIELD_E is sign-extended before addition
 
-.. _load_store_multiple:
-
-Load/store multiple
--------------------
-
-.. todo:: These should probably be called load/store machine state instructions.
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "FIELD_A",   "bits": 4, attr: "offset" },
-      { "name": "FIELD_B",   "bits": 4, attr: "op kind" },
-      { "name": "f",         "bits": 4, attr: "REG_MASK" },
-      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
-  ],
-  }
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "FIELD_E", "bits": 16 },
-  ],
-  }
-
-..
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |       f       |    FIELD_B    |    FIELD_A    |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |                         FIELD_E                               |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-============================================== ========================================== =========================================================================
-Instruction code                               Assembly                                   Operation
-============================================== ========================================== =========================================================================
-:ref:`0x.f0. 0x****<r0...r14_eq_mem_rd_@_ra>`  $r0...$r14 <- MEM[$rD] @ $rA               load any combination of registers with FIELD_E as mask; skip-mask in $rA
-:ref:`0x.f1. 0x****<mem_rd_eq_r0...r14_@_ra>`  MEM[$rD] <- $r0...$r14 @ $rA               store any combination of registers with FIELD_E as mask; skip-mask in $rA
-:ref:`0x.f2. 0x****<r0...r14_eq_pop_rd_@_ra>`  $r0...$r14 <- POP[$rD] @ $rA               pop any combination of registers with FIELD_E as mask; skip-mask in $rA
-:ref:`0x.f3. 0x****<push_rd_eq_r0...r14_@_ra>` PUSH[$rD] <- $r0...$r14 @ $rA              push any combination of registers with FIELD_E as mask; skip-mask in $rA
-:ref:`0x.f0f 0x****<r0...r14_eq_mem_rd>`       $r0...$r14 <- MEM[$rD]                     load any combination of registers with FIELD_E as mask
-:ref:`0x.f1f 0x****<mem_rd_eq_r0...r14>`       MEM[$rD] <- $r0...$r14                     store any combination of registers with FIELD_E as mask
-:ref:`0x.f2f 0x****<r0...r14_eq_pop_rd>`       $r0...$r14 <- POP[$rD]                     pop any combination of registers with FIELD_E as mask
-:ref:`0x.f3f 0x****<push_rd_eq_r0...r14>`      PUSH[$rD] <- $r0...$r14                    push any combination of registers with FIELD_E as mask
-============================================== ========================================== =========================================================================
-
-.. note::
-  0x.f0f decodes to the wrong FIELD_E size. Otherwise, this is not a bad encoding.
-
-.. note::
-  $rA is used as a 'skip' mask. If FIELD_A is 0xf, no skip mask is used
-
-**These are very complex instructions.**
-
-This is a multi-cycle instruction. For store instructions, the memory address is incremented/decremented for every register that's marked for storage. After that, the type info is stored for every register that's marked for type storage. If no register is marked for type storage in the $r0...$r7 region, the first type WORD is not stored. If no register is marked for type storage in the $r8...$r14 region, the second type WORD is not stored. Otherwise, skipped types are replaced by 0xf.
-
-For load instructions, the reverse happens: for every marked load, the address is (post) incremented/decremented after loading. Types are loaded as needed (skipping type WORDs if none of the corresponding types are marked for load). Individual types are not updated if their associated field is 0xf upon load.
-
-For a load multiple where the base register is marked for load, the implementation must ensure that the new register value only takes effect after the operation fully completes.
-
-*Exception behavior*: If a exception (due to access violation during memory access) is raised, $tpc points to the load/store multiple instruction. It however is generally not guaranteed that no loads or stores have been performed. Consequently, some of the side-effects might have already taken place and the exception handler is in no position to know which ones. It is however safe to assume that the operation can be retried, as long as the following conditions are met:
-
-* Address translation after the retry generates the same physical addresses for store multiple operations
-* The target address is in regular memory as opposed to I/O space
-
-The requirement to be able to retry means that if the base register is part of the set of registers to be loaded, it's value/type can only change after it is determined that no more exceptions can fire. This can be achieved by loading the base register last (i.e. not loading registers in order), or load the value into a temporary storage and update the base register as the last step.
-
-.. note::
-
-  The MSB of the mask field controls 'DIRTY' behavior.
-
-.. note::
-
-  Implementing these instructions is complicated. It requires some sort of sequencer in the pipeline and breaks the basic construct of a RISC ISA. It also complicates exception handling.
-
-.. todo::
-
-  These instructions are not supported by the toolset, or Espresso.
-
-.. note::
-
-  These instructions should *not* make use of or modify vstart/vend: they store/load full HW registers, based on type.
-
 Absolute load/store group
 -------------------------
 
@@ -1232,425 +1152,6 @@ Instruction code                              Assembly                    Operat
   Cache invalidation applies to all caches and to all levels of caches: L1D L1I; L2, if exists. System-level caches (L3) are not invalidated. In a multi-processor system, only local caches (caches that are in the path-to-memory for the core executing the instruction) are invalidated.
 
 
-Special immediate load-store group
-----------------------------------
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "f",         "bits": 4 },
-      { "name": "f",         "bits": 4 },
-      { "name": "FIELD_C"    "bits": 4, attr: "op kind" },
-      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
-  ],
-  }
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "FIELD_E lower 16 bits", "bits": 16 },
-  ],
-  }
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "FIELD_E upper 16 bits", "bits": 16 },
-  ]
-  }
-
-..
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |    FIELD_C    |       f       |       f       |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+-...
-  |                         FIELD_E  lower 16 bits              ...
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+-...
-
-  ...-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  ...                       FIELD_E   upper 16 bits               |
-  ...-+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-================================================= ===================================== ===================================================
-Instruction code                                  Assembly                              Operation
-================================================= ===================================== ===================================================
-:ref:`0x.eff 0x**** 0x****<mem_value_eq_full_rd>` MEM[VALUE] <- full $rD                Store full $rD (no use/modification of vstart vend)
-:ref:`0x.fff 0x**** 0x****<full_rd_eq_mem_value>` full $rD <- MEM[VALUE]                Load full $rD (no use/modification of vstart vend)
-================================================= ===================================== ===================================================
-
-
-Special indirect load-store group
-----------------------------------
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
-      { "name": "f",         "bits": 4 },
-      { "name": "FIELD_C"    "bits": 4, attr: "op kind" },
-      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
-  ],
-  }
-
-..
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |    FIELD_C    |       f       |    FIELD_A    |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-================================ ===================================== ===================================================
-Instruction code                 Assembly                              Operation
-================================ ===================================== ===================================================
-:ref:`0x.ef.<mem_ra_eq_full_rd>` MEM[$rA] <- full $rD                  Store full $rD (ignore :code:`vend`)
-:ref:`0x.ff.<full_rd_eq_mem_ra>` full $rD <- MEM[$rA]                  Load full $rD (ignore :code:`vend`)
-================================ ===================================== ===================================================
-
-.. _register_block_type_test_group:
-
-Register block type test group
-------------------------------
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "f",         "bits": 4 },
-      { "name": "FIELD_B ",  "bits": 4, attr: "op kind" },
-      { "name": "0"          "bits": 4 },
-      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
-  ],
-  }
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "FIELD_E", "bits": 16, attr: "br_offs" },
-  ],
-  }
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "TYPE_A", "bits": 4, attr: "types A" },
-      { "name": "TYPE_B", "bits": 4, attr: "types B" },
-      { "name": "TYPE_C", "bits": 4, attr: "types C" },
-      { "name": "TYPE_D", "bits": 4, attr: "types D" },
-  ]
-  }
-
-..
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |       0       |    FIELD_B    |       f       |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |                            FIELD_E                            |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |     TYPE_D    |     TYPE_C    |     TYPE_B    |     TYPE_A    |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-================================================================================= ============================================================ ================================================
-Instruction code                                                                  Assembly                                                     Operation
-================================================================================= ============================================================ ================================================
-:ref:`0x001f 0x**** 0x****<if_any_type_r0...r3___ne_types_pc_eq_pc_plus_br_offs>` if any type $r0...$r3   != types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
-:ref:`0x101f 0x**** 0x****<if_any_type_r4...r7___ne_types_pc_eq_pc_plus_br_offs>` if any type $r4...$r7   != types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
-:ref:`0x201f 0x**** 0x****<if_any_type_r8...r11__ne_types_pc_eq_pc_plus_br_offs>` if any type $r8...$r11  != types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
-:ref:`0x301f 0x**** 0x****<if_any_type_r12...r14_ne_types_pc_eq_pc_plus_br_offs>` if any type $r12...$r14 != types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
-:ref:`0x401f 0x**** 0x****<if_any_type_r0...r3_eq_types_pc_eq_pc_plus_br_offs>`   if any type $r0...$r3   == types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
-:ref:`0x501f 0x**** 0x****<if_any_type_r4...r7_eq_types_pc_eq_pc_plus_br_offs>`   if any type $r4...$r7   == types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
-:ref:`0x601f 0x**** 0x****<if_any_type_r8...r11__eq_types_pc_eq_pc_plus_br_offs>` if any type $r8...$r11  == types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
-:ref:`0x701f 0x**** 0x****<if_any_type_r12...r14_eq_types_pc_eq_pc_plus_br_offs>` if any type $r12...$r14 == types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
-:ref:`0x002f 0x**** 0x****<if_all_type_r0...r3___ne_types_pc_eq_pc_plus_br_offs>` if all type $r0...$r3   != types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
-:ref:`0x102f 0x**** 0x****<if_all_type_r4...r7___ne_types_pc_eq_pc_plus_br_offs>` if all type $r4...$r7   != types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
-:ref:`0x202f 0x**** 0x****<if_all_type_r8...r11__ne_types_pc_eq_pc_plus_br_offs>` if all type $r8...$r11  != types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
-:ref:`0x302f 0x**** 0x****<if_all_type_r12...r14_ne_types_pc_eq_pc_plus_br_offs>` if all type $r12...$r14 != types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
-:ref:`0x402f 0x**** 0x****<if_all_type_r0...r3_eq_types_pc_eq_pc_plus_br_offs>`   if all type $r0...$r3   == types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
-:ref:`0x502f 0x**** 0x****<if_all_type_r4...r7_eq_types_pc_eq_pc_plus_br_offs>`   if all type $r4...$r7   == types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
-:ref:`0x602f 0x**** 0x****<if_all_type_r8...r11__eq_types_pc_eq_pc_plus_br_offs>` if all type $r8...$r11  == types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
-:ref:`0x702f 0x**** 0x****<if_all_type_r12...r14_eq_types_pc_eq_pc_plus_br_offs>` if all type $r12...$r14 == types $pc <- $pc + br_offs        Jump if type of registers is not what's expected
-================================================================================= ============================================================ ================================================
-
-These instructions dedicate a nibble to each register in FIELD_F. The instruction perform a set of comparisons between the expected and actual types and jump if the conditions prescribed in the instructions are met. A register can be excluded from the test by setting their corresponding nibble in FIELD_F to 0xf.
-
-This instruction can be used in function prologs to check that operands passed in registers are indeed of the expected type. Variants are provided for both checking for allowed types or disallowed ones.
-
-
-Individual register type test group
------------------------------------
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "f",         "bits": 4 },
-      { "name": "FIELD_B ",  "bits": 4, attr: "op kind" },
-      { "name": "0"          "bits": 4 },
-      { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
-  ],
-  }
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "FIELD_E", "bits": 16 },
-  ],
-  }
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "FIELD_F", "bits": 16 },
-  ]
-  }
-
-..
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |       0       |    FIELD_B    |       f       |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |                            FIELD_E                            |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |                            FIELD_F                            |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-============================================================================ ============================================================ ================================================
-Instruction code                                                             Assembly                                                     Operation
-============================================================================ ============================================================ ================================================
-:ref:`0x.03f 0x**** 0x****<if_type_rd_not_in_field_f_pc_eq_pc_plus_field_e>` if type $rD not in FIELD_F $pc <- $pc + FIELD_E              Jump if type of registers is not what's expected
-============================================================================ ============================================================ ================================================
-
-This instruction provides a type-mask in FIELD_F. An allowed type is represented by a '1'. The instruction branches if the bit corresponding to tye type of $rD is not set in FIELD_F. The MSB of FIELD_F is reserved and should be set to 0.
-
-This instruction can be used in function prologs to check that operands passed in registers are indeed of the expected type.
-
-
-Extension groups
-----------------
-
-Extension groups allow for extending the instruction set by utilizing otherwise unused portions of the 16-bit instruction code-space, followed by a second 16-bit instruction code. These extension groups allow for expressing seldom used or specialized instructions while not impacting the compactness of the base ISA.
-
-Zero compare lane predication group
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "f",         "bits": 4 },
-      { "name": "f",         "bits": 4 },
-      { "name": "0",         "bits": 4 },
-      { "name": "f",         "bits": 4 },
-  ],
-  }
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "FIELD_A",   "bits": 4, attr: "$rD" },
-      { "name": "0",         "bits": 4 },
-      { "name": "FIELD_C",   "bits": 4, attr: "op kind" },
-      { "name": "FIELD_D",   "bits": 4, attr: "$rA" },
-  ],
-  }
-
-..
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |       f       |       0       |       f       |       f       |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |       0       |    FIELD_B    |    FIELD_A    |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-=================================== =========================== ==================
-Instruction code                    Assembly                    Operation
-=================================== =========================== ==================
-:ref:`0xf0ff 0x.00.<rd_eq_ra_eq_0>` $rD <- $rA == 0
-:ref:`0xf0ff 0x.01.<rd_eq_ra_ne_0>` $rD <- $rA != 0
-:ref:`0xf0ff 0x.02.<rd_eq_ra_lt_0>` $rD <- $rA < 0              signed compare
-:ref:`0xf0ff 0x.03.<rd_eq_ra_ge_0>` $rD <- $rA >= 0             signed compare
-:ref:`0xf0ff 0x.04.<rd_eq_ra_gt_0>` $rD <- $rA > 0              signed compare
-:ref:`0xf0ff 0x.05.<rd_eq_ra_le_0>` $rD <- $rA <= 0             signed compare
-=================================== =========================== ==================
-
-These instructions perform lane-wise comparisons of the prescribed type. The result (0 for FALSE, 1 for TRUE) is replicated across the length of each lane (8- 16- or 32-times) and placed in the destination register.
-
-.. todo:: Extension group encoding changed. Toolset needs updating.
-
-Lane predication group
-~~~~~~~~~~~~~~~~~~~~~~
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "f",         "bits": 4 },
-      { "name": "f",         "bits": 4 },
-      { "name": "0",         "bits": 4 },
-      { "name": "f",         "bits": 4 },
-  ],
-  }
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
-      { "name": "FIELD_B",   "bits": 4, attr: "$rB" },
-      { "name": "FIELD_C",   "bits": 4, attr: "op kind" },
-      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
-  ],
-  }
-
-..
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |       f       |       0       |       f       |       f       |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |    FIELD_C    |    FIELD_B    |    FIELD_A    |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-=========================================== =========================== ==================
-Instruction code                            Assembly                    Operation
-=========================================== =========================== ==================
-:ref:`0xf0ff 0x.1..<rd_eq_rb_eq_ra>`        $rD <- $rB == $rA
-:ref:`0xf0ff 0x.2..<rd_eq_rb_ne_ra>`        $rD <- $rB != $rA
-:ref:`0xf0ff 0x.3..<rd_eq_signed_rb_lt_ra>` $rD <- signed $rB < $rA     signed compare
-:ref:`0xf0ff 0x.4..<rd_eq_signed_rb_ge_ra>` $rD <- signed $rB >= $rA    signed compare
-:ref:`0xf0ff 0x.5..<rd_eq_rb_lt_ra>`        $rD <- $rB < $rA
-:ref:`0xf0ff 0x.6..<rd_eq_rb_ge_ra>`        $rD <- $rB >= $rA
-=========================================== =========================== ==================
-
-These instructions perform lane-wise comparisons of the prescribed type. The result (0 for FALSE, 1 for TRUE) is replicated across the length of each lane (8- 16- or 32-times) and placed in the destination register.
-
-.. todo:: Extension group encoding changed. Toolset needs updating.
-
-Unary vector operation group
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "f",         "bits": 4 },
-      { "name": "f",         "bits": 4 },
-      { "name": "1",         "bits": 4 },
-      { "name": "f",         "bits": 4 },
-  ],
-  }
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
-      { "name": "FIELD_B",   "bits": 4, attr: "op kind" },
-      { "name": "FIELD_C",   "bits": 4, attr: "0" },
-      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
-  ],
-  }
-
-..
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |       f       |       1       |       f       |       f       |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |       0       |    FIELD_B    |    FIELD_A    |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-======================================= ============================= =====================================================
-Instruction code                        Assembly                      Operation
-======================================= ============================= =====================================================
-:ref:`0xf1ff 0x.01.<rd_eq_sum_ra>`      $rD <- sum $rA                Reduction sum
-:ref:`0xf1ff 0x.02.<rd_eq_set_vend_ra>` $rD <- set_vend $rA           Load VEND register and return it's value based on $rA
-======================================= ============================= =====================================================
-
-Binary vector operation group
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "f",         "bits": 4 },
-      { "name": "f",         "bits": 4 },
-      { "name": "1",         "bits": 4 },
-      { "name": "f",         "bits": 4 },
-  ],
-  }
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
-      { "name": "FIELD_B",   "bits": 4, attr: "$rB" },
-      { "name": "FIELD_C",   "bits": 4, attr: "op kind" },
-      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
-  ],
-  }
-
-..
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |       f       |       1       |       f       |       f       |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |    FIELD_C    |    FIELD_B    |    FIELD_A    |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-============================================== ============================= ================================================================
-Instruction code                               Assembly                      Operation
-============================================== ============================= ================================================================
-:ref:`0xf1ff 0x.1..<rd_eq_interpolate_ra,_rb>` $rD <- interpolate $rA, $rB   [#note_interpolation]_
-:ref:`0xf1ff 0x.2..<rd_eq_rd(i)_eq_ra(rb(i))>` $rD(i) <- $rA($rB(i))         [#note_lane_swizzle]_
-:ref:`0xf1ff 0x.3..<rd_eq_(cast_type_b)ra>`    $rD <- (cast TYPE_B)$rA       Element-wise type-cast $rA to TYPE_B
-:ref:`0xf1ff 0x.4..<rd_eq_compress_ra_and_rb>` $rD <- compress $rA & $rB     Element-wise compressed selection of $rA, $rB being the selector
-============================================== ============================= ================================================================
-
-.. [#note_interpolation]
-  This instruction performs linear interpolation between adjacent lanes of $rA using the value of $rB as the interpolator.
-
-  If $rB is of an integral type, it is assumed to be a fractional value between 0 and 1. If it's a floating-point type, its value must be between 0.0 and 1.0.
-
-  If the value of $rB is not within the requisite range, the outcome of the operation is implementation-defined.
-
-  If $rB is a scalar type, it's broadcast to all lanes. If $rB is a vector type, its value is used lane-wise::
-
-    $rD(i*2+0) <- $rA(i*2+0) *    $rB(i*2+0)  + $rA(i*2+1) *    $rB(i*2+1)
-    $rD(i*2+1) <- $rA(i*2+0) * (1-$rB(i*2+0)) + $rA(i*2+1) * (1-$rB(i*2+1))
-
-  .. todo:: Extension group encoding changed. Toolset needs updating.
-
-  .. todo:: Do we really want to support this for floating-point types? There are a boat-load of multiplies here!
-
-.. [#note_lane_swizzle]
-  Each lane of $rD is set to the lane of $rA referenced by the corresponding lane of $rB.
-
-  .. todo:: Original lane-swizzle:
-    0x.af. 0x****              $rD <- lane_swizzle $rA, VALUE
-    got removed. Toolset needs updating.
-
-
-.. todo:: reduction sum used to be in the unary group and, well, used to be unary. Need to update toolset.
-
-
 Prefix instructions
 -------------------
 
@@ -1695,10 +1196,3 @@ Instruction code                           Assembly               Operation
 Type override for $rA (TYPE_A) and $rB (TYPE_B).
 
 If either TYPE_A or TYPE_B is set to 0xf, the corresponding register type is not overridden: the type from the register file is used during the subsequent operation.
-
-MISSING
-~~~~~~~
-
-.. todo:: missing operations:
-    #. Scatter/gather stores/loads
-    #. Lane injection/extraction
