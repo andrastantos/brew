@@ -93,7 +93,6 @@ Conditional branch operations use :ref:`standard type handling<std_type_handling
 .. include:: isa_detail_ex_mode_chg.rst
 .. include:: isa_detail_fence.rst
 .. include:: isa_detail_pc_manip.rst
-.. include:: isa_detail_misc.rst
 .. include:: isa_detail_csr.rst
 .. include:: isa_detail_state_regs.rst
 .. include:: isa_detail_unary.rst

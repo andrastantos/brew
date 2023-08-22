@@ -65,10 +65,10 @@ An implementation can define many additional exceptions, such as ones related to
 
 When an exception occurs, the following CSRs are updated:
 
-#. :code:`ECAUSE` is updated to the exception code
-#. :code:`EADDR` is updated to the memory reference address causing the exception. This is either the instructions address in case of non memory-related exceptions, or the target memory address in case of memory-related exceptions (of which only :code:`exc_unaligned` is defined).
+#. :code:`csr_ecause` is updated to the exception code
+#. :code:`csr_eaddr` is updated to the memory reference address causing the exception. This is either the instructions address in case of non memory-related exceptions, or the target memory address in case of memory-related exceptions (of which only :code:`exc_unaligned` is defined).
 
-.. note:: When an exception occurs in SCHEDULER mode, :code:`ECAUSE` and :code:`EADDR` CSRs are set.
+.. note:: When an exception occurs in SCHEDULER mode, :code:`csr_eacuse` and :code:`csr_eaddr` CSRs are set.
 
 An instruction can raise at most one exception. If multiple exception causes are triggered, the one with the lowest numeric code will take effect. This means:
 

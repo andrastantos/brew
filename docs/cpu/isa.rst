@@ -1,14 +1,19 @@
 Instruction Set Summary
 =======================
 
-In the following tables
+In the following tables, instruction codes are listed as hexadecimal numbers, with the following extra conventions:
 
-'.':
-  means any value in [0x0:0xe], unless specifically listed as a special case. Can be a different number at every occurrence.
-'*':
- means any value in [0x0:0xf] Can be a different number at every occurrence.
+=============== ==========================
+Character       Meaning
+=============== ==========================
+\.              any value in in the range [0x0:0xe]. Can be a different number at every occurrence.
+\*              any value in in the range [0x0:0xf]. Can be a different number at every occurrence.
+=============== ==========================
 
-Instructions are fully decoded. Any instruction not explicitly mentioned in the tables below generate an :code:`exc_unknown_inst` exception.
+Instructions are fully decoded. Any instruction code not explicitly mentioned in the tables below generate an :code:`exc_unknown_inst` exception.
+
+Instructions presented here in groups, based on their rough function and encoding similarities.
+
 
 Exception group
 ---------------
@@ -28,20 +33,24 @@ Exception group
   |    FIELD_D    |       0       |       0       |       0       |
   +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
 
-All instructions in this group enter SCHEDULER mode. After execution $tpc points to the current instruction (the one generating the exception)
+All instructions in this group enter SCHEDULER mode. After execution :code:`$tpc` points to the current instruction (the one generating the exception).
+
+If executed in SCHEDULER mode, execution jumps to address 0 per standard :ref:`exception handling<exception_handling>` rules.
 
 ==================== =========== ========================================================
 Instruction code     Assembly    Operation
 ==================== =========== ========================================================
-:ref:`0x0000<swi_0>` SWI 0       Used to fill unused code-pages;
+:ref:`0x0000<swi_0>` SWI 0       Used to fill unused code-pages
 :ref:`0x1000<swi_1>` SWI 1       Used for software breakpoints
 :ref:`0x2000<swi_2>` SWI 2       Used to implement system calls
 :ref:`0x3000<swi_3>` SWI 3
 :ref:`0x4000<swi_4>` SWI 4
 :ref:`0x5000<swi_5>` SWI 5
 :ref:`0x6000<swi_6>` SWI 6
-:ref:`0x7000<swi_7>` SWI 7       Functionally equivalent to invalid instruction exception
+:ref:`0x7000<swi_7>` SWI 7
 ==================== =========== ========================================================
+
+While the HW doesn't put any limitations on what each of these instructions are used for, the first three SWI levels are allocated by convention.
 
 .. TODO::
   The toolset might still think SII is 0x6000 and HWI is 0x7000! Need to follow-up
@@ -68,7 +77,7 @@ Mode change and power management group
 ===================== =========== =========================================================================
 Instruction code      Assembly    Operation
 ===================== =========== =========================================================================
-:ref:`0x8000<stm>`    STM         Enters TASK mode, enables interrupts; $spc points to the NEXT instruction
+:ref:`0x8000<stm>`    STM         Enters TASK mode, enables interrupts
 :ref:`0x9000<woi>`    WOI         Wake on interrupt. Waits for interrupt in both TASK and SCHEDULER mode
 :ref:`0xa000<pflush>` PFLUSH      Flushes the pipeline
 ===================== =========== =========================================================================
@@ -167,35 +176,6 @@ Instruction code         Assembly       Operation
   All instruction codes in this group are treated as jump instructions by the branch predictor, if exists. After warming up, some will always be predicted taken, some will not be. In TASK mode indirect jump (0x.002) and $tpc update (0x.003) instructions have the exact same behavior, however might have different latencies.
 
 
-Miscellaneous group
----------------------
-
-.. wavedrom::
-
-  {config: {bits: 16}, config: {hspace: 500},
-  reg: [
-      { "name": "FIELD_A",   "bits": 4, attr: "op kind" },
-      { "name": "0",         "bits": 4 },
-      { "name": "0",         "bits": 4 },
-      { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
-  ]}
-
-
-..
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-  |    FIELD_D    |       0       |       0       |    FIELD_A    |
-  +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
-
-=========================== ============== =======================
-Instruction code            Assembly       Operation
-=========================== ============== =======================
-:ref:`0x.008<rd_eq_fpstat>` $rD <- fpstat  Read :ref:`fpstat<fpstat>` register
-:ref:`0x.009<fpstat_eq_rd>` fpstat <- $rD  Write :ref:`fpstat<fpstat>` register
-=========================== ============== =======================
-
-.. note::
-  All instruction codes in this group could be treated as jump instructions by the branch predictor, if exists. After warming up, some will always be predicted taken, some will not be.
-
 
 CSR access group
 ----------------
@@ -235,9 +215,6 @@ Instruction code                     Assembly                   Operation
 :ref:`0x.0f9 0x****<csr_addr_eq_rd>` CSR[ADDR] <- $rD           Store $rD in CSR
 ==================================== ========================== =======================
 
-.. note::
-  These instructions access CSR registers. This address space is unique to each CPU (or thread within a CPU) though some addresses might actually access the same underlying register. CSRs are always 32-bits long. While the instructions themselves are not privileged, certain CSRs might not be accessible from TASK mode.
-
 The :code:`ADDR` field equals to :code:`FIELD_E` in SCHEDULER-mode. In task mode the MSB of :code:`ADDR` is forced to 1.
 
 Unary group
@@ -269,21 +246,19 @@ Instruction code                   Assembly                    Operation
 :ref:`0x.05.<rd_eq_bse_ra>`        $rD <- bse $rA              Sign-extend from byte
 :ref:`0x.06.<rd_eq_wse_ra>`        $rD <- wse $rA              Sign-extend from word
 :ref:`0x.07.<rd_eq_popcnt_ra>`     $rD <- popcnt $rA           Counts number of bits set in $rA
-:ref:`0x.08.<rd_eq_1_/_ra>`        $rD <- 1 / $rA              Reciprocal for floats [#note0xX08X]_
-:ref:`0x.09.<rd_eq_rsqrt_ra>`      $rD <- rsqrt $rA            Reciprocal square-root for floats [#note0xX09X]_
-:ref:`0x.0c.<type_rd_eq_ra>`       type $rD <- $rA             Sets type of $rD as denoted by $rA [#note0xX0cX]_
+:ref:`0x.08.<rd_eq_1_/_ra>`        $rD <- 1 / $rA              Reciprocal for floats
+:ref:`0x.09.<rd_eq_rsqrt_ra>`      $rD <- rsqrt $rA            Reciprocal square-root for floats
+:ref:`0x.0c.<type_rd_eq_ra>`       type $rD <- $rA             Sets type of $rD as denoted by $rA
 :ref:`0x.0d.<rd_eq_type_ra>`       $rD <- type $rA             Loads type value of $rA into $rD
 :ref:`0x.0e.<type_rd_eq_field_a>`  type $rD <- FIELD_A         Sets type of $rD
 ================================== =========================== ===================================================
 
 .. [#note0xX01X] CONST=FIELD_A. FIELD_A is one-s complement; range is -7...7
 .. [#note0xX02X] CONST=FIELD_A*2. FIELD_A is one-s complement; range is -7...7; NOTE: WE COULD MAKE THE RANGE A LITTLE HIGHER IF NOT ALLOW 0
-.. [#note0xX08X] Operation is RESERVED for integer types.
-.. [#note0xX09X] Operation is RESERVED for integer types.
 .. [#note0xX0cX] All 32 bits of $rA are used. Any value above 0xe is RESERVED
 
 
-.. todo:: $rD <- popcnd $rA is a new instruction
+.. todo:: $rD <- popcnt $rA is a new instruction
 .. todo:: reduction sum is removed from the ISA
 .. todo:: float and int conversion is removed from the ISA
 .. todo:: 1/$rA and rsqrt $rA have new op-codes.
@@ -311,14 +286,14 @@ Binary ALU group
 ======================================= =========================== ============================================
 Instruction code                        Assembly                    Operation
 ======================================= =========================== ============================================
-:ref:`0x.1..<rd_eq_ra_xor_rb>`          $rD <- $rA ^ $rB            Bit-wise 'xor' [#note_logical]_
-:ref:`0x.2..<rd_eq_ra_or_rb>`           $rD <- $rA | $rB            Bit-wise 'or'  [#note_logical]_
-:ref:`0x.3..<rd_eq_ra_and_rb>`          $rD <- $rA & $rB            Bit-wise 'and' [#note_logical]_
+:ref:`0x.1..<rd_eq_ra_xor_rb>`          $rD <- $rA ^ $rB            Bit-wise 'xor'
+:ref:`0x.2..<rd_eq_ra_or_rb>`           $rD <- $rA | $rB            Bit-wise 'or'
+:ref:`0x.3..<rd_eq_ra_and_rb>`          $rD <- $rA & $rB            Bit-wise 'and'
 :ref:`0x.4..<rd_eq_ra_plus_rb>`         $rD <- $rA + $rB            Type-dependent add
 :ref:`0x.5..<rd_eq_ra_minus_rb>`        $rD <- $rA - $rB            Type-dependent subtract
-:ref:`0x.6..<rd_eq_ra_lsl_rb>`          $rD <- $rA << $rB           Binary left-shift [#note_binary_shift]_
-:ref:`0x.7..<rd_eq_ra_lsr_rb>`          $rD <- $rA >> $rB           Binary right-shift [#note_binary_shift]_
-:ref:`0x.8..<rd_eq_ra_asr_rb>`          $rD <- $rA >>> $rB          Arithmetic right-shift [#note_binary_shift]_
+:ref:`0x.6..<rd_eq_ra_lsl_rb>`          $rD <- $rA << $rB           Binary left-shift
+:ref:`0x.7..<rd_eq_ra_lsr_rb>`          $rD <- $rA >> $rB           Binary right-shift
+:ref:`0x.8..<rd_eq_ra_asr_rb>`          $rD <- $rA >>> $rB          Arithmetic right-shift
 :ref:`0x.9..<rd_eq_ra_times_rb>`        $rD <- $rA * $rB            Type-dependent multiply
 :ref:`0x.a..<rd_eq_notra_and_rb>`       $rD <- $rA & ~$rB           Bit-wise 'not'-'and' [#note0xXaXX]_
 :ref:`0x.b..<rd_eq_tiny_rb_plus_const>` $rD <- tiny $rB + CONST     Integer add [#note0xXbXX]_
@@ -327,8 +302,6 @@ Instruction code                        Assembly                    Operation
 0x.e..                                  see below (mem ops)
 ======================================= =========================== ============================================
 
-.. [#note_logical] This operation ignore type info, but sets destination type to be the same as that of $rA
-.. [#note_binary_shift] This operation only uses the lane-setup part of the type information. It sets the destination type to that of $rA
 .. [#note0xXaXX] This operation is useful for lane-combining with an inverted predicate
 .. [#note0xXbXX] CONST is FIELD_A is one's complement-coded; range is -7...7.
 
@@ -469,14 +442,14 @@ Constant ALU group
 ================================================= =========================== ============================================
 Instruction code                                  Assembly                    Operation
 ================================================= =========================== ============================================
-:ref:`0x.1.f 0x**** 0x****<rd_eq_value_xor_rb>`   $rD <- VALUE ^ $rB          Bit-wise 'xor' [#note_logical]_
-:ref:`0x.2.f 0x**** 0x****<rd_eq_value_or_rb>`    $rD <- VALUE | $rB          Bit-wise 'or'  [#note_logical]_
-:ref:`0x.3.f 0x**** 0x****<rd_eq_value_and_rb>`   $rD <- VALUE & $rB          Bit-wise 'and' [#note_logical]_
+:ref:`0x.1.f 0x**** 0x****<rd_eq_value_xor_rb>`   $rD <- VALUE ^ $rB          Bit-wise 'xor'
+:ref:`0x.2.f 0x**** 0x****<rd_eq_value_or_rb>`    $rD <- VALUE | $rB          Bit-wise 'or'
+:ref:`0x.3.f 0x**** 0x****<rd_eq_value_and_rb>`   $rD <- VALUE & $rB          Bit-wise 'and'
 :ref:`0x.4.f 0x**** 0x****<rd_eq_value_plus_rb>`  $rD <- VALUE + $rB          Type-dependent add
 :ref:`0x.5.f 0x**** 0x****<rd_eq_value_minus_rb>` $rD <- VALUE - $rB          Type-dependent subtract
-:ref:`0x.6.f 0x**** 0x****<rd_eq_value_lsl_rb>`   $rD <- VALUE << $rB         Binary left-shift [#note_binary_shift]_
-:ref:`0x.7.f 0x**** 0x****<rd_eq_value_lsr_rb>`   $rD <- VALUE >> $rB         Binary right-shift [#note_binary_shift]_
-:ref:`0x.8.f 0x**** 0x****<rd_eq_value_asr_rb>`   $rD <- VALUE >>> $rB        Arithmetic right-shift [#note_binary_shift]_
+:ref:`0x.6.f 0x**** 0x****<rd_eq_value_lsl_rb>`   $rD <- VALUE << $rB         Binary left-shift
+:ref:`0x.7.f 0x**** 0x****<rd_eq_value_lsr_rb>`   $rD <- VALUE >> $rB         Binary right-shift
+:ref:`0x.8.f 0x**** 0x****<rd_eq_value_asr_rb>`   $rD <- VALUE >>> $rB        Arithmetic right-shift
 :ref:`0x.9.f 0x**** 0x****<rd_eq_value_times_rb>` $rD <- VALUE * $rB          Type-dependent multiply
 0x.c.f 0x**** 0x****                              see below (stack ops)
 0x.d.f 0x**** 0x****                              see below (stack ops)
@@ -585,14 +558,14 @@ Short constant ALU group
 ================================================ ==================================== ============================================
 Instruction code                                 Assembly                             Operation
 ================================================ ==================================== ============================================
-:ref:`0x.1f. 0x****<rd_eq_short_value_xor_ra>`   $rD <- short VALUE ^ $rA             Bit-wise 'xor' [#note_logical]_
-:ref:`0x.2f. 0x****<rd_eq_short_value_or_ra>`    $rD <- short VALUE | $rA             Bit-wise 'or'  [#note_logical]_
-:ref:`0x.3f. 0x****<rd_eq_short_value_and_ra>`   $rD <- short VALUE & $rA             Bit-wise 'and' [#note_logical]_
+:ref:`0x.1f. 0x****<rd_eq_short_value_xor_ra>`   $rD <- short VALUE ^ $rA             Bit-wise 'xor'
+:ref:`0x.2f. 0x****<rd_eq_short_value_or_ra>`    $rD <- short VALUE | $rA             Bit-wise 'or'
+:ref:`0x.3f. 0x****<rd_eq_short_value_and_ra>`   $rD <- short VALUE & $rA             Bit-wise 'and'
 :ref:`0x.4f. 0x****<rd_eq_short_value_plus_ra>`  $rD <- short VALUE + $rA             Type-dependent add
 :ref:`0x.5f. 0x****<rd_eq_short_value_minus_ra>` $rD <- short VALUE - $rA             Type-dependent subtract
-:ref:`0x.6f. 0x****<rd_eq_short_ra_lsl_value>`   $rD <- short $rA << VALUE            Binary left-shift [#note_binary_shift]_
-:ref:`0x.7f. 0x****<rd_eq_short_ra_lsr_value>`   $rD <- short $rA >> VALUE            Binary right-shift [#note_binary_shift]_
-:ref:`0x.8f. 0x****<rd_eq_short_ra_asr_value>`   $rD <- short $rA >>> VALUE           Arithmetic right-shift [#note_binary_shift]_
+:ref:`0x.6f. 0x****<rd_eq_short_ra_lsl_value>`   $rD <- short $rA << VALUE            Binary left-shift
+:ref:`0x.7f. 0x****<rd_eq_short_ra_lsr_value>`   $rD <- short $rA >> VALUE            Binary right-shift
+:ref:`0x.8f. 0x****<rd_eq_short_ra_asr_value>`   $rD <- short $rA >>> VALUE           Arithmetic right-shift
 :ref:`0x.9f. 0x****<rd_eq_short_value_times_ra>` $rD <- short VALUE * $rA             Type-dependent multiply
 0x.cf. 0x****                                    see below (stack ops)
 0x.df. 0x****                                    see below (stack ops)
@@ -700,14 +673,14 @@ Instruction code                                                  Assembly      
 ================================================================= ======================================================== ==================
 :ref:`0xf1.. 0x****<if_any_rb_eq_ra___pc_eq_pc_plus_value>`       if any $rB == $rA   $pc <- $pc + VALUE
 :ref:`0xf2.. 0x****<if_any_rb_ne_ra___pc_eq_pc_plus_value>`       if any $rB != $rA   $pc <- $pc + VALUE
-:ref:`0xf3.. 0x****<if_any_signed_rb_lt_ra__pc_eq_pc_plus_value>` if any signed $rB < $rA  $pc <- $pc + VALUE              signed compare
-:ref:`0xf4.. 0x****<if_any_signed_rb_ge_ra_pc_eq_pc_plus_value>`  if any signed $rB >= $rA $pc <- $pc + VALUE              signed compare
+:ref:`0xf3.. 0x****<if_any_signed_rb_lt_ra__pc_eq_pc_plus_value>` if any signed $rB < $rA  $pc <- $pc + VALUE
+:ref:`0xf4.. 0x****<if_any_signed_rb_ge_ra_pc_eq_pc_plus_value>`  if any signed $rB >= $rA $pc <- $pc + VALUE
 :ref:`0xf5.. 0x****<if_any_rb_lt_ra____pc_eq_pc_plus_value>`      if any $rB < $rA    $pc <- $pc + VALUE
 :ref:`0xf6.. 0x****<if_any_rb_ge_ra___pc_eq_pc_plus_value>`       if any $rB >= $rA   $pc <- $pc + VALUE
 :ref:`0xf9.. 0x****<if_all_rb_eq_ra___pc_eq_pc_plus_value>`       if all $rB == $rA   $pc <- $pc + VALUE
 :ref:`0xfa.. 0x****<if_all_rb_ne_ra___pc_eq_pc_plus_value>`       if all $rB != $rA   $pc <- $pc + VALUE
-:ref:`0xfb.. 0x****<if_all_signed_rb_lt_ra__pc_eq_pc_plus_value>` if all signed $rB < $rA  $pc <- $pc + VALUE              signed compare
-:ref:`0xfc.. 0x****<if_all_signed_rb_ge_ra_pc_eq_pc_plus_value>`  if all signed $rB >= $rA $pc <- $pc + VALUE              signed compare
+:ref:`0xfb.. 0x****<if_all_signed_rb_lt_ra__pc_eq_pc_plus_value>` if all signed $rB < $rA  $pc <- $pc + VALUE
+:ref:`0xfc.. 0x****<if_all_signed_rb_ge_ra_pc_eq_pc_plus_value>`  if all signed $rB >= $rA $pc <- $pc + VALUE
 :ref:`0xfd.. 0x****<if_all_rb_lt_ra____pc_eq_pc_plus_value>`      if all $rB < $rA    $pc <- $pc + VALUE
 :ref:`0xfe.. 0x****<if_all_rb_ge_ra___pc_eq_pc_plus_value>`       if all $rB >= $rA   $pc <- $pc + VALUE
 ================================================================= ======================================================== ==================

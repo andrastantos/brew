@@ -31,8 +31,6 @@ Instruction code       Assembly                                      Implemented
 0x.003                 $tpc <- $rD                                
 0x.004                 $rD <- $pc                                 
 0x.005                 $rD <- $tpc                                
-0x.008                 $rD <- fpstat                              
-0x.009                 fpstat <- $rD                              
 0x.0f8 0x****          $rD <- CSR[ADDR]                           
 0x.0f9 0x****          CSR[ADDR] <- $rD                           
 0x.01.                 $rD <- tiny CONST                          

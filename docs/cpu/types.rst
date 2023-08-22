@@ -25,5 +25,5 @@ Type code     Type name  Scalar/Vector  Fixed/Floating point Logic type   Note
 
 .. note:: Not all implementations are required to support all types. See :ref:`family compatibility<family_compatibility>` for details.
 
-The rest of the type slots are implementation specific and may be mapped differently on different implementations. Code depending on these types should check for support in the :::TODO::: CSR registers.
+The rest of the type slots are implementation specific and may be mapped differently on different implementations. Code depending on these types should check for support in the :code:`csr_mach_arch` register.
 

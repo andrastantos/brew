@@ -5,7 +5,7 @@ Brew only defines support for single-precision floating point numbers, in the fo
 
 Floating point computation follows the IEEE754 standard.
 
-A status register, :code:`fpstat` is provided for controlling rounding behavior and floating point exception reporting.
+A status register, :code:`csr_fpstat` is provided for controlling rounding behavior and floating point exception reporting.
 
 Exception handling
 ------------------
@@ -18,8 +18,8 @@ For vector operations each element is treated independently with regards to exce
 
 .. _fpstat:
 
-fpstat register
----------------
+csr_fpstat register
+-------------------
 
 The following bits are defined:
 
@@ -53,11 +53,11 @@ frm_mm    4           round to nearest, ties to max magnitude
 The lowest 5 bits (:code:`fnv`, :code:`fdz`, :code:`fof`, :code:`fuf` and :code:`fnx`) have the following 'sticky' behavior:
 
 #. When a floating-point exception of the appropriate kind is encountered while executing a floating-point operation, the bit is set.
-#. When the :code:`$rD <- fstat` instruction is executed, these bits are cleared.
-#. When the :code:`fstat <- $rD` instruction is executed, these bits are loaded by their corresponding value.
+#. When the register is read, these bits are cleared.
+#. When the register is written, these bits are loaded by their corresponding value.
 
 .. note:: The above layout matches that of RiscV to simply software porting.
 
-.. note:: Since there's no separate :code:`fpstat` register is provided for TASK and SCHEDULER modes, the context-switching code must store and load the register, including the 'sticky' exception bits.
+.. note:: Since there's no separate :code:`csr_fpstat` register for TASK and SCHEDULER modes, the context-switching code must store and load the register, including the 'sticky' exception bits.
 
 .. note:: Under normal operation (that is except for context switches) the exception status bits auto-clear to save the extra clearing operation. This auto-clear behavior is not problematic for context-switches as the new values are loaded from memory anyway.
