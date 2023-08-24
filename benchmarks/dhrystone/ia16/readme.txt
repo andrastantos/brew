@@ -1,0 +1,3 @@
+Using GCC 6 from https://github.com/tkchia/gcc-ia16
+
+The makefile create a .ELF output, but really it's a .COM file. Just rename and run...
