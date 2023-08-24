@@ -27,3 +27,17 @@ Type code     Type name  Scalar/Vector  Fixed/Floating point Logic type   Note
 
 The rest of the type slots are implementation specific and may be mapped differently on different implementations. Code depending on these types should check for support in the :code:`csr_mach_arch` register.
 
+.. _type_compatibility:
+
+Type compatibility
+==================
+
+In this version of the ISA, type compatibility is rather simple: every type is compatible with itself and itself alone.
+
+When more types are introduced (either implementation-defined or standard ones), the following general rules are to be followed:
+
+#. A fixed point scalar type is compatible with INT32
+#. A floating point scalar type is compatible with FP32
+#. A fixed point vector type is compatible with a vector type where all lanes are 32-bit integers
+#. A floating point vector type is compatible with a vector type where all lanes are 32-bit floating point numbers
+#. A type is always compatible with itself

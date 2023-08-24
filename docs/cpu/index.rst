@@ -38,7 +38,6 @@ Brew Processor
    hw_impl_notes
    system_sw
    competition
-   interpolation
    todo
 
 Todos

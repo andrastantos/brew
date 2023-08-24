@@ -12,11 +12,13 @@ Standard Type Determination and Coalescing
 
 The type of the up to two operands of the instruction is examined.
 
-If the two types are not compatible, an :code:`exc_type` exception is raised.
+If the two types are not :ref:`compatible<type_compatibility>`, an :code:`exc_type` exception is raised.
 
-If the instruction has only one operand, the result type is the type of that single operand.
+The result type is determined by the type of :code:`$rA` for operations with two register-operand or by the type of the single register-operand if only one exists.
 
-If one of the operands of the instruction is an immediate constant, the result type is that of the non-immediate operand.
+If one of the two input operands is an immediate constant, its type is assumed to be the 32-bit compatible scalar type of the non-immediate operand.
+
+If the instruction has no register operands, only an immediate one, the type of the immediate is assumed to be INT32.
 
 .. note:: For smaller than 32-bit immediates, the value is sign-extended to 32-bits before a type is assigned to it. This means that such immediates for floating-point operations are rather meaningless, even though the operation itself will be carried out and is considered valid.
 
@@ -25,11 +27,11 @@ If one of the operands of the instruction is an immediate constant, the result t
 Logic Type Determination and Coalescing
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-For certain logical operations (and, or, xor etc.) a the following logic is used to determine the operand and destination types.
+For certain logical operations (and, or, xor etc.) the following logic is used to determine the operand and destination types.
 
 The type of the up to two operands of the instruction is examined.
 
-If the *logic* types of the two operands are not compatible, an :code:`exc_type` exception is raised.
+If the *logic* types of the two operands are not :ref:`compatible<type_compatibility>`, an :code:`exc_type` exception is raised.
 
 The result type is determined by the type of :code:`$rA` for operations with two register-operand or by the type of the single register-operand if only one exists.
 
@@ -51,9 +53,9 @@ If either operand is an immediate value for the instruction, it is assumed to be
 
 The operand type of the second operand (the shift amount) is checked to be of a fixed point type. If not, a :code:`exc_type` exception is raised.
 
-The result type is what the shift value type turns out to be after these transformations.
+The result type is what the first operand (the shift value).
 
-.. note:: Shift variants, where the shift amount is an immediate, the result type will always be INT32.
+.. note:: For shift variants, where the shift value is an immediate, the result type will always be INT32.
 
 .. _load_type_handling:
 
@@ -86,7 +88,7 @@ The offset register must be of logical type :code:`INT32`. If not, a :code:`exc_
 Conditional Branch Type Handling
 --------------------------------
 
-Conditional branch operations use :ref:`standard type handling<std_type_handling>` to determine source types, but - for obvious reasons - doesn't care about the destination type.
+Conditional branch operations use :ref:`standard type handling<std_type_handling>` to determine source types, but - for obvious reasons - don't care about the destination type.
 
 
 
