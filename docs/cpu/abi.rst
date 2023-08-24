@@ -134,8 +134,8 @@ The static chain is maintained in :code:`$r8` (:code:`STATIC_CHAIN_REGNUM`).
 
 The trampoline is a little piece of code that's copied into a memory buffer then modified. The template for it is the following::
 
-    $r8 <- mem[.Lstatic_chain]
-    $pc <- mem[.Lfunc_address]
+    $r8 <- mem32[.Lstatic_chain]
+    $pc <- mem32[.Lfunc_address]
   .Lstatic_chain:
     .long 0
   .Lfunc_address:

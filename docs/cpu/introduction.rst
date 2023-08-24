@@ -9,7 +9,7 @@ The ISA defines 15 general purpose registers plus a pair of program counters. An
 
 Each register has a type associated with it. This type is set and propagated by instructions. While types can be loaded and stored in memory, they are not automatically maintained by regular data load and store instructions.
 
-In this documentation you'll find what is the fourth major iteration of the architecture. In it's current incarnation it is better in code-density then RISC-V, better then ARM, almost as good as THUMB. The first RTL implementation of the Brew architecture is the Espresso core, which is part of the Anachronistic Computer project.
+In this documentation you'll find what is the fourth major iteration of the architecture. In its current incarnation it is better in code-density then RISC-V, better than ARM, almost as good as THUMB. The first RTL implementation of the Brew architecture is the Espresso core, which is part of the Anachronistic Computer project.
 
 Brew is supported by a port of BinUtils, GCC (C and C++ front-ends are tested) and NewLib. An instruction set simulator for user-mode processes is part of BinUtils. GDB is not yet ported to the architecture.
 

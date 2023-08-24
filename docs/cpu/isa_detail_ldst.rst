@@ -42,7 +42,7 @@ The implementation is allowed to throw exceptions if the memory access violates 
 
 .. _rd_eq_mem_ra:
 
-$rD <- MEM[$rA]
+$rD <- MEM32[$rA]
 ---------------------------------------------
 
 *Instruction code*: 0x.e6.
@@ -127,7 +127,7 @@ The implementation is allowed to throw exceptions if the memory access violates 
 
 .. _mem_ra_eq_rd:
 
-MEM[$rA] <- $rD
+MEM32[$rA] <- $rD
 ---------------------------------------------
 
 *Instruction code*: 0x.ea.
@@ -306,7 +306,7 @@ The implementation is allowed to throw exceptions if the memory access violates 
 
 .. _rd_eq_mem_ra_plus_value:
 
-$rD <- MEM[$rA + VALUE]
+$rD <- MEM32[$rA + VALUE]
 -----------------------
 
 *Instruction code*: 0x.f6. 0x****
@@ -327,7 +327,7 @@ The implementation is allowed to throw exceptions if the memory access violates 
 
 .. _rd_eq_mem_value:
 
-$rD <- MEM[VALUE]
+$rD <- MEM32[VALUE]
 -----------------
 
 *Instruction code*: 0x.f6f 0x**** 0x****
@@ -480,7 +480,7 @@ The implementation is allowed to throw exceptions if the memory access violates 
 
 .. _mem_ra_plus_value_eq_rd:
 
-MEM[$rA + VALUE] <- $rD
+MEM32[$rA + VALUE] <- $rD
 -----------------------
 
 *Instruction code*: 0x.fa. 0x****
@@ -501,7 +501,7 @@ The implementation is allowed to throw exceptions if the memory access violates 
 
 .. _mem_value_eq_rd:
 
-MEM[VALUE] <- $rD
+MEM32[VALUE] <- $rD
 -----------------
 
 *Instruction code*: 0x.faf 0x**** 0x****

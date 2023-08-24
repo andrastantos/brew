@@ -50,7 +50,7 @@ Instruction code     Assembly    Operation
 :ref:`0x7000<swi_7>` SWI 7
 ==================== =========== ========================================================
 
-While the HW doesn't put any limitations on what each of these instructions are used for, the first three SWI levels are allocated by convention.
+.. note:: While the HW doesn't put any limitations on what each of these instructions are used for, the first three SWI levels are allocated by convention.
 
 .. TODO::
   The toolset might still think SII is 0x6000 and HWI is 0x7000! Need to follow-up
@@ -124,7 +124,7 @@ Instruction code             Assembly        Operation
 :ref:`0xe001<fence_r___\_>`  FENCE_R____     Fence reads before
 ============================ =============== ============================================
 
-Every instruction in this group implements a fence, or an ordering between loads and stores. The top-most 4 bits of the instruction code is used the encode the fence type:
+Every instruction in this group implements a fence, or an ordering between loads and stores. The top-most 4 bits of the instruction code is used to encode the fence type:
 
 ==========   ============
 Bit-field    Meaning
@@ -137,12 +137,6 @@ Bit-field    Meaning
 
 .. note::
   bit-values are inverted to make FIELD_D==0xf an invalid encoding (i.e. no fence specification)
-
-.. note::
-  Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
-
-.. important::
-  Depending on the implementation, some or all of these fence operations might be no-ops. Care should be taken to ensure proper fence behavior for writes that leave in-order but have their side-effects out-of-order due to latency-differences through the interconnect.
 
 PC manipulation group
 ---------------------
@@ -172,8 +166,6 @@ Instruction code         Assembly       Operation
 :ref:`0x.005<rd_eq_tpc>` $rD <- $tpc    Load $tpc into register
 ======================== ============== =======================
 
-.. note::
-  All instruction codes in this group are treated as jump instructions by the branch predictor, if exists. After warming up, some will always be predicted taken, some will not be. In TASK mode indirect jump (0x.002) and $tpc update (0x.003) instructions have the exact same behavior, however might have different latencies.
 
 
 
@@ -217,6 +209,8 @@ Instruction code                     Assembly                   Operation
 
 The :code:`ADDR` field equals to :code:`FIELD_E` in SCHEDULER-mode. In task mode the MSB of :code:`ADDR` is forced to 1.
 
+.. todo:: This is a new pair of instructions, no toolset support or Espresso implementation.
+
 Unary group
 -----------
 
@@ -257,6 +251,7 @@ Instruction code                   Assembly                    Operation
 .. [#note0xX02X] CONST=FIELD_A*2. FIELD_A is one-s complement; range is -7...7; NOTE: WE COULD MAKE THE RANGE A LITTLE HIGHER IF NOT ALLOW 0
 .. [#note0xX0cX] All 32 bits of $rA are used. Any value above 0xe is RESERVED
 
+.. todo:: A lot of these instructions are not strictly necessary. negation, inversion for instance can be done using binary operations with an immediate. Need profiling data to justify their existence.
 
 .. todo:: $rD <- popcnt $rA is a new instruction
 .. todo:: reduction sum is removed from the ISA
@@ -390,9 +385,6 @@ Instruction code                                    Assembly                    
 :ref:`0x90ef 0x**** 0x****<type_r8...r14_eq_value>` type $r8...$r14 <- VALUE    Load immediate type values [#note_immedate_types]_
 =================================================== =========================== ==================================================
 
-.. note::
-  Destination type is not changed, except of course for type load operations.
-
 .. [#note_immedate_types]
   Types for each register are encoded in 4-bit nibbles. Lowest 4 bits determine the type of the lowest indexed register. Highest 4 bits determine the type of the highest indexed register. If nibble is set to 0xf, type of corresponding register is not changed.
 
@@ -456,11 +448,6 @@ Instruction code                                  Assembly                    Op
 0x.e.f 0x**** 0x****                              see below (mem ops)
 ================================================= =========================== ============================================
 
-.. note:: Result type is that of $rB (even for shifts). FIELD_E is assumed to have the same type as $rB
-
-.. note::
-  << and >> operations where opB is constant can be expressed by multiplies. Because of that, these operations only have one form. This does mean though, that the constant needed for certain shifts is larger than what would normally be required (i.e. 32-bit instead of 16).
-
 Short load immediate group
 --------------------------
 
@@ -521,8 +508,7 @@ Instruction code                         Assembly                    Operation
 :ref:`0x30fe 0x****<tpc_eq_short_value>` $tpc <- short VALUE         Load sign-extended value into $tpc
 ======================================== =========================== =============================================
 
-.. note::
-  Destination type is not changed.
+
 
 Short constant ALU group
 ------------------------
@@ -573,16 +559,13 @@ Instruction code                                 Assembly                       
 ================================================ ==================================== ============================================
 
 .. note::
-  result type is that of $rA
-
-.. note::
   FIELD_E is *always* sign-extended to 32-bits before applying it to the operation.
 
 .. todo::
   We might want to zero-extend for certain operations, such as logical ops.
 
 .. note::
-  Sign-extending a 16-bit constant, then treating it as a float almost certainly don't make any sense.
+  Sign-extending a 16-bit constant, then treating it as a float almost certainly don't make any sense. These operations make little sense for floating-point types.
 
 Zero-compare conditional branch group
 -------------------------------------
@@ -688,17 +671,6 @@ Instruction code                                                  Assembly      
 .. note::
   For scalar types, FIELD_C MSB (inst[15]) is irrelevant; In other words, any/all selection doesn't matter
 
-*pseudo ops*:
-
-* if any signed $rB >= $rA $pc <- $pc + VALUE
-* if any signed $rB < $rA  $pc <- $pc + VALUE
-* if any $rB >= $rA   $pc <- $pc + VALUE
-* if any $rB < $rA    $pc <- $pc + VALUE
-* if all signed $rB >= $rA $pc <- $pc + VALUE
-* if all signed $rB < $rA  $pc <- $pc + VALUE
-* if all $rB >= $rA   $pc <- $pc + VALUE
-* if all $rB < $rA    $pc <- $pc + VALUE
-
 .. note:: VALUE computation: replicate LSB of FIELD_E to bit positions [31:16], replace LSB with 0.
 
 Bit-set-test conditional branch group
@@ -754,7 +726,6 @@ Instruction code           Assembly                                             
 
 .. note:: VALUE computation: replicate LSB of FIELD_E to bit positions [31:16], replace LSB with 0.
 
-.. note:: The type of $rA is ignored.
 
 Bit-clear-test conditional branch group
 ---------------------------------------
@@ -809,12 +780,11 @@ Instruction code           Assembly                                             
 
 .. note:: VALUE computation: replicate LSB of FIELD_E to bit positions [31:16], replace LSB with 0.
 
-.. note:: The type of $rA is ignored.
 
 Stack group
 -----------
 
-While stack operations (as in push/pull) are not supported by the ISA, special load/store instructions are provided with small offsets and $r12 ($fp) and $r13 ($sp) as the base register to support compact form of common stack operations. The supported offset range is -256 to +252 bytes.
+While simple stack operations (as in push/pull) are not supported by the ISA, special load/store instructions are provided with small offsets and $r12 ($fp) and $r13 ($sp) as the base register to support a compact form of common stack operations. The supported offset range is -256 to +252 bytes.
 
 .. wavedrom::
 
@@ -835,8 +805,8 @@ While stack operations (as in push/pull) are not supported by the ISA, special l
 ============================================ ================================ ====================
 Instruction code                             Assembly                         Operation
 ============================================ ================================ ====================
-:ref:`0x.c**<mem_rs_plus_tiny_offset_eq_rd>` MEM[$rS + tiny OFFSET] <- $rD    Store $rD in memory
-:ref:`0x.d**<rd_eq_mem_rs_plus_tiny_offset>` $rD <- MEM[$rS + tiny OFFSET]    Load $rD from memory
+:ref:`0x.c**<mem_rs_plus_tiny_offset_eq_rd>` MEM32[$rS + tiny OFFSET] <- $rD  Store $rD in memory
+:ref:`0x.d**<rd_eq_mem_rs_plus_tiny_offset>` $rD <- MEM32[$rS + tiny OFFSET]  Load $rD from memory
 ============================================ ================================ ====================
 
 .. warning::
@@ -872,18 +842,16 @@ Instruction code               Assembly                        Operation
 ============================== =============================== ===========================================
 :ref:`0x.e4.<rd_eq_mem8_ra>`   $rD <- MEM8[$rA]                8-bit unsigned load from MEM[$rA] into $rD
 :ref:`0x.e5.<rd_eq_mem16_ra>`  $rD <- MEM16[$rA]               16-bit unsigned load from MEM[$rA] into $rD
-:ref:`0x.e6.<rd_eq_mem_ra>`    $rD <- MEM[$rA]                 32-bit load from MEM[$rA] into $rD
+:ref:`0x.e6.<rd_eq_mem_ra>`    $rD <- MEM32[$rA]               32-bit load from MEM[$rA] into $rD
 :ref:`0x.e7.<rd_eq_memll_ra>`  $rD <- MEMLL[$rA]               32-bit unsigned load-lock (exclusive load)
 :ref:`0x.e8.<mem8_ra_eq_rd>`   MEM8[$rA] <- $rD                8-bit store to MEM[$rA] from $rD
 :ref:`0x.e9.<mem16_ra_eq_rd>`  MEM16[$rA] <- $rD               16-bit store to MEM[$rA] from $rD
-:ref:`0x.ea.<mem_ra_eq_rd>`    MEM[$rA] <- $rD                 32-bit store to MEM[$rA] from $rD
+:ref:`0x.ea.<mem_ra_eq_rd>`    MEM32[$rA] <- $rD               32-bit store to MEM[$rA] from $rD
 :ref:`0x.eb.<memsc_ra_eq_rd>`  MEMSC[$rA] <- $rD               32-bit store-conditional (exclusive store)
 :ref:`0x.ec.<rd_eq_smem8_ra>`  $rD <- SMEM8[$rA]               8-bit signed load from MEM[$rA] into $rD
 :ref:`0x.ed.<rd_eq_smem16_ra>` $rD <- SMEM16[$rA]              16-bit signed load from MEM[$rA] into $rD
 ============================== =============================== ===========================================
 
-.. note::
-  Loads don't change the type of their destination register.
 
 
 Indirect jump group
@@ -909,12 +877,10 @@ Indirect jump group
 Instruction code             Assembly                        Operation
 ============================ =============================== =====================================
 :ref:`0x1ee.<inv_ra>`        INV[$rA]                        invalidate cache line for address $rA
-:ref:`0x2ee.<pc_eq_mem_ra>`  $pc <- MEM[$rA]                 32-bit load from MEM[$rA] into $PC
-:ref:`0x3ee.<tpc_eq_mem_ra>` $tpc <- MEM[$rA]                32-bit load from MEM[$rA] into $TPC
+:ref:`0x2ee.<pc_eq_mem_ra>`  $pc <- MEM32[$rA]               32-bit load from MEM[$rA] into $PC
+:ref:`0x3ee.<tpc_eq_mem_ra>` $tpc <- MEM32[$rA]              32-bit load from MEM[$rA] into $TPC
 ============================ =============================== =====================================
 
-.. note::
-  Cache invalidation applies to all caches and to all levels of caches: L1D L1I; L2, if exists. System-level caches (L3) are not invalidated. In a multi-processor system, only local caches (caches that are in the path-to-memory for the core executing the instruction) are invalidated.
 
 
 Offset-indirect load/store group
@@ -953,18 +919,18 @@ Instruction code                                 Assembly                       
 ================================================ ======================================= =================================================
 :ref:`0x.f4. 0x****<rd_eq_mem8_ra_plus_value>`   $rD <- MEM8[$rA + VALUE]                8-bit unsigned load from MEM[$rA+VALUE] into $rD
 :ref:`0x.f5. 0x****<rd_eq_mem16_ra_plus_value>`  $rD <- MEM16[$rA + VALUE]               16-bit unsigned load from MEM[$rA+VALUE] into $rD
-:ref:`0x.f6. 0x****<rd_eq_mem_ra_plus_value>`    $rD <- MEM[$rA + VALUE]                 32-bit load from MEM[$rA+VALUE] into $rD
+:ref:`0x.f6. 0x****<rd_eq_mem_ra_plus_value>`    $rD <- MEM32[$rA + VALUE]               32-bit load from MEM[$rA+VALUE] into $rD
 :ref:`0x.f7. 0x****<rd_eq_memll_ra_plus_value>`  $rD <- MEMLL[$rA + VALUE]               32-bit unsigned load-lock (exclusive load)
 :ref:`0x.f8. 0x****<mem8_ra_plus_value_eq_rd>`   MEM8[$rA + VALUE] <- $rD                8-bit store to MEM[$rA+VALUE] from $rD
 :ref:`0x.f9. 0x****<mem16_ra_plus_value_eq_rd>`  MEM16[$rA + VALUE] <- $rD               16-bit store to MEM[$rA+VALUE] from $rD
-:ref:`0x.fa. 0x****<mem_ra_plus_value_eq_rd>`    MEM[$rA + VALUE] <- $rD                 32-bit store to MEM[$rA+VALUE] from $rD
+:ref:`0x.fa. 0x****<mem_ra_plus_value_eq_rd>`    MEM32[$rA + VALUE] <- $rD               32-bit store to MEM[$rA+VALUE] from $rD
 :ref:`0x.fb. 0x****<memsc_ra_plus_value_eq_rd>`  MEMSC[$rA + VALUE] <- $rD               32-bit store-conditional (exclusive store)
 :ref:`0x.fc. 0x****<rd_eq_smem8_ra_plus_value>`  $rD <- SMEM8[$rA + VALUE]               8-bit signed load from MEM[$rA+VALUE] into $rD
 :ref:`0x.fd. 0x****<rd_eq_smem16_ra_plus_value>` $rD <- SMEM16[$rA + VALUE]              16-bit signed load from MEM[$rA+VALUE] into $rD
 ================================================ ======================================= =================================================
 
 .. note:: FIELD_E is sign-extended before addition
-.. note:: Loads don't change the type of a register.
+
 
 Offset-indirect jump group
 --------------------------
@@ -1001,12 +967,9 @@ Offset-indirect jump group
 Instruction code                               Assembly                                Operation
 ============================================== ======================================= =============================================
 :ref:`0x1fe. 0x****<inv_ra_plus_value>`        INV[$rA + VALUE]                        invalidate cache line for address $rA+FIELD_E
-:ref:`0x2fe. 0x****<pc_eq_mem_ra_plus_value>`  $pc <- MEM[$rA + VALUE]                 32-bit load from MEM[$rA+VALUE] into $PC
-:ref:`0x3fe. 0x****<tpc_eq_mem_ra_plus_value>` $tpc <- MEM[$rA + VALUE]                32-bit load from MEM[$rA+VALUE] into $TPC
+:ref:`0x2fe. 0x****<pc_eq_mem_ra_plus_value>`  $pc <- MEM32[$rA + VALUE]               32-bit load from MEM[$rA+VALUE] into $PC
+:ref:`0x3fe. 0x****<tpc_eq_mem_ra_plus_value>` $tpc <- MEM32[$rA + VALUE]              32-bit load from MEM[$rA+VALUE] into $TPC
 ============================================== ======================================= =============================================
-
-.. note::
-  Cache invalidation applies to all caches and to all levels of caches: L1D L1I; L2, if exists. System-level caches (L3) are not invalidated. In a multi-processor system, only local caches (caches that are in the path-to-memory for the core executing the instruction) are invalidated.
 
 .. note:: FIELD_E is sign-extended before addition
 
@@ -1058,17 +1021,16 @@ Instruction code                                Assembly                    Oper
 =============================================== =========================== =============================================
 :ref:`0x.f4f 0x**** 0x****<rd_eq_mem8_value>`   $rD <- MEM8[VALUE]          8-bit unsigned load from MEM[VALUE] into $rD
 :ref:`0x.f5f 0x**** 0x****<rd_eq_mem16_value>`  $rD <- MEM16[VALUE]         16-bit unsigned load from MEM[VALUE] into $rD
-:ref:`0x.f6f 0x**** 0x****<rd_eq_mem_value>`    $rD <- MEM[VALUE]           32-bit load from MEM[VALUE] into $rD
+:ref:`0x.f6f 0x**** 0x****<rd_eq_mem_value>`    $rD <- MEM32[VALUE]         32-bit load from MEM[VALUE] into $rD
 :ref:`0x.f7f 0x**** 0x****<rd_eq_memll_value>`  $rD <- MEMLL[VALUE]         32-bit unsigned load-lock (exclusive load)
 :ref:`0x.f8f 0x**** 0x****<mem8_value_eq_rd>`   MEM8[VALUE] <- $rD          8-bit store to MEM[VALUE] from $rD
 :ref:`0x.f9f 0x**** 0x****<mem16_value_eq_rd>`  MEM16[VALUE] <- $rD         16-bit store to MEM[VALUE] from $rD
-:ref:`0x.faf 0x**** 0x****<mem_value_eq_rd>`    MEM[VALUE] <- $rD           32-bit store to MEM[VALUE] from $rD
+:ref:`0x.faf 0x**** 0x****<mem_value_eq_rd>`    MEM32[VALUE] <- $rD         32-bit store to MEM[VALUE] from $rD
 :ref:`0x.fbf 0x**** 0x****<memsc_value_eq_rd>`  MEMSC[VALUE] <- $rD         32-bit store-conditional (exclusive store)
 :ref:`0x.fcf 0x**** 0x****<rd_eq_smem8_value>`  $rD <- SMEM8[VALUE]         8-bit signed load from MEM[VALUE] into $rD
 :ref:`0x.fdf 0x**** 0x****<rd_eq_smem16_value>` $rD <- SMEM16[VALUE]        16-bit signed load from MEM[VALUE] into $rD
 =============================================== =========================== =============================================
 
-.. note:: Loads don't change the type of a register.
 
 Absolute jump group
 -------------------
@@ -1117,12 +1079,10 @@ Absolute jump group
 Instruction code                              Assembly                    Operation
 ============================================= =========================== =========================================
 :ref:`0x1fef 0x**** 0x****<inv_value>`        INV[VALUE]                  invalidate cache line for address FIELD_E
-:ref:`0x2fef 0x**** 0x****<pc_eq_mem_value>`  $pc <- MEM[VALUE]           32-bit load from MEM[VALUE] into $PC
-:ref:`0x3fef 0x**** 0x****<tpc_eq_mem_value>` $tpc <- MEM[VALUE]          32-bit load from MEM[VALUE] into $TPC
+:ref:`0x2fef 0x**** 0x****<pc_eq_mem_value>`  $pc <- MEM32[VALUE]         32-bit load from MEM[VALUE] into $PC
+:ref:`0x3fef 0x**** 0x****<tpc_eq_mem_value>` $tpc <- MEM32[VALUE]        32-bit load from MEM[VALUE] into $TPC
 ============================================= =========================== =========================================
 
-.. note::
-  Cache invalidation applies to all caches and to all levels of caches: L1D L1I; L2, if exists. System-level caches (L3) are not invalidated. In a multi-processor system, only local caches (caches that are in the path-to-memory for the core executing the instruction) are invalidated.
 
 
 Prefix instructions
@@ -1137,12 +1097,12 @@ Prefix instructions can precede any other instruction to modify their behavior.
   *Interrupt behavior*: If an interrupt is handled during the execution of a prefixed instruction, $tpc points to the (first) prefix instruction after entering SCHEDULER mode. None of the side-effects of the prefixed instruction take effect. If any of the side-effects of the prefixed instruction have taken effect, the whole instruction must be carried to completion and $tpc points to the subsequent instruction after entering SCHEDULER mode. In other words, under no circumstances can $tpc point anywhere between the first prefix and it's corresponding instruction when entering SCHEDULER mode.
 
 .. note::
-  *Prefix concatenation*: Every processor implementation has a maximum instruction length it supports. In this version of the spec, it's 64 bits. If an instruction with all its prefixes exceeds this limit, the processor raises an invalid instruction exception, with $tpc pointing to the first prefix instruction. Without this provision it would be possible to create arbitrarily long instruction sequences in TASK mode. That in turn would prevent interrupts from being raised, effectively locking up the system (at least up to the point of exhausting the addressable RAM space). The ISA puts further restrictions on what prefix instructions can be cascaded. As a general rule, prefixes of the same kind can appear only once in a prefix cascade.
+  *Prefix concatenation*: Every processor implementation has a maximum instruction length it supports. In this version of the spec, it's 64 bits. If an instruction with all its prefixes exceeds this limit, the processor raises an :code:`exc_unknown_inst` exception, with $tpc pointing to the first prefix instruction. Without this provision it would be possible to create arbitrarily long instruction sequences in TASK mode. That in turn would prevent interrupts from being raised, effectively locking up the system (at least up to the point of exhausting the addressable memory space). The ISA puts further restrictions on what prefix instructions can be cascaded. As a general rule, prefixes of the same kind can appear only once in a prefix cascade.
 
 Type override
 ~~~~~~~~~~~~~
 
-This prefix instruction allows for the changing the way the subsequent operation interprets source operand types. It doesn't actually change the source register types. It also allows for explicit control of whether the destination type is written or not.
+This prefix instruction allows for the changing the way the subsequent operation interprets source operand types. It doesn't actually change the source register types. The result type that is written into the destination along with its value is the result type obtained after the type overrides.
 
 .. wavedrom::
 

@@ -21,7 +21,7 @@ The implementation is not allowed to throw exceptions even if the memory locatio
 
 .. _pc_eq_mem_ra:
 
-$pc <- MEM[$rA]
+$pc <- MEM32[$rA]
 ---------------------------------------------
 
 *Instruction code*: 0x2ee.
@@ -39,7 +39,7 @@ The implementation is allowed to throw exceptions if the memory access violates 
 
 .. _tpc_eq_mem_ra:
 
-$tpc <- MEM[$rA]
+$tpc <- MEM32[$rA]
 ---------------------------------------------
 
 *Instruction code*: 0x3ee.
@@ -87,7 +87,7 @@ The implementation is not allowed to throw exceptions even if the memory locatio
 
 .. _pc_eq_mem_ra_plus_value:
 
-$pc <- MEM[$rA + VALUE]
+$pc <- MEM32[$rA + VALUE]
 ---------------------------------------------
 
 *Instruction code*: 0x2fe. 0x****
@@ -107,7 +107,7 @@ The implementation is allowed to throw exceptions if the memory access violates 
 
 .. _tpc_eq_mem_ra_plus_value:
 
-$tpc <- MEM[$rA + VALUE]
+$tpc <- MEM32[$rA + VALUE]
 ---------------------------------------------
 
 *Instruction code*: 0x3fe. 0x****
@@ -152,7 +152,7 @@ The implementation is not allowed to throw exceptions even if the memory locatio
 
 .. _pc_eq_mem_value:
 
-$pc <- MEM[VALUE]
+$pc <- MEM32[VALUE]
 ---------------------------------------------
 
 *Instruction code*: 0x2fef 0x**** 0x****
@@ -170,7 +170,7 @@ The implementation is allowed to throw exceptions if the memory access violates 
 
 .. _tpc_eq_mem_value:
 
-$tpc <- MEM[VALUE]
+$tpc <- MEM32[VALUE]
 ---------------------------------------------
 
 *Instruction code*: 0x3fef 0x**** 0x****

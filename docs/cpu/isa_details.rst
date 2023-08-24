@@ -109,3 +109,12 @@ Pseudo instructions
 
 NOP is equivalent to $r2 <- $r2 | $r2
 $rD <- $rS is equivalent to $rD <- $rS | $rS
+if any signed $rB >= $rA $pc <- $pc + VALUE
+if any signed $rB < $rA  $pc <- $pc + VALUE
+if any $rB >= $rA   $pc <- $pc + VALUE
+if any $rB < $rA    $pc <- $pc + VALUE
+if all signed $rB >= $rA $pc <- $pc + VALUE
+if all signed $rB < $rA  $pc <- $pc + VALUE
+if all $rB >= $rA   $pc <- $pc + VALUE
+if all $rB < $rA    $pc <- $pc + VALUE
+

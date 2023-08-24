@@ -138,34 +138,34 @@ Instruction code       Assembly                                                M
 0xfc.f 0x****          if $rB[C] == 0 $pc <- $pc + VALUE                       Yes
 0xfd.f 0x****          if $rB[C] == 0 $pc <- $pc + VALUE                       Yes
 0xfe.f 0x****          if $rB[C] == 0 $pc <- $pc + VALUE                       Yes
-0x.c**                 MEM[$rS + tiny OFFSET] <- $rD                           Yes
-0x.d**                 $rD <- MEM[$rS + tiny OFFSET]                           Yes
+0x.c**                 MEM32[$rS + tiny OFFSET] <- $rD                         Yes
+0x.d**                 $rD <- MEM32[$rS + tiny OFFSET]                         Yes
 0x.e4.                 $rD <- MEM8[$rA]                                        Yes
 0x.e5.                 $rD <- MEM16[$rA]                                       Yes
-0x.e6.                 $rD <- MEM[$rA]                                         Yes
+0x.e6.                 $rD <- MEM32[$rA]                                       Yes
 0x.e7.                 $rD <- MEMLL[$rA]                                       Yes
 0x.e8.                 MEM8[$rA] <- $rD                                        Yes
 0x.e9.                 MEM16[$rA] <- $rD                                       Yes
-0x.ea.                 MEM[$rA] <- $rD                                         Yes
+0x.ea.                 MEM32[$rA] <- $rD                                       Yes
 0x.eb.                 MEMSC[$rA] <- $rD                                       Yes
 0x.ec.                 $rD <- SMEM8[$rA]                                       Yes
 0x.ed.                 $rD <- SMEM16[$rA]                                      Yes
 0x1ee.                 INV[$rA]                                                Yes
-0x2ee.                 $pc <- MEM[$rA]                                         Yes
-0x3ee.                 $tpc <- MEM[$rA]                                        Yes
+0x2ee.                 $pc <- MEM32[$rA]                                       Yes
+0x3ee.                 $tpc <- MEM32[$rA]                                      Yes
 0x.f4. 0x****          $rD <- MEM8[$rA + VALUE]                                Yes
 0x.f5. 0x****          $rD <- MEM16[$rA + VALUE]                               Yes
-0x.f6. 0x****          $rD <- MEM[$rA + VALUE]                                 Yes
+0x.f6. 0x****          $rD <- MEM32[$rA + VALUE]                               Yes
 0x.f7. 0x****          $rD <- MEMLL[$rA + VALUE]                               Yes
 0x.f8. 0x****          MEM8[$rA + VALUE] <- $rD                                Yes
 0x.f9. 0x****          MEM16[$rA + VALUE] <- $rD                               Yes
-0x.fa. 0x****          MEM[$rA + VALUE] <- $rD                                 Yes
+0x.fa. 0x****          MEM32[$rA + VALUE] <- $rD                               Yes
 0x.fb. 0x****          MEMSC[$rA + VALUE] <- $rD                               Yes
 0x.fc. 0x****          $rD <- SMEM8[$rA + VALUE]                               Yes
 0x.fd. 0x****          $rD <- SMEM16[$rA + VALUE]                              Yes
 0x1fe. 0x****          INV[$rA + VALUE]                                        Yes
-0x2fe. 0x****          $pc <- MEM[$rA + VALUE]                                 Yes
-0x3fe. 0x****          $tpc <- MEM[$rA + VALUE]                                Yes
+0x2fe. 0x****          $pc <- MEM32[$rA + VALUE]                               Yes
+0x3fe. 0x****          $tpc <- MEM32[$rA + VALUE]                              Yes
 0x.f0. 0x****          $r0...$r14 <- MEM[$rD] @ $rA                            Optional    Optional   Yes         Yes
 0x.f1. 0x****          MEM[$rD] <- $r0...$r14 @ $rA                            Optional    Optional   Yes         Yes
 0x.f2. 0x****          $r0...$r14 <- POP[$rD] @ $rA                            Optional    Optional   Yes         Yes
@@ -176,17 +176,17 @@ Instruction code       Assembly                                                M
 0x.f3f 0x****          PUSH[$rD] <- $r0...$r14                                 Optional    Optional   Yes         Yes
 0x.f4f 0x**** 0x****   $rD <- MEM8[VALUE]                                      Yes
 0x.f5f 0x**** 0x****   $rD <- MEM16[VALUE]                                     Yes
-0x.f6f 0x**** 0x****   $rD <- MEM[VALUE]                                       Yes
+0x.f6f 0x**** 0x****   $rD <- MEM32[VALUE]                                     Yes
 0x.f7f 0x**** 0x****   $rD <- MEMLL[VALUE]                                     Yes
 0x.f8f 0x**** 0x****   MEM8[VALUE] <- $rD                                      Yes
 0x.f9f 0x**** 0x****   MEM16[VALUE] <- $rD                                     Yes
-0x.faf 0x**** 0x****   MEM[VALUE] <- $rD                                       Yes
+0x.faf 0x**** 0x****   MEM32[VALUE] <- $rD                                     Yes
 0x.fbf 0x**** 0x****   MEMSC[VALUE] <- $rD                                     Yes
 0x.fcf 0x**** 0x****   $rD <- SMEM8[VALUE]                                     Yes
 0x.fdf 0x**** 0x****   $rD <- SMEM16[VALUE]                                    Yes
 0x1fef 0x**** 0x****   INV[VALUE]                                              Yes
-0x2fef 0x**** 0x****   $pc <- MEM[VALUE]                                       Yes
-0x3fef 0x**** 0x****   $tpc <- MEM[VALUE]                                      Yes
+0x2fef 0x**** 0x****   $pc <- MEM32[VALUE]                                     Yes
+0x3fef 0x**** 0x****   $tpc <- MEM32[VALUE]                                    Yes
 0x.eff 0x**** 0x****   MEM[VALUE] <- full $rD                                  Yes
 0x.fff 0x**** 0x****   full $rD <- MEM[VALUE]                                  Yes
 0x.ef.                 MEM[$rA] <- full $rD                                    Yes

@@ -30,11 +30,14 @@ Fences have no effect on cache contents. In particular, fences don't invalidate 
 
 Depending on the implementation, some or all fence operations might be no-ops.
 
-'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
+'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. 'Destination' in this context is anything outside the CPU core that can report a completion of the store. For instance, L1 and L2 caches can report completion in case of a write-back implementation. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
 'After' fence operations ensure that none of the reads or writes start execution prior to the completion of the fence instruction. This is a potential issue for out-of-order implementations, where the apparent instruction execution order is different from the actual one. 'After' fences can be used to ensure that loads and stores maintain their program-order even in an out-of-order machine.
 
 Care should be taken to ensure proper fence behavior for writes that leave in-order but have their side-effects out-of-order due to latency-differences through the interconnect.
+
+.. note::
+  Fences also can't be trusted for cache-coherency between cores or HW threads if the implementation doesn't explicitly have such guarantees.
 
 
 
@@ -70,13 +73,14 @@ Fences have no effect on cache contents. In particular, fences don't invalidate 
 
 Depending on the implementation, some or all fence operations might be no-ops.
 
-'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
+'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. 'Destination' in this context is anything outside the CPU core that can report a completion of the store. For instance, L1 and L2 caches can report completion in case of a write-back implementation. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
 'After' fence operations ensure that none of the reads or writes start execution prior to the completion of the fence instruction. This is a potential issue for out-of-order implementations, where the apparent instruction execution order is different from the actual one. 'After' fences can be used to ensure that loads and stores maintain their program-order even in an out-of-order machine.
 
 Care should be taken to ensure proper fence behavior for writes that leave in-order but have their side-effects out-of-order due to latency-differences through the interconnect.
 
-
+.. note::
+  Fences also can't be trusted for cache-coherency between cores or HW threads if the implementation doesn't explicitly have such guarantees.
 
 
 .. _fence_r__rw:
@@ -111,12 +115,14 @@ Fences have no effect on cache contents. In particular, fences don't invalidate 
 
 Depending on the implementation, some or all fence operations might be no-ops.
 
-'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
+'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. 'Destination' in this context is anything outside the CPU core that can report a completion of the store. For instance, L1 and L2 caches can report completion in case of a write-back implementation. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
 'After' fence operations ensure that none of the reads or writes start execution prior to the completion of the fence instruction. This is a potential issue for out-of-order implementations, where the apparent instruction execution order is different from the actual one. 'After' fences can be used to ensure that loads and stores maintain their program-order even in an out-of-order machine.
 
 Care should be taken to ensure proper fence behavior for writes that leave in-order but have their side-effects out-of-order due to latency-differences through the interconnect.
 
+.. note::
+  Fences also can't be trusted for cache-coherency between cores or HW threads if the implementation doesn't explicitly have such guarantees.
 
 
 .. _fence____rw:
@@ -151,12 +157,14 @@ Fences have no effect on cache contents. In particular, fences don't invalidate 
 
 Depending on the implementation, some or all fence operations might be no-ops.
 
-'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
+'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. 'Destination' in this context is anything outside the CPU core that can report a completion of the store. For instance, L1 and L2 caches can report completion in case of a write-back implementation. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
 'After' fence operations ensure that none of the reads or writes start execution prior to the completion of the fence instruction. This is a potential issue for out-of-order implementations, where the apparent instruction execution order is different from the actual one. 'After' fences can be used to ensure that loads and stores maintain their program-order even in an out-of-order machine.
 
 Care should be taken to ensure proper fence behavior for writes that leave in-order but have their side-effects out-of-order due to latency-differences through the interconnect.
 
+.. note::
+  Fences also can't be trusted for cache-coherency between cores or HW threads if the implementation doesn't explicitly have such guarantees.
 
 
 
@@ -192,12 +200,14 @@ Fences have no effect on cache contents. In particular, fences don't invalidate 
 
 Depending on the implementation, some or all fence operations might be no-ops.
 
-'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
+'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. 'Destination' in this context is anything outside the CPU core that can report a completion of the store. For instance, L1 and L2 caches can report completion in case of a write-back implementation. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
 'After' fence operations ensure that none of the reads or writes start execution prior to the completion of the fence instruction. This is a potential issue for out-of-order implementations, where the apparent instruction execution order is different from the actual one. 'After' fences can be used to ensure that loads and stores maintain their program-order even in an out-of-order machine.
 
 Care should be taken to ensure proper fence behavior for writes that leave in-order but have their side-effects out-of-order due to latency-differences through the interconnect.
 
+.. note::
+  Fences also can't be trusted for cache-coherency between cores or HW threads if the implementation doesn't explicitly have such guarantees.
 
 
 
@@ -233,12 +243,14 @@ Fences have no effect on cache contents. In particular, fences don't invalidate 
 
 Depending on the implementation, some or all fence operations might be no-ops.
 
-'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
+'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. 'Destination' in this context is anything outside the CPU core that can report a completion of the store. For instance, L1 and L2 caches can report completion in case of a write-back implementation. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
 'After' fence operations ensure that none of the reads or writes start execution prior to the completion of the fence instruction. This is a potential issue for out-of-order implementations, where the apparent instruction execution order is different from the actual one. 'After' fences can be used to ensure that loads and stores maintain their program-order even in an out-of-order machine.
 
 Care should be taken to ensure proper fence behavior for writes that leave in-order but have their side-effects out-of-order due to latency-differences through the interconnect.
 
+.. note::
+  Fences also can't be trusted for cache-coherency between cores or HW threads if the implementation doesn't explicitly have such guarantees.
 
 
 
@@ -274,11 +286,14 @@ Fences have no effect on cache contents. In particular, fences don't invalidate 
 
 Depending on the implementation, some or all fence operations might be no-ops.
 
-'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
+'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. 'Destination' in this context is anything outside the CPU core that can report a completion of the store. For instance, L1 and L2 caches can report completion in case of a write-back implementation. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
 'After' fence operations ensure that none of the reads or writes start execution prior to the completion of the fence instruction. This is a potential issue for out-of-order implementations, where the apparent instruction execution order is different from the actual one. 'After' fences can be used to ensure that loads and stores maintain their program-order even in an out-of-order machine.
 
 Care should be taken to ensure proper fence behavior for writes that leave in-order but have their side-effects out-of-order due to latency-differences through the interconnect.
+
+.. note::
+  Fences also can't be trusted for cache-coherency between cores or HW threads if the implementation doesn't explicitly have such guarantees.
 
 
 
@@ -315,12 +330,14 @@ Fences have no effect on cache contents. In particular, fences don't invalidate 
 
 Depending on the implementation, some or all fence operations might be no-ops.
 
-'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
+'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. 'Destination' in this context is anything outside the CPU core that can report a completion of the store. For instance, L1 and L2 caches can report completion in case of a write-back implementation. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
 'After' fence operations ensure that none of the reads or writes start execution prior to the completion of the fence instruction. This is a potential issue for out-of-order implementations, where the apparent instruction execution order is different from the actual one. 'After' fences can be used to ensure that loads and stores maintain their program-order even in an out-of-order machine.
 
 Care should be taken to ensure proper fence behavior for writes that leave in-order but have their side-effects out-of-order due to latency-differences through the interconnect.
 
+.. note::
+  Fences also can't be trusted for cache-coherency between cores or HW threads if the implementation doesn't explicitly have such guarantees.
 
 
 
@@ -356,11 +373,14 @@ Fences have no effect on cache contents. In particular, fences don't invalidate 
 
 Depending on the implementation, some or all fence operations might be no-ops.
 
-'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
+'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. 'Destination' in this context is anything outside the CPU core that can report a completion of the store. For instance, L1 and L2 caches can report completion in case of a write-back implementation. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
 'After' fence operations ensure that none of the reads or writes start execution prior to the completion of the fence instruction. This is a potential issue for out-of-order implementations, where the apparent instruction execution order is different from the actual one. 'After' fences can be used to ensure that loads and stores maintain their program-order even in an out-of-order machine.
 
 Care should be taken to ensure proper fence behavior for writes that leave in-order but have their side-effects out-of-order due to latency-differences through the interconnect.
+
+.. note::
+  Fences also can't be trusted for cache-coherency between cores or HW threads if the implementation doesn't explicitly have such guarantees.
 
 
 
@@ -397,11 +417,14 @@ Fences have no effect on cache contents. In particular, fences don't invalidate 
 
 Depending on the implementation, some or all fence operations might be no-ops.
 
-'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
+'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. 'Destination' in this context is anything outside the CPU core that can report a completion of the store. For instance, L1 and L2 caches can report completion in case of a write-back implementation. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
 'After' fence operations ensure that none of the reads or writes start execution prior to the completion of the fence instruction. This is a potential issue for out-of-order implementations, where the apparent instruction execution order is different from the actual one. 'After' fences can be used to ensure that loads and stores maintain their program-order even in an out-of-order machine.
 
 Care should be taken to ensure proper fence behavior for writes that leave in-order but have their side-effects out-of-order due to latency-differences through the interconnect.
+
+.. note::
+  Fences also can't be trusted for cache-coherency between cores or HW threads if the implementation doesn't explicitly have such guarantees.
 
 
 
@@ -438,12 +461,14 @@ Fences have no effect on cache contents. In particular, fences don't invalidate 
 
 Depending on the implementation, some or all fence operations might be no-ops.
 
-'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
+'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. 'Destination' in this context is anything outside the CPU core that can report a completion of the store. For instance, L1 and L2 caches can report completion in case of a write-back implementation. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
 'After' fence operations ensure that none of the reads or writes start execution prior to the completion of the fence instruction. This is a potential issue for out-of-order implementations, where the apparent instruction execution order is different from the actual one. 'After' fences can be used to ensure that loads and stores maintain their program-order even in an out-of-order machine.
 
 Care should be taken to ensure proper fence behavior for writes that leave in-order but have their side-effects out-of-order due to latency-differences through the interconnect.
 
+.. note::
+  Fences also can't be trusted for cache-coherency between cores or HW threads if the implementation doesn't explicitly have such guarantees.
 
 
 
@@ -479,11 +504,14 @@ Fences have no effect on cache contents. In particular, fences don't invalidate 
 
 Depending on the implementation, some or all fence operations might be no-ops.
 
-'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
+'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. 'Destination' in this context is anything outside the CPU core that can report a completion of the store. For instance, L1 and L2 caches can report completion in case of a write-back implementation. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
 'After' fence operations ensure that none of the reads or writes start execution prior to the completion of the fence instruction. This is a potential issue for out-of-order implementations, where the apparent instruction execution order is different from the actual one. 'After' fences can be used to ensure that loads and stores maintain their program-order even in an out-of-order machine.
 
 Care should be taken to ensure proper fence behavior for writes that leave in-order but have their side-effects out-of-order due to latency-differences through the interconnect.
+
+.. note::
+  Fences also can't be trusted for cache-coherency between cores or HW threads if the implementation doesn't explicitly have such guarantees.
 
 
 
@@ -520,11 +548,14 @@ Fences have no effect on cache contents. In particular, fences don't invalidate 
 
 Depending on the implementation, some or all fence operations might be no-ops.
 
-'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
+'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. 'Destination' in this context is anything outside the CPU core that can report a completion of the store. For instance, L1 and L2 caches can report completion in case of a write-back implementation. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
 'After' fence operations ensure that none of the reads or writes start execution prior to the completion of the fence instruction. This is a potential issue for out-of-order implementations, where the apparent instruction execution order is different from the actual one. 'After' fences can be used to ensure that loads and stores maintain their program-order even in an out-of-order machine.
 
 Care should be taken to ensure proper fence behavior for writes that leave in-order but have their side-effects out-of-order due to latency-differences through the interconnect.
+
+.. note::
+  Fences also can't be trusted for cache-coherency between cores or HW threads if the implementation doesn't explicitly have such guarantees.
 
 
 
@@ -561,11 +592,15 @@ Fences have no effect on cache contents. In particular, fences don't invalidate 
 
 Depending on the implementation, some or all fence operations might be no-ops.
 
-'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
+'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. 'Destination' in this context is anything outside the CPU core that can report a completion of the store. For instance, L1 and L2 caches can report completion in case of a write-back implementation. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
 'After' fence operations ensure that none of the reads or writes start execution prior to the completion of the fence instruction. This is a potential issue for out-of-order implementations, where the apparent instruction execution order is different from the actual one. 'After' fences can be used to ensure that loads and stores maintain their program-order even in an out-of-order machine.
 
 Care should be taken to ensure proper fence behavior for writes that leave in-order but have their side-effects out-of-order due to latency-differences through the interconnect.
+
+.. note::
+  Fences also can't be trusted for cache-coherency between cores or HW threads if the implementation doesn't explicitly have such guarantees.
+
 
 
 
@@ -602,11 +637,14 @@ Fences have no effect on cache contents. In particular, fences don't invalidate 
 
 Depending on the implementation, some or all fence operations might be no-ops.
 
-'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
+'Before' fence operations ensure that all reads and writes complete before the processor is allowed to continue execution. For writes, it is guaranteed that all stored values reached their final destination. 'Destination' in this context is anything outside the CPU core that can report a completion of the store. For instance, L1 and L2 caches can report completion in case of a write-back implementation. For reads, it is guaranteed that all values have reached the processor core (but might not yet be committed to the register file).
 
 'After' fence operations ensure that none of the reads or writes start execution prior to the completion of the fence instruction. This is a potential issue for out-of-order implementations, where the apparent instruction execution order is different from the actual one. 'After' fences can be used to ensure that loads and stores maintain their program-order even in an out-of-order machine.
 
 Care should be taken to ensure proper fence behavior for writes that leave in-order but have their side-effects out-of-order due to latency-differences through the interconnect.
+
+.. note::
+  Fences also can't be trusted for cache-coherency between cores or HW threads if the implementation doesn't explicitly have such guarantees.
 
 
 

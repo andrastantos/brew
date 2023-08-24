@@ -5,7 +5,7 @@
 
 .. _mem_rs_plus_tiny_offset_eq_rd:
 
-MEM[$rS + tiny OFFSET] <- $rD
+MEM32[$rS + tiny OFFSET] <- $rD
 ---------------------------------------------
 
 *Instruction code*: 0x.c**
@@ -32,7 +32,7 @@ The implementation is allowed to throw exceptions if the memory access violates 
 
 .. _rd_eq_mem_rs_plus_tiny_offset:
 
-$rD <- MEM[$rS + tiny OFFSET]
+$rD <- MEM32[$rS + tiny OFFSET]
 ---------------------------------------------
 
 *Instruction code*: 0x.d**
