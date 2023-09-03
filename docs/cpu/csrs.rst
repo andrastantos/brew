@@ -18,22 +18,28 @@ Currently the following registers are defined:
 
 Registers only accessible from SCHEDULER mode:
 
-========== ============== ============== ===================================================
-Address    Name           Access type    Description
-========== ============== ============== ===================================================
-0x0000     csr_ecause     R              Exception cause register
-0x0001     csr_eaddr      R              Exception address register
-========== ============== ============== ===================================================
+========== ======================== ============== ================= ===================================================
+Address    Name                     Access type    Reset value       Description
+========== ======================== ============== ================= ===================================================
+0x0000     :code:`csr_ecause`       R              0x0000_0000       Contains the reason for the last exception.
+0x0001     :code:`csr_eaddr`        RC             Undefined         The effective address that caused the latest exception
+========== ======================== ============== ================= ===================================================
 
 Registers accessible from both TASK and SCHEDULER mode:
 
-========== ============== ============== ===================================================
-Address    Name           Access type    Description
-========== ============== ============== ===================================================
-0x8000     csr_mach_arch  R              Machine architecture and version register
-0x8001     csr_capability R              Capability bit-field
-0x8400     csr_fpstat     RW             Floating point status and control register
-========== ============== ============== ===================================================
+========== ======================== ============== ================= ===================================================
+Address    Name                     Access type    Reset value       Description
+========== ======================== ============== ================= ===================================================
+0x8000     :code:`csr_mach_arch`    R              Machine defined   Machine architecture and version register
+0x8001     :code:`csr_capability`   R              Machine defined   Capability bit-field
+0x8400     :code:`csr_fpstat`       R/W            0x0000_0000       Floating point status and control register
+========== ======================== ============== ================= ===================================================
+
+Access types:
+  R: readable
+  W: writable
+  RC: clear on read
+  W1C: write one to clear
 
 Implementation-defined CSRs
 ---------------------------

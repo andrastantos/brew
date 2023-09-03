@@ -52,9 +52,6 @@ Instruction code     Assembly    Operation
 
 .. note:: While the HW doesn't put any limitations on what each of these instructions are used for, the first three SWI levels are allocated by convention.
 
-.. TODO::
-  The toolset might still think SII is 0x6000 and HWI is 0x7000! Need to follow-up
-
 Mode change and power management group
 --------------------------------------
 
@@ -81,6 +78,8 @@ Instruction code      Assembly    Operation
 :ref:`0x9000<woi>`    WOI         Wake on interrupt. Waits for interrupt in both TASK and SCHEDULER mode
 :ref:`0xa000<pflush>` PFLUSH      Flushes the pipeline
 ===================== =========== =========================================================================
+
+.. todo:: PFLUSH is new. Needs testing in toolset/Espresso.
 
 Atomic group
 ------------
@@ -251,12 +250,9 @@ Instruction code                   Assembly                    Operation
 .. [#note0xX02X] CONST=FIELD_A*2. FIELD_A is one-s complement; range is -7...7; NOTE: WE COULD MAKE THE RANGE A LITTLE HIGHER IF NOT ALLOW 0
 .. [#note0xX0cX] All 32 bits of $rA are used. Any value above 0xe is RESERVED
 
-.. todo:: A lot of these instructions are not strictly necessary. negation, inversion for instance can be done using binary operations with an immediate. Need profiling data to justify their existence.
+.. todo:: Some of these instructions are not strictly necessary. Negation, inversion for instance can be done using binary operations with an immediate. Need profiling data to justify their existence.
 
-.. todo:: $rD <- popcnt $rA is a new instruction
-.. todo:: reduction sum is removed from the ISA
-.. todo:: float and int conversion is removed from the ISA
-.. todo:: 1/$rA and rsqrt $rA have new op-codes.
+.. todo:: $rD <- popcnt $rA and above is not implemented in Espresso
 
 Binary ALU group
 ----------------
@@ -290,17 +286,16 @@ Instruction code                        Assembly                    Operation
 :ref:`0x.7..<rd_eq_ra_lsr_rb>`          $rD <- $rA >> $rB           Binary right-shift
 :ref:`0x.8..<rd_eq_ra_asr_rb>`          $rD <- $rA >>> $rB          Arithmetic right-shift
 :ref:`0x.9..<rd_eq_ra_times_rb>`        $rD <- $rA * $rB            Type-dependent multiply
-:ref:`0x.a..<rd_eq_notra_and_rb>`       $rD <- $rA & ~$rB           Bit-wise 'not'-'and' [#note0xXaXX]_
+:ref:`0x.a..<rd_eq_type_rb>`            $rD <- TYPE_NAME $rB        Type conversion
 :ref:`0x.b..<rd_eq_tiny_rb_plus_const>` $rD <- tiny $rB + CONST     Integer add [#note0xXbXX]_
 0x.c..                                  see below (stack ops)
 0x.d..                                  see below (stack ops)
 0x.e..                                  see below (mem ops)
 ======================================= =========================== ============================================
 
-.. [#note0xXaXX] This operation is useful for lane-combining with an inverted predicate
 .. [#note0xXbXX] CONST is FIELD_A is one's complement-coded; range is -7...7.
 
-.. todo:: The inversion is swapped from $rA to $rB on $rA & ~$rB. This needs to be followed up in the toolset and Espresso.
+.. todo:: The TYPE_NAME instructions is not yet implemented in ESPRESSO
 
 Load immediate group
 --------------------
@@ -1129,3 +1124,5 @@ Instruction code                           Assembly               Operation
 Type override for $rA (TYPE_A) and $rB (TYPE_B).
 
 If either TYPE_A or TYPE_B is set to 0xf, the corresponding register type is not overridden: the type from the register file is used during the subsequent operation.
+
+.. todo:: type overrides are not supported by the toolchain
