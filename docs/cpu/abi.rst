@@ -22,9 +22,9 @@ $r8          call-saved general purpose register; EH_RETURN_DATA_REGNO
 $r9          call-saved general purpose register; EH_RETURN_DATA_REGNO
 $r10         call-saved general purpose register
 $r11         call-saved general purpose register
-$r12         call-saved register a.k.a. $fp - frame pointer. NOTE: we depend on it being $r1 in the stack-frame: brew_dynamic_chain_address assumes it's in the 1st save slot.
+$r12         call-saved register a.k.a. $fp - frame pointer. NOTE: brew_dynamic_chain_address assumes it's in the 1st save slot in the stack.
 $r13         call-saved register a.k.a. $sp - stack pointer.
-$r14         call-saved register a.k.a. $lr - link register. NOTE: we depend on it being $r2 in the stack-frame: brew_return_addr_rtx assumes it's in the 2nd save slot.
+$r14         call-saved register a.k.a. $lr - link register. NOTE: brew_return_addr_rtx assumes it's in the 2nd save slot in the stack.
 ========     =====================================
 
 .. note::
@@ -89,9 +89,11 @@ Exception handling returns are in :code:`$r4`...:code:`$r7` (described in :code:
 Syscalls
 --------
 
-Syscalls follow the same calling convention as function calls do, except that :code:`$lr` contains a syscall-dependent pointer (usually pointer to errno). The :code:`syscall` instruction is used to transfer control to the executive. The syscall number is stored as a 16-bit code after the :code:`syscall` instruction, in the instruction-stream. Upon entering SCHEDULER mode, :code:`$tpc` points to the current instruction, which is to say, it points to :code:`syscall`. The SCHEDULER needs to increment :code:`$tpc` by 4 before returning execution to task mode.
+Syscalls follow the same calling convention as function calls do, except that :code:`$lr` contains a syscall-dependent information (usually :code:`errno`). The :code:`syscall` instruction is used to transfer control to the executive. The syscall number is stored as a 16-bit code after the :code:`syscall` instruction, in the instruction-stream. Upon entering SCHEDULER mode, :code:`$tpc` points to the current instruction, which is to say, it points to :code:`syscall`. The SCHEDULER needs to increment :code:`$tpc` by 4 before returning execution to task mode.
 
 .. note:: syscall number is 16-bit so there won't be any alignment problems reading it.
+
+.. note:: most sysclass take in the current value of :code:`errno` from the calling TASK-mode application. Syscalls can decide to return a modified :code:`errno` value if they choose to. The caller cannot depend on :code:`$lr` preserved through a syscall. The caller however *can* assume that :code:`$r0` through :code:`$r3` - which are normally call-clobbered - are preserved through a syscall.
 
 Stack layout
 ------------
