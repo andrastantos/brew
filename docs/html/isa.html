@@ -1,0 +1,2043 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Instruction Set Summary &mdash; Brew processor  documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/default.js"></script>
+        <script src="_static/wavedrom.min.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Memory Model" href="memory_model.html" />
+    <link rel="prev" title="Instruction Set Principles" href="isa_intro.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> Brew processor
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="execution_contexts.html">Task and Scheduler modes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="exceptions.html">Exceptions and Interrupts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="process_isolation.html">Process isolation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="registers.html">Registers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="types.html">Types and their manipulation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="types.html#type-compatibility">Type compatibility</a></li>
+<li class="toctree-l1"><a class="reference internal" href="control_flow.html">Control flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="isa_intro.html">Instruction Set Principles</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Instruction Set Summary</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#exception-group">Exception group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mode-change-and-power-management-group">Mode change and power management group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#atomic-group">Atomic group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#pc-manipulation-group">PC manipulation group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#csr-access-group">CSR access group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#unary-group">Unary group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#binary-alu-group">Binary ALU group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#load-immediate-group">Load immediate group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#constant-alu-group">Constant ALU group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#short-load-immediate-group">Short load immediate group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#short-constant-alu-group">Short constant ALU group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#zero-compare-conditional-branch-group">Zero-compare conditional branch group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#conditional-branch-group">Conditional branch group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#bit-set-test-conditional-branch-group">Bit-set-test conditional branch group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#bit-clear-test-conditional-branch-group">Bit-clear-test conditional branch group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#stack-group">Stack group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#indirect-load-store-group">Indirect load/Store group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#indirect-jump-group">Indirect jump group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#offset-indirect-load-store-group">Offset-indirect load/store group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#offset-indirect-jump-group">Offset-indirect jump group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#absolute-load-store-group">Absolute load/store group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#absolute-jump-group">Absolute jump group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#prefix-instructions">Prefix instructions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#type-override">Type override</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="memory_model.html">Memory Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="isa_details.html">Instruction Set Details</a></li>
+<li class="toctree-l1"><a class="reference internal" href="floating_point_support.html">Floating point support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="csrs.html">CSRs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="compatibility.html">Family compatibility</a></li>
+<li class="toctree-l1"><a class="reference internal" href="abi.html">ABI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hw_impl_notes.html">Appendix A: Implementation Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="system_sw.html">Appendix F: System Software</a></li>
+<li class="toctree-l1"><a class="reference internal" href="competition.html">Appendix B: Comparing to the competition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="todo.html">Appendix E: Todo</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Brew processor</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">Instruction Set Summary</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="instruction-set-summary">
+<h1>Instruction Set Summary<a class="headerlink" href="#instruction-set-summary" title="Permalink to this headline"></a></h1>
+<p>In the following tables, instruction codes are listed as hexadecimal numbers, with the following extra conventions:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 15%" />
+<col style="width: 85%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Character</p></th>
+<th class="head"><p>Meaning</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>.</p></td>
+<td><p>any value in in the range [0x0:0xe]. Can be a different number at every occurrence.</p></td>
+</tr>
+<tr class="row-odd"><td><p>*</p></td>
+<td><p>any value in in the range [0x0:0xf]. Can be a different number at every occurrence.</p></td>
+</tr>
+</tbody>
+</table>
+<p>Instructions are fully decoded. Any instruction code not explicitly mentioned in the tables below generate an <code class="code docutils literal notranslate"><span class="pre">exc_unknown_inst</span></code> exception.</p>
+<p>Instructions presented here in groups, based on their rough function and encoding similarities.</p>
+<section id="exception-group">
+<h2>Exception group<a class="headerlink" href="#exception-group" title="Permalink to this headline"></a></h2>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "0",         "bits": 4 },
+    { "name": "0",         "bits": 4 },
+    { "name": "0",         "bits": 4 },
+    { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+]}
+</script>
+</div>
+<p>All instructions in this group enter SCHEDULER mode. After execution <code class="code docutils literal notranslate"><span class="pre">$tpc</span></code> points to the current instruction (the one generating the exception).</p>
+<p>If executed in SCHEDULER mode, execution jumps to address 0 per standard <a class="reference internal" href="exceptions.html#exception-handling"><span class="std std-ref">exception handling</span></a> rules.</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 23%" />
+<col style="width: 13%" />
+<col style="width: 64%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Instruction code</p></th>
+<th class="head"><p>Assembly</p></th>
+<th class="head"><p>Operation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#swi-0"><span class="std std-ref">0x0000</span></a></p></td>
+<td><p>SWI 0</p></td>
+<td><p>Used to fill unused code-pages</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#swi-1"><span class="std std-ref">0x1000</span></a></p></td>
+<td><p>SWI 1</p></td>
+<td><p>Used for software breakpoints</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#swi-2"><span class="std std-ref">0x2000</span></a></p></td>
+<td><p>SWI 2</p></td>
+<td><p>Used to implement system calls</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#swi-3"><span class="std std-ref">0x3000</span></a></p></td>
+<td><p>SWI 3</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#swi-4"><span class="std std-ref">0x4000</span></a></p></td>
+<td><p>SWI 4</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#swi-5"><span class="std std-ref">0x5000</span></a></p></td>
+<td><p>SWI 5</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#swi-6"><span class="std std-ref">0x6000</span></a></p></td>
+<td><p>SWI 6</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#swi-7"><span class="std std-ref">0x7000</span></a></p></td>
+<td><p>SWI 7</p></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>While the HW doesn’t put any limitations on what each of these instructions are used for, the first three SWI levels are allocated by convention.</p>
+</div>
+</section>
+<section id="mode-change-and-power-management-group">
+<h2>Mode change and power management group<a class="headerlink" href="#mode-change-and-power-management-group" title="Permalink to this headline"></a></h2>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "0",         "bits": 4 },
+    { "name": "0",         "bits": 4 },
+    { "name": "0",         "bits": 4 },
+    { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+]}
+</script>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 20%" />
+<col style="width: 10%" />
+<col style="width: 70%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Instruction code</p></th>
+<th class="head"><p>Assembly</p></th>
+<th class="head"><p>Operation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#stm"><span class="std std-ref">0x8000</span></a></p></td>
+<td><p>STM</p></td>
+<td><p>Enters TASK mode, enables interrupts</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#woi"><span class="std std-ref">0x9000</span></a></p></td>
+<td><p>WOI</p></td>
+<td><p>Wake on interrupt. Waits for interrupt in both TASK and SCHEDULER mode</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#pflush"><span class="std std-ref">0xa000</span></a></p></td>
+<td><p>PFLUSH</p></td>
+<td><p>Flushes the pipeline</p></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition-todo admonition" id="id1">
+<p class="admonition-title">Todo</p>
+<p>PFLUSH is new. Needs testing in toolset/Espresso.</p>
+</div>
+</section>
+<section id="atomic-group">
+<h2>Atomic group<a class="headerlink" href="#atomic-group" title="Permalink to this headline"></a></h2>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "1",         "bits": 4 },
+    { "name": "0",         "bits": 4 },
+    { "name": "0",         "bits": 4 },
+    { "name": "RB",        "bits": 1 },
+    { "name": "WB",        "bits": 1 },
+    { "name": "RA",        "bits": 1 },
+    { "name": "WA",        "bits": 1 },
+]}
+</script>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 32%" />
+<col style="width: 17%" />
+<col style="width: 51%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Instruction code</p></th>
+<th class="head"><p>Assembly</p></th>
+<th class="head"><p>Operation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#fence-rw-rw"><span class="std std-ref">0x0001</span></a></p></td>
+<td><p>FENCE_RW_RW</p></td>
+<td><p>Fence reads/writes before reads/writes after</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#fence-w-rw"><span class="std std-ref">0x1001</span></a></p></td>
+<td><p>FENCE__W_RW</p></td>
+<td><p>Fence writes before reads/writes after</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#fence-r-rw"><span class="std std-ref">0x2001</span></a></p></td>
+<td><p>FENCE_R__RW</p></td>
+<td><p>Fence reads before reads/writes after</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#fence-rw"><span class="std std-ref">0x3001</span></a></p></td>
+<td><p>FENCE____RW</p></td>
+<td><p>Fence reads/writes after</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#fence-rw-w"><span class="std std-ref">0x4001</span></a></p></td>
+<td><p>FENCE_RW__W</p></td>
+<td><p>Fence reads/writes before writes after</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#fence-w-w"><span class="std std-ref">0x5001</span></a></p></td>
+<td><p>FENCE__W__W</p></td>
+<td><p>Fence writes before writes after</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#fence-r-w"><span class="std std-ref">0x6001</span></a></p></td>
+<td><p>FENCE_R___W</p></td>
+<td><p>Fence reads before writes after</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#fence-w"><span class="std std-ref">0x7001</span></a></p></td>
+<td><p>FENCE_____W</p></td>
+<td><p>Fence writes after</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#fence-rw-r"><span class="std std-ref">0x8001</span></a></p></td>
+<td><p>FENCE_RW_R_</p></td>
+<td><p>Fence reads/writes before reads after</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#fence-w-r"><span class="std std-ref">0x9001</span></a></p></td>
+<td><p>FENCE__W_R_</p></td>
+<td><p>Fence writes before reads after</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#fence-r-r"><span class="std std-ref">0xa001</span></a></p></td>
+<td><p>FENCE_R__R_</p></td>
+<td><p>Fence reads before reads after</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#fence-r"><span class="std std-ref">0xb001</span></a></p></td>
+<td><p>FENCE____R_</p></td>
+<td><p>Fence reads after</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#id48"><span class="std std-ref">0xc001</span></a></p></td>
+<td><p>FENCE_RW___</p></td>
+<td><p>Fence reads/writes before</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#id51"><span class="std std-ref">0xd001</span></a></p></td>
+<td><p>FENCE__W___</p></td>
+<td><p>Fence writes before</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#id54"><span class="std std-ref">0xe001</span></a></p></td>
+<td><p>FENCE_R____</p></td>
+<td><p>Fence reads before</p></td>
+</tr>
+</tbody>
+</table>
+<p>Every instruction in this group implements a fence, or an ordering between loads and stores. The top-most 4 bits of the instruction code is used to encode the fence type:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 45%" />
+<col style="width: 55%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Bit-field</p></th>
+<th class="head"><p>Meaning</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>12</p></td>
+<td><p>~R-before</p></td>
+</tr>
+<tr class="row-odd"><td><p>13</p></td>
+<td><p>~W-before</p></td>
+</tr>
+<tr class="row-even"><td><p>14</p></td>
+<td><p>~R-after</p></td>
+</tr>
+<tr class="row-odd"><td><p>15</p></td>
+<td><p>~W-after</p></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>bit-values are inverted to make FIELD_D==0xf an invalid encoding (i.e. no fence specification)</p>
+</div>
+</section>
+<section id="pc-manipulation-group">
+<h2>PC manipulation group<a class="headerlink" href="#pc-manipulation-group" title="Permalink to this headline"></a></h2>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_A",   "bits": 4, attr: "op kind" },
+    { "name": "0",         "bits": 4 },
+    { "name": "0",         "bits": 4 },
+    { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+]}
+</script>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 39%" />
+<col style="width: 23%" />
+<col style="width: 38%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Instruction code</p></th>
+<th class="head"><p>Assembly</p></th>
+<th class="head"><p>Operation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#pc-eq-rd"><span class="std std-ref">0x.002</span></a></p></td>
+<td><p>$pc &lt;- $rD</p></td>
+<td><p>Indirect jump</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#tpc-eq-rd"><span class="std std-ref">0x.003</span></a></p></td>
+<td><p>$tpc &lt;- $rD</p></td>
+<td><p>Update $tpc</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-pc"><span class="std std-ref">0x.004</span></a></p></td>
+<td><p>$rD &lt;- $pc</p></td>
+<td><p>Load $pc into register</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-tpc"><span class="std std-ref">0x.005</span></a></p></td>
+<td><p>$rD &lt;- $tpc</p></td>
+<td><p>Load $tpc into register</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="csr-access-group">
+<h2>CSR access group<a class="headerlink" href="#csr-access-group" title="Permalink to this headline"></a></h2>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_A",   "bits": 4, attr: "op kind" },
+    { "name": "f",         "bits": 4 },
+    { "name": "0",         "bits": 4 },
+    { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+]}
+</script>
+</div>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_E", "bits": 16 },
+],
+}
+</script>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 42%" />
+<col style="width: 31%" />
+<col style="width: 27%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Instruction code</p></th>
+<th class="head"><p>Assembly</p></th>
+<th class="head"><p>Operation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-csr-addr"><span class="std std-ref">0x.0f8 0x****</span></a></p></td>
+<td><p>$rD &lt;- CSR[ADDR]</p></td>
+<td><p>Load CSR value into $rD</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#csr-addr-eq-rd"><span class="std std-ref">0x.0f9 0x****</span></a></p></td>
+<td><p>CSR[ADDR] &lt;- $rD</p></td>
+<td><p>Store $rD in CSR</p></td>
+</tr>
+</tbody>
+</table>
+<p>The <code class="code docutils literal notranslate"><span class="pre">ADDR</span></code> field equals to <code class="code docutils literal notranslate"><span class="pre">FIELD_E</span></code> in SCHEDULER-mode. In task mode the MSB of <code class="code docutils literal notranslate"><span class="pre">ADDR</span></code> is forced to 1.</p>
+<div class="admonition-todo admonition" id="id2">
+<p class="admonition-title">Todo</p>
+<p>This is a new pair of instructions, no toolset support or Espresso implementation.</p>
+</div>
+</section>
+<section id="unary-group">
+<h2>Unary group<a class="headerlink" href="#unary-group" title="Permalink to this headline"></a></h2>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
+    { "name": "FIELD_B",   "bits": 4, attr: "op kind" },
+    { "name": "0",         "bits": 4 },
+    { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+]}
+</script>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 30%" />
+<col style="width: 24%" />
+<col style="width: 46%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Instruction code</p></th>
+<th class="head"><p>Assembly</p></th>
+<th class="head"><p>Operation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-tiny-const"><span class="std std-ref">0x.01.</span></a></p></td>
+<td><p>$rD &lt;- tiny CONST</p></td>
+<td><p>Load $rD with constant <a class="footnote-reference brackets" href="#note0xx01x" id="id3">1</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-pc-plus-const"><span class="std std-ref">0x.02.</span></a></p></td>
+<td><p>$rD &lt;- $pc + CONST</p></td>
+<td><p>Call return address calculation <a class="footnote-reference brackets" href="#note0xx02x" id="id4">2</a></p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-minus-ra"><span class="std std-ref">0x.03.</span></a></p></td>
+<td><p>$rD &lt;- -$rA</p></td>
+<td><p>Negative operation, depending on type</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-notra"><span class="std std-ref">0x.04.</span></a></p></td>
+<td><p>$rD &lt;- ~$rA</p></td>
+<td><p>Binary inversion</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-bse-ra"><span class="std std-ref">0x.05.</span></a></p></td>
+<td><p>$rD &lt;- bse $rA</p></td>
+<td><p>Sign-extend from byte</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-wse-ra"><span class="std std-ref">0x.06.</span></a></p></td>
+<td><p>$rD &lt;- wse $rA</p></td>
+<td><p>Sign-extend from word</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-popcnt-ra"><span class="std std-ref">0x.07.</span></a></p></td>
+<td><p>$rD &lt;- popcnt $rA</p></td>
+<td><p>Counts number of bits set in $rA</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-1-ra"><span class="std std-ref">0x.08.</span></a></p></td>
+<td><p>$rD &lt;- 1 / $rA</p></td>
+<td><p>Reciprocal for floats</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-rsqrt-ra"><span class="std std-ref">0x.09.</span></a></p></td>
+<td><p>$rD &lt;- rsqrt $rA</p></td>
+<td><p>Reciprocal square-root for floats</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#type-rd-eq-ra"><span class="std std-ref">0x.0c.</span></a></p></td>
+<td><p>type $rD &lt;- $rA</p></td>
+<td><p>Sets type of $rD as denoted by $rA</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-type-ra"><span class="std std-ref">0x.0d.</span></a></p></td>
+<td><p>$rD &lt;- type $rA</p></td>
+<td><p>Loads type value of $rA into $rD</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#type-rd-eq-field-a"><span class="std std-ref">0x.0e.</span></a></p></td>
+<td><p>type $rD &lt;- FIELD_A</p></td>
+<td><p>Sets type of $rD</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="footnote brackets">
+<dt class="label" id="note0xx01x"><span class="brackets"><a class="fn-backref" href="#id3">1</a></span></dt>
+<dd><p>CONST=FIELD_A. FIELD_A is one-s complement; range is -7…7</p>
+</dd>
+<dt class="label" id="note0xx02x"><span class="brackets"><a class="fn-backref" href="#id4">2</a></span></dt>
+<dd><p>CONST=FIELD_A*2. FIELD_A is one-s complement; range is -7…7; NOTE: WE COULD MAKE THE RANGE A LITTLE HIGHER IF NOT ALLOW 0</p>
+</dd>
+<dt class="label" id="note0xx0cx"><span class="brackets">3</span></dt>
+<dd><p>All 32 bits of $rA are used. Any value above 0xe is RESERVED</p>
+</dd>
+</dl>
+<div class="admonition-todo admonition" id="id5">
+<p class="admonition-title">Todo</p>
+<p>Some of these instructions are not strictly necessary. Negation, inversion for instance can be done using binary operations with an immediate. Need profiling data to justify their existence.</p>
+</div>
+<div class="admonition-todo admonition" id="id6">
+<p class="admonition-title">Todo</p>
+<p>$rD &lt;- popcnt $rA and above is not implemented in Espresso</p>
+</div>
+</section>
+<section id="binary-alu-group">
+<h2>Binary ALU group<a class="headerlink" href="#binary-alu-group" title="Permalink to this headline"></a></h2>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
+    { "name": "FIELD_B",   "bits": 4, attr: "$rB" },
+    { "name": "FIELD_C",   "bits": 4, attr: "op kind" },
+    { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+]}
+</script>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 35%" />
+<col style="width: 25%" />
+<col style="width: 40%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Instruction code</p></th>
+<th class="head"><p>Assembly</p></th>
+<th class="head"><p>Operation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-ra-xor-rb"><span class="std std-ref">0x.1..</span></a></p></td>
+<td><p>$rD &lt;- $rA ^ $rB</p></td>
+<td><p>Bit-wise ‘xor’</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-ra-or-rb"><span class="std std-ref">0x.2..</span></a></p></td>
+<td><p>$rD &lt;- $rA | $rB</p></td>
+<td><p>Bit-wise ‘or’</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-ra-and-rb"><span class="std std-ref">0x.3..</span></a></p></td>
+<td><p>$rD &lt;- $rA &amp; $rB</p></td>
+<td><p>Bit-wise ‘and’</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-ra-plus-rb"><span class="std std-ref">0x.4..</span></a></p></td>
+<td><p>$rD &lt;- $rA + $rB</p></td>
+<td><p>Type-dependent add</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-ra-minus-rb"><span class="std std-ref">0x.5..</span></a></p></td>
+<td><p>$rD &lt;- $rA - $rB</p></td>
+<td><p>Type-dependent subtract</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-ra-lsl-rb"><span class="std std-ref">0x.6..</span></a></p></td>
+<td><p>$rD &lt;- $rA &lt;&lt; $rB</p></td>
+<td><p>Binary left-shift</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-ra-lsr-rb"><span class="std std-ref">0x.7..</span></a></p></td>
+<td><p>$rD &lt;- $rA &gt;&gt; $rB</p></td>
+<td><p>Binary right-shift</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-ra-asr-rb"><span class="std std-ref">0x.8..</span></a></p></td>
+<td><p>$rD &lt;- $rA &gt;&gt;&gt; $rB</p></td>
+<td><p>Arithmetic right-shift</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-ra-times-rb"><span class="std std-ref">0x.9..</span></a></p></td>
+<td><p>$rD &lt;- $rA * $rB</p></td>
+<td><p>Type-dependent multiply</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-type-rb"><span class="std std-ref">0x.a..</span></a></p></td>
+<td><p>$rD &lt;- TYPE_NAME $rB</p></td>
+<td><p>Type conversion</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-tiny-rb-plus-const"><span class="std std-ref">0x.b..</span></a></p></td>
+<td><p>$rD &lt;- tiny $rB + CONST</p></td>
+<td><p>Integer add <a class="footnote-reference brackets" href="#note0xxbxx" id="id7">4</a></p></td>
+</tr>
+<tr class="row-odd"><td><p>0x.c..</p></td>
+<td><p>see below (stack ops)</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.d..</p></td>
+<td><p>see below (stack ops)</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.e..</p></td>
+<td><p>see below (mem ops)</p></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<dl class="footnote brackets">
+<dt class="label" id="note0xxbxx"><span class="brackets"><a class="fn-backref" href="#id7">4</a></span></dt>
+<dd><p>CONST is FIELD_A is one’s complement-coded; range is -7…7.</p>
+</dd>
+</dl>
+<div class="admonition-todo admonition" id="id8">
+<p class="admonition-title">Todo</p>
+<p>The TYPE_NAME instructions is not yet implemented in ESPRESSO</p>
+</div>
+</section>
+<section id="load-immediate-group">
+<h2>Load immediate group<a class="headerlink" href="#load-immediate-group" title="Permalink to this headline"></a></h2>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "f",         "bits": 4 },
+    { "name": "0",         "bits": 4 },
+    { "name": "0",         "bits": 4 },
+    { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+],
+}
+</script>
+</div>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_E lower 16 bits", "bits": 16, attr: "VALUE lower 16 bits" },
+],
+}
+</script>
+</div>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_E upper 16 bits", "bits": 16, attr: "VALUE upper 16 bits" },
+]
+}
+</script>
+</div>
+<p>or</p>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "f",         "bits": 4 },
+    { "name": "e",         "bits": 4 },
+    { "name": "0",         "bits": 4 },
+    { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+],
+}
+</script>
+</div>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_E lower 16 bits", "bits": 16, attr: "VALUE lower 16 bits" },
+],
+}
+</script>
+</div>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_E upper 16 bits", "bits": 16, attr: "VALUE upper 16 bits" },
+]
+}
+</script>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 40%" />
+<col style="width: 21%" />
+<col style="width: 39%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Instruction code</p></th>
+<th class="head"><p>Assembly</p></th>
+<th class="head"><p>Operation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-value"><span class="std std-ref">0x.00f 0x**** 0x****</span></a></p></td>
+<td><p>$rD &lt;- VALUE</p></td>
+<td><p>Load immediate</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#pc-eq-value"><span class="std std-ref">0x20ef 0x**** 0x****</span></a></p></td>
+<td><p>$pc &lt;- VALUE</p></td>
+<td><p>Unconditional jump</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#tpc-eq-value"><span class="std std-ref">0x30ef 0x**** 0x****</span></a></p></td>
+<td><p>$tpc &lt;- VALUE</p></td>
+<td><p>Load immediate to $tpc</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#call-value"><span class="std std-ref">0x40ef 0x**** 0x****</span></a></p></td>
+<td><p>call VALUE</p></td>
+<td><p>$pc &lt;- VALUE; $lr &lt;- $pc</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#type-r0-r7-eq-value"><span class="std std-ref">0x80ef 0x**** 0x****</span></a></p></td>
+<td><p>type $r0…$r7 &lt;- VALUE</p></td>
+<td><p>Load immediate type values <a class="footnote-reference brackets" href="#note-immedate-types" id="id9">5</a></p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#type-r8-r14-eq-value"><span class="std std-ref">0x90ef 0x**** 0x****</span></a></p></td>
+<td><p>type $r8…$r14 &lt;- VALUE</p></td>
+<td><p>Load immediate type values <a class="footnote-reference brackets" href="#note-immedate-types" id="id10">5</a></p></td>
+</tr>
+</tbody>
+</table>
+<dl class="footnote brackets">
+<dt class="label" id="note-immedate-types"><span class="brackets">5</span><span class="fn-backref">(<a href="#id9">1</a>,<a href="#id10">2</a>)</span></dt>
+<dd><p>Types for each register are encoded in 4-bit nibbles. Lowest 4 bits determine the type of the lowest indexed register. Highest 4 bits determine the type of the highest indexed register. If nibble is set to 0xf, type of corresponding register is not changed.</p>
+</dd>
+</dl>
+</section>
+<section id="constant-alu-group">
+<h2>Constant ALU group<a class="headerlink" href="#constant-alu-group" title="Permalink to this headline"></a></h2>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "f",         "bits": 4 },
+    { "name": "FIELD_B",   "bits": 4, attr: "$rB" },
+    { "name": "FIELD_C",   "bits": 4, attr: "op kind" },
+    { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+],
+}
+</script>
+</div>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_E lower 16 bits", "bits": 16, attr: "VALUE lower 16 bits" },
+],
+}
+</script>
+</div>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_E upper 16 bits", "bits": 16, attr: "VALUE upper 16 bits" },
+]
+}
+</script>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 41%" />
+<col style="width: 23%" />
+<col style="width: 37%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Instruction code</p></th>
+<th class="head"><p>Assembly</p></th>
+<th class="head"><p>Operation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-value-xor-rb"><span class="std std-ref">0x.1.f 0x**** 0x****</span></a></p></td>
+<td><p>$rD &lt;- VALUE ^ $rB</p></td>
+<td><p>Bit-wise ‘xor’</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-value-or-rb"><span class="std std-ref">0x.2.f 0x**** 0x****</span></a></p></td>
+<td><p>$rD &lt;- VALUE | $rB</p></td>
+<td><p>Bit-wise ‘or’</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-value-and-rb"><span class="std std-ref">0x.3.f 0x**** 0x****</span></a></p></td>
+<td><p>$rD &lt;- VALUE &amp; $rB</p></td>
+<td><p>Bit-wise ‘and’</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-value-plus-rb"><span class="std std-ref">0x.4.f 0x**** 0x****</span></a></p></td>
+<td><p>$rD &lt;- VALUE + $rB</p></td>
+<td><p>Type-dependent add</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-value-minus-rb"><span class="std std-ref">0x.5.f 0x**** 0x****</span></a></p></td>
+<td><p>$rD &lt;- VALUE - $rB</p></td>
+<td><p>Type-dependent subtract</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-value-lsl-rb"><span class="std std-ref">0x.6.f 0x**** 0x****</span></a></p></td>
+<td><p>$rD &lt;- VALUE &lt;&lt; $rB</p></td>
+<td><p>Binary left-shift</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-value-lsr-rb"><span class="std std-ref">0x.7.f 0x**** 0x****</span></a></p></td>
+<td><p>$rD &lt;- VALUE &gt;&gt; $rB</p></td>
+<td><p>Binary right-shift</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-value-asr-rb"><span class="std std-ref">0x.8.f 0x**** 0x****</span></a></p></td>
+<td><p>$rD &lt;- VALUE &gt;&gt;&gt; $rB</p></td>
+<td><p>Arithmetic right-shift</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-value-times-rb"><span class="std std-ref">0x.9.f 0x**** 0x****</span></a></p></td>
+<td><p>$rD &lt;- VALUE * $rB</p></td>
+<td><p>Type-dependent multiply</p></td>
+</tr>
+<tr class="row-odd"><td><p>0x.c.f 0x**** 0x****</p></td>
+<td><p>see below (stack ops)</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.d.f 0x**** 0x****</p></td>
+<td><p>see below (stack ops)</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.e.f 0x**** 0x****</p></td>
+<td><p>see below (mem ops)</p></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="short-load-immediate-group">
+<h2>Short load immediate group<a class="headerlink" href="#short-load-immediate-group" title="Permalink to this headline"></a></h2>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "0",         "bits": 4 },
+    { "name": "f",         "bits": 4 },
+    { "name": "0",         "bits": 4 },
+    { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+],
+}
+</script>
+</div>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_E", "bits": 16, attr: "VALUE" },
+],
+}
+</script>
+</div>
+<p>or</p>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "e",         "bits": 4 },
+    { "name": "f",         "bits": 4 },
+    { "name": "0",         "bits": 4 },
+    { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+],
+}
+</script>
+</div>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_E", "bits": 16, attr: "VALUE" },
+],
+}
+</script>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 36%" />
+<col style="width: 24%" />
+<col style="width: 40%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Instruction code</p></th>
+<th class="head"><p>Assembly</p></th>
+<th class="head"><p>Operation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-short-value"><span class="std std-ref">0x.0f0 0x****</span></a></p></td>
+<td><p>$rD &lt;- short VALUE</p></td>
+<td><p>Load sign-extended 16-bit immediate</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#pc-eq-short-value"><span class="std std-ref">0x20fe 0x****</span></a></p></td>
+<td><p>$pc &lt;- short VALUE</p></td>
+<td><p>Immediate short jump (value is sign-extended)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#tpc-eq-short-value"><span class="std std-ref">0x30fe 0x****</span></a></p></td>
+<td><p>$tpc &lt;- short VALUE</p></td>
+<td><p>Load sign-extended value into $tpc</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#call-short-value"><span class="std std-ref">0x40fe 0x****</span></a></p></td>
+<td><p>call short VALUE</p></td>
+<td><p>$pc &lt;- VALUE; $lr &lt;- $pc</p></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>it might be that short absolute jumps and calls are not all that useful, except for this: if we have small amounts of memory, it’s quite likely that a single application (or the scheduler for that matter) has a single code-segment which is less than 32k in size and starts at logical address 0. In that case, the code segment sees significant code-size benefits from the extra bytes saved. I don’t know yet how GCC would generate code like this though.</p>
+</div>
+</section>
+<section id="short-constant-alu-group">
+<h2>Short constant ALU group<a class="headerlink" href="#short-constant-alu-group" title="Permalink to this headline"></a></h2>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
+    { "name": "f",         "bits": 4 },
+    { "name": "FIELD_C",   "bits": 4, attr: "op kind" },
+    { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+],
+}
+</script>
+</div>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_E", "bits": 16, attr: "VALUE" },
+],
+}
+</script>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 38%" />
+<col style="width: 28%" />
+<col style="width: 34%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Instruction code</p></th>
+<th class="head"><p>Assembly</p></th>
+<th class="head"><p>Operation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-short-value-xor-ra"><span class="std std-ref">0x.1f. 0x****</span></a></p></td>
+<td><p>$rD &lt;- short VALUE ^ $rA</p></td>
+<td><p>Bit-wise ‘xor’</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-short-value-or-ra"><span class="std std-ref">0x.2f. 0x****</span></a></p></td>
+<td><p>$rD &lt;- short VALUE | $rA</p></td>
+<td><p>Bit-wise ‘or’</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-short-value-and-ra"><span class="std std-ref">0x.3f. 0x****</span></a></p></td>
+<td><p>$rD &lt;- short VALUE &amp; $rA</p></td>
+<td><p>Bit-wise ‘and’</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-short-value-plus-ra"><span class="std std-ref">0x.4f. 0x****</span></a></p></td>
+<td><p>$rD &lt;- short VALUE + $rA</p></td>
+<td><p>Type-dependent add</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-short-value-minus-ra"><span class="std std-ref">0x.5f. 0x****</span></a></p></td>
+<td><p>$rD &lt;- short VALUE - $rA</p></td>
+<td><p>Type-dependent subtract</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-short-ra-lsl-value"><span class="std std-ref">0x.6f. 0x****</span></a></p></td>
+<td><p>$rD &lt;- short $rA &lt;&lt; VALUE</p></td>
+<td><p>Binary left-shift</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-short-ra-lsr-value"><span class="std std-ref">0x.7f. 0x****</span></a></p></td>
+<td><p>$rD &lt;- short $rA &gt;&gt; VALUE</p></td>
+<td><p>Binary right-shift</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-short-ra-asr-value"><span class="std std-ref">0x.8f. 0x****</span></a></p></td>
+<td><p>$rD &lt;- short $rA &gt;&gt;&gt; VALUE</p></td>
+<td><p>Arithmetic right-shift</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-short-value-times-ra"><span class="std std-ref">0x.9f. 0x****</span></a></p></td>
+<td><p>$rD &lt;- short VALUE * $rA</p></td>
+<td><p>Type-dependent multiply</p></td>
+</tr>
+<tr class="row-odd"><td><p>0x.cf. 0x****</p></td>
+<td><p>see below (stack ops)</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.df. 0x****</p></td>
+<td><p>see below (stack ops)</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.ef. 0x****</p></td>
+<td><p>see below (mem ops)</p></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>FIELD_E is <em>always</em> sign-extended to 32-bits before applying it to the operation.</p>
+</div>
+<div class="admonition-todo admonition" id="id11">
+<p class="admonition-title">Todo</p>
+<p>We might want to zero-extend for certain operations, such as logical ops.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Sign-extending a 16-bit constant, then treating it as a float almost certainly don’t make any sense. These operations make little sense for floating-point types.</p>
+</div>
+</section>
+<section id="zero-compare-conditional-branch-group">
+<h2>Zero-compare conditional branch group<a class="headerlink" href="#zero-compare-conditional-branch-group" title="Permalink to this headline"></a></h2>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
+    { "name": "FIELD_B",   "bits": 4, attr: "op kind" },
+    { "name": "0",         "bits": 4 },
+    { "name": "f",         "bits": 4 },
+],
+}
+</script>
+</div>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_E", "bits": 16, attr: "VALUE" },
+],
+}
+</script>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 46%" />
+<col style="width: 40%" />
+<col style="width: 14%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Instruction code</p></th>
+<th class="head"><p>Assembly</p></th>
+<th class="head"><p>Operation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#if-any-ra-eq-0-pc-eq-pc-plus-value"><span class="std std-ref">0xf00. 0x****</span></a></p></td>
+<td><p>if any $rA == 0  $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#if-any-ra-ne-0-pc-eq-pc-plus-value"><span class="std std-ref">0xf01. 0x****</span></a></p></td>
+<td><p>if any $rA != 0  $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#if-any-ra-lt-0-pc-eq-pc-plus-value"><span class="std std-ref">0xf02. 0x****</span></a></p></td>
+<td><p>if any $rA &lt; 0   $pc &lt;- $pc + VALUE</p></td>
+<td><p>signed compare</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#if-any-ra-ge-0-pc-eq-pc-plus-value"><span class="std std-ref">0xf03. 0x****</span></a></p></td>
+<td><p>if any $rA &gt;= 0  $pc &lt;- $pc + VALUE</p></td>
+<td><p>signed compare</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#if-any-ra-gt-0-pc-eq-pc-plus-value"><span class="std std-ref">0xf04. 0x****</span></a></p></td>
+<td><p>if any $rA &gt; 0   $pc &lt;- $pc + VALUE</p></td>
+<td><p>signed compare</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#if-any-ra-le-0-pc-eq-pc-plus-value"><span class="std std-ref">0xf05. 0x****</span></a></p></td>
+<td><p>if any $rA &lt;= 0  $pc &lt;- $pc + VALUE</p></td>
+<td><p>signed compare</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#if-all-ra-eq-0-pc-eq-pc-plus-value"><span class="std std-ref">0xf08. 0x****</span></a></p></td>
+<td><p>if all $rA == 0  $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#if-all-ra-ne-0-pc-eq-pc-plus-value"><span class="std std-ref">0xf09. 0x****</span></a></p></td>
+<td><p>if all $rA != 0  $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#if-all-ra-lt-0-pc-eq-pc-plus-value"><span class="std std-ref">0xf0a. 0x****</span></a></p></td>
+<td><p>if all $rA &lt; 0   $pc &lt;- $pc + VALUE</p></td>
+<td><p>signed compare</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#if-all-ra-ge-0-pc-eq-pc-plus-value"><span class="std std-ref">0xf0b. 0x****</span></a></p></td>
+<td><p>if all $rA &gt;= 0  $pc &lt;- $pc + VALUE</p></td>
+<td><p>signed compare</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#if-all-ra-gt-0-pc-eq-pc-plus-value"><span class="std std-ref">0xf0c. 0x****</span></a></p></td>
+<td><p>if all $rA &gt; 0   $pc &lt;- $pc + VALUE</p></td>
+<td><p>signed compare</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#if-all-ra-le-0-pc-eq-pc-plus-value"><span class="std std-ref">0xf0d. 0x****</span></a></p></td>
+<td><p>if all $rA &lt;= 0  $pc &lt;- $pc + VALUE</p></td>
+<td><p>signed compare</p></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>For scalar types, FIELD_C MSB (inst[15]) is irrelevant; In other words, any/all selection doesn’t matter</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>VALUE computation: replicate LSB of FIELD_E to bit positions [31:16], replace LSB with 0.</p>
+</div>
+</section>
+<section id="conditional-branch-group">
+<h2>Conditional branch group<a class="headerlink" href="#conditional-branch-group" title="Permalink to this headline"></a></h2>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
+    { "name": "FIELD_B",   "bits": 4, attr: "$rB" },
+    { "name": "FIELD_C",   "bits": 4, attr: "op kind" },
+    { "name": "f",         "bits": 4 },
+],
+}
+</script>
+</div>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_E", "bits": 16, attr: "VALUE" },
+],
+}
+</script>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 47%" />
+<col style="width: 40%" />
+<col style="width: 13%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Instruction code</p></th>
+<th class="head"><p>Assembly</p></th>
+<th class="head"><p>Operation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#if-any-rb-eq-ra-pc-eq-pc-plus-value"><span class="std std-ref">0xf1.. 0x****</span></a></p></td>
+<td><p>if any $rB == $rA   $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#if-any-rb-ne-ra-pc-eq-pc-plus-value"><span class="std std-ref">0xf2.. 0x****</span></a></p></td>
+<td><p>if any $rB != $rA   $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#if-any-signed-rb-lt-ra-pc-eq-pc-plus-value"><span class="std std-ref">0xf3.. 0x****</span></a></p></td>
+<td><p>if any signed $rB &lt; $rA  $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#if-any-signed-rb-ge-ra-pc-eq-pc-plus-value"><span class="std std-ref">0xf4.. 0x****</span></a></p></td>
+<td><p>if any signed $rB &gt;= $rA $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#if-any-rb-lt-ra-pc-eq-pc-plus-value"><span class="std std-ref">0xf5.. 0x****</span></a></p></td>
+<td><p>if any $rB &lt; $rA    $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#if-any-rb-ge-ra-pc-eq-pc-plus-value"><span class="std std-ref">0xf6.. 0x****</span></a></p></td>
+<td><p>if any $rB &gt;= $rA   $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#if-all-rb-eq-ra-pc-eq-pc-plus-value"><span class="std std-ref">0xf9.. 0x****</span></a></p></td>
+<td><p>if all $rB == $rA   $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#if-all-rb-ne-ra-pc-eq-pc-plus-value"><span class="std std-ref">0xfa.. 0x****</span></a></p></td>
+<td><p>if all $rB != $rA   $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#if-all-signed-rb-lt-ra-pc-eq-pc-plus-value"><span class="std std-ref">0xfb.. 0x****</span></a></p></td>
+<td><p>if all signed $rB &lt; $rA  $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#if-all-signed-rb-ge-ra-pc-eq-pc-plus-value"><span class="std std-ref">0xfc.. 0x****</span></a></p></td>
+<td><p>if all signed $rB &gt;= $rA $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#if-all-rb-lt-ra-pc-eq-pc-plus-value"><span class="std std-ref">0xfd.. 0x****</span></a></p></td>
+<td><p>if all $rB &lt; $rA    $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#if-all-rb-ge-ra-pc-eq-pc-plus-value"><span class="std std-ref">0xfe.. 0x****</span></a></p></td>
+<td><p>if all $rB &gt;= $rA   $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>For scalar types, FIELD_C MSB (inst[15]) is irrelevant; In other words, any/all selection doesn’t matter</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>VALUE computation: replicate LSB of FIELD_E to bit positions [31:16], replace LSB with 0.</p>
+</div>
+</section>
+<section id="bit-set-test-conditional-branch-group">
+<h2>Bit-set-test conditional branch group<a class="headerlink" href="#bit-set-test-conditional-branch-group" title="Permalink to this headline"></a></h2>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
+    { "name": "f",         "bits": 4 },
+    { "name": "FIELD_C",   "bits": 4, attr: "bit sel" },
+    { "name": "f",         "bits": 4 },
+],
+}
+</script>
+</div>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_E", "bits": 16, attr: "VALUE" },
+],
+}
+</script>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 26%" />
+<col style="width: 56%" />
+<col style="width: 18%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Instruction code</p></th>
+<th class="head"><p>Assembly</p></th>
+<th class="head"><p>Operation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>0xf0f. 0x****</p></td>
+<td><p>if $rA[0]  == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf1f. 0x****</p></td>
+<td><p>if $rA[1]  == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xf2f. 0x****</p></td>
+<td><p>if $rA[2]  == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf3f. 0x****</p></td>
+<td><p>if $rA[3]  == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xf4f. 0x****</p></td>
+<td><p>if $rA[4]  == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf5f. 0x****</p></td>
+<td><p>if $rA[5]  == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xf6f. 0x****</p></td>
+<td><p>if $rA[6]  == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf7f. 0x****</p></td>
+<td><p>if $rA[7]  == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xf8f. 0x****</p></td>
+<td><p>if $rA[8]  == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf9f. 0x****</p></td>
+<td><p>if $rA[9]  == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xfaf. 0x****</p></td>
+<td><p>if $rA[14] == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xfbf. 0x****</p></td>
+<td><p>if $rA[15] == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xfcf. 0x****</p></td>
+<td><p>if $rA[16] == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xfdf. 0x****</p></td>
+<td><p>if $rA[30] == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xfef. 0x****</p></td>
+<td><p>if $rA[31] == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>VALUE computation: replicate LSB of FIELD_E to bit positions [31:16], replace LSB with 0.</p>
+</div>
+</section>
+<section id="bit-clear-test-conditional-branch-group">
+<h2>Bit-clear-test conditional branch group<a class="headerlink" href="#bit-clear-test-conditional-branch-group" title="Permalink to this headline"></a></h2>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "f",         "bits": 4 },
+    { "name": "FIELD_B",   "bits": 4, attr: "$rB" },
+    { "name": "FIELD_C",   "bits": 4, attr: "bit sel" },
+    { "name": "f",         "bits": 4 },
+],
+}
+</script>
+</div>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_E", "bits": 16, attr: "VALUE" },
+],
+}
+</script>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 26%" />
+<col style="width: 56%" />
+<col style="width: 18%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Instruction code</p></th>
+<th class="head"><p>Assembly</p></th>
+<th class="head"><p>Operation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>0xf0.f 0x****</p></td>
+<td><p>if $rB[0]  == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf1.f 0x****</p></td>
+<td><p>if $rB[1]  == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xf2.f 0x****</p></td>
+<td><p>if $rB[2]  == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf3.f 0x****</p></td>
+<td><p>if $rB[3]  == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xf4.f 0x****</p></td>
+<td><p>if $rB[4]  == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf5.f 0x****</p></td>
+<td><p>if $rB[5]  == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xf6.f 0x****</p></td>
+<td><p>if $rB[6]  == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf7.f 0x****</p></td>
+<td><p>if $rB[7]  == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xf8.f 0x****</p></td>
+<td><p>if $rB[8]  == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf9.f 0x****</p></td>
+<td><p>if $rB[9]  == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xfa.f 0x****</p></td>
+<td><p>if $rB[14] == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xfb.f 0x****</p></td>
+<td><p>if $rB[15] == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xfc.f 0x****</p></td>
+<td><p>if $rB[16] == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xfd.f 0x****</p></td>
+<td><p>if $rB[30] == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xfe.f 0x****</p></td>
+<td><p>if $rB[31] == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>VALUE computation: replicate LSB of FIELD_E to bit positions [31:16], replace LSB with 0.</p>
+</div>
+</section>
+<section id="stack-group">
+<h2>Stack group<a class="headerlink" href="#stack-group" title="Permalink to this headline"></a></h2>
+<p>While simple stack operations (as in push/pull) are not supported by the ISA, special load/store instructions are provided with small offsets and $r12 ($fp) and $r13 ($sp) as the base register to support a compact form of common stack operations. The supported offset range is -256 to +252 bytes.</p>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "S",         "bits": 1, attr: "$rS" },
+    { "name": "OFS",       "bits": 7, attr: "OFFSET" },
+    { "name": "FIELD_C",   "bits": 4, attr: "op kind" },
+    { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+],
+}
+</script>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 46%" />
+<col style="width: 33%" />
+<col style="width: 21%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Instruction code</p></th>
+<th class="head"><p>Assembly</p></th>
+<th class="head"><p>Operation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#mem-rs-plus-tiny-offset-eq-rd"><span class="std std-ref">0x.c**</span></a></p></td>
+<td><p>MEM32[$rS + tiny OFFSET] &lt;- $rD</p></td>
+<td><p>Store $rD in memory</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-mem-rs-plus-tiny-offset"><span class="std std-ref">0x.d**</span></a></p></td>
+<td><p>$rD &lt;- MEM32[$rS + tiny OFFSET]</p></td>
+<td><p>Load $rD from memory</p></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p>Field S denotes base register: 0 - $r12, 1 - $r13</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>OFFSET must be 32-bit aligned, so it’s lowest two bits are not stored. The supported offset range is from -512 to 508</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>the existence of these ops complicate memory op decode as well as operation size decode, but save a <em>huge</em> amount of code-space, allowing almost all register spills and fills to be done in two bytes.</p>
+</div>
+</section>
+<section id="indirect-load-store-group">
+<h2>Indirect load/Store group<a class="headerlink" href="#indirect-load-store-group" title="Permalink to this headline"></a></h2>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
+    { "name": "FIELD_B",   "bits": 4, attr: "op kind" },
+    { "name": "e",         "bits": 4 },
+    { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+],
+}
+</script>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 29%" />
+<col style="width: 30%" />
+<col style="width: 41%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Instruction code</p></th>
+<th class="head"><p>Assembly</p></th>
+<th class="head"><p>Operation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-mem8-ra"><span class="std std-ref">0x.e4.</span></a></p></td>
+<td><p>$rD &lt;- MEM8[$rA]</p></td>
+<td><p>8-bit unsigned load from MEM[$rA] into $rD</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-mem16-ra"><span class="std std-ref">0x.e5.</span></a></p></td>
+<td><p>$rD &lt;- MEM16[$rA]</p></td>
+<td><p>16-bit unsigned load from MEM[$rA] into $rD</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-mem-ra"><span class="std std-ref">0x.e6.</span></a></p></td>
+<td><p>$rD &lt;- MEM32[$rA]</p></td>
+<td><p>32-bit load from MEM[$rA] into $rD</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-memll-ra"><span class="std std-ref">0x.e7.</span></a></p></td>
+<td><p>$rD &lt;- MEMLL[$rA]</p></td>
+<td><p>32-bit unsigned load-lock (exclusive load)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#mem8-ra-eq-rd"><span class="std std-ref">0x.e8.</span></a></p></td>
+<td><p>MEM8[$rA] &lt;- $rD</p></td>
+<td><p>8-bit store to MEM[$rA] from $rD</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#mem16-ra-eq-rd"><span class="std std-ref">0x.e9.</span></a></p></td>
+<td><p>MEM16[$rA] &lt;- $rD</p></td>
+<td><p>16-bit store to MEM[$rA] from $rD</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#mem-ra-eq-rd"><span class="std std-ref">0x.ea.</span></a></p></td>
+<td><p>MEM32[$rA] &lt;- $rD</p></td>
+<td><p>32-bit store to MEM[$rA] from $rD</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#memsc-ra-eq-rd"><span class="std std-ref">0x.eb.</span></a></p></td>
+<td><p>MEMSC[$rA] &lt;- $rD</p></td>
+<td><p>32-bit store-conditional (exclusive store)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-smem8-ra"><span class="std std-ref">0x.ec.</span></a></p></td>
+<td><p>$rD &lt;- SMEM8[$rA]</p></td>
+<td><p>8-bit signed load from MEM[$rA] into $rD</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-smem16-ra"><span class="std std-ref">0x.ed.</span></a></p></td>
+<td><p>$rD &lt;- SMEM16[$rA]</p></td>
+<td><p>16-bit signed load from MEM[$rA] into $rD</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="indirect-jump-group">
+<h2>Indirect jump group<a class="headerlink" href="#indirect-jump-group" title="Permalink to this headline"></a></h2>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
+    { "name": "e",         "bits": 4 },
+    { "name": "e",         "bits": 4 },
+    { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+],
+}
+</script>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 29%" />
+<col style="width: 29%" />
+<col style="width: 43%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Instruction code</p></th>
+<th class="head"><p>Assembly</p></th>
+<th class="head"><p>Operation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#inv-ra"><span class="std std-ref">0x1ee.</span></a></p></td>
+<td><p>INV[$rA]</p></td>
+<td><p>invalidate cache line for address $rA</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#pc-eq-mem-ra"><span class="std std-ref">0x2ee.</span></a></p></td>
+<td><p>$pc &lt;- MEM32[$rA]</p></td>
+<td><p>32-bit load from MEM[$rA] into $PC</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#tpc-eq-mem-ra"><span class="std std-ref">0x3ee.</span></a></p></td>
+<td><p>$tpc &lt;- MEM32[$rA]</p></td>
+<td><p>32-bit load from MEM[$rA] into $TPC</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#call-eq-mem-ra"><span class="std std-ref">0x4ee.</span></a></p></td>
+<td><p>call MEM32[$rA]</p></td>
+<td><p>32-bit load from MEM[$rA] into $PC; $LR &lt;- $PC</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="offset-indirect-load-store-group">
+<h2>Offset-indirect load/store group<a class="headerlink" href="#offset-indirect-load-store-group" title="Permalink to this headline"></a></h2>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
+    { "name": "FIELD_B",   "bits": 4, attr: "op kind" },
+    { "name": "f",         "bits": 4 },
+    { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+],
+}
+</script>
+</div>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_E", "bits": 16, attr: "VALUE" },
+],
+}
+</script>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 35%" />
+<col style="width: 29%" />
+<col style="width: 36%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Instruction code</p></th>
+<th class="head"><p>Assembly</p></th>
+<th class="head"><p>Operation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-mem8-ra-plus-value"><span class="std std-ref">0x.f4. 0x****</span></a></p></td>
+<td><p>$rD &lt;- MEM8[$rA + VALUE]</p></td>
+<td><p>8-bit unsigned load from MEM[$rA+VALUE] into $rD</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-mem16-ra-plus-value"><span class="std std-ref">0x.f5. 0x****</span></a></p></td>
+<td><p>$rD &lt;- MEM16[$rA + VALUE]</p></td>
+<td><p>16-bit unsigned load from MEM[$rA+VALUE] into $rD</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-mem-ra-plus-value"><span class="std std-ref">0x.f6. 0x****</span></a></p></td>
+<td><p>$rD &lt;- MEM32[$rA + VALUE]</p></td>
+<td><p>32-bit load from MEM[$rA+VALUE] into $rD</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-memll-ra-plus-value"><span class="std std-ref">0x.f7. 0x****</span></a></p></td>
+<td><p>$rD &lt;- MEMLL[$rA + VALUE]</p></td>
+<td><p>32-bit unsigned load-lock (exclusive load)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#mem8-ra-plus-value-eq-rd"><span class="std std-ref">0x.f8. 0x****</span></a></p></td>
+<td><p>MEM8[$rA + VALUE] &lt;- $rD</p></td>
+<td><p>8-bit store to MEM[$rA+VALUE] from $rD</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#mem16-ra-plus-value-eq-rd"><span class="std std-ref">0x.f9. 0x****</span></a></p></td>
+<td><p>MEM16[$rA + VALUE] &lt;- $rD</p></td>
+<td><p>16-bit store to MEM[$rA+VALUE] from $rD</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#mem-ra-plus-value-eq-rd"><span class="std std-ref">0x.fa. 0x****</span></a></p></td>
+<td><p>MEM32[$rA + VALUE] &lt;- $rD</p></td>
+<td><p>32-bit store to MEM[$rA+VALUE] from $rD</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#memsc-ra-plus-value-eq-rd"><span class="std std-ref">0x.fb. 0x****</span></a></p></td>
+<td><p>MEMSC[$rA + VALUE] &lt;- $rD</p></td>
+<td><p>32-bit store-conditional (exclusive store)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-smem8-ra-plus-value"><span class="std std-ref">0x.fc. 0x****</span></a></p></td>
+<td><p>$rD &lt;- SMEM8[$rA + VALUE]</p></td>
+<td><p>8-bit signed load from MEM[$rA+VALUE] into $rD</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-smem16-ra-plus-value"><span class="std std-ref">0x.fd. 0x****</span></a></p></td>
+<td><p>$rD &lt;- SMEM16[$rA + VALUE]</p></td>
+<td><p>16-bit signed load from MEM[$rA+VALUE] into $rD</p></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>FIELD_E is sign-extended before addition</p>
+</div>
+</section>
+<section id="offset-indirect-jump-group">
+<h2>Offset-indirect jump group<a class="headerlink" href="#offset-indirect-jump-group" title="Permalink to this headline"></a></h2>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_A",   "bits": 4, attr: "$rA" },
+    { "name": "e",         "bits": 4 },
+    { "name": "f",         "bits": 4 },
+    { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+],
+}
+</script>
+</div>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_E", "bits": 16, attr: "VALUE" },
+],
+}
+</script>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 34%" />
+<col style="width: 28%" />
+<col style="width: 38%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Instruction code</p></th>
+<th class="head"><p>Assembly</p></th>
+<th class="head"><p>Operation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#inv-ra-plus-value"><span class="std std-ref">0x1fe. 0x****</span></a></p></td>
+<td><p>INV[$rA + VALUE]</p></td>
+<td><p>invalidate cache line for address $rA+FIELD_E</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#pc-eq-mem-ra-plus-value"><span class="std std-ref">0x2fe. 0x****</span></a></p></td>
+<td><p>$pc &lt;- MEM32[$rA + VALUE]</p></td>
+<td><p>32-bit load from MEM[$rA+VALUE] into $PC</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#tpc-eq-mem-ra-plus-value"><span class="std std-ref">0x3fe. 0x****</span></a></p></td>
+<td><p>$tpc &lt;- MEM32[$rA + VALUE]</p></td>
+<td><p>32-bit load from MEM[$rA+VALUE] into $TPC</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#call-mem-ra-plus-value"><span class="std std-ref">0x4fe. 0x****</span></a></p></td>
+<td><p>call MEM32[$rA + VALUE]</p></td>
+<td><p>32-bit load from MEM[$rA+VALUE] into $PC; $LC &lt;- $pc</p></td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>FIELD_E is sign-extended before addition</p>
+</div>
+</section>
+<section id="absolute-load-store-group">
+<h2>Absolute load/store group<a class="headerlink" href="#absolute-load-store-group" title="Permalink to this headline"></a></h2>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "f",         "bits": 4 },
+    { "name": "FIELD_B",   "bits": 4, attr: "op kind" },
+    { "name": "f",         "bits": 4 },
+    { "name": "FIELD_D",   "bits": 4, attr: "$rD" },
+],
+}
+</script>
+</div>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_E lower 16 bits", "bits": 16, attr: "VALUE lower 16 bits" },
+],
+}
+</script>
+</div>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_E upper 16 bits", "bits": 16, attr: "VALUE upper 16 bits" },
+]
+}
+</script>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 39%" />
+<col style="width: 23%" />
+<col style="width: 38%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Instruction code</p></th>
+<th class="head"><p>Assembly</p></th>
+<th class="head"><p>Operation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-mem8-value"><span class="std std-ref">0x.f4f 0x**** 0x****</span></a></p></td>
+<td><p>$rD &lt;- MEM8[VALUE]</p></td>
+<td><p>8-bit unsigned load from MEM[VALUE] into $rD</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-mem16-value"><span class="std std-ref">0x.f5f 0x**** 0x****</span></a></p></td>
+<td><p>$rD &lt;- MEM16[VALUE]</p></td>
+<td><p>16-bit unsigned load from MEM[VALUE] into $rD</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-mem-value"><span class="std std-ref">0x.f6f 0x**** 0x****</span></a></p></td>
+<td><p>$rD &lt;- MEM32[VALUE]</p></td>
+<td><p>32-bit load from MEM[VALUE] into $rD</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-memll-value"><span class="std std-ref">0x.f7f 0x**** 0x****</span></a></p></td>
+<td><p>$rD &lt;- MEMLL[VALUE]</p></td>
+<td><p>32-bit unsigned load-lock (exclusive load)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#mem8-value-eq-rd"><span class="std std-ref">0x.f8f 0x**** 0x****</span></a></p></td>
+<td><p>MEM8[VALUE] &lt;- $rD</p></td>
+<td><p>8-bit store to MEM[VALUE] from $rD</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#mem16-value-eq-rd"><span class="std std-ref">0x.f9f 0x**** 0x****</span></a></p></td>
+<td><p>MEM16[VALUE] &lt;- $rD</p></td>
+<td><p>16-bit store to MEM[VALUE] from $rD</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#mem-value-eq-rd"><span class="std std-ref">0x.faf 0x**** 0x****</span></a></p></td>
+<td><p>MEM32[VALUE] &lt;- $rD</p></td>
+<td><p>32-bit store to MEM[VALUE] from $rD</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#memsc-value-eq-rd"><span class="std std-ref">0x.fbf 0x**** 0x****</span></a></p></td>
+<td><p>MEMSC[VALUE] &lt;- $rD</p></td>
+<td><p>32-bit store-conditional (exclusive store)</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-smem8-value"><span class="std std-ref">0x.fcf 0x**** 0x****</span></a></p></td>
+<td><p>$rD &lt;- SMEM8[VALUE]</p></td>
+<td><p>8-bit signed load from MEM[VALUE] into $rD</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-smem16-value"><span class="std std-ref">0x.fdf 0x**** 0x****</span></a></p></td>
+<td><p>$rD &lt;- SMEM16[VALUE]</p></td>
+<td><p>16-bit signed load from MEM[VALUE] into $rD</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="absolute-jump-group">
+<h2>Absolute jump group<a class="headerlink" href="#absolute-jump-group" title="Permalink to this headline"></a></h2>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "f",         "bits": 4 },
+    { "name": "e",         "bits": 4 },
+    { "name": "f",         "bits": 4 },
+    { "name": "FIELD_D",   "bits": 4, attr: "op kind" },
+],
+}
+</script>
+</div>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_E lower 16 bits", "bits": 16, attr: "VALUE lower 16 bits" },
+],
+}
+</script>
+</div>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "FIELD_E upper 16 bits", "bits": 16, attr: "VALUE upper 16 bits" },
+]
+}
+</script>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 38%" />
+<col style="width: 23%" />
+<col style="width: 40%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Instruction code</p></th>
+<th class="head"><p>Assembly</p></th>
+<th class="head"><p>Operation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#inv-value"><span class="std std-ref">0x1fef 0x**** 0x****</span></a></p></td>
+<td><p>INV[VALUE]</p></td>
+<td><p>invalidate cache line for address FIELD_E</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#pc-eq-mem-value"><span class="std std-ref">0x2fef 0x**** 0x****</span></a></p></td>
+<td><p>$pc &lt;- MEM32[VALUE]</p></td>
+<td><p>32-bit load from MEM[VALUE] into $PC</p></td>
+</tr>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#tpc-eq-mem-value"><span class="std std-ref">0x3fef 0x**** 0x****</span></a></p></td>
+<td><p>$tpc &lt;- MEM32[VALUE]</p></td>
+<td><p>32-bit load from MEM[VALUE] into $TPC</p></td>
+</tr>
+<tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#call-mem-value"><span class="std std-ref">0x4fef 0x**** 0x****</span></a></p></td>
+<td><p>call MEM32[VALUE]</p></td>
+<td><p>32-bit load from MEM[VALUE] into $PC, $LR &lt;- $PC</p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="prefix-instructions">
+<h2>Prefix instructions<a class="headerlink" href="#prefix-instructions" title="Permalink to this headline"></a></h2>
+<p>Prefix instructions can precede any other instruction to modify their behavior.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><em>Exception behavior</em>: If a prefixed instruction throws an exception, $tpc points to the (first) prefix instruction after entering SCHEDULER mode. This allows the recovery code to decode and potentially retry the excepted instruction.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><em>Interrupt behavior</em>: If an interrupt is handled during the execution of a prefixed instruction, $tpc points to the (first) prefix instruction after entering SCHEDULER mode. None of the side-effects of the prefixed instruction take effect. If any of the side-effects of the prefixed instruction have taken effect, the whole instruction must be carried to completion and $tpc points to the subsequent instruction after entering SCHEDULER mode. In other words, under no circumstances can $tpc point anywhere between the first prefix and it’s corresponding instruction when entering SCHEDULER mode.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><em>Prefix concatenation</em>: Every processor implementation has a maximum instruction length it supports. In this version of the spec, it’s 64 bits. If an instruction with all its prefixes exceeds this limit, the processor raises an <code class="code docutils literal notranslate"><span class="pre">exc_unknown_inst</span></code> exception, with $tpc pointing to the first prefix instruction. Without this provision it would be possible to create arbitrarily long instruction sequences in TASK mode. That in turn would prevent interrupts from being raised, effectively locking up the system (at least up to the point of exhausting the addressable memory space). The ISA puts further restrictions on what prefix instructions can be cascaded. As a general rule, prefixes of the same kind can appear only once in a prefix cascade.</p>
+</div>
+<section id="type-override">
+<h3>Type override<a class="headerlink" href="#type-override" title="Permalink to this headline"></a></h3>
+<p>This prefix instruction allows for the changing the way the subsequent operation interprets source operand types. It doesn’t actually change the source register types. The result type that is written into the destination along with its value is the result type obtained after the type overrides.</p>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 16}, config: {hspace: 500},
+reg: [
+    { "name": "TYPE_A",    "bits": 4, attr: "type override A" },
+    { "name": "TYPE_B",    "bits": 4, attr: "type override B" },
+    { "name": "f",         "bits": 4 },
+    { "name": "f",         "bits": 4 },
+],
+}
+</script>
+</div>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 34%" />
+<col style="width: 18%" />
+<col style="width: 48%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Instruction code</p></th>
+<th class="head"><p>Assembly</p></th>
+<th class="head"><p>Operation</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#type-overrides-detail"><span class="std std-ref">0xff** …</span></a></p></td>
+<td><p>Type override (&lt;type&gt;)</p></td>
+<td><p>Type override for $rA (TYPE_A) and $rB (TYPE_B).</p></td>
+</tr>
+</tbody>
+</table>
+<p>Type override for $rA (TYPE_A) and $rB (TYPE_B).</p>
+<p>If either TYPE_A or TYPE_B is set to 0xf, the corresponding register type is not overridden: the type from the register file is used during the subsequent operation.</p>
+<div class="admonition-todo admonition" id="id12">
+<p class="admonition-title">Todo</p>
+<p>type overrides are not supported by the toolchain</p>
+</div>
+</section>
+</section>
+</section>
+
+    <script type="text/javascript">
+        function init() {
+            WaveDrom.ProcessAll();
+        }
+        window.onload = init;
+    </script>
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="isa_intro.html" class="btn btn-neutral float-left" title="Instruction Set Principles" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="memory_model.html" class="btn btn-neutral float-right" title="Memory Model" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Andras Tantos.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

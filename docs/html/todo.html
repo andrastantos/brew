@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Appendix E: Todo &mdash; Brew processor  documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/default.js"></script>
+        <script src="_static/wavedrom.min.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="Appendix B: Comparing to the competition" href="competition.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> Brew processor
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="execution_contexts.html">Task and Scheduler modes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="exceptions.html">Exceptions and Interrupts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="process_isolation.html">Process isolation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="registers.html">Registers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="types.html">Types and their manipulation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="types.html#type-compatibility">Type compatibility</a></li>
+<li class="toctree-l1"><a class="reference internal" href="control_flow.html">Control flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="isa_intro.html">Instruction Set Principles</a></li>
+<li class="toctree-l1"><a class="reference internal" href="isa.html">Instruction Set Summary</a></li>
+<li class="toctree-l1"><a class="reference internal" href="memory_model.html">Memory Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="isa_details.html">Instruction Set Details</a></li>
+<li class="toctree-l1"><a class="reference internal" href="floating_point_support.html">Floating point support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="csrs.html">CSRs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="compatibility.html">Family compatibility</a></li>
+<li class="toctree-l1"><a class="reference internal" href="abi.html">ABI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hw_impl_notes.html">Appendix A: Implementation Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="system_sw.html">Appendix F: System Software</a></li>
+<li class="toctree-l1"><a class="reference internal" href="competition.html">Appendix B: Comparing to the competition</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Appendix E: Todo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#toolchain">Toolchain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#multiple-load-stores">Multiple Load-Stores</a></li>
+</ul>
+</li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Brew processor</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">Appendix E: Todo</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="appendix-e-todo">
+<h1>Appendix E: Todo<a class="headerlink" href="#appendix-e-todo" title="Permalink to this headline"></a></h1>
+<section id="toolchain">
+<h2>Toolchain<a class="headerlink" href="#toolchain" title="Permalink to this headline"></a></h2>
+<div class="admonition-todo admonition" id="id1">
+<p class="admonition-title">Todo</p>
+<p>We’ll need to make sure we use sign-extend loads appropriately: apparently Moxie didn’t have sign-extend loads</p>
+</div>
+<div class="admonition-todo admonition" id="id2">
+<p class="admonition-title">Todo</p>
+<p>brew.opt needs to be updated to actually generate mfloat and mno-float options.</p>
+</div>
+<div class="admonition-todo admonition" id="id3">
+<p class="admonition-title">Todo</p>
+<p>add floating point instructions (probably for something like fastmath only)</p>
+</div>
+<div class="admonition-todo admonition" id="id4">
+<p class="admonition-title">Todo</p>
+<p>figure out if we really need ‘upper’ version of multiplies and how to efficiently use them. Right now 64-bit multiplies are borken, I think.</p>
+</div>
+<div class="admonition-todo admonition" id="id5">
+<p class="admonition-title">Todo</p>
+<p>we probably want to control register allocation order. Some comment from code:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">/*</span> <span class="n">The</span> <span class="n">order</span> <span class="ow">in</span> <span class="n">which</span> <span class="n">registers</span> <span class="n">should</span> <span class="n">be</span> <span class="n">allocated</span><span class="o">.</span>
+   <span class="n">It</span> <span class="ow">is</span> <span class="n">better</span> <span class="n">to</span> <span class="n">use</span> <span class="n">the</span> <span class="n">registers</span> <span class="n">the</span> <span class="n">caller</span> <span class="n">need</span> <span class="ow">not</span> <span class="n">save</span><span class="o">.</span>
+   <span class="n">Allocate</span> <span class="n">r0</span> <span class="n">through</span> <span class="n">r3</span> <span class="ow">in</span> <span class="n">reverse</span> <span class="n">order</span> <span class="n">since</span> <span class="n">r3</span> <span class="ow">is</span> <span class="n">least</span> <span class="n">likely</span>
+   <span class="n">to</span> <span class="n">contain</span> <span class="n">a</span> <span class="n">function</span> <span class="n">parameter</span><span class="p">;</span> <span class="ow">in</span> <span class="n">addition</span> <span class="n">results</span> <span class="n">are</span> <span class="n">returned</span>
+   <span class="ow">in</span> <span class="n">r0</span><span class="o">.</span>  <span class="n">It</span> <span class="ow">is</span> <span class="n">quite</span> <span class="n">good</span> <span class="n">to</span> <span class="n">use</span> <span class="n">lr</span> <span class="n">since</span> <span class="n">other</span> <span class="n">calls</span> <span class="n">may</span> <span class="n">clobber</span>
+   <span class="n">it</span> <span class="n">anyway</span><span class="o">.</span>  <span class="o">*/</span>
+<span class="c1">#define REG_ALLOC_ORDER                                           \</span>
+</pre></div>
+</div>
+</div>
+<div class="admonition-todo admonition" id="id6">
+<p class="admonition-title">Todo</p>
+<p>we should use this:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">CALL_REALLY_USED_REGISTERS</span> <span class="n">instead</span> <span class="n">of</span> <span class="n">CALL_USED_REGISTERS</span> <span class="o">-&gt;</span> <span class="n">that</span><span class="s1">&#39;s legacy.</span>
+</pre></div>
+</div>
+</div>
+<div class="admonition-todo admonition" id="id7">
+<p class="admonition-title">Todo</p>
+<p>there’s a GCC macro: <code class="code docutils literal notranslate"><span class="pre">__REGISTER_PREFIX__</span></code>. If there’s a GAS equivalent, maybe we can coerce GAS expression parser to stop at register names? I actually think this is outdated. I have a completely re-written parser at this point which doesn’t depend on the demented GAS expression parser. It identifies expression boundaries on its own and calls the GAS parser for only the appropriate segments.</p>
+</div>
+<div class="admonition-todo admonition" id="id8">
+<p class="admonition-title">Todo</p>
+<p>we need a predefined macro for -msoft-float</p>
+</div>
+</section>
+<section id="multiple-load-stores">
+<h2>Multiple Load-Stores<a class="headerlink" href="#multiple-load-stores" title="Permalink to this headline"></a></h2>
+<p>This is a new idea that I’m toying with: would it be too difficult to add a pair of (multi-cycle) instructions that could load and store any combination of registers? This goes against the RISC approach, it’s clearly a complex concept. However, ARM has it and for good reason: it collapses function prologs and epilogs, results in very compact code and - if implemented properly - results in pretty nice memory access patterns with high efficiencies. I have found a right-sized hole in the instruction space to fit these instructions in, but the implementation complexity is rather high. I’m not yet sure if it’s worth to have them, I probably need to model it first.</p>
+</section>
+</section>
+
+    <script type="text/javascript">
+        function init() {
+            WaveDrom.ProcessAll();
+        }
+        window.onload = init;
+    </script>
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="competition.html" class="btn btn-neutral float-left" title="Appendix B: Comparing to the competition" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Andras Tantos.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

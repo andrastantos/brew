@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Appendix A: Implementation Notes &mdash; Brew processor  documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/default.js"></script>
+        <script src="_static/wavedrom.min.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Appendix F: System Software" href="system_sw.html" />
+    <link rel="prev" title="ABI" href="abi.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> Brew processor
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="execution_contexts.html">Task and Scheduler modes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="exceptions.html">Exceptions and Interrupts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="process_isolation.html">Process isolation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="registers.html">Registers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="types.html">Types and their manipulation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="types.html#type-compatibility">Type compatibility</a></li>
+<li class="toctree-l1"><a class="reference internal" href="control_flow.html">Control flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="isa_intro.html">Instruction Set Principles</a></li>
+<li class="toctree-l1"><a class="reference internal" href="isa.html">Instruction Set Summary</a></li>
+<li class="toctree-l1"><a class="reference internal" href="memory_model.html">Memory Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="isa_details.html">Instruction Set Details</a></li>
+<li class="toctree-l1"><a class="reference internal" href="floating_point_support.html">Floating point support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="csrs.html">CSRs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="compatibility.html">Family compatibility</a></li>
+<li class="toctree-l1"><a class="reference internal" href="abi.html">ABI</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Appendix A: Implementation Notes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#instruction-decode">Instruction Decode</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#branch-identification">Branch Identification</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="system_sw.html">Appendix F: System Software</a></li>
+<li class="toctree-l1"><a class="reference internal" href="competition.html">Appendix B: Comparing to the competition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="todo.html">Appendix E: Todo</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Brew processor</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">Appendix A: Implementation Notes</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="appendix-a-implementation-notes">
+<h1>Appendix A: Implementation Notes<a class="headerlink" href="#appendix-a-implementation-notes" title="Permalink to this headline"></a></h1>
+<section id="instruction-decode">
+<h2>Instruction Decode<a class="headerlink" href="#instruction-decode" title="Permalink to this headline"></a></h2>
+<p>Instruction encoding is such that the following condition can be used to determine if the FIELD_E is needed:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">FIELD_D</span> <span class="o">==</span> <span class="mh">0xf</span> <span class="o">||</span>
+<span class="p">(</span><span class="n">FIELD_C</span> <span class="o">==</span> <span class="mh">0xf</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="n">FIELD_B</span> <span class="o">!=</span> <span class="mh">0xf</span> <span class="o">||</span> <span class="n">FIELD_A</span> <span class="o">==</span> <span class="mh">0xf</span><span class="p">))</span> <span class="o">||</span>
+<span class="p">(</span><span class="n">FIELD_C</span> <span class="o">==</span> <span class="mh">0xe</span> <span class="o">&amp;&amp;</span> <span class="n">FIELD_A</span> <span class="o">==</span> <span class="mh">0xf</span><span class="p">)</span> <span class="o">||</span>
+<span class="p">(</span><span class="n">FIELD_C</span> <span class="o">&lt;</span> <span class="mh">0xc</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="n">FIELD_B</span> <span class="o">==</span> <span class="mh">0xf</span> <span class="o">||</span> <span class="n">FIELD_A</span> <span class="o">==</span> <span class="mh">0xf</span><span class="p">))</span>
+</pre></div>
+</div>
+<p>The size of FIELD_E == 16 if:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">FIELD_D</span> <span class="o">==</span> <span class="mh">0xf</span> <span class="o">||</span> <span class="n">FIELD_A</span> <span class="o">!=</span> <span class="mh">0xf</span>
+</pre></div>
+</div>
+</section>
+<section id="branch-identification">
+<span id="branch-id-expression"></span><h2>Branch Identification<a class="headerlink" href="#branch-identification" title="Permalink to this headline"></a></h2>
+<p>Branches can be identified by:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="p">(</span><span class="n">FIELD_D</span> <span class="o">==</span> <span class="mh">0xf</span>         <span class="o">&amp;&amp;</span> <span class="n">FIELD_C</span> <span class="o">!=</span> <span class="mh">0xf</span><span class="p">)</span> <span class="o">||</span>
+<span class="p">((</span><span class="n">FIELD_D</span> <span class="o">&amp;</span> <span class="mh">0xe</span><span class="p">)</span> <span class="o">==</span> <span class="mh">0x2</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="n">FIELD_C</span> <span class="o">&amp;</span> <span class="mh">0xe</span><span class="p">)</span> <span class="o">==</span> <span class="mh">0xe</span> <span class="o">&amp;&amp;</span> <span class="n">FIELD_B</span> <span class="o">==</span> <span class="mh">0xe</span><span class="p">)</span> <span class="o">||</span>
+<span class="p">((</span><span class="n">FIELD_D</span> <span class="o">&amp;</span> <span class="mh">0xe</span><span class="p">)</span> <span class="o">==</span> <span class="mh">0x2</span> <span class="o">&amp;&amp;</span> <span class="n">FIELD_C</span> <span class="o">==</span> <span class="mh">0x0</span>         <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="n">FIELD_B</span> <span class="o">&amp;</span> <span class="mh">0xe</span><span class="p">)</span> <span class="o">==</span> <span class="mh">0xe</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="n">FIELD_A</span> <span class="o">&amp;</span> <span class="mh">0xe</span><span class="p">)</span> <span class="o">==</span> <span class="mh">0xe</span> <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="n">FIELD_B</span> <span class="o">&amp;</span> <span class="mi">1</span> <span class="o">!=</span> <span class="n">FIELD_A</span> <span class="o">&amp;</span> <span class="mi">1</span><span class="p">)</span> <span class="o">||</span>
+<span class="p">(</span><span class="n">FIELD_C</span> <span class="o">==</span> <span class="mh">0x0</span>         <span class="o">&amp;&amp;</span> <span class="n">FIELD_B</span> <span class="o">==</span> <span class="mh">0x0</span>         <span class="o">&amp;&amp;</span> <span class="p">(</span><span class="n">FIELD_A</span> <span class="o">&amp;</span> <span class="mh">0xe</span><span class="p">)</span> <span class="o">==</span> <span class="mh">0x2</span><span class="p">)</span> <span class="o">||</span>
+<span class="p">((</span><span class="n">FIELD_D</span> <span class="o">&amp;</span> <span class="mh">0x8</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span>   <span class="o">&amp;&amp;</span> <span class="n">FIELD_C</span> <span class="o">==</span> <span class="mh">0x0</span>         <span class="o">&amp;&amp;</span> <span class="n">FIELD_B</span> <span class="o">==</span> <span class="mh">0x0</span>         <span class="o">&amp;&amp;</span> <span class="n">FIELD_A</span> <span class="o">==</span> <span class="mh">0x0</span><span class="p">)</span> <span class="o">&lt;--</span> <span class="n">SWI</span> <span class="n">insn</span><span class="o">.</span>
+<span class="p">(</span><span class="n">FIELD_D</span> <span class="o">==</span> <span class="mh">0x8</span>         <span class="o">&amp;&amp;</span> <span class="n">FIELD_C</span> <span class="o">==</span> <span class="mh">0x0</span>         <span class="o">&amp;&amp;</span> <span class="n">FIELD_B</span> <span class="o">==</span> <span class="mh">0x0</span>         <span class="o">&amp;&amp;</span> <span class="n">FIELD_A</span> <span class="o">==</span> <span class="mh">0x0</span><span class="p">)</span> <span class="o">&lt;--</span> <span class="n">STM</span> <span class="n">insn</span><span class="o">.</span>
+</pre></div>
+</div>
+<p>If timing closure is an issue, the expression can be simplified by removing the last two terms, in effect not predicting SWI and STM instructions.</p>
+<p>Term 3 has an XOR at the very end (<code class="code docutils literal notranslate"><span class="pre">(FIELD_B</span> <span class="pre">&amp;</span> <span class="pre">1</span> <span class="pre">!=</span> <span class="pre">FIELD_A</span> <span class="pre">&amp;</span> <span class="pre">1)</span></code>). This term can be decomposed into 2 4-term AND expressions, for essentially 0x20ef and 0x20fe (plus the 0x3… variants).</p>
+<p>In essence the critical path is a 16-bit compare followed by 6-way OR (for the full term) or a 15-bit compare followed by a 4-way OR (for the simplified term).</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>It seems that Cyclone V has 5-bit LUTs. That would mean that one can compare 15 bits in 3 LUTs. Then, another LUT could be used to generate a single output bit. That is to say a 15-bit comparator has a 2-LUT latency. The 4 comparators can be combined in a
+single LUT, so the total decode latency is 3 LUTs. Since we have unused inputs on some of the LUTs, it’s possible that the full term can also be decoded in that much latency.</p>
+<p>After simulation, the data latency seems to be a little over 5.5ns in the fastest Cyclone V parts. That would put us just below 200MHz clock frequency. However, due to clock also getting delayed we actually get a significant boost and timing closes all the way up to 421MHz. Technology viewer confirms the use of 3 layers of LUTs, which wold give us roughly 1.83ns delay per LUT, or 545MHz f_max.</p>
+</div>
+</section>
+</section>
+
+    <script type="text/javascript">
+        function init() {
+            WaveDrom.ProcessAll();
+        }
+        window.onload = init;
+    </script>
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="abi.html" class="btn btn-neutral float-left" title="ABI" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="system_sw.html" class="btn btn-neutral float-right" title="Appendix F: System Software" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Andras Tantos.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

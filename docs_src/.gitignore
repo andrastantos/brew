@@ -20,6 +20,5 @@
 .deps
 .libs
 
-**/_build/**
 *.out_rst
 isa_detail_new.rst

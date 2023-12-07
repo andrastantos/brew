@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CSRs &mdash; Brew processor  documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/default.js"></script>
+        <script src="_static/wavedrom.min.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Family compatibility" href="compatibility.html" />
+    <link rel="prev" title="Floating point support" href="floating_point_support.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> Brew processor
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="execution_contexts.html">Task and Scheduler modes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="exceptions.html">Exceptions and Interrupts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="process_isolation.html">Process isolation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="registers.html">Registers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="types.html">Types and their manipulation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="types.html#type-compatibility">Type compatibility</a></li>
+<li class="toctree-l1"><a class="reference internal" href="control_flow.html">Control flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="isa_intro.html">Instruction Set Principles</a></li>
+<li class="toctree-l1"><a class="reference internal" href="isa.html">Instruction Set Summary</a></li>
+<li class="toctree-l1"><a class="reference internal" href="memory_model.html">Memory Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="isa_details.html">Instruction Set Details</a></li>
+<li class="toctree-l1"><a class="reference internal" href="floating_point_support.html">Floating point support</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">CSRs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#csr-registers">CSR registers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#implementation-defined-csrs">Implementation-defined CSRs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#csr-register-definitions">CSR register definitions</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#csr-ecause">csr_ecause</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#csr-eaddr">csr_eaddr</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#csr-mach-arch">csr_mach_arch</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#csr-capability">csr_capability</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#csr-fpstat">csr_fpstat</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="compatibility.html">Family compatibility</a></li>
+<li class="toctree-l1"><a class="reference internal" href="abi.html">ABI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hw_impl_notes.html">Appendix A: Implementation Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="system_sw.html">Appendix F: System Software</a></li>
+<li class="toctree-l1"><a class="reference internal" href="competition.html">Appendix B: Comparing to the competition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="todo.html">Appendix E: Todo</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Brew processor</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">CSRs</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="csrs">
+<span id="csr"></span><h1>CSRs<a class="headerlink" href="#csrs" title="Permalink to this headline"></a></h1>
+<p>Control and Status registers (CSRs) provide configuration and status information for a processor. This address space is unique to every processor and hardware thread in the system, while some of the underlying registers may be shared amongst them.</p>
+<p>The address space uses a 16-bit address, each address corresponding to a 32-bit value. Most addresses are not used. The MSB of the address is always set for CSR accesses issued from TASK mode. In SCHEDULER-mode, all 16-bits of the address are under SW control; this allows for arranging for sensitive CSRs to be only accessible from SCHEDULER-mode, albeit at the cost of more complicated address layout.</p>
+<p>Implementations can provide more fine-grained access control through implementation-defined means so long as they maintain full access to the CSR space from SCHEDULER-mode. One technique would be to translate CSR accesses into a memory access, in which case conventional MMU-based access control can be employed. If permission checks fail, the implementation can raise the appropriate access violation exception.</p>
+<section id="csr-registers">
+<h2>CSR registers<a class="headerlink" href="#csr-registers" title="Permalink to this headline"></a></h2>
+<p>Currently the following registers are defined:</p>
+<p>Registers only accessible from SCHEDULER mode:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 8%" />
+<col style="width: 20%" />
+<col style="width: 12%" />
+<col style="width: 14%" />
+<col style="width: 45%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Address</p></th>
+<th class="head"><p>Name</p></th>
+<th class="head"><p>Access type</p></th>
+<th class="head"><p>Reset value</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>0x0000</p></td>
+<td><p><code class="code docutils literal notranslate"><span class="pre">csr_ecause</span></code></p></td>
+<td><p>R</p></td>
+<td><p>0x0000_0000</p></td>
+<td><p>Contains the reason for the last exception.</p></td>
+</tr>
+<tr class="row-odd"><td><p>0x0001</p></td>
+<td><p><code class="code docutils literal notranslate"><span class="pre">csr_eaddr</span></code></p></td>
+<td><p>RC</p></td>
+<td><p>Undefined</p></td>
+<td><p>The effective address that caused the latest exception</p></td>
+</tr>
+</tbody>
+</table>
+<p>Registers accessible from both TASK and SCHEDULER mode:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 9%" />
+<col style="width: 21%" />
+<col style="width: 12%" />
+<col style="width: 15%" />
+<col style="width: 44%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Address</p></th>
+<th class="head"><p>Name</p></th>
+<th class="head"><p>Access type</p></th>
+<th class="head"><p>Reset value</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>0x8000</p></td>
+<td><p><code class="code docutils literal notranslate"><span class="pre">csr_mach_arch</span></code></p></td>
+<td><p>R</p></td>
+<td><p>Machine defined</p></td>
+<td><p>Machine architecture and version register</p></td>
+</tr>
+<tr class="row-odd"><td><p>0x8001</p></td>
+<td><p><code class="code docutils literal notranslate"><span class="pre">csr_capability</span></code></p></td>
+<td><p>R</p></td>
+<td><p>Machine defined</p></td>
+<td><p>Capability bit-field</p></td>
+</tr>
+<tr class="row-even"><td><p>0x8400</p></td>
+<td><p><code class="code docutils literal notranslate"><span class="pre">csr_fpstat</span></code></p></td>
+<td><p>R/W</p></td>
+<td><p>0x0000_0000</p></td>
+<td><p>Floating point status and control register</p></td>
+</tr>
+</tbody>
+</table>
+<dl class="simple">
+<dt>Access types:</dt><dd><p>R: readable
+W: writable
+RC: clear on read
+W1C: write one to clear</p>
+</dd>
+</dl>
+</section>
+<section id="implementation-defined-csrs">
+<h2>Implementation-defined CSRs<a class="headerlink" href="#implementation-defined-csrs" title="Permalink to this headline"></a></h2>
+<p>An implementation is almost certainly going to need to implement custom CSRs on the top of the existing ones. This should be done carefully:</p>
+<ol class="arabic simple">
+<li><p>Making CSRs visible (especially writable) from TASK mode can open security holes in the implementation</p></li>
+<li><p>At the same time, having CSRs only accessible from SCHEDULER mode might be too slow and restrictive (remember, most OS services are running in TASK mode on Brew)</p></li>
+<li><p>Making CSRs visible from TASK mode (especially without further access restrictions) makes them part of the user-space machine definition. This in turn allows for SW developers to exploit implementation-defined behavior, reducing application-level compatibility.</p></li>
+</ol>
+<p>The CSR address region 0x4000 to 0x7fff is reserved for implementation-defined CSRs, accessible only from SCHEDULER mode.
+The CSR address region 0xc000 to 0xffff is reserved for implementation-defined CSRs, accessible from both SCHEDULER and task mode.</p>
+<p>Examples of implementation-defined CSRs include:</p>
+<ol class="arabic simple">
+<li><p>MMU setup registers</p></li>
+<li><p>Cache controller registers</p></li>
+<li><p>Performance counters</p></li>
+</ol>
+</section>
+<section id="csr-register-definitions">
+<h2>CSR register definitions<a class="headerlink" href="#csr-register-definitions" title="Permalink to this headline"></a></h2>
+<section id="csr-ecause">
+<h3>csr_ecause<a class="headerlink" href="#csr-ecause" title="Permalink to this headline"></a></h3>
+<p>Contains the exception code for the latest exception as described in the <a class="reference internal" href="exceptions.html#exception-handling"><span class="std std-ref">exception handling</span></a> chapter.</p>
+</section>
+<section id="csr-eaddr">
+<h3>csr_eaddr<a class="headerlink" href="#csr-eaddr" title="Permalink to this headline"></a></h3>
+<p>Contains the exception address for the latest exception as described in the <a class="reference internal" href="exceptions.html#exception-handling"><span class="std std-ref">exception handling</span></a> chapter.</p>
+</section>
+<section id="csr-mach-arch">
+<h3>csr_mach_arch<a class="headerlink" href="#csr-mach-arch" title="Permalink to this headline"></a></h3>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 32}, config: {hspace: 500},
+reg: [
+    { "name": "ISA_REV",        "bits": 4, attr: "0" },
+    { "name": "CORE_VER_MAJOR", "bits": 4 },
+    { "name": "CORE_VER_MINOR", "bits": 4 },
+    { "name": "CORE_STEPPING",  "bits": 4 },
+    { "name": "CORE_FAMILY",    "bits": 16 },
+]}
+</script>
+</div>
+<p>The <code class="code docutils literal notranslate"><span class="pre">ISA_REV</span></code> field contains the revision of the Brew spec (what you’re reading right now) the core adheres to. The current spec defines this field having the numeric value of 0.</p>
+<p>The <code class="code docutils literal notranslate"><span class="pre">CORE_VER_MAJOR</span></code> field contains the implementation-defined major version of the CPU core.</p>
+<p>The <code class="code docutils literal notranslate"><span class="pre">CORE_VER_MINOR</span></code> field contains the implementation-defined minor version of the CPU core.</p>
+<p>The <code class="code docutils literal notranslate"><span class="pre">CORE_STEPPING</span></code> field contains the implementation-defined silicon stepping of the CPU core.</p>
+<p>The <code class="code docutils literal notranslate"><span class="pre">CORE_FAMILY</span></code> field contains the family of the CPU core. The value of this field is globally coordinated and must be unique for all CPU cores within a family.</p>
+<div class="admonition-todo admonition" id="id1">
+<p class="admonition-title">Todo</p>
+<p>need to add CORE_FAMILY coordination table.</p>
+</div>
+</section>
+<section id="csr-capability">
+<h3>csr_capability<a class="headerlink" href="#csr-capability" title="Permalink to this headline"></a></h3>
+
+<div style="overflow-x:auto">
+<script type="WaveDrom">
+{config: {bits: 32}, config: {hspace: 500},
+reg: [
+    { "bits": 31, attr: 0 },
+    { "name": "FP_SUPPORT",     "bits": 1 },
+]}
+</script>
+</div>
+<p>This register contains individual capabilities, that are independently defined from the content of the <code class="code docutils literal notranslate"><span class="pre">csr_mach_arch</span></code> register. In other words, these are common capabilities that relate to optional features in the Brew spec.</p>
+<p>The only such feature for this revision of the spec is float-point support. This is reflected in the <code class="code docutils literal notranslate"><span class="pre">FP_SUPPORT</span></code> bit.</p>
+<p>For all bits, the value ‘0’ means the feature is not implemented, ‘1’ means the feature is available.</p>
+<p>The top 31-bits of the register is thus reserved and read as 0 for this revision of the spec.</p>
+</section>
+<section id="csr-fpstat">
+<h3>csr_fpstat<a class="headerlink" href="#csr-fpstat" title="Permalink to this headline"></a></h3>
+<p>Contains the floating-point status and control register bits as described in the <a class="reference internal" href="floating_point_support.html#fpstat"><span class="std std-ref">csr_fpstat register</span></a> chapter.</p>
+</section>
+</section>
+</section>
+
+    <script type="text/javascript">
+        function init() {
+            WaveDrom.ProcessAll();
+        }
+        window.onload = init;
+    </script>
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="floating_point_support.html" class="btn btn-neutral float-left" title="Floating point support" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="compatibility.html" class="btn btn-neutral float-right" title="Family compatibility" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Andras Tantos.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

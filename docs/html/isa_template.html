@@ -1,0 +1,865 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>&lt;no title&gt; &mdash; Brew processor  documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/default.js"></script>
+        <script src="_static/wavedrom.min.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> Brew processor
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="execution_contexts.html">Task and Scheduler modes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="exceptions.html">Exceptions and Interrupts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="process_isolation.html">Process isolation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="registers.html">Registers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="types.html">Types and their manipulation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="types.html#type-compatibility">Type compatibility</a></li>
+<li class="toctree-l1"><a class="reference internal" href="control_flow.html">Control flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="isa_intro.html">Instruction Set Principles</a></li>
+<li class="toctree-l1"><a class="reference internal" href="isa.html">Instruction Set Summary</a></li>
+<li class="toctree-l1"><a class="reference internal" href="memory_model.html">Memory Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="isa_details.html">Instruction Set Details</a></li>
+<li class="toctree-l1"><a class="reference internal" href="floating_point_support.html">Floating point support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="csrs.html">CSRs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="compatibility.html">Family compatibility</a></li>
+<li class="toctree-l1"><a class="reference internal" href="abi.html">ABI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hw_impl_notes.html">Appendix A: Implementation Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="system_sw.html">Appendix F: System Software</a></li>
+<li class="toctree-l1"><a class="reference internal" href="competition.html">Appendix B: Comparing to the competition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="todo.html">Appendix E: Todo</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Brew processor</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">&lt;no title&gt;</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <table class="docutils align-default">
+<colgroup>
+<col style="width: 25%" />
+<col style="width: 54%" />
+<col style="width: 20%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Instruction code</p></th>
+<th class="head"><p>Assembly</p></th>
+<th class="head"><p>Implemented</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>0x0000</p></td>
+<td><p>SWI 0</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x1000</p></td>
+<td><p>SWI 1</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x2000</p></td>
+<td><p>SWI 2</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x3000</p></td>
+<td><p>SWI 3</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x4000</p></td>
+<td><p>SWI 4</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x5000</p></td>
+<td><p>SWI 5</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x6000</p></td>
+<td><p>SWI 6</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x7000</p></td>
+<td><p>SWI 7</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x8000</p></td>
+<td><p>STM</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x9000</p></td>
+<td><p>WOI</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xa000</p></td>
+<td><p>PFLUSH</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x0001</p></td>
+<td><p>FENCE_RW_RW</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x1001</p></td>
+<td><p>FENCE__W_RW</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x2001</p></td>
+<td><p>FENCE_R__RW</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x3001</p></td>
+<td><p>FENCE____RW</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x4001</p></td>
+<td><p>FENCE_RW__W</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x5001</p></td>
+<td><p>FENCE__W__W</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x6001</p></td>
+<td><p>FENCE_R___W</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x7001</p></td>
+<td><p>FENCE_____W</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x8001</p></td>
+<td><p>FENCE_RW_R_</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x9001</p></td>
+<td><p>FENCE__W_R_</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xa001</p></td>
+<td><p>FENCE_R__R_</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xb001</p></td>
+<td><p>FENCE____R_</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xc001</p></td>
+<td><p>FENCE_RW___</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xd001</p></td>
+<td><p>FENCE__W___</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xe001</p></td>
+<td><p>FENCE_R____</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.002</p></td>
+<td><p>$pc &lt;- $rD</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.003</p></td>
+<td><p>$tpc &lt;- $rD</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.004</p></td>
+<td><p>$rD &lt;- $pc</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.005</p></td>
+<td><p>$rD &lt;- $tpc</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.0f8 0x****</p></td>
+<td><p>$rD &lt;- CSR[ADDR]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.0f9 0x****</p></td>
+<td><p>CSR[ADDR] &lt;- $rD</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.01.</p></td>
+<td><p>$rD &lt;- tiny CONST</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.02.</p></td>
+<td><p>$rD &lt;- $pc + CONST</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.03.</p></td>
+<td><p>$rD &lt;- -$rA</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.04.</p></td>
+<td><p>$rD &lt;- ~$rA</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.05.</p></td>
+<td><p>$rD &lt;- bse $rA</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.06.</p></td>
+<td><p>$rD &lt;- wse $rA</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.07.</p></td>
+<td><p>$rD &lt;- popcnt $rA</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.08.</p></td>
+<td><p>$rD &lt;- 1 / $rA</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.09.</p></td>
+<td><p>$rD &lt;- rsqrt $rA</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.0c.</p></td>
+<td><p>type $rD &lt;- $rA</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.0d.</p></td>
+<td><p>$rD &lt;- type $rA</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.0e.</p></td>
+<td><p>type $rD &lt;- FIELD_A</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.1..</p></td>
+<td><p>$rD &lt;- $rA ^ $rB</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.2..</p></td>
+<td><p>$rD &lt;- $rA | $rB</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.3..</p></td>
+<td><p>$rD &lt;- $rA &amp; $rB</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.4..</p></td>
+<td><p>$rD &lt;- $rA + $rB</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.5..</p></td>
+<td><p>$rD &lt;- $rA - $rB</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.6..</p></td>
+<td><p>$rD &lt;- $rA &lt;&lt; $rB</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.7..</p></td>
+<td><p>$rD &lt;- $rA &gt;&gt; $rB</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.8..</p></td>
+<td><p>$rD &lt;- $rA &gt;&gt;&gt; $rB</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.9..</p></td>
+<td><p>$rD &lt;- $rA * $rB</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.a..</p></td>
+<td><p>$rD &lt;- TYPE_NAME $rB</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.b..</p></td>
+<td><p>$rD &lt;- tiny $rB + CONST</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.00f 0x**** 0x****</p></td>
+<td><p>$rD &lt;- VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x20ef 0x**** 0x****</p></td>
+<td><p>$pc &lt;- VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x30ef 0x**** 0x****</p></td>
+<td><p>$tpc &lt;- VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x40ef 0x**** 0x****</p></td>
+<td><p>call VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x80ef 0x**** 0x****</p></td>
+<td><p>type $r0…$r7 &lt;- VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x90ef 0x**** 0x****</p></td>
+<td><p>type $r8…$r14 &lt;- VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.1.f 0x**** 0x****</p></td>
+<td><p>$rD &lt;- VALUE ^ $rB</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.2.f 0x**** 0x****</p></td>
+<td><p>$rD &lt;- VALUE | $rB</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.3.f 0x**** 0x****</p></td>
+<td><p>$rD &lt;- VALUE &amp; $rB</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.4.f 0x**** 0x****</p></td>
+<td><p>$rD &lt;- VALUE + $rB</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.5.f 0x**** 0x****</p></td>
+<td><p>$rD &lt;- VALUE - $rB</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.6.f 0x**** 0x****</p></td>
+<td><p>$rD &lt;- VALUE &lt;&lt; $rB</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.7.f 0x**** 0x****</p></td>
+<td><p>$rD &lt;- VALUE &gt;&gt; $rB</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.8.f 0x**** 0x****</p></td>
+<td><p>$rD &lt;- VALUE &gt;&gt;&gt; $rB</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.9.f 0x**** 0x****</p></td>
+<td><p>$rD &lt;- VALUE * $rB</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.0f0 0x****</p></td>
+<td><p>$rD &lt;- short VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x20fe 0x****</p></td>
+<td><p>$pc &lt;- short VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x30fe 0x****</p></td>
+<td><p>$tpc &lt;- short VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x40fe 0x****</p></td>
+<td><p>call short VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.1f. 0x****</p></td>
+<td><p>$rD &lt;- short VALUE ^ $rA</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.2f. 0x****</p></td>
+<td><p>$rD &lt;- short VALUE | $rA</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.3f. 0x****</p></td>
+<td><p>$rD &lt;- short VALUE &amp; $rA</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.4f. 0x****</p></td>
+<td><p>$rD &lt;- short VALUE + $rA</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.5f. 0x****</p></td>
+<td><p>$rD &lt;- short VALUE - $rA</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.6f. 0x****</p></td>
+<td><p>$rD &lt;- short $rA &lt;&lt; VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.7f. 0x****</p></td>
+<td><p>$rD &lt;- short $rA &gt;&gt; VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.8f. 0x****</p></td>
+<td><p>$rD &lt;- short $rA &gt;&gt;&gt; VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.9f. 0x****</p></td>
+<td><p>$rD &lt;- short VALUE * $rA</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf00. 0x****</p></td>
+<td><p>if any $rA == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xf01. 0x****</p></td>
+<td><p>if any $rA != 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf02. 0x****</p></td>
+<td><p>if any $rA &lt; 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xf03. 0x****</p></td>
+<td><p>if any $rA &gt;= 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf04. 0x****</p></td>
+<td><p>if any $rA &gt; 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xf05. 0x****</p></td>
+<td><p>if any $rA &lt;= 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf08. 0x****</p></td>
+<td><p>if all $rA == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xf09. 0x****</p></td>
+<td><p>if all $rA != 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf0a. 0x****</p></td>
+<td><p>if all $rA &lt; 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xf0b. 0x****</p></td>
+<td><p>if all $rA &gt;= 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf0c. 0x****</p></td>
+<td><p>if all $rA &gt; 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xf0d. 0x****</p></td>
+<td><p>if all $rA &lt;= 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf1.. 0x****</p></td>
+<td><p>if any $rB == $rA $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xf2.. 0x****</p></td>
+<td><p>if any $rB != $rA $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf3.. 0x****</p></td>
+<td><p>if any signed $rB &lt; $rA $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xf4.. 0x****</p></td>
+<td><p>if any signed $rB &gt;= $rA $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf5.. 0x****</p></td>
+<td><p>if any $rB &lt; $rA $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xf6.. 0x****</p></td>
+<td><p>if any $rB &gt;= $rA $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf9.. 0x****</p></td>
+<td><p>if all $rB == $rA $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xfa.. 0x****</p></td>
+<td><p>if all $rB != $rA $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xfb.. 0x****</p></td>
+<td><p>if all signed $rB &lt; $rA $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xfc.. 0x****</p></td>
+<td><p>if all signed $rB &gt;= $rA $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xfd.. 0x****</p></td>
+<td><p>if all $rB &lt; $rA $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xfe.. 0x****</p></td>
+<td><p>if all $rB &gt;= $rA $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf0f. 0x****</p></td>
+<td><p>if $rA[C] == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xf1f. 0x****</p></td>
+<td><p>if $rA[C] == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf2f. 0x****</p></td>
+<td><p>if $rA[C] == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xf3f. 0x****</p></td>
+<td><p>if $rA[C] == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf4f. 0x****</p></td>
+<td><p>if $rA[C] == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xf5f. 0x****</p></td>
+<td><p>if $rA[C] == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf6f. 0x****</p></td>
+<td><p>if $rA[C] == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xf7f. 0x****</p></td>
+<td><p>if $rA[C] == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf8f. 0x****</p></td>
+<td><p>if $rA[C] == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xf9f. 0x****</p></td>
+<td><p>if $rA[C] == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xfaf. 0x****</p></td>
+<td><p>if $rA[C] == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xfbf. 0x****</p></td>
+<td><p>if $rA[C] == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xfcf. 0x****</p></td>
+<td><p>if $rA[C] == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xfdf. 0x****</p></td>
+<td><p>if $rA[C] == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xfef. 0x****</p></td>
+<td><p>if $rA[C] == 1 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xf0.f 0x****</p></td>
+<td><p>if $rB[C] == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf1.f 0x****</p></td>
+<td><p>if $rB[C] == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xf2.f 0x****</p></td>
+<td><p>if $rB[C] == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf3.f 0x****</p></td>
+<td><p>if $rB[C] == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xf4.f 0x****</p></td>
+<td><p>if $rB[C] == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf5.f 0x****</p></td>
+<td><p>if $rB[C] == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xf6.f 0x****</p></td>
+<td><p>if $rB[C] == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf7.f 0x****</p></td>
+<td><p>if $rB[C] == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xf8.f 0x****</p></td>
+<td><p>if $rB[C] == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xf9.f 0x****</p></td>
+<td><p>if $rB[C] == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xfa.f 0x****</p></td>
+<td><p>if $rB[C] == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xfb.f 0x****</p></td>
+<td><p>if $rB[C] == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xfc.f 0x****</p></td>
+<td><p>if $rB[C] == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xfd.f 0x****</p></td>
+<td><p>if $rB[C] == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0xfe.f 0x****</p></td>
+<td><p>if $rB[C] == 0 $pc &lt;- $pc + VALUE</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.c**</p></td>
+<td><p>MEM32[$rS + tiny OFFSET] &lt;- $rD</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.d**</p></td>
+<td><p>$rD &lt;- MEM32[$rS + tiny OFFSET]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.e4.</p></td>
+<td><p>$rD &lt;- MEM8[$rA]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.e5.</p></td>
+<td><p>$rD &lt;- MEM16[$rA]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.e6.</p></td>
+<td><p>$rD &lt;- MEM32[$rA]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.e7.</p></td>
+<td><p>$rD &lt;- MEMLL[$rA]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.e8.</p></td>
+<td><p>MEM8[$rA] &lt;- $rD</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.e9.</p></td>
+<td><p>MEM16[$rA] &lt;- $rD</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.ea.</p></td>
+<td><p>MEM32[$rA] &lt;- $rD</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.eb.</p></td>
+<td><p>MEMSC[$rA] &lt;- $rD</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.ec.</p></td>
+<td><p>$rD &lt;- SMEM8[$rA]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.ed.</p></td>
+<td><p>$rD &lt;- SMEM16[$rA]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x1ee.</p></td>
+<td><p>INV[$rA]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x2ee.</p></td>
+<td><p>$pc &lt;- MEM32[$rA]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x3ee.</p></td>
+<td><p>$tpc &lt;- MEM32[$rA]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x4ee.</p></td>
+<td><p>call MEM32[$rA]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.f4. 0x****</p></td>
+<td><p>$rD &lt;- MEM8[$rA + VALUE]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.f5. 0x****</p></td>
+<td><p>$rD &lt;- MEM16[$rA + VALUE]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.f6. 0x****</p></td>
+<td><p>$rD &lt;- MEM32[$rA + VALUE]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.f7. 0x****</p></td>
+<td><p>$rD &lt;- MEMLL[$rA + VALUE]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.f8. 0x****</p></td>
+<td><p>MEM8[$rA + VALUE] &lt;- $rD</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.f9. 0x****</p></td>
+<td><p>MEM16[$rA + VALUE] &lt;- $rD</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.fa. 0x****</p></td>
+<td><p>MEM32[$rA + VALUE] &lt;- $rD</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.fb. 0x****</p></td>
+<td><p>MEMSC[$rA + VALUE] &lt;- $rD</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.fc. 0x****</p></td>
+<td><p>$rD &lt;- SMEM8[$rA + VALUE]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.fd. 0x****</p></td>
+<td><p>$rD &lt;- SMEM16[$rA + VALUE]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x1fe. 0x****</p></td>
+<td><p>INV[$rA + VALUE]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x2fe. 0x****</p></td>
+<td><p>$pc &lt;- MEM32[$rA + VALUE]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x3fe. 0x****</p></td>
+<td><p>$tpc &lt;- MEM32[$rA + VALUE]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x4fe. 0x****</p></td>
+<td><p>call MEM32[$rA + VALUE]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.f4f 0x**** 0x****</p></td>
+<td><p>$rD &lt;- MEM8[VALUE]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.f5f 0x**** 0x****</p></td>
+<td><p>$rD &lt;- MEM16[VALUE]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.f6f 0x**** 0x****</p></td>
+<td><p>$rD &lt;- MEM32[VALUE]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.f7f 0x**** 0x****</p></td>
+<td><p>$rD &lt;- MEMLL[VALUE]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.f8f 0x**** 0x****</p></td>
+<td><p>MEM8[VALUE] &lt;- $rD</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.f9f 0x**** 0x****</p></td>
+<td><p>MEM16[VALUE] &lt;- $rD</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.faf 0x**** 0x****</p></td>
+<td><p>MEM32[VALUE] &lt;- $rD</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.fbf 0x**** 0x****</p></td>
+<td><p>MEMSC[VALUE] &lt;- $rD</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x.fcf 0x**** 0x****</p></td>
+<td><p>$rD &lt;- SMEM8[VALUE]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x.fdf 0x**** 0x****</p></td>
+<td><p>$rD &lt;- SMEM16[VALUE]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x1fef 0x**** 0x****</p></td>
+<td><p>INV[VALUE]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x2fef 0x**** 0x****</p></td>
+<td><p>$pc &lt;- MEM32[VALUE]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0x3fef 0x**** 0x****</p></td>
+<td><p>$tpc &lt;- MEM32[VALUE]</p></td>
+<td></td>
+</tr>
+<tr class="row-even"><td><p>0x4fef 0x**** 0x****</p></td>
+<td><p>call MEM32[VALUE]</p></td>
+<td></td>
+</tr>
+<tr class="row-odd"><td><p>0xff** …</p></td>
+<td><p>Type override (&lt;type&gt;)</p></td>
+<td></td>
+</tr>
+</tbody>
+</table>
+
+    <script type="text/javascript">
+        function init() {
+            WaveDrom.ProcessAll();
+        }
+        window.onload = init;
+    </script>
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Andras Tantos.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

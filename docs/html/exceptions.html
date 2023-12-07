@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Exceptions and Interrupts &mdash; Brew processor  documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/default.js"></script>
+        <script src="_static/wavedrom.min.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Process isolation" href="process_isolation.html" />
+    <link rel="prev" title="Task and Scheduler modes" href="execution_contexts.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> Brew processor
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="execution_contexts.html">Task and Scheduler modes</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Exceptions and Interrupts</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#exception-handling">Exception Handling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#exception-sources">Exception sources</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#interrupts">Interrupts</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="process_isolation.html">Process isolation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="registers.html">Registers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="types.html">Types and their manipulation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="types.html#type-compatibility">Type compatibility</a></li>
+<li class="toctree-l1"><a class="reference internal" href="control_flow.html">Control flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="isa_intro.html">Instruction Set Principles</a></li>
+<li class="toctree-l1"><a class="reference internal" href="isa.html">Instruction Set Summary</a></li>
+<li class="toctree-l1"><a class="reference internal" href="memory_model.html">Memory Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="isa_details.html">Instruction Set Details</a></li>
+<li class="toctree-l1"><a class="reference internal" href="floating_point_support.html">Floating point support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="csrs.html">CSRs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="compatibility.html">Family compatibility</a></li>
+<li class="toctree-l1"><a class="reference internal" href="abi.html">ABI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hw_impl_notes.html">Appendix A: Implementation Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="system_sw.html">Appendix F: System Software</a></li>
+<li class="toctree-l1"><a class="reference internal" href="competition.html">Appendix B: Comparing to the competition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="todo.html">Appendix E: Todo</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">Brew processor</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">Exceptions and Interrupts</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="exceptions-and-interrupts">
+<h1>Exceptions and Interrupts<a class="headerlink" href="#exceptions-and-interrupts" title="Permalink to this headline"></a></h1>
+<p>While working on the <a class="reference external" href="http://www.modularcircuits.com/blog/articles/the-cray-files/">Cray simulator</a>, I came across an interesting implementation idea, one that I haven’t seen in any modern processor: these machines didn’t have an interrupt or exception vector; they had different execution contexts. In my variant of this idea, the processor is maintaining two PCs for two contexts: <code class="code docutils literal notranslate"><span class="pre">$spc</span></code> for a context I call the SCHEDULER and another (<code class="code docutils literal notranslate"><span class="pre">$tpc</span></code>) for the TASK context. The program counter (or <code class="code docutils literal notranslate"><span class="pre">$pc</span></code>) is just a reference to one or the other, depending on the execution context. The operation is the following:</p>
+<p>In SCHEDULER mode, interrupts are <em>always</em> disabled. You can’t enable them. Period. The best you can do is to wait for an interrupt (with the <a class="reference internal" href="isa_details.html#woi"><span class="std std-ref">woi</span></a> instruction). There is a special instruction, that takes you into TASK mode (<a class="reference internal" href="isa_details.html#stm"><span class="std std-ref">stm</span></a>). This instruction simply sets the execution context to TASK mode, so execution continues from the current <code class="code docutils literal notranslate"><span class="pre">$tpc</span></code>.</p>
+<p>In TASK mode, interrupts are <em>always</em> enabled. You can’t disable them. Period. Whenever an interrupt or exception occurs, the processor switches back to SCHEDULER mode and continues from wherever <code class="code docutils literal notranslate"><span class="pre">$spc</span></code> points to.</p>
+<p>This is very confusing at first, because it appears that interrupts just get the processor to start execution from a seemingly random place. To understand what’s going on, you have to think about how we entered TASK mode to begin with. The only way to enter TASK mode is to execute the <code class="code docutils literal notranslate"><span class="pre">stm</span></code> instruction. Where does <code class="code docutils literal notranslate"><span class="pre">$spc</span></code> point to when TASK mode execution starts? After this <code class="code docutils literal notranslate"><span class="pre">stm</span></code> instruction. So, when the processor returns to SCHEDULER mode, it continues execution <em>after</em> the <code class="code docutils literal notranslate"><span class="pre">stm</span></code> instruction. Pretty neat: <code class="code docutils literal notranslate"><span class="pre">stm</span></code> works almost as a procedure call and TASK mode ‘returns’, whenever there’s an event needing the attention of the SCHEDULER.</p>
+<p>In practice, the SCHEDULER mode code is nothing but … well … a scheduler loop: it figures out the reason for the interrupt or exception, finds the handler task for it, and enters TASK mode to ‘call’ the handler. This could involve switching to a different process (in the case of a timer interrupt in a multi-tasking machine) or entering for instance the keyboard driver in case of a keyboard interrupt. It could also call an exception handler in case of an access violation. It’s a very natural way of writing such code.</p>
+<p>Software-generated exceptions (system calls, software break-points, what not) are handled the same way: the TASK mode process is simply interrupted and execution is returned to SCHEDULER mode.</p>
+<p>There of course needs to be a way to set a task up: there are instructions that can manipulate <code class="code docutils literal notranslate"><span class="pre">$tpc</span></code> specifically. This is different from branch operations which work on <code class="code docutils literal notranslate"><span class="pre">$pc</span></code>, that is the program counter of the executing context. These <code class="code docutils literal notranslate"><span class="pre">$tpc</span></code> manipulation instructions turn into branches if the processor happens to be in TASK mode, but they don’t change execution order, if executed in SCHEDULER mode.</p>
+<section id="exception-handling">
+<span id="id1"></span><h2>Exception Handling<a class="headerlink" href="#exception-handling" title="Permalink to this headline"></a></h2>
+<p>Brew defines several exception sources. Many more sources can be defined by the implementation. Exceptions are precise, meaning that when the exception handling mechanism is invoked:</p>
+<ol class="arabic simple">
+<li><p>All the side-effects of instructions preceding the excepting one have fully taken effect</p></li>
+<li><p>None of the side-effects of any instructions, subsequent to the excepting one have taken effect</p></li>
+<li><p>The excepting instruction can be retried, if their side-effects only involve memory locations (as opposed to memory-mapped I/O for instance) and registers.</p></li>
+</ol>
+<p>Instructions that store at most a single, aligned 32-bit or smaller quantity and at most modify a single CPU register satisfy a stronger constraint on exceptions:</p>
+<ol class="arabic simple">
+<li><p>None of the side-effects of the excepting instruction have taken effect.</p></li>
+</ol>
+<p>Exceptions in TASK mode cause the processor to enter SCHEDULER mode. Interrupts are considered one of the possible exceptions.</p>
+<p>When a TASK mode exception occurs, execution commences in SCHEDULER mode. <code class="code docutils literal notranslate"><span class="pre">$tpc</span></code> points to the excepting instruction.</p>
+<p>Exceptions in SCHEDULER mode cause the processor to jump to address 0 (the reset vector). Interrupts in SCHEDULER mode are masked and don’t take effect.</p>
+<p>If an exception or interrupt occurs during the execution of a prefix instruction sequence <code class="code docutils literal notranslate"><span class="pre">$tpc</span></code> points to the first prefix instruction. The same precise exception guarantees are honored for prefixed instructions as normal ones. In other words, prefixes are considered part of the instruction when it comes to exception or interrupt handling.</p>
+</section>
+<section id="exception-sources">
+<h2>Exception sources<a class="headerlink" href="#exception-sources" title="Permalink to this headline"></a></h2>
+<p>The following base set of exceptions are supported by all Brew processors:</p>
+<table class="docutils align-default">
+<colgroup>
+<col style="width: 10%" />
+<col style="width: 35%" />
+<col style="width: 55%" />
+</colgroup>
+<thead>
+<tr class="row-odd"><th class="head"><p>Code</p></th>
+<th class="head"><p>Name</p></th>
+<th class="head"><p>Description</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>0x0000</p></td>
+<td><p><code class="code docutils literal notranslate"><span class="pre">exc_reset</span></code></p></td>
+<td><p>Hardware reset</p></td>
+</tr>
+<tr class="row-odd"><td><p>0x0010</p></td>
+<td><p><code class="code docutils literal notranslate"><span class="pre">exc_hwi</span></code></p></td>
+<td><p>Hardware interrupt (only in TASK mode)</p></td>
+</tr>
+<tr class="row-even"><td><p>0x0020</p></td>
+<td><p><code class="code docutils literal notranslate"><span class="pre">exc_swi_0</span></code></p></td>
+<td><p>SWI 0 instruction executed (FILL)</p></td>
+</tr>
+<tr class="row-odd"><td><p>0x0021</p></td>
+<td><p><code class="code docutils literal notranslate"><span class="pre">exc_swi_1</span></code></p></td>
+<td><p>SWI 1 instruction executed (BREAK)</p></td>
+</tr>
+<tr class="row-even"><td><p>0x0022</p></td>
+<td><p><code class="code docutils literal notranslate"><span class="pre">exc_swi_2</span></code></p></td>
+<td><p>SWI 2 instruction executed (SYSCALL)</p></td>
+</tr>
+<tr class="row-odd"><td><p>0x0023</p></td>
+<td><p><code class="code docutils literal notranslate"><span class="pre">exc_swi_3</span></code></p></td>
+<td><p>SWI 3 instruction executed</p></td>
+</tr>
+<tr class="row-even"><td><p>0x0024</p></td>
+<td><p><code class="code docutils literal notranslate"><span class="pre">exc_swi_4</span></code></p></td>
+<td><p>SWI 4 instruction executed</p></td>
+</tr>
+<tr class="row-odd"><td><p>0x0025</p></td>
+<td><p><code class="code docutils literal notranslate"><span class="pre">exc_swi_5</span></code></p></td>
+<td><p>SWI 5 instruction executed</p></td>
+</tr>
+<tr class="row-even"><td><p>0x0026</p></td>
+<td><p><code class="code docutils literal notranslate"><span class="pre">exc_swi_6</span></code></p></td>
+<td><p>SWI 6 instruction executed</p></td>
+</tr>
+<tr class="row-odd"><td><p>0x0027</p></td>
+<td><p><code class="code docutils literal notranslate"><span class="pre">exc_swi_7</span></code></p></td>
+<td><p>SWI 7 instruction executed</p></td>
+</tr>
+<tr class="row-even"><td><p>0x0030</p></td>
+<td><p><code class="code docutils literal notranslate"><span class="pre">exc_unknown_inst</span></code></p></td>
+<td><p>Undefined instruction</p></td>
+</tr>
+<tr class="row-odd"><td><p>0x0031</p></td>
+<td><p><code class="code docutils literal notranslate"><span class="pre">exc_type</span></code></p></td>
+<td><p>Type error in instruction operands</p></td>
+</tr>
+<tr class="row-even"><td><p>0x0032</p></td>
+<td><p><code class="code docutils literal notranslate"><span class="pre">exc_unaligned</span></code></p></td>
+<td><p>Unaligned memory access</p></td>
+</tr>
+</tbody>
+</table>
+<p>An implementation can define many additional exceptions, such as ones related to memory protection, in the code range of 0x8000…0xffff.</p>
+<p>When an exception occurs, the following CSRs are updated:</p>
+<ol class="arabic simple">
+<li><p><code class="code docutils literal notranslate"><span class="pre">csr_ecause</span></code> is updated to the exception code</p></li>
+<li><p><code class="code docutils literal notranslate"><span class="pre">csr_eaddr</span></code> is updated to the memory reference address causing the exception. This is either the instructions address in case of non memory-related exceptions, or the target memory address in case of memory-related exceptions (of which only <code class="code docutils literal notranslate"><span class="pre">exc_unaligned</span></code> is defined).</p></li>
+</ol>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>When an exception occurs in SCHEDULER mode, <code class="code docutils literal notranslate"><span class="pre">csr_eacuse</span></code> and <code class="code docutils literal notranslate"><span class="pre">csr_eaddr</span></code> CSRs are set.</p>
+</div>
+<p>An instruction can raise at most one exception. If multiple exception causes are triggered, the one with the lowest numeric code will take effect. This means:</p>
+<ol class="arabic simple">
+<li><p>Interrupts take priority over any exception (the exception will be raised when - after the interrupt is handled - code returns to TASK mode and the instruction is retried).</p></li>
+<li><p>All implementation-defined exceptions are lower priority then the common ones</p></li>
+</ol>
+</section>
+<section id="interrupts">
+<h2>Interrupts<a class="headerlink" href="#interrupts" title="Permalink to this headline"></a></h2>
+<p>Interrupts can occur both in TASK or SCHEDULER mode. When the processor is in TASK mode, it transfers execution into SCHEDULER mode. When an interrupt occurs in SCHEDULER mode, the execution flow is not modified, but the implementation must provide a way to poll for pending interrupts in SCHEDULER-mode.</p>
+<p>Upon handling an interrupt in TASK mode, <code class="code docutils literal notranslate"><span class="pre">$tpc</span></code> points to the instruction to be executed after the interrupt is handled. The implementation guarantees that all side-effects of prior instructions are fully carried out while none of the side-effects of the interrupted or subsequent instructions have taken place.</p>
+<p>The <code class="code docutils literal notranslate"><span class="pre">WOI</span></code> instruction can be used both in SCHEDULER and TASK-mode to stall execution until an interrupt occurs.</p>
+</section>
+</section>
+
+    <script type="text/javascript">
+        function init() {
+            WaveDrom.ProcessAll();
+        }
+        window.onload = init;
+    </script>
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="execution_contexts.html" class="btn btn-neutral float-left" title="Task and Scheduler modes" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="process_isolation.html" class="btn btn-neutral float-right" title="Process isolation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Andras Tantos.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

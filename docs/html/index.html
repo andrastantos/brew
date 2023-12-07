@@ -1,0 +1,684 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Brew Processor &mdash; Brew processor  documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/default.js"></script>
+        <script src="_static/wavedrom.min.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Introduction" href="introduction.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="#" class="icon icon-home"> Brew processor
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="execution_contexts.html">Task and Scheduler modes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="exceptions.html">Exceptions and Interrupts</a></li>
+<li class="toctree-l1"><a class="reference internal" href="process_isolation.html">Process isolation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="registers.html">Registers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="types.html">Types and their manipulation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="types.html#type-compatibility">Type compatibility</a></li>
+<li class="toctree-l1"><a class="reference internal" href="control_flow.html">Control flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="isa_intro.html">Instruction Set Principles</a></li>
+<li class="toctree-l1"><a class="reference internal" href="isa.html">Instruction Set Summary</a></li>
+<li class="toctree-l1"><a class="reference internal" href="memory_model.html">Memory Model</a></li>
+<li class="toctree-l1"><a class="reference internal" href="isa_details.html">Instruction Set Details</a></li>
+<li class="toctree-l1"><a class="reference internal" href="floating_point_support.html">Floating point support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="csrs.html">CSRs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="compatibility.html">Family compatibility</a></li>
+<li class="toctree-l1"><a class="reference internal" href="abi.html">ABI</a></li>
+<li class="toctree-l1"><a class="reference internal" href="hw_impl_notes.html">Appendix A: Implementation Notes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="system_sw.html">Appendix F: System Software</a></li>
+<li class="toctree-l1"><a class="reference internal" href="competition.html">Appendix B: Comparing to the competition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="todo.html">Appendix E: Todo</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="#">Brew processor</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="#" class="icon icon-home"></a></li>
+      <li class="breadcrumb-item active">Brew Processor</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="brew-processor">
+<h1>Brew Processor<a class="headerlink" href="#brew-processor" title="Permalink to this headline"></a></h1>
+<img alt=" ( ( (   ) ) ) .------. |      +-. | Brew | | |      +-' '------'" class="svgbob" src="_images/svgbob-d4a02007af84e285cbb750955afdd28d036d7d14.svg" /><div class="toctree-wrapper compound">
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="introduction.html">Introduction</a></li>
+<li class="toctree-l1"><a class="reference internal" href="execution_contexts.html">Task and Scheduler modes</a></li>
+<li class="toctree-l1"><a class="reference internal" href="exceptions.html">Exceptions and Interrupts</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="exceptions.html#exception-handling">Exception Handling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="exceptions.html#exception-sources">Exception sources</a></li>
+<li class="toctree-l2"><a class="reference internal" href="exceptions.html#interrupts">Interrupts</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="process_isolation.html">Process isolation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="registers.html">Registers</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="registers.html#register-content-fields">Register content fields</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="types.html">Types and their manipulation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="types.html#register-types">Register Types</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="types.html#type-compatibility">Type compatibility</a></li>
+<li class="toctree-l1"><a class="reference internal" href="control_flow.html">Control flow</a></li>
+<li class="toctree-l1"><a class="reference internal" href="isa_intro.html">Instruction Set Principles</a></li>
+<li class="toctree-l1"><a class="reference internal" href="isa.html">Instruction Set Summary</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="isa.html#exception-group">Exception group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa.html#mode-change-and-power-management-group">Mode change and power management group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa.html#atomic-group">Atomic group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa.html#pc-manipulation-group">PC manipulation group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa.html#csr-access-group">CSR access group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa.html#unary-group">Unary group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa.html#binary-alu-group">Binary ALU group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa.html#load-immediate-group">Load immediate group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa.html#constant-alu-group">Constant ALU group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa.html#short-load-immediate-group">Short load immediate group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa.html#short-constant-alu-group">Short constant ALU group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa.html#zero-compare-conditional-branch-group">Zero-compare conditional branch group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa.html#conditional-branch-group">Conditional branch group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa.html#bit-set-test-conditional-branch-group">Bit-set-test conditional branch group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa.html#bit-clear-test-conditional-branch-group">Bit-clear-test conditional branch group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa.html#stack-group">Stack group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa.html#indirect-load-store-group">Indirect load/Store group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa.html#indirect-jump-group">Indirect jump group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa.html#offset-indirect-load-store-group">Offset-indirect load/store group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa.html#offset-indirect-jump-group">Offset-indirect jump group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa.html#absolute-load-store-group">Absolute load/store group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa.html#absolute-jump-group">Absolute jump group</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa.html#prefix-instructions">Prefix instructions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="memory_model.html">Memory Model</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="memory_model.html#barrier-instructions">Barrier instructions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="memory_model.html#notes-of-i-o">Notes of I/O</a></li>
+<li class="toctree-l2"><a class="reference internal" href="memory_model.html#multi-processor-implications">Multi-processor implications</a></li>
+<li class="toctree-l2"><a class="reference internal" href="memory_model.html#implementation-of-atomics">Implementation of atomics</a></li>
+<li class="toctree-l2"><a class="reference internal" href="memory_model.html#caches">Caches</a></li>
+<li class="toctree-l2"><a class="reference internal" href="memory_model.html#alignment">Alignment</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="isa_details.html">Instruction Set Details</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#type-handling">Type handling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#store-type-handling">Store Type Handling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#conditional-branch-type-handling">Conditional Branch Type Handling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#swi-0">SWI 0</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#swi-1">SWI 1</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#swi-2">SWI 2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#swi-3">SWI 3</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#swi-4">SWI 4</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#swi-5">SWI 5</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#swi-6">SWI 6</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#swi-7">SWI 7</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#stm">STM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#woi">WOI</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#pflush">PFLUSH</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#fence-rw-rw">FENCE_RW_RW</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#fence-w-rw">FENCE__W_RW</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#fence-r-rw">FENCE_R__RW</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#fence-rw">FENCE____RW</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#fence-rw-w">FENCE_RW__W</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#fence-w-w">FENCE__W__W</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#fence-r-w">FENCE_R___W</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#fence-w">FENCE_____W</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#fence-rw-r">FENCE_RW_R_</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#fence-w-r">FENCE__W_R_</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#fence-r-r">FENCE_R__R_</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#fence-r">FENCE____R_</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#id48">FENCE_RW___</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#id51">FENCE__W___</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#id54">FENCE_R____</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#pc-rd">$pc &lt;- $rD</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#tpc-rd">$tpc &lt;- $rD</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-pc">$rD &lt;- $pc</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-tpc">$rD &lt;- $tpc</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-csr-addr">$rD &lt;- CSR[ADDR]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#csr-addr-rd">CSR[ADDR] &lt;- $rD</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-tiny-const">$rD &lt;- tiny CONST</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-pc-const">$rD &lt;- $pc + CONST</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-ra">$rD &lt;- -$rA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-eq-notra">$rD &lt;- ~$rA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-bse-ra">$rD &lt;- bse $rA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-wse-ra">$rD &lt;- wse $rA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-popcnt-ra">$rD &lt;- popcnt $rA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-1-ra">$rD &lt;- 1 / $rA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-rsqrt-ra">$rD &lt;- rsqrt $rA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#type-rd-ra">type $rD &lt;- $rA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-type-ra">$rD &lt;- type $rA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#type-rd-field-a">type $rD &lt;- FIELD_A</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-value">$rD &lt;- VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#pc-value">$pc &lt;- VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#tpc-value">$tpc &lt;- VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#type-r0-r7-value">type $r0…$r7 &lt;- VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#type-r8-r14-value">type $r8…$r14 &lt;- VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-short-value">$rD &lt;- short VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#pc-short-value">$pc &lt;- short VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#tpc-short-value">$tpc &lt;- short VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#call-short-value">call short VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#call-value">call VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#if-any-ra-0-pc-pc-value">if any $rA == 0  $pc &lt;- $pc + VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#if-any-ra-ne-0-pc-eq-pc-plus-value">if any $rA != 0  $pc &lt;- $pc + VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#if-any-ra-lt-0-pc-eq-pc-plus-value">if any $rA &lt; 0   $pc &lt;- $pc + VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#if-any-ra-ge-0-pc-eq-pc-plus-value">if any $rA &gt;= 0  $pc &lt;- $pc + VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#if-any-ra-gt-0-pc-eq-pc-plus-value">if any $rA &gt; 0   $pc &lt;- $pc + VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#if-any-ra-le-0-pc-eq-pc-plus-value">if any $rA &lt;= 0  $pc &lt;- $pc + VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#if-all-ra-0-pc-pc-value">if all $rA == 0  $pc &lt;- $pc + VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#if-all-ra-ne-0-pc-eq-pc-plus-value">if all $rA != 0  $pc &lt;- $pc + VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#if-all-ra-lt-0-pc-eq-pc-plus-value">if all $rA &lt; 0   $pc &lt;- $pc + VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#if-all-ra-ge-0-pc-eq-pc-plus-value">if all $rA &gt;= 0  $pc &lt;- $pc + VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#if-all-ra-gt-0-pc-eq-pc-plus-value">if all $rA &gt; 0   $pc &lt;- $pc + VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#if-all-ra-le-0-pc-eq-pc-plus-value">if all $rA &lt;= 0  $pc &lt;- $pc + VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#if-any-rb-ra-pc-pc-value">if any $rB == $rA   $pc &lt;- $pc + VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#if-any-rb-ne-ra-pc-eq-pc-plus-value">if any $rB != $rA   $pc &lt;- $pc + VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#if-any-signed-rb-ra-pc-pc-value">if any signed $rB &lt; $rA  $pc &lt;- $pc + VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#if-any-signed-rb-ge-ra-pc-eq-pc-plus-value">if any signed $rB &gt;= $rA $pc &lt;- $pc + VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#if-any-rb-lt-ra-pc-eq-pc-plus-value">if any $rB &lt; $rA    $pc &lt;- $pc + VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#if-any-rb-ge-ra-pc-eq-pc-plus-value">if any $rB &gt;= $rA   $pc &lt;- $pc + VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#if-all-rb-ra-pc-pc-value">if all $rB == $rA   $pc &lt;- $pc + VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#if-all-rb-ne-ra-pc-eq-pc-plus-value">if all $rB != $rA   $pc &lt;- $pc + VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#if-all-signed-rb-ra-pc-pc-value">if all signed $rB &lt; $rA  $pc &lt;- $pc + VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#if-all-signed-rb-ge-ra-pc-eq-pc-plus-value">if all signed $rB &gt;= $rA $pc &lt;- $pc + VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#if-all-rb-lt-ra-pc-eq-pc-plus-value">if all $rB &lt; $rA    $pc &lt;- $pc + VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#if-all-rb-ge-ra-pc-eq-pc-plus-value">if all $rB &gt;= $rA   $pc &lt;- $pc + VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#if-ra-c-1-pc-pc-value">if $rA[C]  == 1 $pc &lt;- $pc + VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#if-rb-c-0-pc-pc-value">if $rB[C]  == 0 $pc &lt;- $pc + VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#mem32-rs-tiny-offset-rd">MEM32[$rS + tiny OFFSET] &lt;- $rD</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-mem32-rs-tiny-offset">$rD &lt;- MEM32[$rS + tiny OFFSET]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#inv-ra">INV[$rA]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#pc-mem32-ra">$pc &lt;- MEM32[$rA]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#tpc-mem32-ra">$tpc &lt;- MEM32[$rA]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#call-mem32-ra">call MEM32[$rA]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#inv-ra-value">INV[$rA + VALUE]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#pc-mem32-ra-value">$pc &lt;- MEM32[$rA + VALUE]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#tpc-mem32-ra-value">$tpc &lt;- MEM32[$rA + VALUE]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#call-mem32-ra-value">call MEM32[$rA + VALUE]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#inv-value">INV[VALUE]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#pc-mem32-value">$pc &lt;- MEM32[VALUE]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#tpc-mem32-value">$tpc &lt;- MEM32[VALUE]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#call-mem32-value">call MEM32[VALUE]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-mem8-ra">$rD &lt;- MEM8[$rA]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-mem16-ra">$rD &lt;- MEM16[$rA]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-mem32-ra">$rD &lt;- MEM32[$rA]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-memll-ra">$rD &lt;- MEMLL[$rA]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#mem8-ra-rd">MEM8[$rA] &lt;- $rD</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#mem16-ra-rd">MEM16[$rA] &lt;- $rD</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#mem32-ra-rd">MEM32[$rA] &lt;- $rD</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#memsc-ra-rd">MEMSC[$rA] &lt;- $rD</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-smem8-ra">$rD &lt;- SMEM8[$rA]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-smem16-ra">$rD &lt;- SMEM16[$rA]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-mem8-ra-value">$rD &lt;- MEM8[$rA + VALUE]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-mem8-value">$rD &lt;- MEM8[VALUE]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-mem16-ra-value">$rD &lt;- MEM16[$rA + VALUE]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-mem16-value">$rD &lt;- MEM16[VALUE]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-mem32-ra-value">$rD &lt;- MEM32[$rA + VALUE]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-mem32-value">$rD &lt;- MEM32[VALUE]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-memll-ra-value">$rD &lt;- MEMLL[$rA + VALUE]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-memll-value">$rD &lt;- MEMLL[VALUE]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#mem8-ra-value-rd">MEM8[$rA + VALUE] &lt;- $rD</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#mem8-value-rd">MEM8[VALUE] &lt;- $rD</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#mem16-ra-value-rd">MEM16[$rA + VALUE] &lt;- $rD</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#mem16-value-rd">MEM16[VALUE] &lt;- $rD</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#mem32-ra-value-rd">MEM32[$rA + VALUE] &lt;- $rD</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#mem32-value-rd">MEM32[VALUE] &lt;- $rD</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#memsc-ra-value-rd">MEMSC[$rA + VALUE] &lt;- $rD</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#memsc-value-rd">MEMSC[VALUE] &lt;- $rD</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-smem8-ra-value">$rD &lt;- SMEM8[$rA + VALUE]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-smem8-value">$rD &lt;- SMEM8[VALUE]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-smem16-ra-value">$rD &lt;- SMEM16[$rA + VALUE]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-smem16-value">$rD &lt;- SMEM16[VALUE]</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-ra-rb">$rD &lt;- $rA ^ $rB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-eq-ra-or-rb">$rD &lt;- $rA | $rB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-eq-ra-and-rb">$rD &lt;- $rA &amp; $rB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-eq-ra-plus-rb">$rD &lt;- $rA + $rB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-eq-ra-minus-rb">$rD &lt;- $rA - $rB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-eq-ra-lsl-rb">$rD &lt;- $rA &lt;&lt; $rB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-eq-ra-lsr-rb">$rD &lt;- $rA &gt;&gt; $rB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-eq-ra-asr-rb">$rD &lt;- $rA &gt;&gt;&gt; $rB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-eq-ra-times-rb">$rD &lt;- $rA * $rB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-type-name-rb">$rD &lt;- TYPE_NAME $rB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-tiny-rb-const">$rD &lt;- tiny $rB + CONST</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-short-value-ra">$rD &lt;- short VALUE ^ $rA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-eq-short-value-or-ra">$rD &lt;- short VALUE | $rA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-eq-short-value-and-ra">$rD &lt;- short VALUE &amp; $rA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-eq-short-value-plus-ra">$rD &lt;- short VALUE + $rA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-eq-short-value-minus-ra">$rD &lt;- short VALUE - $rA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-short-ra-value">$rD &lt;- short $rA &lt;&lt; VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-eq-short-ra-lsr-value">$rD &lt;- short $rA &gt;&gt; VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-eq-short-ra-asr-value">$rD &lt;- short $rA &gt;&gt;&gt; VALUE</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-eq-short-value-times-ra">$rD &lt;- short VALUE * $rA</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-value-rb">$rD &lt;- VALUE ^ $rB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-eq-value-or-rb">$rD &lt;- VALUE | $rB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-eq-value-and-rb">$rD &lt;- VALUE &amp; $rB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-eq-value-plus-rb">$rD &lt;- VALUE + $rB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-eq-value-minus-rb">$rD &lt;- VALUE - $rB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-eq-value-lsl-rb">$rD &lt;- VALUE &lt;&lt; $rB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-eq-value-lsr-rb">$rD &lt;- VALUE &gt;&gt; $rB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-eq-value-asr-rb">$rD &lt;- VALUE &gt;&gt;&gt; $rB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#rd-eq-value-times-rb">$rD &lt;- VALUE * $rB</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#type-override-type">Type override (&lt;type&gt;)</a></li>
+<li class="toctree-l2"><a class="reference internal" href="isa_details.html#pseudo-instructions">Pseudo instructions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="floating_point_support.html">Floating point support</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="floating_point_support.html#exception-handling">Exception handling</a></li>
+<li class="toctree-l2"><a class="reference internal" href="floating_point_support.html#csr-fpstat-register">csr_fpstat register</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="csrs.html">CSRs</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="csrs.html#csr-registers">CSR registers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="csrs.html#implementation-defined-csrs">Implementation-defined CSRs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="csrs.html#csr-register-definitions">CSR register definitions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="compatibility.html">Family compatibility</a></li>
+<li class="toctree-l1"><a class="reference internal" href="abi.html">ABI</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="abi.html#register-use-conventions">Register Use Conventions</a></li>
+<li class="toctree-l2"><a class="reference internal" href="abi.html#calls">Calls</a></li>
+<li class="toctree-l2"><a class="reference internal" href="abi.html#function-arguments-and-return-values">Function arguments and return values</a></li>
+<li class="toctree-l2"><a class="reference internal" href="abi.html#syscalls">Syscalls</a></li>
+<li class="toctree-l2"><a class="reference internal" href="abi.html#stack-layout">Stack layout</a></li>
+<li class="toctree-l2"><a class="reference internal" href="abi.html#trampoline">Trampoline</a></li>
+<li class="toctree-l2"><a class="reference internal" href="abi.html#user-code-memory-layout-in-mmu-based-systems">User code memory layout in MMU-based systems</a></li>
+<li class="toctree-l2"><a class="reference internal" href="abi.html#c-exceptions">C++ Exceptions</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="hw_impl_notes.html">Appendix A: Implementation Notes</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="hw_impl_notes.html#instruction-decode">Instruction Decode</a></li>
+<li class="toctree-l2"><a class="reference internal" href="hw_impl_notes.html#branch-identification">Branch Identification</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="system_sw.html">Appendix F: System Software</a></li>
+<li class="toctree-l1"><a class="reference internal" href="competition.html">Appendix B: Comparing to the competition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="todo.html">Appendix E: Todo</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="todo.html#toolchain">Toolchain</a></li>
+<li class="toctree-l2"><a class="reference internal" href="todo.html#multiple-load-stores">Multiple Load-Stores</a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+<section id="todos">
+<h1>Todos<a class="headerlink" href="#todos" title="Permalink to this headline"></a></h1>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>we should have the same number of caller and callee-saved registers.</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="abi.html#id1"><em>original entry</em></a> is located in /home/tantos/brew/docs_src/abi.rst, line 51.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>Trampoline should deal with cache-invalidation, but I don’t think it does at the moment.</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="abi.html#id2"><em>original entry</em></a> is located in /home/tantos/brew/docs_src/abi.rst, line 148.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>At some point I should probably change <code class="code docutils literal notranslate"><span class="pre">EH_RETURN_DATA_REGNO</span></code> to use lower-ordered registers, or change the allocation priority to go from top down. This doesn’t seem to be documented, but there’s a simple way of ensuring this:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">/*</span> <span class="n">We</span> <span class="n">need</span> <span class="n">this</span> <span class="n">on</span> <span class="n">CRIS</span><span class="p">,</span> <span class="n">because</span> <span class="n">call</span><span class="o">-</span><span class="n">used</span> <span class="n">regs</span> <span class="n">should</span> <span class="n">be</span> <span class="n">used</span> <span class="n">first</span><span class="p">,</span>
+<span class="p">(</span><span class="n">so</span> <span class="n">we</span> <span class="n">don</span><span class="s1">&#39;t need to push).  Else start using registers from r0 and up.</span>
+    <span class="n">This</span> <span class="n">preference</span> <span class="ow">is</span> <span class="n">mainly</span> <span class="n">because</span> <span class="k">if</span> <span class="n">we</span> <span class="n">put</span> <span class="n">call</span><span class="o">-</span><span class="n">used</span><span class="o">-</span><span class="n">regs</span> <span class="kn">from</span> <span class="nn">r0</span>
+<span class="ow">and</span> <span class="n">up</span><span class="p">,</span> <span class="n">then</span> <span class="n">we</span> <span class="n">can</span><span class="s1">&#39;t use movem to push the rest, (which have to be</span>
+<span class="n">saved</span> <span class="k">if</span> <span class="n">we</span> <span class="n">use</span> <span class="n">them</span><span class="p">,</span> <span class="ow">and</span> <span class="n">movem</span> <span class="n">has</span> <span class="n">to</span> <span class="n">start</span> <span class="k">with</span> <span class="n">r0</span><span class="p">)</span><span class="o">.</span>
+<span class="n">Change</span> <span class="n">here</span> <span class="k">if</span> <span class="n">you</span> <span class="n">change</span> <span class="n">which</span> <span class="n">registers</span> <span class="n">to</span> <span class="n">use</span> <span class="k">as</span> <span class="n">call</span> <span class="n">registers</span><span class="o">.</span>
+
+<span class="n">The</span> <span class="n">actual</span> <span class="n">need</span> <span class="n">to</span> <span class="n">explicitly</span> <span class="n">prefer</span> <span class="n">call</span><span class="o">-</span><span class="n">used</span> <span class="n">registers</span> <span class="n">improved</span> <span class="n">the</span>
+<span class="n">situation</span> <span class="n">a</span> <span class="n">lot</span> <span class="k">for</span> <span class="mf">2.1</span><span class="p">,</span> <span class="n">but</span> <span class="n">might</span> <span class="ow">not</span> <span class="n">actually</span> <span class="n">be</span> <span class="n">needed</span> <span class="n">anymore</span><span class="o">.</span>
+<span class="n">Still</span><span class="p">,</span> <span class="n">this</span> <span class="n">order</span> <span class="n">reflects</span> <span class="n">what</span> <span class="n">GCC</span> <span class="n">should</span> <span class="n">find</span> <span class="n">out</span> <span class="n">by</span> <span class="n">itself</span><span class="p">,</span> <span class="n">so</span> <span class="n">it</span>
+<span class="n">probably</span> <span class="n">does</span> <span class="ow">not</span> <span class="n">hurt</span><span class="o">.</span>
+
+<span class="n">Order</span> <span class="n">of</span> <span class="n">preference</span><span class="p">:</span> <span class="n">Call</span><span class="o">-</span><span class="n">used</span><span class="o">-</span><span class="n">regs</span> <span class="n">first</span><span class="p">,</span> <span class="n">then</span> <span class="n">r0</span> <span class="ow">and</span> <span class="n">up</span><span class="p">,</span> <span class="n">last</span> <span class="n">fp</span> <span class="o">&amp;</span>
+<span class="n">sp</span> <span class="o">&amp;</span> <span class="n">pc</span> <span class="k">as</span> <span class="n">fillers</span><span class="o">.</span>
+<span class="n">Call</span><span class="o">-</span><span class="n">used</span> <span class="n">regs</span> <span class="ow">in</span> <span class="n">opposite</span> <span class="n">order</span><span class="p">,</span> <span class="n">so</span> <span class="n">they</span> <span class="n">will</span> <span class="n">cause</span> <span class="n">less</span> <span class="n">conflict</span> <span class="k">if</span>
+<span class="n">a</span> <span class="n">function</span> <span class="n">has</span> <span class="n">few</span> <span class="n">args</span> <span class="p">(</span><span class="o">&lt;=</span> <span class="mi">3</span><span class="p">)</span> <span class="ow">and</span> <span class="n">it</span> <span class="n">wants</span> <span class="n">a</span> <span class="n">scratch</span> <span class="n">reg</span><span class="o">.</span>
+    <span class="n">Use</span> <span class="n">struct</span><span class="o">-</span><span class="k">return</span> <span class="n">address</span> <span class="n">first</span><span class="p">,</span> <span class="n">since</span> <span class="n">very</span> <span class="n">few</span> <span class="n">functions</span> <span class="n">use</span>
+<span class="n">structure</span> <span class="k">return</span> <span class="n">values</span> <span class="n">so</span> <span class="n">it</span> <span class="ow">is</span> <span class="n">likely</span> <span class="n">to</span> <span class="n">be</span> <span class="n">available</span><span class="o">.</span>  <span class="o">*/</span>
+<span class="c1">#define REG_ALLOC_ORDER \</span>
+    <span class="p">{</span><span class="mi">9</span><span class="p">,</span> <span class="mi">13</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="mi">11</span><span class="p">,</span> <span class="mi">10</span><span class="p">,</span> <span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">5</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">14</span><span class="p">,</span> <span class="mi">15</span><span class="p">,</span> <span class="mi">17</span><span class="p">,</span> <span class="mi">16</span><span class="p">,</span> <span class="mi">18</span><span class="p">,</span> <span class="mi">19</span><span class="p">,</span> <span class="mi">20</span><span class="p">}</span>
+</pre></div>
+</div>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="abi.html#id3"><em>original entry</em></a> is located in /home/tantos/brew/docs_src/abi.rst, line 180.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>This needs updating to the latest stats!</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="competition.html#id1"><em>original entry</em></a> is located in /home/tantos/brew/docs_src/competition.rst, line 4.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>need to add CORE_FAMILY coordination table.</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="csrs.html#id1"><em>original entry</em></a> is located in /home/tantos/brew/docs_src/csrs.rst, line 100.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>PFLUSH is new. Needs testing in toolset/Espresso.</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa.html#id1"><em>original entry</em></a> is located in /home/tantos/brew/docs_src/isa.rst, line 82.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>This is a new pair of instructions, no toolset support or Espresso implementation.</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa.html#id2"><em>original entry</em></a> is located in /home/tantos/brew/docs_src/isa.rst, line 211.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>Some of these instructions are not strictly necessary. Negation, inversion for instance can be done using binary operations with an immediate. Need profiling data to justify their existence.</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa.html#id5"><em>original entry</em></a> is located in /home/tantos/brew/docs_src/isa.rst, line 253.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>$rD &lt;- popcnt $rA and above is not implemented in Espresso</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa.html#id6"><em>original entry</em></a> is located in /home/tantos/brew/docs_src/isa.rst, line 255.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>The TYPE_NAME instructions is not yet implemented in ESPRESSO</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa.html#id8"><em>original entry</em></a> is located in /home/tantos/brew/docs_src/isa.rst, line 298.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>We might want to zero-extend for certain operations, such as logical ops.</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa.html#id11"><em>original entry</em></a> is located in /home/tantos/brew/docs_src/isa.rst, line 562.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>type overrides are not supported by the toolchain</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa.html#id12"><em>original entry</em></a> is located in /home/tantos/brew/docs_src/isa.rst, line 1134.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>PFLUSH is not implemented anywhere. Not in BINUTILS, not in Espresso.</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id23"><em>original entry</em></a> is located in isa_detail_ex_mode_chg.rst, line 183.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>This is a new instruction. No toolset support at the moment.</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id71"><em>original entry</em></a> is located in isa_detail_unary.rst, line 192.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>Instruction code changed. Needs toolset update.</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id73"><em>original entry</em></a> is located in isa_detail_unary.rst, line 221.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>Instruction code changed. Needs toolset update.</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id75"><em>original entry</em></a> is located in isa_detail_unary.rst, line 247.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>assembly should use descriptive type names, instead of numeric values.</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id79"><em>original entry</em></a> is located in isa_detail_unary.rst, line 319.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>How to handle NaN and INF values? Should we have special branches for those?</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id93"><em>original entry</em></a> is located in isa_detail_cbranch.rst, line 27.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>How to handle NaN and INF values? Should we have special branches for those?</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id96"><em>original entry</em></a> is located in isa_detail_cbranch.rst, line 55.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>How to handle NaN and INF values? Should we have special branches for those?</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id99"><em>original entry</em></a> is located in isa_detail_cbranch.rst, line 82.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>How to handle NaN and INF values? Should we have special branches for those?</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id102"><em>original entry</em></a> is located in isa_detail_cbranch.rst, line 109.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>How to handle NaN and INF values? Should we have special branches for those?</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id105"><em>original entry</em></a> is located in isa_detail_cbranch.rst, line 136.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>How to handle NaN and INF values? Should we have special branches for those?</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id108"><em>original entry</em></a> is located in isa_detail_cbranch.rst, line 163.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>How to handle NaN and INF values? Should we have special branches for those?</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id110"><em>original entry</em></a> is located in isa_detail_cbranch.rst, line 190.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>How to handle NaN and INF values? Should we have special branches for those?</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id113"><em>original entry</em></a> is located in isa_detail_cbranch.rst, line 217.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>How to handle NaN and INF values? Should we have special branches for those?</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id116"><em>original entry</em></a> is located in isa_detail_cbranch.rst, line 244.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>How to handle NaN and INF values? Should we have special branches for those?</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id119"><em>original entry</em></a> is located in isa_detail_cbranch.rst, line 271.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>How to handle NaN and INF values? Should we have special branches for those?</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id122"><em>original entry</em></a> is located in isa_detail_cbranch.rst, line 298.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>How to handle NaN and INF values? Should we have special branches for those?</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id125"><em>original entry</em></a> is located in isa_detail_cbranch.rst, line 325.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>How to handle NaN and INF values? Should we have special branches for those?</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id127"><em>original entry</em></a> is located in isa_detail_cbranch.rst, line 352.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>How to handle NaN and INF values? Should we have special branches for those?</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id130"><em>original entry</em></a> is located in isa_detail_cbranch.rst, line 379.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>How to handle NaN and INF values? Should we have special branches for those?</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id132"><em>original entry</em></a> is located in isa_detail_cbranch.rst, line 406.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>How to handle NaN and INF values? Should we have special branches for those?</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id135"><em>original entry</em></a> is located in isa_detail_cbranch.rst, line 433.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>How to handle NaN and INF values? Should we have special branches for those?</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id138"><em>original entry</em></a> is located in isa_detail_cbranch.rst, line 460.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>How to handle NaN and INF values? Should we have special branches for those?</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id141"><em>original entry</em></a> is located in isa_detail_cbranch.rst, line 487.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>How to handle NaN and INF values? Should we have special branches for those?</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id143"><em>original entry</em></a> is located in isa_detail_cbranch.rst, line 514.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>How to handle NaN and INF values? Should we have special branches for those?</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id146"><em>original entry</em></a> is located in isa_detail_cbranch.rst, line 541.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>How to handle NaN and INF values? Should we have special branches for those?</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id148"><em>original entry</em></a> is located in isa_detail_cbranch.rst, line 568.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>How to handle NaN and INF values? Should we have special branches for those?</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id151"><em>original entry</em></a> is located in isa_detail_cbranch.rst, line 595.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>How to handle NaN and INF values? Should we have special branches for those?</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id154"><em>original entry</em></a> is located in isa_detail_cbranch.rst, line 622.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>How to handle NaN and INF values? Should we have special branches for those?</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id157"><em>original entry</em></a> is located in isa_detail_cbranch.rst, line 649.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>This used to be the ~$rA &amp; $rB instruction. That needs to be removed and this to be added in the toolset and Espresso.</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="isa_details.html#id224"><em>original entry</em></a> is located in isa_detail_binary_alu.rst, line 170.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>We’ll need to make sure we use sign-extend loads appropriately: apparently Moxie didn’t have sign-extend loads</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="todo.html#id1"><em>original entry</em></a> is located in /home/tantos/brew/docs_src/todo.rst, line 7.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>brew.opt needs to be updated to actually generate mfloat and mno-float options.</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="todo.html#id2"><em>original entry</em></a> is located in /home/tantos/brew/docs_src/todo.rst, line 9.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>add floating point instructions (probably for something like fastmath only)</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="todo.html#id3"><em>original entry</em></a> is located in /home/tantos/brew/docs_src/todo.rst, line 11.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>figure out if we really need ‘upper’ version of multiplies and how to efficiently use them. Right now 64-bit multiplies are borken, I think.</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="todo.html#id4"><em>original entry</em></a> is located in /home/tantos/brew/docs_src/todo.rst, line 13.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>we probably want to control register allocation order. Some comment from code:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">/*</span> <span class="n">The</span> <span class="n">order</span> <span class="ow">in</span> <span class="n">which</span> <span class="n">registers</span> <span class="n">should</span> <span class="n">be</span> <span class="n">allocated</span><span class="o">.</span>
+   <span class="n">It</span> <span class="ow">is</span> <span class="n">better</span> <span class="n">to</span> <span class="n">use</span> <span class="n">the</span> <span class="n">registers</span> <span class="n">the</span> <span class="n">caller</span> <span class="n">need</span> <span class="ow">not</span> <span class="n">save</span><span class="o">.</span>
+   <span class="n">Allocate</span> <span class="n">r0</span> <span class="n">through</span> <span class="n">r3</span> <span class="ow">in</span> <span class="n">reverse</span> <span class="n">order</span> <span class="n">since</span> <span class="n">r3</span> <span class="ow">is</span> <span class="n">least</span> <span class="n">likely</span>
+   <span class="n">to</span> <span class="n">contain</span> <span class="n">a</span> <span class="n">function</span> <span class="n">parameter</span><span class="p">;</span> <span class="ow">in</span> <span class="n">addition</span> <span class="n">results</span> <span class="n">are</span> <span class="n">returned</span>
+   <span class="ow">in</span> <span class="n">r0</span><span class="o">.</span>  <span class="n">It</span> <span class="ow">is</span> <span class="n">quite</span> <span class="n">good</span> <span class="n">to</span> <span class="n">use</span> <span class="n">lr</span> <span class="n">since</span> <span class="n">other</span> <span class="n">calls</span> <span class="n">may</span> <span class="n">clobber</span>
+   <span class="n">it</span> <span class="n">anyway</span><span class="o">.</span>  <span class="o">*/</span>
+<span class="c1">#define REG_ALLOC_ORDER                                           \</span>
+</pre></div>
+</div>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="todo.html#id5"><em>original entry</em></a> is located in /home/tantos/brew/docs_src/todo.rst, line 15.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>we should use this:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">CALL_REALLY_USED_REGISTERS</span> <span class="n">instead</span> <span class="n">of</span> <span class="n">CALL_USED_REGISTERS</span> <span class="o">-&gt;</span> <span class="n">that</span><span class="s1">&#39;s legacy.</span>
+</pre></div>
+</div>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="todo.html#id6"><em>original entry</em></a> is located in /home/tantos/brew/docs_src/todo.rst, line 26.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>there’s a GCC macro: <code class="code docutils literal notranslate"><span class="pre">__REGISTER_PREFIX__</span></code>. If there’s a GAS equivalent, maybe we can coerce GAS expression parser to stop at register names? I actually think this is outdated. I have a completely re-written parser at this point which doesn’t depend on the demented GAS expression parser. It identifies expression boundaries on its own and calls the GAS parser for only the appropriate segments.</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="todo.html#id7"><em>original entry</em></a> is located in /home/tantos/brew/docs_src/todo.rst, line 31.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>we need a predefined macro for -msoft-float</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="todo.html#id8"><em>original entry</em></a> is located in /home/tantos/brew/docs_src/todo.rst, line 34.)</p>
+<div class="admonition-todo admonition">
+<p class="admonition-title">Todo</p>
+<p>The compatibility story of the typeless subset is rather shaky. We need more thought on that!</p>
+</div>
+<p class="todo-source">(The <a class="reference internal" href="white_papers/brew_an_introduction.html#id1"><em>original entry</em></a> is located in /home/tantos/brew/docs_src/white_papers/brew_an_introduction.rst, line 84.)</p>
+</section>
+<section id="indices-and-tables">
+<h1>Indices and tables<a class="headerlink" href="#indices-and-tables" title="Permalink to this headline"></a></h1>
+<ul class="simple">
+<li><p><a class="reference internal" href="genindex.html"><span class="std std-ref">Index</span></a></p></li>
+<li><p><a class="reference internal" href="py-modindex.html"><span class="std std-ref">Module Index</span></a></p></li>
+<li><p><a class="reference internal" href="search.html"><span class="std std-ref">Search Page</span></a></p></li>
+</ul>
+</section>
+
+    <script type="text/javascript">
+        function init() {
+            WaveDrom.ProcessAll();
+        }
+        window.onload = init;
+    </script>
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="introduction.html" class="btn btn-neutral float-right" title="Introduction" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2022, Andras Tantos.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
