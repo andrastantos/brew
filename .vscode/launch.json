@@ -19,7 +19,7 @@
             "request": "launch",
             "module": "sphinx.cmd.build",
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}/../brew/docs/cpu",
+            "cwd": "${workspaceFolder}/../brew/docs_src",
             "justMyCode": false,
             "args": ["-M", "html", ".", "_build", "-E", "-a"]
         },
@@ -29,7 +29,7 @@
             "request": "launch",
             "program": "check_isa.py",
             "console": "integratedTerminal",
-            "cwd": "${workspaceFolder}/../brew/docs/cpu",
+            "cwd": "${workspaceFolder}/../brew/docs_src",
             "justMyCode": false,
         },
     ]
