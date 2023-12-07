@@ -106,7 +106,7 @@ The consequence? There are no stack operations in Brew. These instructions inste
 
 There are special, 16-bit load/store instructions that work with :code:`$r12` and :code:`$r13` as their base-register. These instructions, combined with the ABI that designates these two registers as the stack and frame pointer respectively makes code very compact, almost as compact as the ARM THUMB ISA. (Note that THUMB only supports 8 general purpose registers, we have 15, so we can handle register pressure better and generate less spills into the stack.)
 
-.. note:: Push and pop operations however will eventually find their way into the ISA. This has to do with register types, more specifically types where the effective length of a register depends on its type. When such types are introduced to the ISA, pop and push operations will have to be implemented along with a few other features. These operations are going to be complex, multi-cycle beasts (closer to ARMs `STM and LDM<https://developer.arm.com/documentation/dui0068/b/Writing-ARM-and-Thumb-Assembly-Language/Load-and-store-multiple-register-instructions/ARM-LDM-and-STM-instructions>` instructions) so the register file access constraints can easily be worked around. The need for them revolves around the fact that function prolog and epilog doesn't know the effective register length of the caller registers and thus either have to do very pessimistic assumptions or need ISA support for context saving and restoration.
+.. note:: Push and pop operations however will eventually find their way into the ISA. This has to do with register types, more specifically types where the effective length of a register depends on its type. When such types are introduced to the ISA, pop and push operations will have to be implemented along with a few other features. These operations are going to be complex, multi-cycle beasts (closer to ARMs `STM and LDM <https://developer.arm.com/documentation/dui0068/b/Writing-ARM-and-Thumb-Assembly-Language/Load-and-store-multiple-register-instructions/ARM-LDM-and-STM-instructions>`_ instructions) so the register file access constraints can easily be worked around. The need for them revolves around the fact that function prolog and epilog doesn't know the effective register length of the caller registers and thus either have to do very pessimistic assumptions or need ISA support for context saving and restoration.
 
 Calls
 -----
@@ -167,4 +167,4 @@ It is important to note though that code compiled for the type-less variant is n
 More documentation
 ------------------
 
-The full documentation for Brew is checked in into this repository, but can be viewed `here<http://htmlpreview.github.io/?https://github.com/andrastantos/brew/blob/main/docs/html/index.html>` as well.
+The full documentation for Brew is checked in into this repository, but can be viewed `here <http://htmlpreview.github.io/?https://github.com/andrastantos/brew/blob/main/docs/html/index.html>`_ as well.
