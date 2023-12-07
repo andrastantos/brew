@@ -307,7 +307,7 @@ The implementation is allowed to throw exceptions if the memory access violates 
 .. _rd_eq_mem_ra_plus_value:
 
 $rD <- MEM32[$rA + VALUE]
------------------------
+-------------------------
 
 *Instruction code*: 0x.f6. 0x****
 
@@ -328,7 +328,7 @@ The implementation is allowed to throw exceptions if the memory access violates 
 .. _rd_eq_mem_value:
 
 $rD <- MEM32[VALUE]
------------------
+-------------------
 
 *Instruction code*: 0x.f6f 0x**** 0x****
 
@@ -481,7 +481,7 @@ The implementation is allowed to throw exceptions if the memory access violates 
 .. _mem_ra_plus_value_eq_rd:
 
 MEM32[$rA + VALUE] <- $rD
------------------------
+-------------------------
 
 *Instruction code*: 0x.fa. 0x****
 
@@ -502,7 +502,7 @@ The implementation is allowed to throw exceptions if the memory access violates 
 .. _mem_value_eq_rd:
 
 MEM32[VALUE] <- $rD
------------------
+-------------------
 
 *Instruction code*: 0x.faf 0x**** 0x****
 

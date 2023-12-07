@@ -376,7 +376,7 @@ Instruction code                                    Assembly                    
 :ref:`0x.00f 0x**** 0x****<rd_eq_value>`            $rD <- VALUE                Load immediate
 :ref:`0x20ef 0x**** 0x****<pc_eq_value>`            $pc <- VALUE                Unconditional jump
 :ref:`0x30ef 0x**** 0x****<tpc_eq_value>`           $tpc <- VALUE               Load immediate to $tpc
-:ref:`0x40ef 0x**** 0x****<call value>`             call VALUE                  $pc <- VALUE; $lr <- $pc
+:ref:`0x40ef 0x**** 0x****<call_value>`             call VALUE                  $pc <- VALUE; $lr <- $pc
 :ref:`0x80ef 0x**** 0x****<type_r0...r7_eq_value>`  type $r0...$r7 <- VALUE     Load immediate type values [#note_immedate_types]_
 :ref:`0x90ef 0x**** 0x****<type_r8...r14_eq_value>` type $r8...$r14 <- VALUE    Load immediate type values [#note_immedate_types]_
 =================================================== =========================== ==================================================
@@ -502,7 +502,7 @@ Instruction code                         Assembly                    Operation
 :ref:`0x.0f0 0x****<rd_eq_short_value>`  $rD <- short VALUE          Load sign-extended 16-bit immediate
 :ref:`0x20fe 0x****<pc_eq_short_value>`  $pc <- short VALUE          Immediate short jump (value is sign-extended)
 :ref:`0x30fe 0x****<tpc_eq_short_value>` $tpc <- short VALUE         Load sign-extended value into $tpc
-:ref:`0x40fe 0x****<call short value>`   call short VALUE            $pc <- VALUE; $lr <- $pc
+:ref:`0x40fe 0x****<call_short_value>`   call short VALUE            $pc <- VALUE; $lr <- $pc
 ======================================== =========================== =============================================
 
 .. note:: it might be that short absolute jumps and calls are not all that useful, except for this: if we have small amounts of memory, it's quite likely that a single application (or the scheduler for that matter) has a single code-segment which is less than 32k in size and starts at logical address 0. In that case, the code segment sees significant code-size benefits from the extra bytes saved. I don't know yet how GCC would generate code like this though.
@@ -1081,7 +1081,7 @@ Instruction code                              Assembly                    Operat
 :ref:`0x1fef 0x**** 0x****<inv_value>`        INV[VALUE]                  invalidate cache line for address FIELD_E
 :ref:`0x2fef 0x**** 0x****<pc_eq_mem_value>`  $pc <- MEM32[VALUE]         32-bit load from MEM[VALUE] into $PC
 :ref:`0x3fef 0x**** 0x****<tpc_eq_mem_value>` $tpc <- MEM32[VALUE]        32-bit load from MEM[VALUE] into $TPC
-:ref:`0x4fef 0x**** 0x****<call mem_value>`   call MEM32[VALUE]           32-bit load from MEM[VALUE] into $PC, $LR <- $PC
+:ref:`0x4fef 0x**** 0x****<call_mem_value>`   call MEM32[VALUE]           32-bit load from MEM[VALUE] into $PC, $LR <- $PC
 ============================================= =========================== =========================================
 
 

@@ -59,6 +59,7 @@ Instruction code       Assembly                                      Implemented
 0x.00f 0x**** 0x****   $rD <- VALUE                               
 0x20ef 0x**** 0x****   $pc <- VALUE                               
 0x30ef 0x**** 0x****   $tpc <- VALUE                              
+0x40ef 0x**** 0x****   call VALUE                                 
 0x80ef 0x**** 0x****   type $r0...$r7 <- VALUE                    
 0x90ef 0x**** 0x****   type $r8...$r14 <- VALUE                   
 0x.1.f 0x**** 0x****   $rD <- VALUE ^ $rB                         
@@ -73,6 +74,7 @@ Instruction code       Assembly                                      Implemented
 0x.0f0 0x****          $rD <- short VALUE                         
 0x20fe 0x****          $pc <- short VALUE                         
 0x30fe 0x****          $tpc <- short VALUE                        
+0x40fe 0x****          call short VALUE                           
 0x.1f. 0x****          $rD <- short VALUE ^ $rA                   
 0x.2f. 0x****          $rD <- short VALUE | $rA                   
 0x.3f. 0x****          $rD <- short VALUE & $rA                   
@@ -151,6 +153,7 @@ Instruction code       Assembly                                      Implemented
 0x1ee.                 INV[$rA]                                   
 0x2ee.                 $pc <- MEM32[$rA]                          
 0x3ee.                 $tpc <- MEM32[$rA]                         
+0x4ee.                 call MEM32[$rA]                            
 0x.f4. 0x****          $rD <- MEM8[$rA + VALUE]                   
 0x.f5. 0x****          $rD <- MEM16[$rA + VALUE]                  
 0x.f6. 0x****          $rD <- MEM32[$rA + VALUE]                  
@@ -164,6 +167,7 @@ Instruction code       Assembly                                      Implemented
 0x1fe. 0x****          INV[$rA + VALUE]                           
 0x2fe. 0x****          $pc <- MEM32[$rA + VALUE]                  
 0x3fe. 0x****          $tpc <- MEM32[$rA + VALUE]                 
+0x4fe. 0x****          call MEM32[$rA + VALUE]                    
 0x.f4f 0x**** 0x****   $rD <- MEM8[VALUE]                         
 0x.f5f 0x**** 0x****   $rD <- MEM16[VALUE]                        
 0x.f6f 0x**** 0x****   $rD <- MEM32[VALUE]                        
@@ -177,5 +181,6 @@ Instruction code       Assembly                                      Implemented
 0x1fef 0x**** 0x****   INV[VALUE]                                 
 0x2fef 0x**** 0x****   $pc <- MEM32[VALUE]                        
 0x3fef 0x**** 0x****   $tpc <- MEM32[VALUE]                       
+0x4fef 0x**** 0x****   call MEM32[VALUE]                          
 0xff** ...             Type override (<type>)                     
 ====================   ===========================================   ================

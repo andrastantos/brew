@@ -133,6 +133,42 @@ $tpc <- short VALUE
 
 Description
 ~~~~~~~~~~~
-Loads :code:`$tpc` with the sign-extended value of FIELD_E. This is an absolute jump operation in TASK mode. The LSB of :code:`$rD` carries implementation-defined meaning, including potential exceptions. If the implementation doesn't define a meaning for the LSB, it is ignored and no exceptions are raised.
+Loads :code:`$tpc` with the sign-extended value of FIELD_E. This is an absolute jump operation in TASK mode. The LSB of the immediate value carries implementation-defined meaning, including potential exceptions. If the implementation doesn't define a meaning for the LSB, it is ignored and no exceptions are raised.
 
 .. note:: A branch operation can obviously cause exceptions, if the branch target is invalid as defined by the memory protection scheme of the implementation. However, in those cases, the exception is raised during the fetch attempt of the target instruction, not during the execution of the branch operation.
+
+.. _call_short_value:
+
+call short VALUE
+--------------------------
+
+*Instruction code*: 0x40fe 0x****
+
+*Exceptions*: Implementation defined
+
+*Type variants*: No
+
+Description
+~~~~~~~~~~~
+Loads :code:`$pc` with the sign-extended value of FIELD_E, while loading :code:`$lr` with the current value of :code:`$pc`. This is an absolute call operation. The LSB of the immediate value carries implementation-defined meaning, including potential exceptions. If the implementation doesn't define a meaning for the LSB, it is ignored and no exceptions are raised.
+
+.. note:: A call operation can obviously cause exceptions, if the call target is invalid as defined by the memory protection scheme of the implementation. However, in those cases, the exception is raised during the fetch attempt of the target instruction, not during the execution of the branch operation.
+
+.. _call_value:
+
+call VALUE
+--------------------------
+
+*Instruction code*: 0x40ef 0x**** 0x****
+
+*Exceptions*: Implementation defined
+
+*Type variants*: No
+
+Description
+~~~~~~~~~~~
+Loads :code:`$pc` with the 32-bit value of FIELD_E, while loading :code:`$lr` with the current value of :code:`$pc`. This is an absolute call operation. The LSB of the immediate value carries implementation-defined meaning, including potential exceptions. If the implementation doesn't define a meaning for the LSB, it is ignored and no exceptions are raised.
+
+.. note:: A call operation can obviously cause exceptions, if the call target is invalid as defined by the memory protection scheme of the implementation. However, in those cases, the exception is raised during the fetch attempt of the target instruction, not during the execution of the branch operation.
+
+
