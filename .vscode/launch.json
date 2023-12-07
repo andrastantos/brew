@@ -21,7 +21,7 @@
             "console": "integratedTerminal",
             "cwd": "${workspaceFolder}/../brew/docs_src",
             "justMyCode": false,
-            "args": ["-M", "html", ".", "_build", "-E", "-a"]
+            "args": ["-M", "html", ".", "../docs", "-E", "-a"]
         },
         {
             "name": "BREW ISA check",
