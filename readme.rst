@@ -163,3 +163,8 @@ Type-less variant
 Due to all the complexities listed above, I made sure that a type-less variant of the ISA is possible: in this case, all registers are assumed to have the type of INT32 and type-change instructions have no effect.
 
 It is important to note though that code compiled for the type-less variant is not inter-operable with code for a typed subset, at least not at the moment: function prologs and epilogs are not type-aware. This can later be mitigated by special calling conventions for non-type-aware functions, but that feature is not implemented yet in the toolchain.
+
+More documentation
+------------------
+
+The full documentation for Brew is checked in into this repository, but can be viewed `here<http://htmlpreview.github.io/?https://github.com/andrastantos/brew/blob/main/docs/html/index.html>` as well.
