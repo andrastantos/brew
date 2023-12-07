@@ -11,5 +11,5 @@ Each register has a type associated with it. This type is set and propagated by 
 
 In this documentation you'll find what is the fourth major iteration of the architecture. In its current incarnation it is better in code-density then RISC-V, better than ARM, almost as good as THUMB. The first RTL implementation of the Brew architecture is the Espresso core, which is part of the Anachronistic Computer project.
 
-Brew is supported by a port of BinUtils, GCC (C and C++ front-ends are tested) and NewLib. An instruction set simulator for user-mode processes is part of BinUtils. GDB is not yet ported to the architecture.
+The type-less subset of Brew is supported by a port of BinUtils, GCC (C and C++ front-ends are tested) and NewLib. An instruction set simulator with GDB support is part of BinUtils.
 
