@@ -54,7 +54,7 @@ Instruction code       Assembly                                      Implemented
 0x.7..                 $rD <- $rA >> $rB                          
 0x.8..                 $rD <- $rA >>> $rB                         
 0x.9..                 $rD <- $rA * $rB                           
-0x.a..                 $rD <- $rA & ~$rB                          
+0x.a..                 $rD <- TYPE_NAME $rB                       
 0x.b..                 $rD <- tiny $rB + CONST                    
 0x.00f 0x**** 0x****   $rD <- VALUE                               
 0x20ef 0x**** 0x****   $pc <- VALUE                               
@@ -136,46 +136,46 @@ Instruction code       Assembly                                      Implemented
 0xfc.f 0x****          if $rB[C] == 0 $pc <- $pc + VALUE          
 0xfd.f 0x****          if $rB[C] == 0 $pc <- $pc + VALUE          
 0xfe.f 0x****          if $rB[C] == 0 $pc <- $pc + VALUE          
-0x.c**                 MEM[$rS + tiny OFFSET] <- $rD              
-0x.d**                 $rD <- MEM[$rS + tiny OFFSET]              
+0x.c**                 MEM32[$rS + tiny OFFSET] <- $rD            
+0x.d**                 $rD <- MEM32[$rS + tiny OFFSET]            
 0x.e4.                 $rD <- MEM8[$rA]                           
 0x.e5.                 $rD <- MEM16[$rA]                          
-0x.e6.                 $rD <- MEM[$rA]                            
+0x.e6.                 $rD <- MEM32[$rA]                          
 0x.e7.                 $rD <- MEMLL[$rA]                          
 0x.e8.                 MEM8[$rA] <- $rD                           
 0x.e9.                 MEM16[$rA] <- $rD                          
-0x.ea.                 MEM[$rA] <- $rD                            
+0x.ea.                 MEM32[$rA] <- $rD                          
 0x.eb.                 MEMSC[$rA] <- $rD                          
 0x.ec.                 $rD <- SMEM8[$rA]                          
 0x.ed.                 $rD <- SMEM16[$rA]                         
 0x1ee.                 INV[$rA]                                   
-0x2ee.                 $pc <- MEM[$rA]                            
-0x3ee.                 $tpc <- MEM[$rA]                           
+0x2ee.                 $pc <- MEM32[$rA]                          
+0x3ee.                 $tpc <- MEM32[$rA]                         
 0x.f4. 0x****          $rD <- MEM8[$rA + VALUE]                   
 0x.f5. 0x****          $rD <- MEM16[$rA + VALUE]                  
-0x.f6. 0x****          $rD <- MEM[$rA + VALUE]                    
+0x.f6. 0x****          $rD <- MEM32[$rA + VALUE]                  
 0x.f7. 0x****          $rD <- MEMLL[$rA + VALUE]                  
 0x.f8. 0x****          MEM8[$rA + VALUE] <- $rD                   
 0x.f9. 0x****          MEM16[$rA + VALUE] <- $rD                  
-0x.fa. 0x****          MEM[$rA + VALUE] <- $rD                    
+0x.fa. 0x****          MEM32[$rA + VALUE] <- $rD                  
 0x.fb. 0x****          MEMSC[$rA + VALUE] <- $rD                  
 0x.fc. 0x****          $rD <- SMEM8[$rA + VALUE]                  
 0x.fd. 0x****          $rD <- SMEM16[$rA + VALUE]                 
 0x1fe. 0x****          INV[$rA + VALUE]                           
-0x2fe. 0x****          $pc <- MEM[$rA + VALUE]                    
-0x3fe. 0x****          $tpc <- MEM[$rA + VALUE]                   
+0x2fe. 0x****          $pc <- MEM32[$rA + VALUE]                  
+0x3fe. 0x****          $tpc <- MEM32[$rA + VALUE]                 
 0x.f4f 0x**** 0x****   $rD <- MEM8[VALUE]                         
 0x.f5f 0x**** 0x****   $rD <- MEM16[VALUE]                        
-0x.f6f 0x**** 0x****   $rD <- MEM[VALUE]                          
+0x.f6f 0x**** 0x****   $rD <- MEM32[VALUE]                        
 0x.f7f 0x**** 0x****   $rD <- MEMLL[VALUE]                        
 0x.f8f 0x**** 0x****   MEM8[VALUE] <- $rD                         
 0x.f9f 0x**** 0x****   MEM16[VALUE] <- $rD                        
-0x.faf 0x**** 0x****   MEM[VALUE] <- $rD                          
+0x.faf 0x**** 0x****   MEM32[VALUE] <- $rD                        
 0x.fbf 0x**** 0x****   MEMSC[VALUE] <- $rD                        
 0x.fcf 0x**** 0x****   $rD <- SMEM8[VALUE]                        
 0x.fdf 0x**** 0x****   $rD <- SMEM16[VALUE]                       
 0x1fef 0x**** 0x****   INV[VALUE]                                 
-0x2fef 0x**** 0x****   $pc <- MEM[VALUE]                          
-0x3fef 0x**** 0x****   $tpc <- MEM[VALUE]                         
+0x2fef 0x**** 0x****   $pc <- MEM32[VALUE]                        
+0x3fef 0x**** 0x****   $tpc <- MEM32[VALUE]                       
 0xff** ...             Type override (<type>)                     
 ====================   ===========================================   ================

@@ -808,7 +808,7 @@ Instruction code                             Assembly                         Op
 ============================================ ================================ ====================
 
 .. warning::
-  The encoding of field S is special: A=0 denotes $r12, A=1 denotes $r13
+  Field S denotes base register: 0 - $r12, 1 - $r13
 
 .. note::
   OFFSET must be 32-bit aligned, so it's lowest two bits are not stored. The supported offset range is from -512 to 508

@@ -28,6 +28,8 @@ export BREW_BLD_EXTRA="--build=x86_64-w64-mingw32 --host=x86_64-w64-mingw32"
   mkdir brew-binutils-build
   cd brew-binutils-build
   ../brew-binutils-gdb/configure --target=$TARGET --prefix=$PREFIX --no-recursion --enable-sim-profile=yes $BREW_BLD_EXTRA
+  if you want easy debugging instead of optimizations
+  ../brew-binutils-gdb/configure --target=$TARGET --prefix=$PREFIX --no-recursion --enable-sim-hardware --enable-sim-profile=yes $BREW_BLD_EXTRA CFLAGS='-g -O0' CXXFLAGS='-g -O0'
   make
   make install
 2. gcc phase 1:
@@ -109,3 +111,10 @@ The support matrix (for -none-elf or similar):
 
 So, it seems, I'm still better off with newlib. Another approach would
 be to try and find the right benchmarks to use.
+
+
+QEMU
+=======
+
+Porting tutorial: https://fgoehler.com/blog/2023/adding-a-new-architecture-to-qemu-01/
+http://events17.linuxfoundation.org/sites/events/files/slides/ossj-2017.pdf

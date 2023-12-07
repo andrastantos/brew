@@ -82,7 +82,7 @@ Arguments (and return values) are passed, first in registers, then on the stack.
 
 The registers used for argument passing in increasing register index are: :code:`$r4`, :code:`$r5`, :code:`$r6` and :code:`$r7`.
 
-Return values are handled the same way.
+Return values are handled the same way: if they fit in these 4 registers, they are returned in registers, otherwise a memory location is used.
 
 Exception handling returns are in :code:`$r4`...:code:`$r7` (described in :code:`EH_RETURN_DATA_REGNO`)
 
