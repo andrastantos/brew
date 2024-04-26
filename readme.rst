@@ -57,7 +57,7 @@ The compiler treats PC separately too; control flow is really different from dat
 
 Overall, I thought it is just better practice to have dedicated instructions for PC manipulation (a.k.a branches), with the added benefit of an extra general purpose register.
 
-In Brew, there are two program counters, since there are two execution contexts. The one, called SCHEDULER mode has it's program counter (:code:`$spc`), the other, TASK mode has a different one, called :code:`$tpc`. When an instruction refers to :code:`$pc`, it just means it's working with the context-appropriate program counter. But what are these execution contexts? I'm glad I asked.
+In Brew, there are two program counters, since there are two execution contexts. The one, called SCHEDULER mode has it's program counter (:code:`$spc`), the other, TASK mode has a different one, called :code:`$tpc`. When an instruction refers to :code:`$pc`, it just means it's working with the context-appropriate program counter. But what are these execution contexts? Let's delve into that.
 
 Execution contexts
 ------------------
@@ -142,11 +142,11 @@ Another complexity arises when dealing with callee-saved registers: these are re
 #. Save the original register type in the function prolog
 #. Change the register type to the desired one in the function body
 #. Restore the original register type in the function epilog
-#. Restore the original register value in the function prolog
+#. Restore the original register value in the function epilog
 
 Special bulk type load and store operations are provided to deal with these extra complexities in an efficient manner; still the overhead is non-zero.
 
-Lastly - though it doesn't apply for the current Brew ISA - there could be register types that impact the effective size of a register. Think about how vector operations, especially a scalable vector extension, would be implemented! Suddenly, if a register is of 'vector of 4 32-bit integer' type, it's effective length is 128 bits. However, if it's just an 'integer', it's a mere 32 bits long. The callee now faced with the problem of not only not knowing the type of the register to be saved, but it's size either. Conservative assumptions (all registers are as large as they can possibly be) results in a lot of extra memory operations that are mostly unnecessary. Type-dependent function prologs and epilogs - if implemented in SW - are slow and convoluted. Lastly, the stack space required to store the registers during function prolog is not known at compile time, which means that stack-offsets cannot be statically computed. All this results in a need for complex context saving and restoring instructions. (Similar problems exist in all context switching use-cases, including when TASK-mode contexts are swapped by the SCHEDULER.)
+Lastly - though it doesn't apply for the current Brew ISA - there could be register types that impact the effective size of a register. Think about how vector operations, especially a scalable vector extension, would be implemented! Suddenly, if a register is of 'vector of 4 32-bit integer' type, it's effective length is 128 bits. However, if it's just an 'integer', it's a mere 32 bits long. The callee now faced with the problem of not only not knowing the type of the register to be saved, but neither it's size. Conservative assumptions (all registers are as large as they can possibly be) results in a lot of extra memory operations that are mostly unnecessary. Type-dependent function prologs and epilogs - if implemented in SW - are slow and convoluted. Worse, the stack space required to store the registers during function prolog is not known at compile time, which means that stack-offsets cannot be statically computed. All this results in a need for complex context saving and restoring instructions. (Similar problems exist in all context switching use-cases, including when TASK-mode contexts are swapped by the SCHEDULER.)
 
 **Implementation of all these instructions adds complexity of course but a micro-architecture needs to deal with another unique challenge**:
 
@@ -154,7 +154,7 @@ Instruction decode becomes complex. Before an instruction can be dispatched to a
 
 **The compiler for such an architecture needs some special behavior**:
 
-Since there is overhead associated with changing the type of the register, optimal code-generation requires the compiler to group variables of the same type into the same set of registers in the register allocator. This type-awareness in the register allocator is something I'm still exploring: the current toolchain thus doesn't support types
+Since there is overhead associated with changing the type of the register, optimal code-generation requires the compiler to group variables of the same type into the same set of registers in the register allocator. This type-awareness in the register allocator is something I'm still exploring: the current toolchain thus doesn't support types.
 
 
 Type-less variant
