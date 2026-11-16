@@ -32,27 +32,35 @@ export BREW_BLD_EXTRA="--build=x86_64-w64-mingw32 --host=x86_64-w64-mingw32"
   ../brew-binutils-gdb/configure --target=$TARGET --prefix=$PREFIX --no-recursion --enable-sim-hardware --enable-sim-profile=yes $BREW_BLD_EXTRA CFLAGS='-g -O0' CXXFLAGS='-g -O0'
   make
   make install
-2. gcc phase 1:
-  mkdir brew-gcc-build1
-  cd brew-gcc-build1
-  ../brew-gcc/configure --target=$TARGET --prefix=$PREFIX --enable-languages=c --without-headers --with-newlib --disable-shared --disable-libssp --disable-threads --disable-libgomp --disable-libatomic $BREW_BLD_EXTRA
-  make
-  make install
-3. newlib
-  mkdir brew-newlib-build
-  cd brew-newlib-build
-  ../brew-newlib/configure --target=$TARGET --prefix=$PREFIX
-  for linux: ../brew-newlib/configure --target=$TARGET --prefix=$PREFIX --enable-newlib-multithread
-  make
-  make install
-4. gcc phase 2:
+2. gcc + newlib (in-tree, single pass):
+  newlib and libgloss are built as part of the GCC build (a 'combined tree'). This
+  needs one-time symlinks in the GCC source tree; they are listed in
+  brew-gcc/.git/info/exclude so git ignores them:
+    ln -s ../brew-newlib/newlib   brew-gcc/newlib
+    ln -s ../brew-newlib/libgloss brew-gcc/libgloss
+    echo /newlib >> brew-gcc/.git/info/exclude
+    echo /libgloss >> brew-gcc/.git/info/exclude
   mkdir brew-gcc-build
   cd brew-gcc-build
-  ../brew-gcc/configure --target=$TARGET --prefix=$PREFIX --enable-languages="c,c++" --without-headers --with-newlib --disable-shared --disable-libssp --disable-threads --disable-libgomp --disable-libatomic  $BREW_BLD_EXTRA
+  ../brew-gcc/configure --target=$TARGET --prefix=$PREFIX --enable-languages="c,c++" --with-newlib --disable-shared --disable-libssp --disable-threads --disable-libgomp --disable-libatomic --disable-werror $BREW_BLD_EXTRA
+  for linux: add --enable-newlib-multithread (it is passed on to newlib)
   make
   make install
 
-Once newlib build is done, gcc phase 1 build is no longer necessary: since the newlib headers are in place, the phase 2 GCC build should succeed, even for a clean build.
+  binutils must be installed (and in PATH) before this step. The old 3-step flow
+  (gcc phase 1, separate newlib build, gcc phase 2) is no longer needed.
+  To rebuild only newlib after changing it: make all-target-newlib all-target-libgloss && make install
+  in brew-gcc-build.
+
+Building on a modern host (GCC >= 15):
+  export CFLAGS="-O2 -g -std=gnu17" CFLAGS_FOR_BUILD="-O2 -g -std=gnu17"
+  (C23 default breaks K&R-style code in readline) and add --disable-werror to the binutils
+  configure line as well (new warnings in bfd). configure caches flags; use a fresh build dir
+  after changing them.
+
+A local helper script (build-toolchain.sh, kept next to the repo checkouts; not part of
+any repo) automates all of the above: ./build-toolchain.sh [binutils] [gcc], CLEAN=1 to
+reconfigure from scratch.
 
 To run the gcc tests:
 
