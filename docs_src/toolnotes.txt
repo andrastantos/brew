@@ -58,9 +58,14 @@ Building on a modern host (GCC >= 15):
   configure line as well (new warnings in bfd). configure caches flags; use a fresh build dir
   after changing them.
 
-A local helper script (build-toolchain.sh, kept next to the repo checkouts; not part of
-any repo) automates all of the above: ./build-toolchain.sh [binutils] [gcc], CLEAN=1 to
-reconfigure from scratch.
+All of the above (including the newlib symlinks and the host-compiler flags) is automated
+by build-toolchain.sh in the root of the brew repo. It expects brew-binutils-gdb, brew-gcc
+and brew-newlib to be checked out next to brew, and creates the build directories and a
+build-logs/ directory there as well:
+  brew/build-toolchain.sh                  # binutils, then gcc+newlib
+  brew/build-toolchain.sh gcc              # just one step (reuses the existing build dir)
+  CLEAN=1 brew/build-toolchain.sh          # reconfigure from scratch
+  PREFIX=... TARGET=... override the defaults (~/brew-toolset, brew-none-elf).
 
 To run the gcc tests:
 
