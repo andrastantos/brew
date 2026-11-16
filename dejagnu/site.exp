@@ -1,0 +1,5 @@
+# Global DejaGnu config for Brew toolchain testing (point $DEJAGNU at this file;
+# run-binutils-tests.sh does that).
+# Makes the 'brew-sim' board (brew/docs_src/brew-sim.exp) available without
+# installing it into /usr/share/dejagnu/baseboards.
+lappend boards_dir "[file dirname [info script]]/../docs_src"
