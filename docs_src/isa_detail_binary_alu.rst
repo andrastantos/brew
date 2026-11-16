@@ -167,6 +167,16 @@ Converts the value stored in :code:`$rB` to type 'type' and stores in in :code:`
 
 Type is encoded in FIELD_A.
 
+Conversions between INT32 and FP32 are defined as follows:
+
+INT32 to FP32:
+  The value of :code:`$rB` is interpreted as a **signed** (two's complement) 32-bit integer. For instance 0xfffffffe converts to -2.0. Integers that can't be represented exactly in FP32 (magnitude above 2^24) are rounded to nearest, ties to even.
+
+FP32 to INT32:
+  The value is rounded to the nearest integer, ties to even. For instance 2.5 converts to 2, 3.5 to 4 and -2.5 to -2. The result is a signed (two's complement) 32-bit integer. The result for values outside the INT32 range and for NaNs is undefined.
+
+.. note:: There is no unsigned variant of these conversions. Unsigned values above 0x7fffffff need to be converted in software.
+
 .. todo:: This used to be the ~$rA & $rB instruction. That needs to be removed and this to be added in the toolset and Espresso.
 
 .. _rd_eq_tiny_rb_plus_const:
