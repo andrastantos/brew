@@ -4,7 +4,7 @@
 # Lives in the brew repo; brew-binutils-gdb, brew-binutils-build/ (see
 # build-toolchain.sh) and test-results/ are siblings of brew/.
 #
-# Usage: [PHASES="host sim gdb"] brew/run-binutils-tests.sh [name]
+# Usage: [PHASES="host sim gdb"] [BLD=build-dir] [PREFIX=install-prefix] brew/run-binutils-tests.sh [name]
 # gdb is tested on the simulator using the 'brew-sim' board; everything else
 # uses the default (unix) board, as usual for a cross binutils.
 # PHASES re-runs a subset into an existing result dir (other results are kept).
@@ -13,11 +13,21 @@
 set -o pipefail
 TOP=$(cd "$(dirname "$0")/.." && pwd)  # the directory holding all the repo checkouts
 SRC=$TOP/brew-binutils-gdb
-BLD=$TOP/brew-binutils-build
+BLD=${BLD:-$TOP/brew-binutils-build}  # override to test another build dir
 PREFIX=${PREFIX:-$HOME/brew-toolset}
 export PATH=$PREFIX/bin:$PATH
 export DEJAGNU=$TOP/brew/dejagnu/site.exp  # makes the brew-sim board available
 J=-j$(nproc)
+# Target compiler for the binutils/ld/libctf tests that compile C. Pass it
+# explicitly: top-level configure only records it if it was on PATH at
+# configure time (it isn't when binutils is built before gcc), and otherwise
+# falls back to a non-existent brew-none-elf-cc, which silently turns those
+# tests into UNTESTED/UNSUPPORTED.
+CC_FOR_TARGET=${CC_FOR_TARGET:-brew-none-elf-gcc}
+if ! command -v "$CC_FOR_TARGET" > /dev/null; then
+  echo "error: target compiler '$CC_FOR_TARGET' not found on PATH (build gcc first, or set CC_FOR_TARGET)" >&2
+  exit 1
+fi
 
 SHA=$(git -C "$SRC" rev-parse --short HEAD)
 NAME=${1:-$(git -C "$SRC" branch --show-current)-$SHA}
@@ -38,7 +48,7 @@ run() { # phase make-args...
   echo "=== $(date +%T) $p testsuites"
   make -k "$@" > "$OUT/make-check-$p.log" 2>&1; echo "exit=$?" >> "$OUT/make-check-$p.log"
 }
-run host $J $HOST_CHECKS
+run host $J $HOST_CHECKS CC_FOR_TARGET="$CC_FOR_TARGET"
 run sim  check-sim
 run gdb  $J check-gdb RUNTESTFLAGS="--target_board=brew-sim"
 
