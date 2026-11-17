@@ -42,3 +42,8 @@ set_board_info gdb,nosignals 1
 
 # Increase default timeout to 1200 seconds (the simulator is slow)
 set_board_info gcc,timeout 1200
+
+# gdb's process record (record full) and reverse execution work on the sim;
+# without these the gdb.reverse tests are skipped silently.
+set_board_info gdb,use_precord 1
+set_board_info gdb,can_reverse 1
