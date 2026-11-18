@@ -11,15 +11,15 @@ Register     Functionality
 ========     =====================================
 $r0          call-clobbered general purpose register; used in thunks for virtual inheritance. Must be call-clobbered
 $r1          call-clobbered general purpose register; struct value address (return value area pointer for large return values). EH_RETURN_STACKADJ_RTX BREW_STACKADJ_REG. Must be call-clobbered
-$r2          call-clobbered general purpose register; static chain register
-$r3          call-clobbered general purpose register
+$r2          call-clobbered general purpose register; static chain register; EH_RETURN_DATA_REGNO
+$r3          call-clobbered general purpose register; EH_RETURN_DATA_REGNO
 $r4          call-clobbered first argument/return value register.
 $r5          call-clobbered second argument/return value register.
 $r6          call-clobbered third argument/return value register;
 $r7          call-clobbered fourth argument/return value register;
 
-$r8          call-saved general purpose register; EH_RETURN_DATA_REGNO
-$r9          call-saved general purpose register; EH_RETURN_DATA_REGNO
+$r8          call-saved general purpose register
+$r9          call-saved general purpose register
 $r10         call-saved general purpose register
 $r11         call-saved general purpose register
 $r12         call-saved register a.k.a. $fp - frame pointer. NOTE: brew_dynamic_chain_address assumes it's in the 1st save slot in the stack.
@@ -84,7 +84,7 @@ The registers used for argument passing in increasing register index are: :code:
 
 Return values are handled the same way: if they fit in these 4 registers, they are returned in registers, otherwise a memory location is used.
 
-Exception handling returns are in :code:`$r4`...:code:`$r7` (described in :code:`EH_RETURN_DATA_REGNO`)
+Exception handling data (the exception pointer and the handler selector) is passed to landing pads in :code:`$r2` and :code:`$r3` (described in :code:`EH_RETURN_DATA_REGNO`)
 
 Syscalls
 --------
@@ -132,11 +132,11 @@ Trampoline
 
 Trampolines are used to call nested functions through a function pointer. Most of the machinery for that is handled by GCC, but there's a little platform-specific piece of code that's needed:
 
-The static chain is maintained in :code:`$r8` (:code:`STATIC_CHAIN_REGNUM`).
+The static chain is maintained in :code:`$r2` (:code:`STATIC_CHAIN_REGNUM`).
 
 The trampoline is a little piece of code that's copied into a memory buffer then modified. The template for it is the following::
 
-    $r8 <- mem32[.Lstatic_chain]
+    $r2 <- mem32[.Lstatic_chain]
     $pc <- mem32[.Lfunc_address]
   .Lstatic_chain:
     .long 0
@@ -169,36 +169,11 @@ First: we *have to make sure* that if a function calls :code:`__builtin_eh_retur
 
 Second: the documentation says that architectures have to provide at least two :code:`EH_RETURN_DATA_REGNO` registers, but can provide more. While that's technically correct, there's no reason to provide more than two. Especially combined with the first point, it just makes for more pushes and pops from the stack.
 
-Third: the documentation says that it's best if the :code:`EH_RETURN_DATA_REGNO` registers are call-clobbered. That, I don't think is correct, in fact, the reverse is better: it's best if these registers are caller-saved. The reason for that is the first point above: since they need to be saved and restored in functions calling :code:`__builtin_eh_return`, we have the best chances of having them already in the frame, if they are caller-saved. In fact, it's probably best if we reserved the first two caller-saved registers for this purpose.
+Third: the :code:`EH_RETURN_DATA_REGNO` registers must be call-clobbered, as the documentation says. The unwinder enters a landing pad with these registers overwritten, so the function containing the landing pad clobbers them. If they were call-saved, every function with a landing pad (any :code:`catch` or cleanup) would have to save and restore them for its caller. (Brew used :code:`$r8` and :code:`$r9` until GCC 15 exposed that this wasn't done: the caller's :code:`$r9` was silently replaced by the handler selector.) Landing pads are only entered from calls, which clobber call-clobbered registers anyway, so those cost nothing.
 
-Fourth: many architectures use (a subset of) the argument/return value registers for :code:`EH_RETURN_DATA_REGNO`. This is WRONG in most cases, though probably doesn't actually cause problems: the generated stack-frame will potentially destroy the original return value on non-exception paths. The reason it is mostly a benign problem is that functions that call :code:`__builtin_eh_return` (at least in the runtime) tend to return a single integer. So, as long as it's not the first return value register that we use as :code:`EH_RETURN_DATA_REGNO`, we're good.
+Fourth: many architectures use (a subset of) the argument/return value registers for :code:`EH_RETURN_DATA_REGNO`. That needs care: because of the first point, functions calling :code:`__builtin_eh_return` restore these registers in their epilog on the normal return path too, which would overwrite the return value (e.g. the error code :code:`_Unwind_RaiseException` returns). :code:`$r1` is not available either: it is :code:`EH_RETURN_STACKADJ_RTX`, which is live at the same time.
 
 In epilog generation we need to know if we have to save the aforementioned registers. We can consult :code:`crtl->calls_eh_return` to determine that.
 
-With that, right now I'm using :code:`$r8` and :code:`$r9` for :code:`EH_RETURN_DATA_REGNO`
-
-.. todo::
-
-  At some point I should probably change :code:`EH_RETURN_DATA_REGNO` to use lower-ordered registers, or change the allocation priority to go from top down. This doesn't seem to be documented, but there's a simple way of ensuring this::
-
-    /* We need this on CRIS, because call-used regs should be used first,
-    (so we don't need to push).  Else start using registers from r0 and up.
-        This preference is mainly because if we put call-used-regs from r0
-    and up, then we can't use movem to push the rest, (which have to be
-    saved if we use them, and movem has to start with r0).
-    Change here if you change which registers to use as call registers.
-
-    The actual need to explicitly prefer call-used registers improved the
-    situation a lot for 2.1, but might not actually be needed anymore.
-    Still, this order reflects what GCC should find out by itself, so it
-    probably does not hurt.
-
-    Order of preference: Call-used-regs first, then r0 and up, last fp &
-    sp & pc as fillers.
-    Call-used regs in opposite order, so they will cause less conflict if
-    a function has few args (<= 3) and it wants a scratch reg.
-        Use struct-return address first, since very few functions use
-    structure return values so it is likely to be available.  */
-    #define REG_ALLOC_ORDER \
-        {9, 13, 12, 11, 10, 0, 1, 2, 3, 4, 5, 6, 7, 8, 14, 15, 17, 16, 18, 19, 20}
+With that, Brew uses :code:`$r2` and :code:`$r3` for :code:`EH_RETURN_DATA_REGNO`. :code:`$r2` is also the static chain register, but the two uses don't meet: the static chain is only live on entry to a nested function, while the EH data is only live at the start of a landing pad (reached from a call) and in the unwinder's own :code:`__builtin_eh_return` functions, which aren't nested.
 
