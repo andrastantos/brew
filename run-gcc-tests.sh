@@ -15,6 +15,12 @@ BLD=${BLD:-$TOP/brew-gcc-build}
 PREFIX=${PREFIX:-$HOME/brew-toolset}
 export PATH=$PREFIX/bin:$PATH
 export DEJAGNU=$TOP/brew/dejagnu/site.exp  # makes the brew-sim board available
+# DejaGnu runs the compiler on a pty.  Since GCC 14, diagnostics about
+# command-line options are printed before -fdiagnostics-plain-output takes
+# effect, so on a capable terminal (e.g. TERM=screen-256color) they get
+# OSC 8 hyperlinks and tests matching those messages fail
+# (gcc.dg/Werror-13.c, Wcomplain-wrong-lang-*.c, pr91172.c).
+export TERM=dumb GCC_URLS=no
 J=-j$(nproc)
 if ! command -v brew-none-elf-run > /dev/null; then
   echo "error: brew-none-elf-run not found in $PREFIX/bin" >&2; exit 1
