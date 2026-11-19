@@ -5,14 +5,16 @@
 # Lives in the brew repo; brew-gcc, brew-newlib, brew-gcc-build/ (see
 # build-toolchain.sh) and test-results/ are siblings of brew/.
 #
-# Usage: [PHASES="gcc g++ libstdc++"] [BLD=build-dir] [PREFIX=install-prefix] brew/run-gcc-tests.sh [name]
+# Usage: [FLAVOR=trunk] [PHASES="gcc g++ libstdc++"] [BLD=build-dir] [PREFIX=install-prefix] brew/run-gcc-tests.sh [name]
+# FLAVOR=trunk (see build-toolchain.sh) defaults BLD/PREFIX to the trunk flavor's build dir and prefix.
 # The testsuites use the compiler and target libraries in the build tree, not
 # the installed ones; PREFIX only supplies binutils and the simulator.
 # PHASES re-runs a subset into an existing result dir (other results are kept).
 set -o pipefail
 TOP=$(cd "$(dirname "$0")/.." && pwd)  # the directory holding all the repo checkouts
-BLD=${BLD:-$TOP/brew-gcc-build}
-PREFIX=${PREFIX:-$HOME/brew-toolset}
+case ${FLAVOR:=stable} in stable) SUFFIX= ;; trunk) SUFFIX=-trunk ;; *) echo "unknown FLAVOR: $FLAVOR" >&2; exit 1 ;; esac
+BLD=${BLD:-$TOP/brew-gcc-build$SUFFIX}
+PREFIX=${PREFIX:-$HOME/brew-toolset$SUFFIX}
 export PATH=$PREFIX/bin:$PATH
 export DEJAGNU=$TOP/brew/dejagnu/site.exp  # makes the brew-sim board available
 # DejaGnu runs the compiler on a pty.  Since GCC 14, diagnostics about

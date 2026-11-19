@@ -4,7 +4,8 @@
 # Lives in the brew repo; brew-binutils-gdb, brew-binutils-build/ (see
 # build-toolchain.sh) and test-results/ are siblings of brew/.
 #
-# Usage: [PHASES="host sim gdb"] [BLD=build-dir] [PREFIX=install-prefix] brew/run-binutils-tests.sh [name]
+# Usage: [FLAVOR=trunk] [PHASES="host sim gdb"] [BLD=build-dir] [PREFIX=install-prefix] brew/run-binutils-tests.sh [name]
+# FLAVOR=trunk (see build-toolchain.sh) defaults BLD/PREFIX to the trunk flavor's build dir and prefix.
 # gdb is tested on the simulator using the 'brew-sim' board; everything else
 # uses the default (unix) board, as usual for a cross binutils.
 # PHASES re-runs a subset into an existing result dir (other results are kept).
@@ -13,8 +14,9 @@
 set -o pipefail
 TOP=$(cd "$(dirname "$0")/.." && pwd)  # the directory holding all the repo checkouts
 SRC=$TOP/brew-binutils-gdb
-BLD=${BLD:-$TOP/brew-binutils-build}  # override to test another build dir
-PREFIX=${PREFIX:-$HOME/brew-toolset}
+case ${FLAVOR:=stable} in stable) SUFFIX= ;; trunk) SUFFIX=-trunk ;; *) echo "unknown FLAVOR: $FLAVOR" >&2; exit 1 ;; esac
+BLD=${BLD:-$TOP/brew-binutils-build$SUFFIX}  # override to test another build dir
+PREFIX=${PREFIX:-$HOME/brew-toolset$SUFFIX}
 export PATH=$PREFIX/bin:$PATH
 export DEJAGNU=$TOP/brew/dejagnu/site.exp  # makes the brew-sim board available
 J=-j$(nproc)

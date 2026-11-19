@@ -12,14 +12,21 @@
 # without a working clock.  Built with -DSIM, dhrystone skips its timing and
 # result printing, so the run checks completion and instruction counts only.
 #
-# Usage: [PREFIX=install-prefix] [OPTS="-O0 -O2 -Os"] brew/run-benchmarks.sh [name]
+# Usage: [FLAVOR=trunk] [PREFIX=install-prefix] [OPTS="-O0 -O2 -Os"] brew/run-benchmarks.sh [name]
+# FLAVOR=trunk (see build-toolchain.sh) defaults PREFIX to ~/brew-toolset-trunk.
 set -eo pipefail
 TOP=$(cd "$(dirname "$0")/.." && pwd)
-PREFIX=${PREFIX:-$HOME/brew-toolset}
+case ${FLAVOR:=stable} in
+  stable) SUFFIX= GCC_SRC=brew-gcc ;;
+  trunk) SUFFIX=-trunk GCC_SRC=brew-gcc-trunk ;;
+  *) echo "unknown FLAVOR: $FLAVOR" >&2; exit 1 ;;
+esac
+PREFIX=${PREFIX:-$HOME/brew-toolset$SUFFIX}
 export PATH=$PREFIX/bin:$PATH
 T=brew-none-elf
 OPTS=${OPTS:--O0 -O2 -Os}
-GSHA=$(git -C "$TOP/brew-gcc" rev-parse --short HEAD)
+# The recorded commits are the flavor's checkouts; with another PREFIX they may not match.
+GSHA=$(git -C "$TOP/$GCC_SRC" rev-parse --short HEAD)
 NSHA=$(git -C "$TOP/brew-newlib" rev-parse --short HEAD)
 NAME=${1:-gcc-$GSHA-newlib-$NSHA}
 OUT=$TOP/test-results/$NAME/bench
