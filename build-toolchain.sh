@@ -48,6 +48,21 @@ link_newlib() {
   done
 }
 
+# Configure GCC (run in the build dir).  libgcc, and so libgcov, is built before newlib, so
+# without newlib headers at configure time GCC sets inhibit_libc and libgcov is a stub
+# (no coverage, ~1,900 failing gcov tests).  --with-headers gives it the headers of the
+# newlib already installed in the prefix (staged without libstdc++'s c++/); the very first
+# build of a prefix has none, so build twice (CLEAN=1 the second time) to get a real libgcov.
+gcc_configure() {
+  local inc=$PREFIX/$TARGET/include hdr=()
+  if [ -f "$inc/newlib.h" ]; then
+    rm -rf newlib-headers; mkdir newlib-headers
+    (cd "$inc" && tar cf - --exclude=./c++ .) | tar xf - -C newlib-headers
+    hdr=(--with-headers="$PWD/newlib-headers")
+  fi
+  "$TOP/$GCC_SRC/configure" "$@" "${hdr[@]}"
+}
+
 step() { # name build-dir configure-cmd...
   local name=$1 dir=$TOP/$2; shift 2
   [ "${CLEAN:-0}" = 1 ] && rm -rf "$dir"
@@ -71,10 +86,18 @@ for s in "${STEPS[@]}"; do
         --with-python=python3 ;;
     gcc)
       link_newlib
-      step gcc$SUFFIX brew-gcc-build$SUFFIX "$TOP/$GCC_SRC/configure" \
+      if [ ! -f "$PREFIX/$TARGET/include/newlib.h" ] &&
+         { [ "${CLEAN:-0}" = 1 ] || [ ! -f "$TOP/brew-gcc-build$SUFFIX/config.status" ]; }; then
+        echo "WARNING: no newlib headers in $PREFIX/$TARGET/include yet, so libgcov will be a stub;" \
+             "run CLEAN=1 $0 gcc again after this build" >&2
+      fi
+      step gcc$SUFFIX brew-gcc-build$SUFFIX gcc_configure \
         --target=$TARGET --prefix=$PREFIX --enable-languages=c,c++ --with-newlib \
         --disable-shared --disable-libssp --disable-threads --disable-libgomp --disable-libatomic \
-        --disable-werror ;;
+        --disable-werror
+      # configure copied the staged headers to sys-include, which the driver searches before
+      # include/; drop it so the freshly installed newlib headers are the only ones.
+      rm -rf "$PREFIX/$TARGET/sys-include" ;;
     *) echo "unknown step: $s" >&2; exit 1 ;;
   esac
 done
