@@ -105,7 +105,7 @@ module ApbUart (
 			3'd0: u13_output_port = rx_data_data;
 			3'd1: u13_output_port = {tx_phy_cts_out, rx_phy_overrun_error, rx_phy_framing_error, rx_phy_parity_error, tx_data_ready, rx_data_valid};
 			3'd2: u13_output_port = config_reg;
-			3'd3: u13_output_port = {prescaler_select, 1'h0, soft_rts, rx_enable, use_hw_tx_en, soft_tx_en};
+			3'd3: u13_output_port = {soft_tx_en, use_hw_tx_en, rx_enable, soft_rts, 1'h0, prescaler_select};
 			3'd4: u13_output_port = divider_limit;
 			default: u13_output_port = 8'hx;
 		endcase
