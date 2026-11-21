@@ -36,6 +36,39 @@ In a multi-processor environment synchronization among multiple, parallel execut
 
 In practice however, the actual implementation of the locking and releasing/checking for the locks is often largely delegated to the system level and is not part of the CPU, let alone the Brew specification. Brew only provides instructions to drive the right control signals along with loads and stores that are needed by a system to implement such primitives.
 
+.. _load_lock:
+
+Load-lock lifetime
+~~~~~~~~~~~~~~~~~~
+
+:code:`MEMLL` places a load-lock on the address it loads from; :code:`MEMSC` stores only if the processor still holds a valid load-lock on the address it stores to. Software can rely on the following rules, whatever part of them the processor and the system each implement.
+
+**One lock per processor.** A processor (or a thread within a multi-threaded implementation) holds at most one load-lock that software can rely on: the one placed by its most recent :code:`MEMLL`. A :code:`MEMLL` replaces any load-lock placed before it. Whether a :code:`MEMSC` to the address of a replaced lock succeeds is implementation-defined, so :code:`MEMLL`/:code:`MEMSC` sequences can't be nested: in
+
+::
+
+    $r1 <- MEMLL[$r4]
+    $r2 <- MEMLL[$r5]
+    MEMSC[$r5] <- $r2
+    MEMSC[$r4] <- $r1
+
+the second :code:`MEMSC` may fail every time, even if :code:`$r4` and :code:`$r5` are equal. Code retrying such a sequence until it succeeds may never finish.
+
+**What releases the lock.** After any of the following, a :code:`MEMSC` fails until the next :code:`MEMLL`:
+
+#. A :code:`MEMSC` executed by the same processor, whether its store succeeded or failed. A :code:`MEMSC` that raises an exception doesn't release the lock itself, but entering SCHEDULER mode does (next item).
+#. A change of execution mode in either direction: an exception or interrupt that takes TASK mode into SCHEDULER mode, and :code:`STM`.
+#. Reset, including an exception in SCHEDULER mode (which restarts execution at the reset vector).
+#. A store to the locked address by another processor or bus master.
+
+A store by the same processor to the locked address with an ordinary store instruction may or may not release the lock; software must not rely on either behavior.
+
+The change of execution mode releases the lock even in a single-processor system. That event is the only way other code can run on the processor between a :code:`MEMLL` and its :code:`MEMSC`: the SCHEDULER, or another task it switched to. Without the rule, a task could be interrupted after its :code:`MEMLL`, another task could update the location with an ordinary store, or execute its own :code:`MEMLL` on the same address, and the first task's :code:`MEMSC` would then succeed with a stale value. The rule makes SCHEDULER-mode software free of any obligation to clear the lock when it switches tasks.
+
+**Spurious failures.** A :code:`MEMSC` may fail even if none of the above happened, for instance because the system tracks locks with a granule coarser than a word, or tracks hashed addresses. A failed :code:`MEMSC` is not an error: software retries the whole sequence, starting with the :code:`MEMLL`.
+
+**Forward progress.** Implementations should guarantee that a retried sequence eventually succeeds if it is *constrained*: a :code:`MEMLL` followed by a :code:`MEMSC` to the same address, with only a few register-only instructions (no loads, stores, :code:`MEMLL`, :code:`MEMSC`, mode changes or :code:`FENCE` instructions) between them, and in the absence of contention from other processors and of interrupts arriving on every attempt. No such guarantee exists for any other sequence.
+
 Implementation Notes
 ~~~~~~~~~~~~~~~~~~~~
 
@@ -68,15 +101,19 @@ Implementation of atomics
 
 As an example, an atomic increment can be implemented in the following way:
 
-retry:
-    $rD <- MEMLL[$rA + <ofs>]
-    $rD <- $rD + 1
-    $rD <- MEMSC[$rA + <ofs>] <- $rD
-    if $rD != 0 $pc <- retry
+::
 
-.. note:: Fence is not necessary due to the carried dependency between the load and the store.
+    retry:
+        $rD <- MEMLL[$rA + <ofs>]
+        $rD <- $rD + 1
+        MEMSC[$rA + <ofs>] <- $rD
+        if $rD != 0 $pc <- retry
 
-More complex primitives, can also be built in a similar manner.
+:code:`MEMSC` stores the incremented value and then overwrites :code:`$rD` with its status: 0 on success, non-zero on failure. On failure, the loop starts over with the :code:`MEMLL`, which reloads the current value. This is a constrained sequence (see :ref:`load-lock lifetime<load_lock>`), so it eventually succeeds.
+
+.. note:: No fence is needed between the :code:`MEMLL` and the :code:`MEMSC`: the store depends on the loaded value and goes to the same address. A fence is needed to order the atomic operation against the surrounding loads and stores, which Brew doesn't order otherwise. Put a :code:`FENCE_RW_RW` before the loop to give the operation release semantics (earlier accesses complete first), and one after the loop for acquire semantics (later accesses don't start before it); a sequentially consistent operation needs both.
+
+More complex primitives can also be built in a similar manner.
 
 Self-modifying code
 ~~~~~~~~~~~~~~~~~~~

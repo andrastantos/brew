@@ -73,7 +73,7 @@ $rD <- MEMLL[$rA]
 Description
 ~~~~~~~~~~~
 
-This operation uses :ref:`load type handling<load_type_handling>` to determine if :code:`$rD` is load from memory location :code:`$rA`. If the load is permitted to proceed, a 32-bit value is loaded from memory and placed in :code:`$rD`, while a load-lock is placed on the memory location.
+This operation uses :ref:`load type handling<load_type_handling>` to determine if :code:`$rD` is load from memory location :code:`$rA`. If the load is permitted to proceed, a 32-bit value is loaded from memory and placed in :code:`$rD`, while a load-lock is placed on the memory location, replacing any load-lock the processor held before. See :ref:`load-lock lifetime<load_lock>` for what releases the lock.
 
 This operation only handles scalar types.
 
@@ -160,13 +160,13 @@ MEMSC[$rA] <- $rD
 Description
 ~~~~~~~~~~~
 
-This operation uses :ref:`store type handling<store_type_handling>` to determine if the register :code:`$rD` is stored at memory location :code:`$rA`.  If the store is permitted to proceed, the value of :code:`$rD` is stored in the memory location pointed to by :code:`$rA`, if and only if a still valid load-lock exists for the same address for the same processor. If such a lock is not found, the store fails and no memory update is performed.
+This operation uses :ref:`store type handling<store_type_handling>` to determine if the register :code:`$rD` is stored at memory location :code:`$rA`.  If the store is permitted to proceed, the value of :code:`$rD` is stored in the memory location pointed to by :code:`$rA`, if and only if a still valid load-lock exists for the same address for the same processor. If such a lock is not found, the store fails and no memory update is performed. Either way, the operation releases the load-lock, see :ref:`load-lock lifetime<load_lock>`.
 
 The value of :code:`$rD` is set to 0 if the store succeeded and to non-zero if it failed. The actual non-zero value is implementation-defined and is not required to be constant, only that it is never zero. The type of :code:`$rD` is set to INT32.
 
 This store operation only handles scalar types.
 
-The implementation is allowed to throw exceptions if the memory access violates access permissions. If the resulting memory reference is unaligned, an :code:`exc_unaligned` exception is raised. In case of an exception, neither the existence of a lock nor the value stored in memory is altered.
+The implementation is allowed to throw exceptions if the memory access violates access permissions. If the resulting memory reference is unaligned, an :code:`exc_unaligned` exception is raised. In case of an exception, neither the existence of a lock nor the value stored in memory is altered by the operation itself; the change to SCHEDULER mode that a TASK-mode exception causes releases the lock, so the retried :code:`MEMSC` fails.
 
 
 
@@ -359,7 +359,7 @@ $rD <- MEMLL[$rA + VALUE]
 Description
 ~~~~~~~~~~~
 
-This operation uses :ref:`load type handling<load_type_handling>` to determine if :code:`$rD` is load from memory location :code:`$rA + VALUE`. If the load is permitted to proceed, a 32-bit value is loaded from memory and placed in :code:`$rD`, while a load-lock is placed on the memory location.
+This operation uses :ref:`load type handling<load_type_handling>` to determine if :code:`$rD` is load from memory location :code:`$rA + VALUE`. If the load is permitted to proceed, a 32-bit value is loaded from memory and placed in :code:`$rD`, while a load-lock is placed on the memory location, replacing any load-lock the processor held before. See :ref:`load-lock lifetime<load_lock>` for what releases the lock.
 
 :code:`VALUE` is computed from FIELD_e by sign-extending it to 32 bits.
 
@@ -382,7 +382,7 @@ $rD <- MEMLL[VALUE]
 Description
 ~~~~~~~~~~~
 
-This operation uses :ref:`load type handling<load_type_handling>` to determine if :code:`$rD` is load from memory location :code:`VALUE`. If the load is permitted to proceed, a 32-bit value is loaded from memory and placed in :code:`$rD`, while a load-lock is placed on the memory location.
+This operation uses :ref:`load type handling<load_type_handling>` to determine if :code:`$rD` is load from memory location :code:`VALUE`. If the load is permitted to proceed, a 32-bit value is loaded from memory and placed in :code:`$rD`, while a load-lock is placed on the memory location, replacing any load-lock the processor held before. See :ref:`load-lock lifetime<load_lock>` for what releases the lock.
 
 This operation only handles scalar types.
 
@@ -532,7 +532,7 @@ MEMSC[$rA + VALUE] <- $rD
 Description
 ~~~~~~~~~~~
 
-This operation uses :ref:`store type handling<store_type_handling>` to determine if the register :code:`$rD` is stored at memory location :code:`$rA + VALUE`.  If the store is permitted to proceed, the value of :code:`$rD` is stored in the memory location pointed to by :code:`$rA + VALUE`, if and only if a still valid load-lock exists for the same address for the same processor. If such a lock is not found, the store fails and no memory update is performed.
+This operation uses :ref:`store type handling<store_type_handling>` to determine if the register :code:`$rD` is stored at memory location :code:`$rA + VALUE`.  If the store is permitted to proceed, the value of :code:`$rD` is stored in the memory location pointed to by :code:`$rA + VALUE`, if and only if a still valid load-lock exists for the same address for the same processor. If such a lock is not found, the store fails and no memory update is performed. Either way, the operation releases the load-lock, see :ref:`load-lock lifetime<load_lock>`.
 
 :code:`VALUE` is computed from FIELD_e by sign-extending it to 32 bits.
 
@@ -540,7 +540,7 @@ The value of :code:`$rD` is set to 0 if the store succeeded and to non-zero if i
 
 This store operation only handles scalar types.
 
-The implementation is allowed to throw exceptions if the memory access violates access permissions. If the resulting memory reference is unaligned, an :code:`exc_unaligned` exception is raised. In case of an exception, neither the existence of a lock nor the value stored in memory is altered.
+The implementation is allowed to throw exceptions if the memory access violates access permissions. If the resulting memory reference is unaligned, an :code:`exc_unaligned` exception is raised. In case of an exception, neither the existence of a lock nor the value stored in memory is altered by the operation itself; the change to SCHEDULER mode that a TASK-mode exception causes releases the lock, so the retried :code:`MEMSC` fails.
 
 
 .. _memsc_value_eq_rd:
@@ -557,13 +557,13 @@ MEMSC[VALUE] <- $rD
 Description
 ~~~~~~~~~~~
 
-This operation uses :ref:`store type handling<store_type_handling>` to determine if the register :code:`$rD` is stored at memory location :code:`VALUE`.  If the store is permitted to proceed, the value of :code:`$rD` is stored in the memory location pointed to by :code:`VALUE`, if and only if a still valid load-lock exists for the same address for the same processor. If such a lock is not found, the store fails and no memory update is performed.
+This operation uses :ref:`store type handling<store_type_handling>` to determine if the register :code:`$rD` is stored at memory location :code:`VALUE`.  If the store is permitted to proceed, the value of :code:`$rD` is stored in the memory location pointed to by :code:`VALUE`, if and only if a still valid load-lock exists for the same address for the same processor. If such a lock is not found, the store fails and no memory update is performed. Either way, the operation releases the load-lock, see :ref:`load-lock lifetime<load_lock>`.
 
 The value of :code:`$rD` is set to 0 if the store succeeded and to non-zero if it failed. The actual non-zero value is implementation-defined and is not required to be constant, only that it is never zero. The type of :code:`$rD` is set to INT32.
 
 This store operation only handles scalar types.
 
-The implementation is allowed to throw exceptions if the memory access violates access permissions. If the resulting memory reference is unaligned, an :code:`exc_unaligned` exception is raised. In case of an exception, neither the existence of a lock nor the value stored in memory is altered.
+The implementation is allowed to throw exceptions if the memory access violates access permissions. If the resulting memory reference is unaligned, an :code:`exc_unaligned` exception is raised. In case of an exception, neither the existence of a lock nor the value stored in memory is altered by the operation itself; the change to SCHEDULER mode that a TASK-mode exception causes releases the lock, so the retried :code:`MEMSC` fails.
 
 
 .. _rd_eq_smem8_ra_plus_value:
