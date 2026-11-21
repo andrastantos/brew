@@ -1,5 +1,5 @@
 CF=-DSIM
-LF=-lbrew
+LF=
 TARGET=brew-none-elf
 
 include ../Makefile.inc

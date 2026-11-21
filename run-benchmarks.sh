@@ -48,7 +48,7 @@ for opt in $OPTS; do
       o=$name$opt-$(basename "${s%.*}").o
       $T-$cc $opt $flags -w -c "$B/$s" -o "$o"; objs+=("$o")
     done
-    $T-$cc $opt "${objs[@]}" -lc -lm -lbrew -o "$name$opt.elf"
+    $T-$cc $opt "${objs[@]}" -lc -lm -o "$name$opt.elf"
     $T-size "${objs[@]}" "$name$opt.elf" | sed 1d | awk '{printf "%-28s text %7d data %6d bss %7d\n", $6, $1, $2, $3}' >> ../sizes.txt
   done
   # The exit status is not checked: dhrystone's main() has no return statement.
