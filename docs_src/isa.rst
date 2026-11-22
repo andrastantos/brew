@@ -137,6 +137,8 @@ Bit-field    Meaning
 .. note::
   bit-values are inverted to make FIELD_D==0xf an invalid encoding (i.e. no fence specification)
 
+The assembler accepts two spellings of each fence. The one used in this document gives both sides as a two-character field (``rw``, ``r_``, ``_w`` or ``__``): FENCE_<before>_<after>, for instance FENCE_R__RW. The short form drops the padding, so each side is ``rw``, ``r``, ``w`` or empty: ``fence_r_rw`` for FENCE_R__RW, ``fence__w`` for FENCE_____W, ``fence_rw_`` for FENCE_RW___. The disassembler prints the short form.
+
 PC manipulation group
 ---------------------
 

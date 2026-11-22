@@ -5,6 +5,8 @@ FENCE_RW_RW
 
 *Instruction code*: 0x0001
 
+*Short form*: ``fence_rw_rw``
+
 *Exceptions*: None
 
 *Type variants*: No
@@ -25,6 +27,8 @@ Bit-field    Meaning
 
 .. note::
   bit-values are inverted to make FIELD_D==0xf an invalid encoding (i.e. no fence specification)
+
+The assembler accepts two spellings of each fence. The one used in this document gives both sides as a two-character field (``rw``, ``r_``, ``_w`` or ``__``): FENCE_<before>_<after>, for instance FENCE_R__RW. The short form drops the padding, so each side is ``rw``, ``r``, ``w`` or empty: ``fence_r_rw`` for FENCE_R__RW, ``fence__w`` for FENCE_____W, ``fence_rw_`` for FENCE_RW___. The disassembler prints the short form.
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
@@ -48,6 +52,8 @@ FENCE__W_RW
 
 *Instruction code*: 0x1001
 
+*Short form*: ``fence_w_rw``
+
 *Exceptions*: None
 
 *Type variants*: No
@@ -68,6 +74,8 @@ Bit-field    Meaning
 
 .. note::
   bit-values are inverted to make FIELD_D==0xf an invalid encoding (i.e. no fence specification)
+
+The assembler accepts two spellings of each fence. The one used in this document gives both sides as a two-character field (``rw``, ``r_``, ``_w`` or ``__``): FENCE_<before>_<after>, for instance FENCE_R__RW. The short form drops the padding, so each side is ``rw``, ``r``, ``w`` or empty: ``fence_r_rw`` for FENCE_R__RW, ``fence__w`` for FENCE_____W, ``fence_rw_`` for FENCE_RW___. The disassembler prints the short form.
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
@@ -90,6 +98,8 @@ FENCE_R__RW
 
 *Instruction code*: 0x2001
 
+*Short form*: ``fence_r_rw``
+
 *Exceptions*: None
 
 *Type variants*: No
@@ -110,6 +120,8 @@ Bit-field    Meaning
 
 .. note::
   bit-values are inverted to make FIELD_D==0xf an invalid encoding (i.e. no fence specification)
+
+The assembler accepts two spellings of each fence. The one used in this document gives both sides as a two-character field (``rw``, ``r_``, ``_w`` or ``__``): FENCE_<before>_<after>, for instance FENCE_R__RW. The short form drops the padding, so each side is ``rw``, ``r``, ``w`` or empty: ``fence_r_rw`` for FENCE_R__RW, ``fence__w`` for FENCE_____W, ``fence_rw_`` for FENCE_RW___. The disassembler prints the short form.
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
@@ -132,6 +144,8 @@ FENCE____RW
 
 *Instruction code*: 0x3001
 
+*Short form*: ``fence__rw``
+
 *Exceptions*: None
 
 *Type variants*: No
@@ -152,6 +166,8 @@ Bit-field    Meaning
 
 .. note::
   bit-values are inverted to make FIELD_D==0xf an invalid encoding (i.e. no fence specification)
+
+The assembler accepts two spellings of each fence. The one used in this document gives both sides as a two-character field (``rw``, ``r_``, ``_w`` or ``__``): FENCE_<before>_<after>, for instance FENCE_R__RW. The short form drops the padding, so each side is ``rw``, ``r``, ``w`` or empty: ``fence_r_rw`` for FENCE_R__RW, ``fence__w`` for FENCE_____W, ``fence_rw_`` for FENCE_RW___. The disassembler prints the short form.
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
@@ -175,6 +191,8 @@ FENCE_RW__W
 
 *Instruction code*: 0x4001
 
+*Short form*: ``fence_rw_w``
+
 *Exceptions*: None
 
 *Type variants*: No
@@ -195,6 +213,8 @@ Bit-field    Meaning
 
 .. note::
   bit-values are inverted to make FIELD_D==0xf an invalid encoding (i.e. no fence specification)
+
+The assembler accepts two spellings of each fence. The one used in this document gives both sides as a two-character field (``rw``, ``r_``, ``_w`` or ``__``): FENCE_<before>_<after>, for instance FENCE_R__RW. The short form drops the padding, so each side is ``rw``, ``r``, ``w`` or empty: ``fence_r_rw`` for FENCE_R__RW, ``fence__w`` for FENCE_____W, ``fence_rw_`` for FENCE_RW___. The disassembler prints the short form.
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
@@ -218,6 +238,8 @@ FENCE__W__W
 
 *Instruction code*: 0x5001
 
+*Short form*: ``fence_w_w``
+
 *Exceptions*: None
 
 *Type variants*: No
@@ -238,6 +260,8 @@ Bit-field    Meaning
 
 .. note::
   bit-values are inverted to make FIELD_D==0xf an invalid encoding (i.e. no fence specification)
+
+The assembler accepts two spellings of each fence. The one used in this document gives both sides as a two-character field (``rw``, ``r_``, ``_w`` or ``__``): FENCE_<before>_<after>, for instance FENCE_R__RW. The short form drops the padding, so each side is ``rw``, ``r``, ``w`` or empty: ``fence_r_rw`` for FENCE_R__RW, ``fence__w`` for FENCE_____W, ``fence_rw_`` for FENCE_RW___. The disassembler prints the short form.
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
@@ -261,6 +285,8 @@ FENCE_R___W
 
 *Instruction code*: 0x6001
 
+*Short form*: ``fence_r_w``
+
 *Exceptions*: None
 
 *Type variants*: No
@@ -281,6 +307,8 @@ Bit-field    Meaning
 
 .. note::
   bit-values are inverted to make FIELD_D==0xf an invalid encoding (i.e. no fence specification)
+
+The assembler accepts two spellings of each fence. The one used in this document gives both sides as a two-character field (``rw``, ``r_``, ``_w`` or ``__``): FENCE_<before>_<after>, for instance FENCE_R__RW. The short form drops the padding, so each side is ``rw``, ``r``, ``w`` or empty: ``fence_r_rw`` for FENCE_R__RW, ``fence__w`` for FENCE_____W, ``fence_rw_`` for FENCE_RW___. The disassembler prints the short form.
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
@@ -305,6 +333,8 @@ FENCE_____W
 
 *Instruction code*: 0x7001
 
+*Short form*: ``fence__w``
+
 *Exceptions*: None
 
 *Type variants*: No
@@ -325,6 +355,8 @@ Bit-field    Meaning
 
 .. note::
   bit-values are inverted to make FIELD_D==0xf an invalid encoding (i.e. no fence specification)
+
+The assembler accepts two spellings of each fence. The one used in this document gives both sides as a two-character field (``rw``, ``r_``, ``_w`` or ``__``): FENCE_<before>_<after>, for instance FENCE_R__RW. The short form drops the padding, so each side is ``rw``, ``r``, ``w`` or empty: ``fence_r_rw`` for FENCE_R__RW, ``fence__w`` for FENCE_____W, ``fence_rw_`` for FENCE_RW___. The disassembler prints the short form.
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
@@ -348,6 +380,8 @@ FENCE_RW_R\_
 
 *Instruction code*: 0x8001
 
+*Short form*: ``fence_rw_r``
+
 *Exceptions*: None
 
 *Type variants*: No
@@ -368,6 +402,8 @@ Bit-field    Meaning
 
 .. note::
   bit-values are inverted to make FIELD_D==0xf an invalid encoding (i.e. no fence specification)
+
+The assembler accepts two spellings of each fence. The one used in this document gives both sides as a two-character field (``rw``, ``r_``, ``_w`` or ``__``): FENCE_<before>_<after>, for instance FENCE_R__RW. The short form drops the padding, so each side is ``rw``, ``r``, ``w`` or empty: ``fence_r_rw`` for FENCE_R__RW, ``fence__w`` for FENCE_____W, ``fence_rw_`` for FENCE_RW___. The disassembler prints the short form.
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
@@ -392,6 +428,8 @@ FENCE__W_R\_
 
 *Instruction code*: 0x9001
 
+*Short form*: ``fence_w_r``
+
 *Exceptions*: None
 
 *Type variants*: No
@@ -412,6 +450,8 @@ Bit-field    Meaning
 
 .. note::
   bit-values are inverted to make FIELD_D==0xf an invalid encoding (i.e. no fence specification)
+
+The assembler accepts two spellings of each fence. The one used in this document gives both sides as a two-character field (``rw``, ``r_``, ``_w`` or ``__``): FENCE_<before>_<after>, for instance FENCE_R__RW. The short form drops the padding, so each side is ``rw``, ``r``, ``w`` or empty: ``fence_r_rw`` for FENCE_R__RW, ``fence__w`` for FENCE_____W, ``fence_rw_`` for FENCE_RW___. The disassembler prints the short form.
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
@@ -436,6 +476,8 @@ FENCE_R__R\_
 
 *Instruction code*: 0xa001
 
+*Short form*: ``fence_r_r``
+
 *Exceptions*: None
 
 *Type variants*: No
@@ -456,6 +498,8 @@ Bit-field    Meaning
 
 .. note::
   bit-values are inverted to make FIELD_D==0xf an invalid encoding (i.e. no fence specification)
+
+The assembler accepts two spellings of each fence. The one used in this document gives both sides as a two-character field (``rw``, ``r_``, ``_w`` or ``__``): FENCE_<before>_<after>, for instance FENCE_R__RW. The short form drops the padding, so each side is ``rw``, ``r``, ``w`` or empty: ``fence_r_rw`` for FENCE_R__RW, ``fence__w`` for FENCE_____W, ``fence_rw_`` for FENCE_RW___. The disassembler prints the short form.
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
@@ -479,6 +523,8 @@ FENCE____R\_
 
 *Instruction code*: 0xb001
 
+*Short form*: ``fence__r``
+
 *Exceptions*: None
 
 *Type variants*: No
@@ -499,6 +545,8 @@ Bit-field    Meaning
 
 .. note::
   bit-values are inverted to make FIELD_D==0xf an invalid encoding (i.e. no fence specification)
+
+The assembler accepts two spellings of each fence. The one used in this document gives both sides as a two-character field (``rw``, ``r_``, ``_w`` or ``__``): FENCE_<before>_<after>, for instance FENCE_R__RW. The short form drops the padding, so each side is ``rw``, ``r``, ``w`` or empty: ``fence_r_rw`` for FENCE_R__RW, ``fence__w`` for FENCE_____W, ``fence_rw_`` for FENCE_RW___. The disassembler prints the short form.
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
@@ -523,6 +571,8 @@ FENCE_RW___
 
 *Instruction code*: 0xc001
 
+*Short form*: ``fence_rw_``
+
 *Exceptions*: None
 
 *Type variants*: No
@@ -543,6 +593,8 @@ Bit-field    Meaning
 
 .. note::
   bit-values are inverted to make FIELD_D==0xf an invalid encoding (i.e. no fence specification)
+
+The assembler accepts two spellings of each fence. The one used in this document gives both sides as a two-character field (``rw``, ``r_``, ``_w`` or ``__``): FENCE_<before>_<after>, for instance FENCE_R__RW. The short form drops the padding, so each side is ``rw``, ``r``, ``w`` or empty: ``fence_r_rw`` for FENCE_R__RW, ``fence__w`` for FENCE_____W, ``fence_rw_`` for FENCE_RW___. The disassembler prints the short form.
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
@@ -567,6 +619,8 @@ FENCE__W___
 
 *Instruction code*: 0xd001
 
+*Short form*: ``fence_w_``
+
 *Exceptions*: None
 
 *Type variants*: No
@@ -587,6 +641,8 @@ Bit-field    Meaning
 
 .. note::
   bit-values are inverted to make FIELD_D==0xf an invalid encoding (i.e. no fence specification)
+
+The assembler accepts two spellings of each fence. The one used in this document gives both sides as a two-character field (``rw``, ``r_``, ``_w`` or ``__``): FENCE_<before>_<after>, for instance FENCE_R__RW. The short form drops the padding, so each side is ``rw``, ``r``, ``w`` or empty: ``fence_r_rw`` for FENCE_R__RW, ``fence__w`` for FENCE_____W, ``fence_rw_`` for FENCE_RW___. The disassembler prints the short form.
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
@@ -612,6 +668,8 @@ FENCE_R____
 
 *Instruction code*: 0xe001
 
+*Short form*: ``fence_r_``
+
 *Exceptions*: None
 
 *Type variants*: No
@@ -632,6 +690,8 @@ Bit-field    Meaning
 
 .. note::
   bit-values are inverted to make FIELD_D==0xf an invalid encoding (i.e. no fence specification)
+
+The assembler accepts two spellings of each fence. The one used in this document gives both sides as a two-character field (``rw``, ``r_``, ``_w`` or ``__``): FENCE_<before>_<after>, for instance FENCE_R__RW. The short form drops the padding, so each side is ``rw``, ``r``, ``w`` or empty: ``fence_r_rw`` for FENCE_R__RW, ``fence__w`` for FENCE_____W, ``fence_rw_`` for FENCE_RW___. The disassembler prints the short form.
 
 Fences have no effect on cache contents. In particular, fences don't invalidate the instruction cache (if exists) and cannot be exclusively used to implement coherency between data and instruction stream such as needed for self-modifying code.
 
