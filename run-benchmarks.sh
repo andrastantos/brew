@@ -3,14 +3,17 @@
 # test-results/<name>/bench/ (default name: gcc-<gcc sha>-newlib-<newlib sha>,
 # matching run-gcc-tests.sh):
 #   sizes.txt   .text/.data/.bss of each benchmark's own objects and linked ELF
-#   insns.txt   dynamic instruction counts on the simulator (--trace-insn)
+#   insns.txt   dynamic instruction counts on the simulator
+#   mix-<opt>.txt instruction mix of each dhrystone build, by class and by
+#               form (the simulator's --profile-insn report)
 #   abi.txt     newlib type sizes/offsets and constants (abi/abi-layout.c)
 # Diff the directory against an earlier run.
 #
-# Only dhrystone runs: linpack's clock() hits the unimplemented times syscall
-# (SIM_ASSERT in sim/brew/models), and llloops' timer calibration never ends
-# without a working clock.  Built with -DSIM, dhrystone skips its timing and
-# result printing, so the run checks completion and instruction counts only.
+# Only dhrystone runs: linpack takes minutes on the simulator, and llloops'
+# timer calibration never ends there.  Built with -DSIM, dhrystone skips its
+# timing and result printing, so the run checks completion and instruction
+# counts only.  The program's stdout goes to /dev/null: newlib's stdio picks
+# its buffering from fstat, so a pipe or a terminal changes the counts.
 #
 # Usage: [FLAVOR=trunk] [PREFIX=install-prefix] [OPTS="-O0 -O2 -Os"] brew/run-benchmarks.sh [name]
 # FLAVOR=trunk (see build-toolchain.sh) defaults PREFIX to ~/brew-toolset-trunk.
@@ -52,7 +55,15 @@ for opt in $OPTS; do
     $T-size "${objs[@]}" "$name$opt.elf" | sed 1d | awk '{printf "%-28s text %7d data %6d bss %7d\n", $6, $1, $2, $3}' >> ../sizes.txt
   done
   # The exit status is not checked: dhrystone's main() has no return statement.
-  n=$({ $T-run --trace-insn "dhrystone$opt.elf" 2>&1 >/dev/null || true; } | grep -c '^insn:')
+  # 'run' prints its profile only with -v; keep the instruction statistics
+  # (the report's other sections hold host timings).
+  $T-run -v --profile-insn --profile-file "dhrystone$opt.prof" "dhrystone$opt.elf" >/dev/null 2>&1 || true
+  sed -n '/^Instruction Statistics/,/^Simulator Execution Speed/p' "dhrystone$opt.prof" | sed '$d' > "../mix$opt.txt"
+  n=$(sed -n 's/^  Total: \([0-9,]*\) insns$/\1/p' "../mix$opt.txt" | tr -d ,)
+  if [ -z "$n" ]; then
+    echo "error: no instruction profile from $T-run (needs binutils-gdb with --profile-insn, 2026-11-22)" >&2
+    exit 1
+  fi
   printf "%-20s %10d insns\n" "dhrystone$opt" "$n" >> ../insns.txt
 done
 $T-gcc -O1 "$TOP/brew/abi/abi-layout.c" -o abi.elf
