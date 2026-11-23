@@ -15,7 +15,9 @@
 # counts only.  The program's stdout goes to /dev/null: newlib's stdio picks
 # its buffering from fstat, so a pipe or a terminal changes the counts.
 #
-# Usage: [FLAVOR=trunk] [PREFIX=install-prefix] [OPTS="-O0 -O2 -Os"] brew/run-benchmarks.sh [name]
+# Usage: [FLAVOR=trunk] [PREFIX=install-prefix] [OPTS="-O0 -O2 -Os"] [BENCH_CFLAGS=...] brew/run-benchmarks.sh [name]
+# BENCH_CFLAGS (e.g. -mtune=espresso) is added to every compile and link of
+# the benchmarks; the libraries are the installed ones.
 # FLAVOR=trunk (see build-toolchain.sh) defaults PREFIX to ~/brew-toolset-trunk.
 set -eo pipefail
 TOP=$(cd "$(dirname "$0")/.." && pwd)
@@ -49,9 +51,9 @@ for opt in $OPTS; do
     objs=()
     for s in $srcs; do
       o=$name$opt-$(basename "${s%.*}").o
-      $T-$cc $opt $flags -w -c "$B/$s" -o "$o"; objs+=("$o")
+      $T-$cc $opt $BENCH_CFLAGS $flags -w -c "$B/$s" -o "$o"; objs+=("$o")
     done
-    $T-$cc $opt "${objs[@]}" -lc -lm -o "$name$opt.elf"
+    $T-$cc $opt $BENCH_CFLAGS "${objs[@]}" -lc -lm -o "$name$opt.elf"
     $T-size "${objs[@]}" "$name$opt.elf" | sed 1d | awk '{printf "%-28s text %7d data %6d bss %7d\n", $6, $1, $2, $3}' >> ../sizes.txt
   done
   # The exit status is not checked: dhrystone's main() has no return statement.
