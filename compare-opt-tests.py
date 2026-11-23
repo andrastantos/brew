@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+"""Compare two run-opt-tests.sh runs.
+
+Usage: brew/compare-opt-tests.py OLD NEW [--all]
+
+OLD and NEW are run names (directories under test-results/) or paths to
+their opt/ directories.  For each test and optimization level, prints the
+executed instructions, taken branches and code size of both runs with the
+relative change; only rows that changed are shown unless --all is given.
+The totals per optimization level leave out empty (startup only) and
+dhrystone.  A status other than ok in NEW is flagged.
+"""
+
+import os
+import sys
+
+TOP = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+def load(arg):
+    path = arg
+    if not os.path.isdir(path):
+        path = os.path.join(TOP, "test-results", arg)
+    if os.path.isdir(os.path.join(path, "opt")):
+        path = os.path.join(path, "opt")
+    rows = {}
+    with open(os.path.join(path, "results.txt")) as f:
+        for line in f:
+            if line.startswith("#") or not line.strip():
+                continue
+            t, opt, status, insns, taken, untaken, text = line.split()
+            rows[(t, opt)] = dict(status=status, insns=int(insns),
+                                  taken=int(taken), untaken=int(untaken),
+                                  text=int(text))
+    return rows
+
+
+def pct(old, new):
+    if old == new:
+        return ""
+    if old == 0:
+        return "new"
+    return "%+.2f%%" % (100.0 * (new - old) / old)
+
+
+def main():
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
+    show_all = "--all" in sys.argv[1:]
+    if len(args) != 2:
+        sys.exit(__doc__)
+    old, new = load(args[0]), load(args[1])
+    fmt = "%-16s %-3s %10s %10s %8s  %8s %8s %8s  %6s %6s %8s  %s"
+    print(fmt % ("test", "opt", "insns", "", "", "taken", "", "", "text", "", "", ""))
+    totals = {}
+    for key in sorted(set(old) & set(new), key=lambda k: (k[1], k[0])):
+        o, n = old[key], new[key]
+        t, opt = key
+        if t not in ("empty", "dhrystone"):
+            tot = totals.setdefault(opt, [0] * 6)
+            for i, f in enumerate(("insns", "taken", "text")):
+                tot[2 * i] += o[f]
+                tot[2 * i + 1] += n[f]
+        flag = "" if n["status"] in ("ok", "-") else n["status"]
+        changed = any(o[f] != n[f] for f in ("insns", "taken", "text"))
+        if changed or show_all or flag:
+            print(fmt % (t, opt, o["insns"], n["insns"], pct(o["insns"], n["insns"]),
+                         o["taken"], n["taken"], pct(o["taken"], n["taken"]),
+                         o["text"], n["text"], pct(o["text"], n["text"]), flag))
+    for opt, (oi, ni, ot, nt, os_, ns) in sorted(totals.items()):
+        print(fmt % ("TOTAL", opt, oi, ni, pct(oi, ni), ot, nt, pct(ot, nt),
+                     os_, ns, pct(os_, ns), ""))
+    missing = sorted(set(old) ^ set(new))
+    if missing:
+        print("only in one run:", " ".join("%s-%s" % k for k in missing))
+
+
+if __name__ == "__main__":
+    main()
