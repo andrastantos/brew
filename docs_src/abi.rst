@@ -22,9 +22,9 @@ $r8          call-saved general purpose register
 $r9          call-saved general purpose register
 $r10         call-saved general purpose register
 $r11         call-saved general purpose register
-$r12         call-saved register a.k.a. $fp - frame pointer. NOTE: brew_dynamic_chain_address assumes it's in the 1st save slot in the stack.
+$r12         call-saved register a.k.a. $fp - frame pointer in functions that need one, otherwise a general purpose register (GCC then prints it as $r12). NOTE: brew_dynamic_chain_address assumes it's in the 1st save slot in the stack.
 $r13         call-saved register a.k.a. $sp - stack pointer.
-$r14         call-saved register a.k.a. $lr - link register. NOTE: brew_return_addr_rtx assumes it's in the 2nd save slot in the stack.
+$r14         call-saved register a.k.a. $lr - link register. NOTE: in functions with a frame pointer, brew_return_addr_rtx and brew_eh_return_handler_rtx assume it's in the 2nd save slot in the stack.
 ========     =====================================
 
 .. note::
@@ -98,7 +98,7 @@ Syscalls follow the same calling convention as function calls do, except that :c
 Stack layout
 ------------
 
-Stack management is also the responsibility of SW: there are no instructions that define or constrain the way the stack is organized. However, there are special load/store instructions with very compact encodings that use :code:`$r12` (a.k.a. :code:`$sp`) and :code:`$r13` (a.k.a. :code:`$fp`), so any reasonable ABI would use these two registers for stack management.
+Stack management is also the responsibility of SW: there are no instructions that define or constrain the way the stack is organized. However, there are special load/store instructions with very compact encodings that use :code:`$r12` (a.k.a. :code:`$fp`) and :code:`$r13` (a.k.a. :code:`$sp`), so any reasonable ABI would use these two registers for stack management.
 
 The stack is growing down, and the stack pointer is pre-decrement for push, and post-increment for pop. This means that :code:`$sp` points to the last valid value.
 
@@ -112,17 +112,24 @@ Stack frame layout upon enter to function::
   ...
   <arg n> <-- $sp
 
-Upon enter, :code:`$fp` is saved on the stack, then :code:`$fp <- $sp` is executed. Finally locals are allocated. After all of that, the stack looks as follows::
+The prologue stores the registers the function saves below :code:`$sp` (the incoming :code:`$sp` is the CFA), :code:`$fp` first and :code:`$lr` next when they are saved, then the other call-saved registers. In a function with a frame pointer it then executes :code:`$fp <- $sp`. Finally it moves :code:`$sp` down past the saved registers, the locals and the outgoing argument area in one step. After all of that, the stack looks as follows::
 
   <arg 0>
   <arg 1>
   ...
-  <arg n> <-- $fp
-  <old $fp>
+  <arg n> <-- $fp (in functions with a frame pointer)
+  <old $fp> (in functions with a frame pointer)
+  <$lr> (if saved)
+  <other saved registers>
   <local 0>
   <local 1>
   ...
-  <local n> <-- $sp
+  <local n>
+  <outgoing arguments> <-- $sp
+
+The epilogue moves :code:`$sp` back up first and then reloads the saved registers from below it.
+
+GCC sets up a frame pointer only when it needs one: at :code:`-O0` (or with :code:`-fno-omit-frame-pointer`), and in functions that call :code:`alloca` (or use variable-length arrays), call :code:`__builtin_eh_return`, or walk the frame chain (:code:`__builtin_frame_address`, :code:`__builtin_return_address` with a non-zero count). Elsewhere locals are addressed off :code:`$sp`, :code:`$r12` is one more call-saved register (saved, in the first slot, only if the function uses it), and :code:`$lr` otherwise takes the first save slot. Code that unwinds the stack (the C++ unwinder, debuggers) must follow the CFI rather than a chain of saved :code:`$fp` values.
 
 .. note::
   As discussed in the :ref:`Function Arguments <function_arguments>` chapter, the first few arguments are passed in registers, even though stack-space is allocated for them.
