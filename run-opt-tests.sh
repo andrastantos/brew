@@ -3,8 +3,11 @@
 # dhrystone) with the installed toolchain and records, per test and
 # optimization level, what generic Brew optimization work aims to reduce:
 #   results.txt     status, executed instructions, taken and untaken
-#                   branches, and the size of the test's own code
+#                   branches, the size of the test's own code, and cycles
+#                   on the simulator's Espresso cycle model
+#                   (--timing=espresso: DRAM, no wait states)
 #   mix/<t><opt>.txt  instruction mix (the simulator's --profile-insn report)
+#   timing/<t><opt>.txt where the cycles went (the --timing=espresso report)
 #   asm/<t><opt>.s  the compiler's assembly output for the test, for diffing
 # into test-results/<name>/opt/ (default name: gcc-<gcc sha>-newlib-<newlib
 # sha>, as run-gcc-tests.sh).  Compare two runs with compare-opt-tests.py.
@@ -44,10 +47,10 @@ DHRY=$TOP/brew/benchmarks/dhrystone
 if [ -z "$TESTS" ]; then
   TESTS="$(cd "$SRC" && ls *.c | sed 's/\.c$//' | tr '\n' ' ')dhrystone"
 fi
-rm -rf "$OUT"; mkdir -p "$OUT/build" "$OUT/mix" "$OUT/asm"; cd "$OUT/build"
+rm -rf "$OUT"; mkdir -p "$OUT/build" "$OUT/mix" "$OUT/timing" "$OUT/asm"; cd "$OUT/build"
 
 fails=0
-printf "%-16s %-4s %-6s %10s %9s %9s %7s\n" "# test" opt status insns taken untaken text > ../results.txt
+printf "%-16s %-4s %-6s %10s %9s %9s %7s %10s\n" "# test" opt status insns taken untaken text cycles > ../results.txt
 for opt in $OPTS; do
   for t in $TESTS; do
     if [ "$t" = dhrystone ]; then
@@ -67,18 +70,20 @@ for opt in $OPTS; do
     # 'run' prints its profile only with -v.  stdout goes to /dev/null, as in
     # run-benchmarks.sh (newlib's stdio buffering depends on it).
     rc=0
-    $T-run -v --profile-model --profile-insn --profile-file "$t$opt.prof" "$t$opt.elf" > /dev/null 2>&1 || rc=$?
-    sed -n '/^Instruction Statistics/,/^Simulator Execution Speed/p' "$t$opt.prof" | sed '$d' > "../mix/$t$opt.txt"
+    $T-run -v --profile-model --profile-insn --timing=espresso --profile-file "$t$opt.prof" "$t$opt.elf" > /dev/null 2>&1 || rc=$?
+    sed -n '/^Instruction Statistics/,/^\(Espresso Timing\|Simulator Execution Speed\)/p' "$t$opt.prof" | sed '$d' > "../mix/$t$opt.txt"
+    sed -n '/^Espresso Timing/,/^Simulator Execution Speed/p' "$t$opt.prof" | sed '$d' > "../timing/$t$opt.txt"
     num() { sed -n "s/^ *$1: *\([0-9,]*\).*/\1/p" "$t$opt.prof" | head -1 | tr -d ,; }
     insns=$(num Total) taken=$(num "Taken branches") untaken=$(num "Untaken branches")
-    if [ -z "$insns" ] || [ -z "$taken" ]; then
-      echo "error: no profile from $T-run for $t$opt (needs --profile-insn, binutils-gdb 2026-11-22)" >&2
+    cycles=$(num "Total cycles")
+    if [ -z "$insns" ] || [ -z "$taken" ] || [ -z "$cycles" ]; then
+      echo "error: no profile from $T-run for $t$opt (needs --profile-insn and --timing=espresso, binutils-gdb 2026-11-24)" >&2
       exit 1
     fi
     if [ "$t" = dhrystone ]; then status=-
     elif [ $rc -eq 0 ]; then status=ok
     else status=FAIL; fails=$((fails + 1)); fi
-    printf "%-16s %-4s %-6s %10d %9d %9d %7d\n" "$t" "${opt#-}" "$status" "$insns" "$taken" "$untaken" "$text" >> ../results.txt
+    printf "%-16s %-4s %-6s %10d %9d %9d %7d %10d\n" "$t" "${opt#-}" "$status" "$insns" "$taken" "$untaken" "$text" "$cycles" >> ../results.txt
   done
 done
 { echo "gcc $GSHA  newlib $NSHA  $($T-as --version | head -1)"; echo "OPT_CFLAGS=$OPT_CFLAGS"; } > ../VERSION.txt

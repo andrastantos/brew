@@ -6,6 +6,9 @@
 #   insns.txt   dynamic instruction counts on the simulator
 #   mix-<opt>.txt instruction mix of each dhrystone build, by class and by
 #               form (the simulator's --profile-insn report)
+#   cycles.txt  dhrystone's cycles on the simulator's Espresso cycle model
+#               (--timing=espresso: DRAM, no wait states)
+#   timing-<opt>.txt where those cycles went (the model's report)
 #   abi.txt     newlib type sizes/offsets and constants (abi/abi-layout.c)
 # Diff the directory against an earlier run.
 #
@@ -44,7 +47,7 @@ benches=(
   "linpack gcc -DSIM_-msoft-float linpack/linpack.c"
   "llloops g++ -DSIM_-msoft-float llloops/llloops.cpp"
 )
-: > ../sizes.txt; : > ../insns.txt
+: > ../sizes.txt; : > ../insns.txt; : > ../cycles.txt
 for opt in $OPTS; do
   for spec in "${benches[@]}"; do
     read -r name cc flags srcs <<< "$spec"; flags=${flags//_/ }
@@ -58,17 +61,24 @@ for opt in $OPTS; do
   done
   # The exit status is not checked: dhrystone's main() has no return statement.
   # 'run' prints its profile only with -v; keep the instruction statistics
-  # (the report's other sections hold host timings).
-  $T-run -v --profile-insn --profile-file "dhrystone$opt.prof" "dhrystone$opt.elf" >/dev/null 2>&1 || true
-  sed -n '/^Instruction Statistics/,/^Simulator Execution Speed/p' "dhrystone$opt.prof" | sed '$d' > "../mix$opt.txt"
+  # and the cycle model's report (the other sections hold host timings).
+  $T-run -v --profile-insn --profile-model --timing=espresso --profile-file "dhrystone$opt.prof" "dhrystone$opt.elf" >/dev/null 2>&1 || true
+  sed -n '/^Instruction Statistics/,/^\(Espresso Timing\|Simulator Execution Speed\)/p' "dhrystone$opt.prof" | sed '$d' > "../mix$opt.txt"
+  sed -n '/^Espresso Timing/,/^Simulator Execution Speed/p' "dhrystone$opt.prof" | sed '$d' > "../timing$opt.txt"
   n=$(sed -n 's/^  Total: \([0-9,]*\) insns$/\1/p' "../mix$opt.txt" | tr -d ,)
   if [ -z "$n" ]; then
     echo "error: no instruction profile from $T-run (needs binutils-gdb with --profile-insn, 2026-11-22)" >&2
     exit 1
   fi
   printf "%-20s %10d insns\n" "dhrystone$opt" "$n" >> ../insns.txt
+  c=$(sed -n 's/^  Total cycles: *\([0-9,]*\)$/\1/p' "../timing$opt.txt" | tr -d ,)
+  if [ -z "$c" ]; then
+    echo "error: no cycle report from $T-run (needs binutils-gdb with --timing=espresso, 2026-11-24)" >&2
+    exit 1
+  fi
+  printf "%-20s %10d cycles\n" "dhrystone$opt" "$c" >> ../cycles.txt
 done
 $T-gcc -O1 "$TOP/brew/abi/abi-layout.c" -o abi.elf
 $T-run abi.elf > ../abi.txt
 { echo "gcc $GSHA  newlib $NSHA  $($T-as --version | head -1)"; } > ../VERSION.txt
-cat ../insns.txt; echo "results: $OUT"
+cat ../insns.txt ../cycles.txt; echo "results: $OUT"
