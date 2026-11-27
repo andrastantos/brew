@@ -171,34 +171,26 @@ supported DRAM configuration has at least 512-byte pages, then change
 </div>
 <div class="admonition-todo admonition" id="id9">
 <p class="admonition-title">Todo</p>
-<p>Placement noise in measurements. Moving the same code by a few bytes changes
-single tests’ cycles by 2-5% (up to 14%) because of fetch page ends, and
-geometric means by ~0.3%. <code class="docutils literal notranslate"><span class="pre">run-opt-tests.sh</span></code> should be able to average
-each test over several padding offsets (<code class="docutils literal notranslate"><span class="pre">scratch-page/page.py</span></code> does it),
-so that tuning decisions don’t pick up placement luck.</p>
-</div>
-<div class="admonition-todo admonition" id="id10">
-<p class="admonition-title">Todo</p>
 <p>Remaining Espresso cycle budget at -O2: ~43% refills after taken branches,
 ~16% fetch starvation, ~10% register waits. Ideas not yet evaluated:
 ending bursts early at fetched branches (the RTL’s
 <code class="docutils literal notranslate"><span class="pre">break_on_branch_early</span></code> option, currently off), cheaper restarts after a
 taken branch, and the cost of the 3-cycle result latency.</p>
 </div>
-<div class="admonition-todo admonition" id="id11">
+<div class="admonition-todo admonition" id="id10">
 <p class="admonition-title">Todo</p>
 <p>Branchless selects don’t pay on Espresso without a conditional move or
 set-on-compare (a branch over a move costs 3-5 cycles, a mask select 4-9
 cycles and more on a full compare). Revisit if the ISA gains a select
 instruction, or once the scheduler can overlap independent select chains.</p>
 </div>
-<div class="admonition-todo admonition" id="id12">
+<div class="admonition-todo admonition" id="id11">
 <p class="admonition-title">Todo</p>
 <p>Loop unrolling and peeling gain 3-5% cycles at 6-30% more code and are left
 to users (<code class="docutils literal notranslate"><span class="pre">-funroll-loops</span></code>, <code class="docutils literal notranslate"><span class="pre">-fpeel-loops</span></code>). Decide whether a capped
 default makes sense for -O2.</p>
 </div>
-<div class="admonition-todo admonition" id="id13">
+<div class="admonition-todo admonition" id="id12">
 <p class="admonition-title">Todo</p>
 <p>The cycle model does not cover DMA, interrupts, exceptions beyond a taken
 branch, CSR wait states, or the timing of cores without a multiplier or
@@ -207,7 +199,7 @@ shifter.</p>
 </section>
 <section id="cores-without-a-multiplier-or-barrel-shifter">
 <h3>Cores without a multiplier or barrel shifter<a class="headerlink" href="#cores-without-a-multiplier-or-barrel-shifter" title="Link to this heading"></a></h3>
-<div class="admonition-todo admonition" id="id14">
+<div class="admonition-todo admonition" id="id13">
 <p class="admonition-title">Todo</p>
 <p>Performance of the reduced variant is unmeasured. Shifts call
 <code class="docutils literal notranslate"><span class="pre">__brew_ashl</span></code>/<code class="docutils literal notranslate"><span class="pre">__brew_ashr</span></code>/<code class="docutils literal notranslate"><span class="pre">__brew_lshr</span></code> (one loop iteration per
@@ -215,13 +207,13 @@ bit), multiplications <code class="docutils literal notranslate"><span class="pr
 consider faster routines (fewer iterations for common counts), inline
 loops, and expanding constant right shifts better.</p>
 </div>
-<div class="admonition-todo admonition" id="id15">
+<div class="admonition-todo admonition" id="id14">
 <p class="admonition-title">Todo</p>
 <p>Only one reduced library variant exists (<code class="docutils literal notranslate"><span class="pre">min/</span></code>: neither unit). A core
 with only one of the two units links with it too; separate <code class="docutils literal notranslate"><span class="pre">nomul</span></code> and
 <code class="docutils literal notranslate"><span class="pre">noshift</span></code> multilibs would let it use the unit it has.</p>
 </div>
-<div class="admonition-todo admonition" id="id16">
+<div class="admonition-todo admonition" id="id15">
 <p class="admonition-title">Todo</p>
 <p>13 libstdc++ tests time out on the reduced variant (special functions,
 <code class="docutils literal notranslate"><span class="pre">to_chars</span></code>, random distributions). Either raise the time limit for that
@@ -230,26 +222,26 @@ board or accept them as known.</p>
 </section>
 <section id="gcc">
 <h3>GCC<a class="headerlink" href="#gcc" title="Link to this heading"></a></h3>
-<div class="admonition-todo admonition" id="id17">
+<div class="admonition-todo admonition" id="id16">
 <p class="admonition-title">Todo</p>
 <p>Send upstream: the <code class="docutils literal notranslate"><span class="pre">assign_parm_adjust_stack_rtl</span></code> fix for addressable
 over-aligned parameters (<code class="docutils literal notranslate"><span class="pre">gcc.dg/pr97473.c</span></code>; on trunk only, and
 backported to <code class="docutils literal notranslate"><span class="pre">releases/gcc-16</span></code>).</p>
 </div>
-<div class="admonition-todo admonition" id="id18">
+<div class="admonition-todo admonition" id="id17">
 <p class="admonition-title">Todo</p>
 <p>Report upstream: trunk’s match.pd fold (<code class="docutils literal notranslate"><span class="pre">27b2a84e580</span></code>, <code class="docutils literal notranslate"><span class="pre">X</span> <span class="pre">+-</span> <span class="pre">C1</span> <span class="pre">==/!=</span> <span class="pre">C2</span></code>
 to <code class="docutils literal notranslate"><span class="pre">X</span> <span class="pre">==/!=</span> <span class="pre">0</span></code> with other uses of <code class="docutils literal notranslate"><span class="pre">X</span> <span class="pre">+-</span> <span class="pre">C1</span></code>) moves an -Os loop’s exit
 test before the decrement, two taken branches per iteration
 (<code class="docutils literal notranslate"><span class="pre">sort_insertion</span></code> -Os).</p>
 </div>
-<div class="admonition-todo admonition" id="id19">
+<div class="admonition-todo admonition" id="id18">
 <p class="admonition-title">Todo</p>
 <p>ABI decision: <code class="docutils literal notranslate"><span class="pre">PREFERRED_STACK_BOUNDARY</span></code> is 32 bits. 64 or 128 would make
 <code class="docutils literal notranslate"><span class="pre">alloca</span></code> results 8-aligned (<code class="docutils literal notranslate"><span class="pre">gdb.base/eh_return.exp</span></code>) and over-aligned
 locals cheaper, at the cost of stack space; it changes the ABI.</p>
 </div>
-<div class="admonition-todo admonition" id="id20">
+<div class="admonition-todo admonition" id="id19">
 <p class="admonition-title">Todo</p>
 <p><code class="docutils literal notranslate"><span class="pre">_stack</span></code> is the top of simulator memory, so nothing lies above <code class="docutils literal notranslate"><span class="pre">main</span></code>’s
 frame except crt0’s argv block. <code class="docutils literal notranslate"><span class="pre">gcc.dg/ssp-1.c</span></code> and
@@ -257,41 +249,41 @@ frame except crt0’s argv block. <code class="docutils literal notranslate"><sp
 check (xfailed). Decide whether to move <code class="docutils literal notranslate"><span class="pre">_stack</span></code> down (e.g. 4 KB), and
 update those tests’ xfail comments either way.</p>
 </div>
-<div class="admonition-todo admonition" id="id21">
+<div class="admonition-todo admonition" id="id20">
 <p class="admonition-title">Todo</p>
 <p>Size defaults: the jump threader of GCC 14+ makes libraries larger
 (<code class="docutils literal notranslate"><span class="pre">_vfprintf_r</span></code> 6.5 KB to 8 KB) for a slight speed gain. Decide whether
 Brew wants <code class="docutils literal notranslate"><span class="pre">--param=max-jump-thread-paths</span></code> or <code class="docutils literal notranslate"><span class="pre">-Os</span></code>-built libraries.</p>
 </div>
-<div class="admonition-todo admonition" id="id22">
+<div class="admonition-todo admonition" id="id21">
 <p class="admonition-title">Todo</p>
 <p>Trunk ran 0.8% more dhrystone -O2 instructions than <code class="docutils literal notranslate"><span class="pre">basepoints/gcc-17</span></code>
 (not bisected). Probably moot now that tuning is judged by Espresso cycles;
 check once with cycles.</p>
 </div>
-<div class="admonition-todo admonition" id="id23">
+<div class="admonition-todo admonition" id="id22">
 <p class="admonition-title">Todo</p>
 <p>Optimizer dump scans failing since GCC 15, probably cost-model effects:
 <code class="docutils literal notranslate"><span class="pre">gcc.dg/loop-9.c</span></code>, <code class="docutils literal notranslate"><span class="pre">crc-from-fedora-packages-2/24.c</span></code>,
 <code class="docutils literal notranslate"><span class="pre">field-merge-17.c</span></code>.</p>
 </div>
-<div class="admonition-todo admonition" id="id24">
+<div class="admonition-todo admonition" id="id23">
 <p class="admonition-title">Todo</p>
 <p>64-bit atomics call <code class="docutils literal notranslate"><span class="pre">__atomic_*_8</span></code>, which nothing provides (libatomic is
 disabled, and there is no 64-bit <code class="docutils literal notranslate"><span class="pre">memll</span></code>/<code class="docutils literal notranslate"><span class="pre">memsc</span></code>).</p>
 </div>
-<div class="admonition-todo admonition" id="id25">
+<div class="admonition-todo admonition" id="id24">
 <p class="admonition-title">Todo</p>
 <p><code class="docutils literal notranslate"><span class="pre">std::stacktrace</span></code> returns no frames (libstdc++ <code class="docutils literal notranslate"><span class="pre">19_diagnostics/stacktrace</span></code>),
 probably because libbacktrace is asked for a threaded state while built
 without threads. Check upstream before changing anything.</p>
 </div>
-<div class="admonition-todo admonition" id="id26">
+<div class="admonition-todo admonition" id="id25">
 <p class="admonition-title">Todo</p>
 <p><code class="docutils literal notranslate"><span class="pre">std::timespec_get</span></code> is missing: libstdc++’s newlib configuration never
 checks for <code class="docutils literal notranslate"><span class="pre">timespec_get</span></code>, which libgloss provides now.</p>
 </div>
-<div class="admonition-todo admonition" id="id27">
+<div class="admonition-todo admonition" id="id26">
 <p class="admonition-title">Todo</p>
 <p>Regular maintenance merges: upstream trunk into brew-gcc <code class="docutils literal notranslate"><span class="pre">master</span></code> about
 monthly (last 2026-11-18), each new 16.x tag into <code class="docutils literal notranslate"><span class="pre">releases/gcc-16</span></code>.</p>
@@ -299,20 +291,20 @@ monthly (last 2026-11-18), each new 16.x tag into <code class="docutils literal 
 </section>
 <section id="run-time-environments-and-newlib">
 <h3>Run-time environments and newlib<a class="headerlink" href="#run-time-environments-and-newlib" title="Link to this heading"></a></h3>
-<div class="admonition-todo admonition" id="id28">
+<div class="admonition-todo admonition" id="id27">
 <p class="admonition-title">Todo</p>
 <p>Operating environment (bare metal): no DejaGnu board tests
 <code class="docutils literal notranslate"><span class="pre">-menvironment=operating</span></code> yet; there is no linker script for Espresso’s
 ROM/RAM map; <code class="docutils literal notranslate"><span class="pre">.data</span></code> isn’t copied from ROM for ROM-resident programs; the
 console isn’t initialized (baud rate) for real hardware.</p>
 </div>
-<div class="admonition-todo admonition" id="id29">
+<div class="admonition-todo admonition" id="id28">
 <p class="admonition-title">Todo</p>
 <p><code class="docutils literal notranslate"><span class="pre">anachron/sw_new</span></code>’s ROM links but doesn’t run: on the ISS the espresso
 model lacks the bus-interface CSR (0x200) and the 0xffff_fc00 DRAM alias; on
 the RTL test bench it ends after ~160 us with exit code <code class="docutils literal notranslate"><span class="pre">x</span></code>.</p>
 </div>
-<div class="admonition-todo admonition" id="id30">
+<div class="admonition-todo admonition" id="id29">
 <p class="admonition-title">Todo</p>
 <p>llloops never finishes on the simulator (its timer calibration is too
 slow); it needs a smaller calibration target or a <code class="docutils literal notranslate"><span class="pre">-DSIM</span></code> path.</p>
@@ -320,13 +312,13 @@ slow); it needs a smaller calibration target or a <code class="docutils literal 
 </section>
 <section id="simulator">
 <h3>Simulator<a class="headerlink" href="#simulator" title="Link to this heading"></a></h3>
-<div class="admonition-todo admonition" id="id31">
+<div class="admonition-todo admonition" id="id30">
 <p class="admonition-title">Todo</p>
 <p>Operating environment: an optional <code class="docutils literal notranslate"><span class="pre">--scheduler-exceptions=reset</span></code>
 (restart at 0 instead of stopping); the devices’ interrupts aren’t wired;
 a console DATA read with no input fails instead of waiting, as the RTL does.</p>
 </div>
-<div class="admonition-todo admonition" id="id32">
+<div class="admonition-todo admonition" id="id31">
 <p class="admonition-title">Todo</p>
 <p>The <code class="docutils literal notranslate"><span class="pre">field_e</span></code>-decoded extension groups in <code class="docutils literal notranslate"><span class="pre">brew-decode.c</span></code> are disabled;
 enabling them needs <code class="docutils literal notranslate"><span class="pre">field_e</span></code> in the instruction profile’s key.</p>
@@ -334,7 +326,7 @@ enabling them needs <code class="docutils literal notranslate"><span class="pre"
 </section>
 <section id="documentation">
 <h3>Documentation<a class="headerlink" href="#documentation" title="Link to this heading"></a></h3>
-<div class="admonition-todo admonition" id="id33">
+<div class="admonition-todo admonition" id="id32">
 <p class="admonition-title">Todo</p>
 <p><code class="docutils literal notranslate"><span class="pre">docs/html</span></code> was last generated in December 2023 (Docutils 0.17); a
 rebuild with today’s Sphinx rewrites 34 files, so the HTML lags the

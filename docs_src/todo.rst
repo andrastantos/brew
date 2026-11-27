@@ -58,13 +58,6 @@ Espresso performance
    ``page_bits`` (RTL, cycle model, regenerated Verilog, rig suite).
 
 .. todo::
-   Placement noise in measurements. Moving the same code by a few bytes changes
-   single tests' cycles by 2-5% (up to 14%) because of fetch page ends, and
-   geometric means by ~0.3%. ``run-opt-tests.sh`` should be able to average
-   each test over several padding offsets (``scratch-page/page.py`` does it),
-   so that tuning decisions don't pick up placement luck.
-
-.. todo::
    Remaining Espresso cycle budget at -O2: ~43% refills after taken branches,
    ~16% fetch starvation, ~10% register waits. Ideas not yet evaluated:
    ending bursts early at fetched branches (the RTL's
