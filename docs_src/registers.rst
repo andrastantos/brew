@@ -25,8 +25,8 @@ $r14            0xe
 
 In assembly, the following register aliases can be used as well:
 
-* $sp:  alias to $r12
-* $fp:  alias to $r13
+* $fp:  alias to $r12 (the frame pointer, in functions that set one up; see :doc:`abi`)
+* $sp:  alias to $r13 (the stack pointer)
 * $lr:  alias to $r14
 
 .. note::
