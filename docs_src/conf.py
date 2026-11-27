@@ -37,6 +37,7 @@ extensions = [
     'sphinxcontrib.svgbob',
     'sphinx_rtd_theme',
     'sphinx.ext.todo',
+    'todo_relpath',
 ]
 
 offline_skin_js_path = r"default.js"
