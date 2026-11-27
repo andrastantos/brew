@@ -1,22 +1,23 @@
+
+
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="./">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Appendix E: Todo &mdash; Brew processor  documentation</title>
-      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-  <!--[if lt IE 9]>
-    <script src="_static/js/html5shiv.min.js"></script>
-  <![endif]-->
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
   
-        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-        <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
-        <script src="_static/doctools.js"></script>
-        <script src="_static/default.js"></script>
-        <script src="_static/wavedrom.min.js"></script>
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=7f41d439"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="_static/default.js"></script>
+      <script src="_static/wavedrom.min.js?v=db79c4d1"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -28,11 +29,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="index.html" class="icon icon-home"> Brew processor
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Brew processor
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -62,6 +67,15 @@
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Appendix E: Todo</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#toolchain">Toolchain</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#multiple-load-stores">Multiple Load-Stores</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#open-items-from-the-toolchain-work-as-of-2026-11-27">Open items from the toolchain work (as of 2026-11-27)</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#espresso-performance">Espresso performance</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#cores-without-a-multiplier-or-barrel-shifter">Cores without a multiplier or barrel shifter</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#gcc">GCC</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#run-time-environments-and-newlib">Run-time environments and newlib</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#simulator">Simulator</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#documentation">Documentation</a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -79,7 +93,7 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="index.html" class="icon icon-home"></a></li>
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
       <li class="breadcrumb-item active">Appendix E: Todo</li>
       <li class="wy-breadcrumbs-aside">
       </li>
@@ -90,9 +104,9 @@
            <div itemprop="articleBody">
              
   <section id="appendix-e-todo">
-<h1>Appendix E: Todo<a class="headerlink" href="#appendix-e-todo" title="Permalink to this headline"></a></h1>
+<h1>Appendix E: Todo<a class="headerlink" href="#appendix-e-todo" title="Link to this heading"></a></h1>
 <section id="toolchain">
-<h2>Toolchain<a class="headerlink" href="#toolchain" title="Permalink to this headline"></a></h2>
+<h2>Toolchain<a class="headerlink" href="#toolchain" title="Link to this heading"></a></h2>
 <div class="admonition-todo admonition" id="id1">
 <p class="admonition-title">Todo</p>
 <p>We’ll need to make sure we use sign-extend loads appropriately: apparently Moxie didn’t have sign-extend loads</p>
@@ -107,7 +121,7 @@
 </div>
 <div class="admonition-todo admonition" id="id4">
 <p class="admonition-title">Todo</p>
-<p>figure out if we really need ‘upper’ version of multiplies and how to efficiently use them. Right now 64-bit multiplies are borken, I think.</p>
+<p>figure out if we really need ‘upper’ versions of multiplies and how to efficiently use them. Without them (the <code class="docutils literal notranslate"><span class="pre">mulsi3_highpart</span></code>/<code class="docutils literal notranslate"><span class="pre">umulsi3_highpart</span></code> patterns in <code class="docutils literal notranslate"><span class="pre">brew.md</span></code> and the decoder’s “full” multiplies, <code class="docutils literal notranslate"><span class="pre">$rD</span> <span class="pre">&lt;-</span> <span class="pre">full</span> <span class="pre">$rA</span> <span class="pre">*</span> <span class="pre">$rB</span> <span class="pre">&gt;&gt;&gt;</span> <span class="pre">N</span></code>, are commented out), GCC builds 64-bit products from several 32-bit multiplies and additions (or calls <code class="docutils literal notranslate"><span class="pre">__muldi3</span></code>), and a division by a constant can’t use the usual multiply-by-reciprocal sequence: <code class="docutils literal notranslate"><span class="pre">x</span> <span class="pre">/</span> <span class="pre">10</span></code> calls <code class="docutils literal notranslate"><span class="pre">__udivsi3</span></code>, a full division loop. 64-bit multiplication itself works (<code class="docutils literal notranslate"><span class="pre">gcc.c-torture/execute/arith-rand-ll.c</span></code>).</p>
 </div>
 <div class="admonition-todo admonition" id="id5">
 <p class="admonition-title">Todo</p>
@@ -125,7 +139,7 @@
 <div class="admonition-todo admonition" id="id6">
 <p class="admonition-title">Todo</p>
 <p>we should use this:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">CALL_REALLY_USED_REGISTERS</span> <span class="n">instead</span> <span class="n">of</span> <span class="n">CALL_USED_REGISTERS</span> <span class="o">-&gt;</span> <span class="n">that</span><span class="s1">&#39;s legacy.</span>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">CALL_REALLY_USED_REGISTERS</span> <span class="n">instead</span> <span class="n">of</span> <span class="n">CALL_USED_REGISTERS</span> <span class="o">-&gt;</span> <span class="n">that</span><span class="s1">'s legacy.</span>
 </pre></div>
 </div>
 </div>
@@ -133,14 +147,200 @@
 <p class="admonition-title">Todo</p>
 <p>there’s a GCC macro: <code class="code docutils literal notranslate"><span class="pre">__REGISTER_PREFIX__</span></code>. If there’s a GAS equivalent, maybe we can coerce GAS expression parser to stop at register names? I actually think this is outdated. I have a completely re-written parser at this point which doesn’t depend on the demented GAS expression parser. It identifies expression boundaries on its own and calls the GAS parser for only the appropriate segments.</p>
 </div>
-<div class="admonition-todo admonition" id="id8">
-<p class="admonition-title">Todo</p>
-<p>we need a predefined macro for -msoft-float</p>
-</div>
 </section>
 <section id="multiple-load-stores">
-<h2>Multiple Load-Stores<a class="headerlink" href="#multiple-load-stores" title="Permalink to this headline"></a></h2>
+<h2>Multiple Load-Stores<a class="headerlink" href="#multiple-load-stores" title="Link to this heading"></a></h2>
 <p>This is a new idea that I’m toying with: would it be too difficult to add a pair of (multi-cycle) instructions that could load and store any combination of registers? This goes against the RISC approach, it’s clearly a complex concept. However, ARM has it and for good reason: it collapses function prologs and epilogs, results in very compact code and - if implemented properly - results in pretty nice memory access patterns with high efficiencies. I have found a right-sized hole in the instruction space to fit these instructions in, but the implementation complexity is rather high. I’m not yet sure if it’s worth to have them, I probably need to model it first.</p>
+</section>
+<section id="open-items-from-the-toolchain-work-as-of-2026-11-27">
+<h2>Open items from the toolchain work (as of 2026-11-27)<a class="headerlink" href="#open-items-from-the-toolchain-work-as-of-2026-11-27" title="Link to this heading"></a></h2>
+<p>Collected from the toolchain bring-up (GCC 16 and trunk, binutils/gdb and
+newlib merges, Espresso tuning). The workspace <code class="docutils literal notranslate"><span class="pre">CLAUDE.md</span></code> has the
+measurements and commit references behind each item.</p>
+<section id="espresso-performance">
+<h3>Espresso performance<a class="headerlink" href="#espresso-performance" title="Link to this heading"></a></h3>
+<div class="admonition-todo admonition" id="id8">
+<p class="admonition-title">Todo</p>
+<p>Fetch page size. The fetch unit ends bursts at 256-byte boundaries
+(<code class="docutils literal notranslate"><span class="pre">page_bits</span> <span class="pre">=</span> <span class="pre">7</span></code>, counted in 16-bit words), but the external bus allows
+bursts within a 512-byte DRAM page. On the cycle model, 512 bytes halves the
+average cost of page ends (+0.30% to +0.16% against no page effects over
+the code-generation tests); 1024 bytes adds little. Confirm that every
+supported DRAM configuration has at least 512-byte pages, then change
+<code class="docutils literal notranslate"><span class="pre">page_bits</span></code> (RTL, cycle model, regenerated Verilog, rig suite).</p>
+</div>
+<div class="admonition-todo admonition" id="id9">
+<p class="admonition-title">Todo</p>
+<p>Placement noise in measurements. Moving the same code by a few bytes changes
+single tests’ cycles by 2-5% (up to 14%) because of fetch page ends, and
+geometric means by ~0.3%. <code class="docutils literal notranslate"><span class="pre">run-opt-tests.sh</span></code> should be able to average
+each test over several padding offsets (<code class="docutils literal notranslate"><span class="pre">scratch-page/page.py</span></code> does it),
+so that tuning decisions don’t pick up placement luck.</p>
+</div>
+<div class="admonition-todo admonition" id="id10">
+<p class="admonition-title">Todo</p>
+<p>Remaining Espresso cycle budget at -O2: ~43% refills after taken branches,
+~16% fetch starvation, ~10% register waits. Ideas not yet evaluated:
+ending bursts early at fetched branches (the RTL’s
+<code class="docutils literal notranslate"><span class="pre">break_on_branch_early</span></code> option, currently off), cheaper restarts after a
+taken branch, and the cost of the 3-cycle result latency.</p>
+</div>
+<div class="admonition-todo admonition" id="id11">
+<p class="admonition-title">Todo</p>
+<p>Branchless selects don’t pay on Espresso without a conditional move or
+set-on-compare (a branch over a move costs 3-5 cycles, a mask select 4-9
+cycles and more on a full compare). Revisit if the ISA gains a select
+instruction, or once the scheduler can overlap independent select chains.</p>
+</div>
+<div class="admonition-todo admonition" id="id12">
+<p class="admonition-title">Todo</p>
+<p>Loop unrolling and peeling gain 3-5% cycles at 6-30% more code and are left
+to users (<code class="docutils literal notranslate"><span class="pre">-funroll-loops</span></code>, <code class="docutils literal notranslate"><span class="pre">-fpeel-loops</span></code>). Decide whether a capped
+default makes sense for -O2.</p>
+</div>
+<div class="admonition-todo admonition" id="id13">
+<p class="admonition-title">Todo</p>
+<p>The cycle model does not cover DMA, interrupts, exceptions beyond a taken
+branch, CSR wait states, or the timing of cores without a multiplier or
+shifter.</p>
+</div>
+</section>
+<section id="cores-without-a-multiplier-or-barrel-shifter">
+<h3>Cores without a multiplier or barrel shifter<a class="headerlink" href="#cores-without-a-multiplier-or-barrel-shifter" title="Link to this heading"></a></h3>
+<div class="admonition-todo admonition" id="id14">
+<p class="admonition-title">Todo</p>
+<p>Performance of the reduced variant is unmeasured. Shifts call
+<code class="docutils literal notranslate"><span class="pre">__brew_ashl</span></code>/<code class="docutils literal notranslate"><span class="pre">__brew_ashr</span></code>/<code class="docutils literal notranslate"><span class="pre">__brew_lshr</span></code> (one loop iteration per
+bit), multiplications <code class="docutils literal notranslate"><span class="pre">__mulsi3</span></code>. Measure on the cycle model, then
+consider faster routines (fewer iterations for common counts), inline
+loops, and expanding constant right shifts better.</p>
+</div>
+<div class="admonition-todo admonition" id="id15">
+<p class="admonition-title">Todo</p>
+<p>Only one reduced library variant exists (<code class="docutils literal notranslate"><span class="pre">min/</span></code>: neither unit). A core
+with only one of the two units links with it too; separate <code class="docutils literal notranslate"><span class="pre">nomul</span></code> and
+<code class="docutils literal notranslate"><span class="pre">noshift</span></code> multilibs would let it use the unit it has.</p>
+</div>
+<div class="admonition-todo admonition" id="id16">
+<p class="admonition-title">Todo</p>
+<p>13 libstdc++ tests time out on the reduced variant (special functions,
+<code class="docutils literal notranslate"><span class="pre">to_chars</span></code>, random distributions). Either raise the time limit for that
+board or accept them as known.</p>
+</div>
+</section>
+<section id="gcc">
+<h3>GCC<a class="headerlink" href="#gcc" title="Link to this heading"></a></h3>
+<div class="admonition-todo admonition" id="id17">
+<p class="admonition-title">Todo</p>
+<p>Send upstream: the <code class="docutils literal notranslate"><span class="pre">assign_parm_adjust_stack_rtl</span></code> fix for addressable
+over-aligned parameters (<code class="docutils literal notranslate"><span class="pre">gcc.dg/pr97473.c</span></code>; on trunk only, and
+backported to <code class="docutils literal notranslate"><span class="pre">releases/gcc-16</span></code>).</p>
+</div>
+<div class="admonition-todo admonition" id="id18">
+<p class="admonition-title">Todo</p>
+<p>Report upstream: trunk’s match.pd fold (<code class="docutils literal notranslate"><span class="pre">27b2a84e580</span></code>, <code class="docutils literal notranslate"><span class="pre">X</span> <span class="pre">+-</span> <span class="pre">C1</span> <span class="pre">==/!=</span> <span class="pre">C2</span></code>
+to <code class="docutils literal notranslate"><span class="pre">X</span> <span class="pre">==/!=</span> <span class="pre">0</span></code> with other uses of <code class="docutils literal notranslate"><span class="pre">X</span> <span class="pre">+-</span> <span class="pre">C1</span></code>) moves an -Os loop’s exit
+test before the decrement, two taken branches per iteration
+(<code class="docutils literal notranslate"><span class="pre">sort_insertion</span></code> -Os).</p>
+</div>
+<div class="admonition-todo admonition" id="id19">
+<p class="admonition-title">Todo</p>
+<p>ABI decision: <code class="docutils literal notranslate"><span class="pre">PREFERRED_STACK_BOUNDARY</span></code> is 32 bits. 64 or 128 would make
+<code class="docutils literal notranslate"><span class="pre">alloca</span></code> results 8-aligned (<code class="docutils literal notranslate"><span class="pre">gdb.base/eh_return.exp</span></code>) and over-aligned
+locals cheaper, at the cost of stack space; it changes the ABI.</p>
+</div>
+<div class="admonition-todo admonition" id="id20">
+<p class="admonition-title">Todo</p>
+<p><code class="docutils literal notranslate"><span class="pre">_stack</span></code> is the top of simulator memory, so nothing lies above <code class="docutils literal notranslate"><span class="pre">main</span></code>’s
+frame except crt0’s argv block. <code class="docutils literal notranslate"><span class="pre">gcc.dg/ssp-1.c</span></code> and
+<code class="docutils literal notranslate"><span class="pre">stackprotectexplicit1.c</span></code> overrun into it and fault before the canary
+check (xfailed). Decide whether to move <code class="docutils literal notranslate"><span class="pre">_stack</span></code> down (e.g. 4 KB), and
+update those tests’ xfail comments either way.</p>
+</div>
+<div class="admonition-todo admonition" id="id21">
+<p class="admonition-title">Todo</p>
+<p>Size defaults: the jump threader of GCC 14+ makes libraries larger
+(<code class="docutils literal notranslate"><span class="pre">_vfprintf_r</span></code> 6.5 KB to 8 KB) for a slight speed gain. Decide whether
+Brew wants <code class="docutils literal notranslate"><span class="pre">--param=max-jump-thread-paths</span></code> or <code class="docutils literal notranslate"><span class="pre">-Os</span></code>-built libraries.</p>
+</div>
+<div class="admonition-todo admonition" id="id22">
+<p class="admonition-title">Todo</p>
+<p>Trunk ran 0.8% more dhrystone -O2 instructions than <code class="docutils literal notranslate"><span class="pre">basepoints/gcc-17</span></code>
+(not bisected). Probably moot now that tuning is judged by Espresso cycles;
+check once with cycles.</p>
+</div>
+<div class="admonition-todo admonition" id="id23">
+<p class="admonition-title">Todo</p>
+<p>Optimizer dump scans failing since GCC 15, probably cost-model effects:
+<code class="docutils literal notranslate"><span class="pre">gcc.dg/loop-9.c</span></code>, <code class="docutils literal notranslate"><span class="pre">crc-from-fedora-packages-2/24.c</span></code>,
+<code class="docutils literal notranslate"><span class="pre">field-merge-17.c</span></code>.</p>
+</div>
+<div class="admonition-todo admonition" id="id24">
+<p class="admonition-title">Todo</p>
+<p>64-bit atomics call <code class="docutils literal notranslate"><span class="pre">__atomic_*_8</span></code>, which nothing provides (libatomic is
+disabled, and there is no 64-bit <code class="docutils literal notranslate"><span class="pre">memll</span></code>/<code class="docutils literal notranslate"><span class="pre">memsc</span></code>).</p>
+</div>
+<div class="admonition-todo admonition" id="id25">
+<p class="admonition-title">Todo</p>
+<p><code class="docutils literal notranslate"><span class="pre">std::stacktrace</span></code> returns no frames (libstdc++ <code class="docutils literal notranslate"><span class="pre">19_diagnostics/stacktrace</span></code>),
+probably because libbacktrace is asked for a threaded state while built
+without threads. Check upstream before changing anything.</p>
+</div>
+<div class="admonition-todo admonition" id="id26">
+<p class="admonition-title">Todo</p>
+<p><code class="docutils literal notranslate"><span class="pre">std::timespec_get</span></code> is missing: libstdc++’s newlib configuration never
+checks for <code class="docutils literal notranslate"><span class="pre">timespec_get</span></code>, which libgloss provides now.</p>
+</div>
+<div class="admonition-todo admonition" id="id27">
+<p class="admonition-title">Todo</p>
+<p>Regular maintenance merges: upstream trunk into brew-gcc <code class="docutils literal notranslate"><span class="pre">master</span></code> about
+monthly (last 2026-11-18), each new 16.x tag into <code class="docutils literal notranslate"><span class="pre">releases/gcc-16</span></code>.</p>
+</div>
+</section>
+<section id="run-time-environments-and-newlib">
+<h3>Run-time environments and newlib<a class="headerlink" href="#run-time-environments-and-newlib" title="Link to this heading"></a></h3>
+<div class="admonition-todo admonition" id="id28">
+<p class="admonition-title">Todo</p>
+<p>Operating environment (bare metal): no DejaGnu board tests
+<code class="docutils literal notranslate"><span class="pre">-menvironment=operating</span></code> yet; there is no linker script for Espresso’s
+ROM/RAM map; <code class="docutils literal notranslate"><span class="pre">.data</span></code> isn’t copied from ROM for ROM-resident programs; the
+console isn’t initialized (baud rate) for real hardware.</p>
+</div>
+<div class="admonition-todo admonition" id="id29">
+<p class="admonition-title">Todo</p>
+<p><code class="docutils literal notranslate"><span class="pre">anachron/sw_new</span></code>’s ROM links but doesn’t run: on the ISS the espresso
+model lacks the bus-interface CSR (0x200) and the 0xffff_fc00 DRAM alias; on
+the RTL test bench it ends after ~160 us with exit code <code class="docutils literal notranslate"><span class="pre">x</span></code>.</p>
+</div>
+<div class="admonition-todo admonition" id="id30">
+<p class="admonition-title">Todo</p>
+<p>llloops never finishes on the simulator (its timer calibration is too
+slow); it needs a smaller calibration target or a <code class="docutils literal notranslate"><span class="pre">-DSIM</span></code> path.</p>
+</div>
+</section>
+<section id="simulator">
+<h3>Simulator<a class="headerlink" href="#simulator" title="Link to this heading"></a></h3>
+<div class="admonition-todo admonition" id="id31">
+<p class="admonition-title">Todo</p>
+<p>Operating environment: an optional <code class="docutils literal notranslate"><span class="pre">--scheduler-exceptions=reset</span></code>
+(restart at 0 instead of stopping); the devices’ interrupts aren’t wired;
+a console DATA read with no input fails instead of waiting, as the RTL does.</p>
+</div>
+<div class="admonition-todo admonition" id="id32">
+<p class="admonition-title">Todo</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">field_e</span></code>-decoded extension groups in <code class="docutils literal notranslate"><span class="pre">brew-decode.c</span></code> are disabled;
+enabling them needs <code class="docutils literal notranslate"><span class="pre">field_e</span></code> in the instruction profile’s key.</p>
+</div>
+</section>
+<section id="documentation">
+<h3>Documentation<a class="headerlink" href="#documentation" title="Link to this heading"></a></h3>
+<div class="admonition-todo admonition" id="id33">
+<p class="admonition-title">Todo</p>
+<p><code class="docutils literal notranslate"><span class="pre">docs/html</span></code> was last generated in December 2023 (Docutils 0.17); a
+rebuild with today’s Sphinx rewrites 34 files, so the HTML lags the
+sources.</p>
+</div>
+</section>
 </section>
 </section>
 

@@ -1,22 +1,23 @@
+
+
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="./">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Memory Model &mdash; Brew processor  documentation</title>
-      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-  <!--[if lt IE 9]>
-    <script src="_static/js/html5shiv.min.js"></script>
-  <![endif]-->
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
   
-        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-        <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
-        <script src="_static/doctools.js"></script>
-        <script src="_static/default.js"></script>
-        <script src="_static/wavedrom.min.js"></script>
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=7f41d439"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="_static/default.js"></script>
+      <script src="_static/wavedrom.min.js?v=db79c4d1"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -29,11 +30,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="index.html" class="icon icon-home"> Brew processor
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Brew processor
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -55,6 +60,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#barrier-instructions">Barrier instructions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#notes-of-i-o">Notes of I/O</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#multi-processor-implications">Multi-processor implications</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#load-lock-lifetime">Load-lock lifetime</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#implementation-notes">Implementation Notes</a></li>
 </ul>
 </li>
@@ -94,7 +100,7 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="index.html" class="icon icon-home"></a></li>
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
       <li class="breadcrumb-item active">Memory Model</li>
       <li class="wy-breadcrumbs-aside">
       </li>
@@ -105,7 +111,7 @@
            <div itemprop="articleBody">
              
   <section id="memory-model">
-<h1>Memory Model<a class="headerlink" href="#memory-model" title="Permalink to this headline"></a></h1>
+<h1>Memory Model<a class="headerlink" href="#memory-model" title="Link to this heading"></a></h1>
 <p>The Brew specification sets rather loose standards on the memory model implemented by a particular CPU.</p>
 <p>From a single processors (or thread within a multi-threaded implementation) point of view, the following requirement must be met:</p>
 <p><strong>Load from an address must return the last value written to the same address by a store in program execution order.</strong></p>
@@ -114,21 +120,44 @@
 <p>A particular implementation of course can set more strict requirements on the ordering of loads and stores.</p>
 <p>Non-cacheable I/O read operations are guaranteed to fetch their data from the I/O device, if there are no pending writes to the same address.</p>
 <section id="barrier-instructions">
-<h2>Barrier instructions<a class="headerlink" href="#barrier-instructions" title="Permalink to this headline"></a></h2>
+<h2>Barrier instructions<a class="headerlink" href="#barrier-instructions" title="Link to this heading"></a></h2>
 <p>Barrier instructions (FENCE_*) can be used to enforce ordering of loads and stores. These instructions can force the CPU pipeline (not the cache subsystem) to ensure loads and/or stores have completed before execution resumes. The same instructions can also ensure subsequent loads and/or stores have not started execution before execution resumes.</p>
 <p>Barrier instructions of the ‘write before’ kind guarantee that the side-effects of writes reach their target, or at least a target that provides the appropriate completion response. What this actually means exactly is left to the implementation to define. If the target address is cacheable and is resident, it is possible that the write only reaches the L1 data cache for instance. For non-cacheable I/O references, Barrier instructions of the ‘write before’ kind guarantee that the write reached the I/O device.</p>
 </section>
 <section id="notes-of-i-o">
-<h2>Notes of I/O<a class="headerlink" href="#notes-of-i-o" title="Permalink to this headline"></a></h2>
+<h2>Notes of I/O<a class="headerlink" href="#notes-of-i-o" title="Link to this heading"></a></h2>
 <p>Brew specifies that all I/O registers (including CSRs) are memory mapped. For these devices the order of loads and stores, even the fact that loads and stores <em>actually occur</em> is important. Software is responsible to make sure these requirements are met by the use of barrier instructions. The safest way is to issue a <code class="code docutils literal notranslate"><span class="pre">FENCE_RW_RW</span></code> instruction after every access to an I/O device, but that might be too conservative and slow.</p>
 <p>I/O address ranges should also be marked as non-cacheable if caches are implemented in the system. Brew guarantees that such loads and stores - combined with the appropriate barrier instructions - will ensure that the I/O device accesses happen as expected. On the HW implementation side, this guarantee might come from not only the CPU core but the system implementation. For instance, no entity in the interconnect should provide early completion responses to write to I/O devices.</p>
 </section>
 <section id="multi-processor-implications">
-<h2>Multi-processor implications<a class="headerlink" href="#multi-processor-implications" title="Permalink to this headline"></a></h2>
+<h2>Multi-processor implications<a class="headerlink" href="#multi-processor-implications" title="Link to this heading"></a></h2>
 <p>In a multi-processor environment synchronization among multiple, parallel execution streams must be provided. While barrier instructions are a good means for ensuring that the view of the memory in one execution context matches that of another one, more is needed. Brew uses the <a class="reference external" href="https://en.wikipedia.org/wiki/Load-link/store-conditional">load-lock/store-conditional</a> paradigm.</p>
 <p>In practice however, the actual implementation of the locking and releasing/checking for the locks is often largely delegated to the system level and is not part of the CPU, let alone the Brew specification. Brew only provides instructions to drive the right control signals along with loads and stores that are needed by a system to implement such primitives.</p>
+<section id="load-lock-lifetime">
+<span id="load-lock"></span><h3>Load-lock lifetime<a class="headerlink" href="#load-lock-lifetime" title="Link to this heading"></a></h3>
+<p><code class="code docutils literal notranslate"><span class="pre">MEMLL</span></code> places a load-lock on the address it loads from; <code class="code docutils literal notranslate"><span class="pre">MEMSC</span></code> stores only if the processor still holds a valid load-lock on the address it stores to. Software can rely on the following rules, whatever part of them the processor and the system each implement.</p>
+<p><strong>One lock per processor.</strong> A processor (or a thread within a multi-threaded implementation) holds at most one load-lock that software can rely on: the one placed by its most recent <code class="code docutils literal notranslate"><span class="pre">MEMLL</span></code>. A <code class="code docutils literal notranslate"><span class="pre">MEMLL</span></code> replaces any load-lock placed before it. Whether a <code class="code docutils literal notranslate"><span class="pre">MEMSC</span></code> to the address of a replaced lock succeeds is implementation-defined, so <code class="code docutils literal notranslate"><span class="pre">MEMLL</span></code>/<code class="code docutils literal notranslate"><span class="pre">MEMSC</span></code> sequences can’t be nested: in</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>$r1 &lt;- MEMLL[$r4]
+$r2 &lt;- MEMLL[$r5]
+MEMSC[$r5] &lt;- $r2
+MEMSC[$r4] &lt;- $r1
+</pre></div>
+</div>
+<p>the second <code class="code docutils literal notranslate"><span class="pre">MEMSC</span></code> may fail every time, even if <code class="code docutils literal notranslate"><span class="pre">$r4</span></code> and <code class="code docutils literal notranslate"><span class="pre">$r5</span></code> are equal. Code retrying such a sequence until it succeeds may never finish.</p>
+<p><strong>What releases the lock.</strong> After any of the following, a <code class="code docutils literal notranslate"><span class="pre">MEMSC</span></code> fails until the next <code class="code docutils literal notranslate"><span class="pre">MEMLL</span></code>:</p>
+<ol class="arabic simple">
+<li><p>A <code class="code docutils literal notranslate"><span class="pre">MEMSC</span></code> executed by the same processor, whether its store succeeded or failed. A <code class="code docutils literal notranslate"><span class="pre">MEMSC</span></code> that raises an exception doesn’t release the lock itself, but entering SCHEDULER mode does (next item).</p></li>
+<li><p>A change of execution mode in either direction: an exception or interrupt that takes TASK mode into SCHEDULER mode, and <code class="code docutils literal notranslate"><span class="pre">STM</span></code>.</p></li>
+<li><p>Reset, including an exception in SCHEDULER mode (which restarts execution at the reset vector).</p></li>
+<li><p>A store to the locked address by another processor or bus master.</p></li>
+</ol>
+<p>A store by the same processor to the locked address with an ordinary store instruction may or may not release the lock; software must not rely on either behavior.</p>
+<p>The change of execution mode releases the lock even in a single-processor system. That event is the only way other code can run on the processor between a <code class="code docutils literal notranslate"><span class="pre">MEMLL</span></code> and its <code class="code docutils literal notranslate"><span class="pre">MEMSC</span></code>: the SCHEDULER, or another task it switched to. Without the rule, a task could be interrupted after its <code class="code docutils literal notranslate"><span class="pre">MEMLL</span></code>, another task could update the location with an ordinary store, or execute its own <code class="code docutils literal notranslate"><span class="pre">MEMLL</span></code> on the same address, and the first task’s <code class="code docutils literal notranslate"><span class="pre">MEMSC</span></code> would then succeed with a stale value. The rule makes SCHEDULER-mode software free of any obligation to clear the lock when it switches tasks.</p>
+<p><strong>Spurious failures.</strong> A <code class="code docutils literal notranslate"><span class="pre">MEMSC</span></code> may fail even if none of the above happened, for instance because the system tracks locks with a granule coarser than a word, or tracks hashed addresses. A failed <code class="code docutils literal notranslate"><span class="pre">MEMSC</span></code> is not an error: software retries the whole sequence, starting with the <code class="code docutils literal notranslate"><span class="pre">MEMLL</span></code>.</p>
+<p><strong>Forward progress.</strong> Implementations should guarantee that a retried sequence eventually succeeds if it is <em>constrained</em>: a <code class="code docutils literal notranslate"><span class="pre">MEMLL</span></code> followed by a <code class="code docutils literal notranslate"><span class="pre">MEMSC</span></code> to the same address, with only a few register-only instructions (no loads, stores, <code class="code docutils literal notranslate"><span class="pre">MEMLL</span></code>, <code class="code docutils literal notranslate"><span class="pre">MEMSC</span></code>, mode changes or <code class="code docutils literal notranslate"><span class="pre">FENCE</span></code> instructions) between them, and in the absence of contention from other processors and of interrupts arriving on every attempt. No such guarantee exists for any other sequence.</p>
+</section>
 <section id="implementation-notes">
-<h3>Implementation Notes<a class="headerlink" href="#implementation-notes" title="Permalink to this headline"></a></h3>
+<h3>Implementation Notes<a class="headerlink" href="#implementation-notes" title="Link to this heading"></a></h3>
 <p>A compliant Brew implementation can take advantage of AXI4 <cite>exclusive transactions &lt;https://developer.arm.com/documentation/102202/0200/Atomic-accesses&gt;</cite> to implement the load-lock/store-conditional instructions. If such an implementation is used to implement store-conditional operations, these instructions will have to await completion until the write-response arrives from the interconnect: the store-conditional instruction returns a success-code.</p>
 <p>AXI4 largely pushes the burden of actually making exclusive transactions work to the memory controller(s). If these controllers don’t support such concepts, the following can be done:</p>
 <ol class="arabic simple">
@@ -152,22 +181,23 @@
 </section>
 </section>
 <section id="implementation-of-atomics">
-<h2>Implementation of atomics<a class="headerlink" href="#implementation-of-atomics" title="Permalink to this headline"></a></h2>
+<h2>Implementation of atomics<a class="headerlink" href="#implementation-of-atomics" title="Link to this heading"></a></h2>
 <p>As an example, an atomic increment can be implemented in the following way:</p>
-<dl class="simple">
-<dt>retry:</dt><dd><p>$rD &lt;- MEMLL[$rA + &lt;ofs&gt;]
-$rD &lt;- $rD + 1
-$rD &lt;- MEMSC[$rA + &lt;ofs&gt;] &lt;- $rD
-if $rD != 0 $pc &lt;- retry</p>
-</dd>
-</dl>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>retry:
+    $rD &lt;- MEMLL[$rA + &lt;ofs&gt;]
+    $rD &lt;- $rD + 1
+    MEMSC[$rA + &lt;ofs&gt;] &lt;- $rD
+    if $rD != 0 $pc &lt;- retry
+</pre></div>
+</div>
+<p><code class="code docutils literal notranslate"><span class="pre">MEMSC</span></code> stores the incremented value and then overwrites <code class="code docutils literal notranslate"><span class="pre">$rD</span></code> with its status: 0 on success, non-zero on failure. On failure, the loop starts over with the <code class="code docutils literal notranslate"><span class="pre">MEMLL</span></code>, which reloads the current value. This is a constrained sequence (see <a class="reference internal" href="#load-lock"><span class="std std-ref">load-lock lifetime</span></a>), so it eventually succeeds.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Fence is not necessary due to the carried dependency between the load and the store.</p>
+<p>No fence is needed between the <code class="code docutils literal notranslate"><span class="pre">MEMLL</span></code> and the <code class="code docutils literal notranslate"><span class="pre">MEMSC</span></code>: the store depends on the loaded value and goes to the same address. A fence is needed to order the atomic operation against the surrounding loads and stores, which Brew doesn’t order otherwise. Put a <code class="code docutils literal notranslate"><span class="pre">FENCE_RW_RW</span></code> before the loop to give the operation release semantics (earlier accesses complete first), and one after the loop for acquire semantics (later accesses don’t start before it); a sequentially consistent operation needs both.</p>
 </div>
-<p>More complex primitives, can also be built in a similar manner.</p>
+<p>More complex primitives can also be built in a similar manner.</p>
 <section id="self-modifying-code">
-<h3>Self-modifying code<a class="headerlink" href="#self-modifying-code" title="Permalink to this headline"></a></h3>
+<h3>Self-modifying code<a class="headerlink" href="#self-modifying-code" title="Link to this heading"></a></h3>
 <p>Brew doesn’t guarantee any coherency between instruction and data-caches or require that the processor monitors stores to addresses that are already fetched and are in progress in the instruction pipeline.</p>
 <p>Cache line invalidation instructions are provided to make sure that instruction caches are properly invalidated and data caches are flushed.</p>
 <p>This still isn’t enough for self-modifying code though: the prefetch queue of the processor can contain already fetched instructions, which are not impacted by cache invalidation. A special instruction (<code class="code docutils literal notranslate"><span class="pre">PFLUSH</span></code>) is provided to flush the pipeline and guarantee that subsequent instructions are fetched anew from at least L1 instruction cache.</p>
@@ -178,19 +208,19 @@ if $rD != 0 $pc &lt;- retry</p>
 </section>
 </section>
 <section id="caches">
-<h2>Caches<a class="headerlink" href="#caches" title="Permalink to this headline"></a></h2>
+<h2>Caches<a class="headerlink" href="#caches" title="Link to this heading"></a></h2>
 <section id="coherency">
-<h3>Coherency<a class="headerlink" href="#coherency" title="Permalink to this headline"></a></h3>
+<h3>Coherency<a class="headerlink" href="#coherency" title="Link to this heading"></a></h3>
 <p>Brew doesn’t contain any coherency guarantees. This is the domain of the implementation. In fact, Brew specifically doesn’t guarantee coherency between the instruction and data-caches of even a single CPU core.</p>
 </section>
 <section id="cache-invalidation">
-<h3>Cache invalidation<a class="headerlink" href="#cache-invalidation" title="Permalink to this headline"></a></h3>
+<h3>Cache invalidation<a class="headerlink" href="#cache-invalidation" title="Link to this heading"></a></h3>
 <p>There are instructions to invalidate individual data-, instruction- cache lines both in L1 and L2. There is no way to distinguish which cache is to be invalidated: all caches in line from the CPU executing the line invalidation instruction to memory are searched for a hit and invalidated as needed. If the line being invalidated is dirty, it is flushed.</p>
 <p>There is no instruction provided for complete cache invalidation: this functionality, if needed, is to be provided through CSRs.</p>
 </section>
 </section>
 <section id="alignment">
-<h2>Alignment<a class="headerlink" href="#alignment" title="Permalink to this headline"></a></h2>
+<h2>Alignment<a class="headerlink" href="#alignment" title="Link to this heading"></a></h2>
 <p>Brew doesn’t support unaligned loads and stores. 16-bit loads and stores must occur on 16-bit word boundaries, 32-bit ones on 32-bit boundaries. Instructions must be aligned to 16-bit word boundaries.</p>
 <p>When a load or store is attempted to an aligned address, an exception is thrown. If a branch is attempted to an unaligned address, the LSB of the target address carries implementation-defined meaning. Certain implementations are allowed to ignore the LSB of the branch-target.</p>
 </section>

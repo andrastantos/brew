@@ -1,22 +1,23 @@
+
+
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="./">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Instruction Set Summary &mdash; Brew processor  documentation</title>
-      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-  <!--[if lt IE 9]>
-    <script src="_static/js/html5shiv.min.js"></script>
-  <![endif]-->
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
   
-        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-        <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
-        <script src="_static/doctools.js"></script>
-        <script src="_static/default.js"></script>
-        <script src="_static/wavedrom.min.js"></script>
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=7f41d439"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="_static/default.js"></script>
+      <script src="_static/wavedrom.min.js?v=db79c4d1"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -29,11 +30,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="index.html" class="icon icon-home"> Brew processor
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Brew processor
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -51,6 +56,7 @@
 <li class="toctree-l1"><a class="reference internal" href="control_flow.html">Control flow</a></li>
 <li class="toctree-l1"><a class="reference internal" href="isa_intro.html">Instruction Set Principles</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Instruction Set Summary</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#optional-instructions">Optional instructions</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#exception-group">Exception group</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#mode-change-and-power-management-group">Mode change and power management group</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#atomic-group">Atomic group</a></li>
@@ -104,7 +110,7 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="index.html" class="icon icon-home"></a></li>
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
       <li class="breadcrumb-item active">Instruction Set Summary</li>
       <li class="wy-breadcrumbs-aside">
       </li>
@@ -115,13 +121,9 @@
            <div itemprop="articleBody">
              
   <section id="instruction-set-summary">
-<h1>Instruction Set Summary<a class="headerlink" href="#instruction-set-summary" title="Permalink to this headline"></a></h1>
+<h1>Instruction Set Summary<a class="headerlink" href="#instruction-set-summary" title="Link to this heading"></a></h1>
 <p>In the following tables, instruction codes are listed as hexadecimal numbers, with the following extra conventions:</p>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 15%" />
-<col style="width: 85%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Character</p></th>
 <th class="head"><p>Meaning</p></th>
@@ -137,9 +139,18 @@
 </tbody>
 </table>
 <p>Instructions are fully decoded. Any instruction code not explicitly mentioned in the tables below generate an <code class="code docutils literal notranslate"><span class="pre">exc_unknown_inst</span></code> exception.</p>
+<section id="optional-instructions">
+<span id="id1"></span><h2>Optional instructions<a class="headerlink" href="#optional-instructions" title="Link to this heading"></a></h2>
+<p>Two groups of instructions are optional, so that small implementations can leave out the units they need:</p>
+<ul class="simple">
+<li><p>Multiplication (the barrel shifter is not needed): <code class="code docutils literal notranslate"><span class="pre">$rD</span> <span class="pre">&lt;-</span> <span class="pre">$rA</span> <span class="pre">*</span> <span class="pre">$rB</span></code> (0x.9..), <code class="code docutils literal notranslate"><span class="pre">$rD</span> <span class="pre">&lt;-</span> <span class="pre">VALUE</span> <span class="pre">*</span> <span class="pre">$rB</span></code> (0x.9.f) and <code class="code docutils literal notranslate"><span class="pre">$rD</span> <span class="pre">&lt;-</span> <span class="pre">short</span> <span class="pre">VALUE</span> <span class="pre">*</span> <span class="pre">$rA</span></code> (0x.9f.).</p></li>
+<li><p>Shifts: <code class="code docutils literal notranslate"><span class="pre">&lt;&lt;</span></code>, <code class="code docutils literal notranslate"><span class="pre">&gt;&gt;</span></code> and <code class="code docutils literal notranslate"><span class="pre">&gt;&gt;&gt;</span></code> with a register (0x.6.., 0x.7.., 0x.8..), a 32-bit (0x.6.f, 0x.7.f, 0x.8.f) or a short (0x.6f., 0x.7f., 0x.8f.) operand.</p></li>
+</ul>
+<p>An implementation either implements all instructions of a group or none of them. If a group is not implemented, its instruction codes behave like any other undefined code and raise <code class="code docutils literal notranslate"><span class="pre">exc_unknown_inst</span></code>. The <code class="code docutils literal notranslate"><span class="pre">MUL_SUPPORT</span></code> and <code class="code docutils literal notranslate"><span class="pre">SHIFT_SUPPORT</span></code> bits of <a class="reference internal" href="csrs.html#csr-capability"><span class="std std-ref">csr_capability</span></a> tell software which groups are present. Software built for an implementation without them must not use these instructions (with GCC: <code class="code docutils literal notranslate"><span class="pre">-mno-mul</span></code> and <code class="code docutils literal notranslate"><span class="pre">-mno-shift</span></code>).</p>
 <p>Instructions presented here in groups, based on their rough function and encoding similarities.</p>
+</section>
 <section id="exception-group">
-<h2>Exception group<a class="headerlink" href="#exception-group" title="Permalink to this headline"></a></h2>
+<h2>Exception group<a class="headerlink" href="#exception-group" title="Link to this heading"></a></h2>
 
 <div style="overflow-x:auto">
 <script type="WaveDrom">
@@ -155,11 +166,6 @@ reg: [
 <p>All instructions in this group enter SCHEDULER mode. After execution <code class="code docutils literal notranslate"><span class="pre">$tpc</span></code> points to the current instruction (the one generating the exception).</p>
 <p>If executed in SCHEDULER mode, execution jumps to address 0 per standard <a class="reference internal" href="exceptions.html#exception-handling"><span class="std std-ref">exception handling</span></a> rules.</p>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 23%" />
-<col style="width: 13%" />
-<col style="width: 64%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Instruction code</p></th>
 <th class="head"><p>Assembly</p></th>
@@ -207,7 +213,7 @@ reg: [
 </div>
 </section>
 <section id="mode-change-and-power-management-group">
-<h2>Mode change and power management group<a class="headerlink" href="#mode-change-and-power-management-group" title="Permalink to this headline"></a></h2>
+<h2>Mode change and power management group<a class="headerlink" href="#mode-change-and-power-management-group" title="Link to this heading"></a></h2>
 
 <div style="overflow-x:auto">
 <script type="WaveDrom">
@@ -221,11 +227,6 @@ reg: [
 </script>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 20%" />
-<col style="width: 10%" />
-<col style="width: 70%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Instruction code</p></th>
 <th class="head"><p>Assembly</p></th>
@@ -247,13 +248,13 @@ reg: [
 </tr>
 </tbody>
 </table>
-<div class="admonition-todo admonition" id="id1">
+<div class="admonition-todo admonition" id="id2">
 <p class="admonition-title">Todo</p>
 <p>PFLUSH is new. Needs testing in toolset/Espresso.</p>
 </div>
 </section>
 <section id="atomic-group">
-<h2>Atomic group<a class="headerlink" href="#atomic-group" title="Permalink to this headline"></a></h2>
+<h2>Atomic group<a class="headerlink" href="#atomic-group" title="Link to this heading"></a></h2>
 
 <div style="overflow-x:auto">
 <script type="WaveDrom">
@@ -270,11 +271,6 @@ reg: [
 </script>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 32%" />
-<col style="width: 17%" />
-<col style="width: 51%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Instruction code</p></th>
 <th class="head"><p>Assembly</p></th>
@@ -346,10 +342,6 @@ reg: [
 </table>
 <p>Every instruction in this group implements a fence, or an ordering between loads and stores. The top-most 4 bits of the instruction code is used to encode the fence type:</p>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 45%" />
-<col style="width: 55%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Bit-field</p></th>
 <th class="head"><p>Meaning</p></th>
@@ -374,9 +366,10 @@ reg: [
 <p class="admonition-title">Note</p>
 <p>bit-values are inverted to make FIELD_D==0xf an invalid encoding (i.e. no fence specification)</p>
 </div>
+<p>The assembler accepts two spellings of each fence. The one used in this document gives both sides as a two-character field (<code class="docutils literal notranslate"><span class="pre">rw</span></code>, <code class="docutils literal notranslate"><span class="pre">r_</span></code>, <code class="docutils literal notranslate"><span class="pre">_w</span></code> or <code class="docutils literal notranslate"><span class="pre">__</span></code>): FENCE_&lt;before&gt;_&lt;after&gt;, for instance FENCE_R__RW. The short form drops the padding, so each side is <code class="docutils literal notranslate"><span class="pre">rw</span></code>, <code class="docutils literal notranslate"><span class="pre">r</span></code>, <code class="docutils literal notranslate"><span class="pre">w</span></code> or empty: <code class="docutils literal notranslate"><span class="pre">fence_r_rw</span></code> for FENCE_R__RW, <code class="docutils literal notranslate"><span class="pre">fence__w</span></code> for FENCE_____W, <code class="docutils literal notranslate"><span class="pre">fence_rw_</span></code> for FENCE_RW___. The disassembler prints the short form.</p>
 </section>
 <section id="pc-manipulation-group">
-<h2>PC manipulation group<a class="headerlink" href="#pc-manipulation-group" title="Permalink to this headline"></a></h2>
+<h2>PC manipulation group<a class="headerlink" href="#pc-manipulation-group" title="Link to this heading"></a></h2>
 
 <div style="overflow-x:auto">
 <script type="WaveDrom">
@@ -390,11 +383,6 @@ reg: [
 </script>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 39%" />
-<col style="width: 23%" />
-<col style="width: 38%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Instruction code</p></th>
 <th class="head"><p>Assembly</p></th>
@@ -422,7 +410,7 @@ reg: [
 </table>
 </section>
 <section id="csr-access-group">
-<h2>CSR access group<a class="headerlink" href="#csr-access-group" title="Permalink to this headline"></a></h2>
+<h2>CSR access group<a class="headerlink" href="#csr-access-group" title="Link to this heading"></a></h2>
 
 <div style="overflow-x:auto">
 <script type="WaveDrom">
@@ -446,11 +434,6 @@ reg: [
 </script>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 42%" />
-<col style="width: 31%" />
-<col style="width: 27%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Instruction code</p></th>
 <th class="head"><p>Assembly</p></th>
@@ -469,13 +452,13 @@ reg: [
 </tbody>
 </table>
 <p>The <code class="code docutils literal notranslate"><span class="pre">ADDR</span></code> field equals to <code class="code docutils literal notranslate"><span class="pre">FIELD_E</span></code> in SCHEDULER-mode. In task mode the MSB of <code class="code docutils literal notranslate"><span class="pre">ADDR</span></code> is forced to 1.</p>
-<div class="admonition-todo admonition" id="id2">
+<div class="admonition-todo admonition" id="id3">
 <p class="admonition-title">Todo</p>
 <p>This is a new pair of instructions, no toolset support or Espresso implementation.</p>
 </div>
 </section>
 <section id="unary-group">
-<h2>Unary group<a class="headerlink" href="#unary-group" title="Permalink to this headline"></a></h2>
+<h2>Unary group<a class="headerlink" href="#unary-group" title="Link to this heading"></a></h2>
 
 <div style="overflow-x:auto">
 <script type="WaveDrom">
@@ -489,11 +472,6 @@ reg: [
 </script>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 30%" />
-<col style="width: 24%" />
-<col style="width: 46%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Instruction code</p></th>
 <th class="head"><p>Assembly</p></th>
@@ -503,11 +481,11 @@ reg: [
 <tbody>
 <tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-tiny-const"><span class="std std-ref">0x.01.</span></a></p></td>
 <td><p>$rD &lt;- tiny CONST</p></td>
-<td><p>Load $rD with constant <a class="footnote-reference brackets" href="#note0xx01x" id="id3">1</a></p></td>
+<td><p>Load $rD with constant <a class="footnote-reference brackets" href="#note0xx01x" id="id4" role="doc-noteref"><span class="fn-bracket">[</span>1<span class="fn-bracket">]</span></a></p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-pc-plus-const"><span class="std std-ref">0x.02.</span></a></p></td>
 <td><p>$rD &lt;- $pc + CONST</p></td>
-<td><p>Call return address calculation <a class="footnote-reference brackets" href="#note0xx02x" id="id4">2</a></p></td>
+<td><p>Call return address calculation <a class="footnote-reference brackets" href="#note0xx02x" id="id5" role="doc-noteref"><span class="fn-bracket">[</span>2<span class="fn-bracket">]</span></a></p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-minus-ra"><span class="std std-ref">0x.03.</span></a></p></td>
 <td><p>$rD &lt;- -$rA</p></td>
@@ -551,28 +529,31 @@ reg: [
 </tr>
 </tbody>
 </table>
-<dl class="footnote brackets">
-<dt class="label" id="note0xx01x"><span class="brackets"><a class="fn-backref" href="#id3">1</a></span></dt>
-<dd><p>CONST=FIELD_A. FIELD_A is one-s complement; range is -7…7</p>
-</dd>
-<dt class="label" id="note0xx02x"><span class="brackets"><a class="fn-backref" href="#id4">2</a></span></dt>
-<dd><p>CONST=FIELD_A*2. FIELD_A is one-s complement; range is -7…7; NOTE: WE COULD MAKE THE RANGE A LITTLE HIGHER IF NOT ALLOW 0</p>
-</dd>
-<dt class="label" id="note0xx0cx"><span class="brackets">3</span></dt>
-<dd><p>All 32 bits of $rA are used. Any value above 0xe is RESERVED</p>
-</dd>
-</dl>
-<div class="admonition-todo admonition" id="id5">
+<aside class="footnote-list brackets">
+<aside class="footnote brackets" id="note0xx01x" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id4">1</a><span class="fn-bracket">]</span></span>
+<p>CONST=FIELD_A. FIELD_A is one-s complement; range is -7…7</p>
+</aside>
+<aside class="footnote brackets" id="note0xx02x" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id5">2</a><span class="fn-bracket">]</span></span>
+<p>CONST=FIELD_A*2. FIELD_A is one-s complement; range is -7…7; NOTE: WE COULD MAKE THE RANGE A LITTLE HIGHER IF NOT ALLOW 0</p>
+</aside>
+<aside class="footnote brackets" id="note0xx0cx" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span>3<span class="fn-bracket">]</span></span>
+<p>All 32 bits of $rA are used. Any value above 0xe is RESERVED</p>
+</aside>
+</aside>
+<div class="admonition-todo admonition" id="id6">
 <p class="admonition-title">Todo</p>
 <p>Some of these instructions are not strictly necessary. Negation, inversion for instance can be done using binary operations with an immediate. Need profiling data to justify their existence.</p>
 </div>
-<div class="admonition-todo admonition" id="id6">
+<div class="admonition-todo admonition" id="id7">
 <p class="admonition-title">Todo</p>
 <p>$rD &lt;- popcnt $rA and above is not implemented in Espresso</p>
 </div>
 </section>
 <section id="binary-alu-group">
-<h2>Binary ALU group<a class="headerlink" href="#binary-alu-group" title="Permalink to this headline"></a></h2>
+<h2>Binary ALU group<a class="headerlink" href="#binary-alu-group" title="Link to this heading"></a></h2>
 
 <div style="overflow-x:auto">
 <script type="WaveDrom">
@@ -586,11 +567,6 @@ reg: [
 </script>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 35%" />
-<col style="width: 25%" />
-<col style="width: 40%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Instruction code</p></th>
 <th class="head"><p>Assembly</p></th>
@@ -620,19 +596,19 @@ reg: [
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-ra-lsl-rb"><span class="std std-ref">0x.6..</span></a></p></td>
 <td><p>$rD &lt;- $rA &lt;&lt; $rB</p></td>
-<td><p>Binary left-shift</p></td>
+<td><p>Binary left-shift <a class="footnote-reference brackets" href="#note-optional-unit" id="id8" role="doc-noteref"><span class="fn-bracket">[</span>5<span class="fn-bracket">]</span></a></p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-ra-lsr-rb"><span class="std std-ref">0x.7..</span></a></p></td>
 <td><p>$rD &lt;- $rA &gt;&gt; $rB</p></td>
-<td><p>Binary right-shift</p></td>
+<td><p>Binary right-shift <a class="footnote-reference brackets" href="#note-optional-unit" id="id9" role="doc-noteref"><span class="fn-bracket">[</span>5<span class="fn-bracket">]</span></a></p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-ra-asr-rb"><span class="std std-ref">0x.8..</span></a></p></td>
 <td><p>$rD &lt;- $rA &gt;&gt;&gt; $rB</p></td>
-<td><p>Arithmetic right-shift</p></td>
+<td><p>Arithmetic right-shift <a class="footnote-reference brackets" href="#note-optional-unit" id="id10" role="doc-noteref"><span class="fn-bracket">[</span>5<span class="fn-bracket">]</span></a></p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-ra-times-rb"><span class="std std-ref">0x.9..</span></a></p></td>
 <td><p>$rD &lt;- $rA * $rB</p></td>
-<td><p>Type-dependent multiply</p></td>
+<td><p>Type-dependent multiply <a class="footnote-reference brackets" href="#note-optional-unit" id="id11" role="doc-noteref"><span class="fn-bracket">[</span>5<span class="fn-bracket">]</span></a></p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-type-rb"><span class="std std-ref">0x.a..</span></a></p></td>
 <td><p>$rD &lt;- TYPE_NAME $rB</p></td>
@@ -640,7 +616,7 @@ reg: [
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-tiny-rb-plus-const"><span class="std std-ref">0x.b..</span></a></p></td>
 <td><p>$rD &lt;- tiny $rB + CONST</p></td>
-<td><p>Integer add <a class="footnote-reference brackets" href="#note0xxbxx" id="id7">4</a></p></td>
+<td><p>Integer add <a class="footnote-reference brackets" href="#note0xxbxx" id="id12" role="doc-noteref"><span class="fn-bracket">[</span>4<span class="fn-bracket">]</span></a></p></td>
 </tr>
 <tr class="row-odd"><td><p>0x.c..</p></td>
 <td><p>see below (stack ops)</p></td>
@@ -656,18 +632,24 @@ reg: [
 </tr>
 </tbody>
 </table>
-<dl class="footnote brackets">
-<dt class="label" id="note0xxbxx"><span class="brackets"><a class="fn-backref" href="#id7">4</a></span></dt>
-<dd><p>CONST is FIELD_A is one’s complement-coded; range is -7…7.</p>
-</dd>
-</dl>
-<div class="admonition-todo admonition" id="id8">
+<aside class="footnote-list brackets">
+<aside class="footnote brackets" id="note0xxbxx" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span><a role="doc-backlink" href="#id12">4</a><span class="fn-bracket">]</span></span>
+<p>CONST is FIELD_A is one’s complement-coded; range is -7…7.</p>
+</aside>
+<aside class="footnote brackets" id="note-optional-unit" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span>5<span class="fn-bracket">]</span></span>
+<span class="backrefs">(<a role="doc-backlink" href="#id8">1</a>,<a role="doc-backlink" href="#id9">2</a>,<a role="doc-backlink" href="#id10">3</a>,<a role="doc-backlink" href="#id11">4</a>,<a role="doc-backlink" href="#id16">5</a>,<a role="doc-backlink" href="#id17">6</a>,<a role="doc-backlink" href="#id18">7</a>,<a role="doc-backlink" href="#id19">8</a>,<a role="doc-backlink" href="#id20">9</a>,<a role="doc-backlink" href="#id21">10</a>,<a role="doc-backlink" href="#id22">11</a>,<a role="doc-backlink" href="#id23">12</a>)</span>
+<p>Optional instruction, see <a class="reference internal" href="#optional-instructions"><span class="std std-ref">optional instructions</span></a>.</p>
+</aside>
+</aside>
+<div class="admonition-todo admonition" id="id13">
 <p class="admonition-title">Todo</p>
 <p>The TYPE_NAME instructions is not yet implemented in ESPRESSO</p>
 </div>
 </section>
 <section id="load-immediate-group">
-<h2>Load immediate group<a class="headerlink" href="#load-immediate-group" title="Permalink to this headline"></a></h2>
+<h2>Load immediate group<a class="headerlink" href="#load-immediate-group" title="Link to this heading"></a></h2>
 
 <div style="overflow-x:auto">
 <script type="WaveDrom">
@@ -736,11 +718,6 @@ reg: [
 </script>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 40%" />
-<col style="width: 21%" />
-<col style="width: 39%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Instruction code</p></th>
 <th class="head"><p>Assembly</p></th>
@@ -766,22 +743,24 @@ reg: [
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#type-r0-r7-eq-value"><span class="std std-ref">0x80ef 0x**** 0x****</span></a></p></td>
 <td><p>type $r0…$r7 &lt;- VALUE</p></td>
-<td><p>Load immediate type values <a class="footnote-reference brackets" href="#note-immedate-types" id="id9">5</a></p></td>
+<td><p>Load immediate type values <a class="footnote-reference brackets" href="#note-immedate-types" id="id14" role="doc-noteref"><span class="fn-bracket">[</span>6<span class="fn-bracket">]</span></a></p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#type-r8-r14-eq-value"><span class="std std-ref">0x90ef 0x**** 0x****</span></a></p></td>
 <td><p>type $r8…$r14 &lt;- VALUE</p></td>
-<td><p>Load immediate type values <a class="footnote-reference brackets" href="#note-immedate-types" id="id10">5</a></p></td>
+<td><p>Load immediate type values <a class="footnote-reference brackets" href="#note-immedate-types" id="id15" role="doc-noteref"><span class="fn-bracket">[</span>6<span class="fn-bracket">]</span></a></p></td>
 </tr>
 </tbody>
 </table>
-<dl class="footnote brackets">
-<dt class="label" id="note-immedate-types"><span class="brackets">5</span><span class="fn-backref">(<a href="#id9">1</a>,<a href="#id10">2</a>)</span></dt>
-<dd><p>Types for each register are encoded in 4-bit nibbles. Lowest 4 bits determine the type of the lowest indexed register. Highest 4 bits determine the type of the highest indexed register. If nibble is set to 0xf, type of corresponding register is not changed.</p>
-</dd>
-</dl>
+<aside class="footnote-list brackets">
+<aside class="footnote brackets" id="note-immedate-types" role="doc-footnote">
+<span class="label"><span class="fn-bracket">[</span>6<span class="fn-bracket">]</span></span>
+<span class="backrefs">(<a role="doc-backlink" href="#id14">1</a>,<a role="doc-backlink" href="#id15">2</a>)</span>
+<p>Types for each register are encoded in 4-bit nibbles. Lowest 4 bits determine the type of the lowest indexed register. Highest 4 bits determine the type of the highest indexed register. If nibble is set to 0xf, type of corresponding register is not changed.</p>
+</aside>
+</aside>
 </section>
 <section id="constant-alu-group">
-<h2>Constant ALU group<a class="headerlink" href="#constant-alu-group" title="Permalink to this headline"></a></h2>
+<h2>Constant ALU group<a class="headerlink" href="#constant-alu-group" title="Link to this heading"></a></h2>
 
 <div style="overflow-x:auto">
 <script type="WaveDrom">
@@ -816,11 +795,6 @@ reg: [
 </script>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 41%" />
-<col style="width: 23%" />
-<col style="width: 37%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Instruction code</p></th>
 <th class="head"><p>Assembly</p></th>
@@ -850,19 +824,19 @@ reg: [
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-value-lsl-rb"><span class="std std-ref">0x.6.f 0x**** 0x****</span></a></p></td>
 <td><p>$rD &lt;- VALUE &lt;&lt; $rB</p></td>
-<td><p>Binary left-shift</p></td>
+<td><p>Binary left-shift <a class="footnote-reference brackets" href="#note-optional-unit" id="id16" role="doc-noteref"><span class="fn-bracket">[</span>5<span class="fn-bracket">]</span></a></p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-value-lsr-rb"><span class="std std-ref">0x.7.f 0x**** 0x****</span></a></p></td>
 <td><p>$rD &lt;- VALUE &gt;&gt; $rB</p></td>
-<td><p>Binary right-shift</p></td>
+<td><p>Binary right-shift <a class="footnote-reference brackets" href="#note-optional-unit" id="id17" role="doc-noteref"><span class="fn-bracket">[</span>5<span class="fn-bracket">]</span></a></p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-value-asr-rb"><span class="std std-ref">0x.8.f 0x**** 0x****</span></a></p></td>
 <td><p>$rD &lt;- VALUE &gt;&gt;&gt; $rB</p></td>
-<td><p>Arithmetic right-shift</p></td>
+<td><p>Arithmetic right-shift <a class="footnote-reference brackets" href="#note-optional-unit" id="id18" role="doc-noteref"><span class="fn-bracket">[</span>5<span class="fn-bracket">]</span></a></p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-value-times-rb"><span class="std std-ref">0x.9.f 0x**** 0x****</span></a></p></td>
 <td><p>$rD &lt;- VALUE * $rB</p></td>
-<td><p>Type-dependent multiply</p></td>
+<td><p>Type-dependent multiply <a class="footnote-reference brackets" href="#note-optional-unit" id="id19" role="doc-noteref"><span class="fn-bracket">[</span>5<span class="fn-bracket">]</span></a></p></td>
 </tr>
 <tr class="row-odd"><td><p>0x.c.f 0x**** 0x****</p></td>
 <td><p>see below (stack ops)</p></td>
@@ -880,7 +854,7 @@ reg: [
 </table>
 </section>
 <section id="short-load-immediate-group">
-<h2>Short load immediate group<a class="headerlink" href="#short-load-immediate-group" title="Permalink to this headline"></a></h2>
+<h2>Short load immediate group<a class="headerlink" href="#short-load-immediate-group" title="Link to this heading"></a></h2>
 
 <div style="overflow-x:auto">
 <script type="WaveDrom">
@@ -929,11 +903,6 @@ reg: [
 </script>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 36%" />
-<col style="width: 24%" />
-<col style="width: 40%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Instruction code</p></th>
 <th class="head"><p>Assembly</p></th>
@@ -965,7 +934,7 @@ reg: [
 </div>
 </section>
 <section id="short-constant-alu-group">
-<h2>Short constant ALU group<a class="headerlink" href="#short-constant-alu-group" title="Permalink to this headline"></a></h2>
+<h2>Short constant ALU group<a class="headerlink" href="#short-constant-alu-group" title="Link to this heading"></a></h2>
 
 <div style="overflow-x:auto">
 <script type="WaveDrom">
@@ -990,11 +959,6 @@ reg: [
 </script>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 38%" />
-<col style="width: 28%" />
-<col style="width: 34%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Instruction code</p></th>
 <th class="head"><p>Assembly</p></th>
@@ -1024,19 +988,19 @@ reg: [
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-short-ra-lsl-value"><span class="std std-ref">0x.6f. 0x****</span></a></p></td>
 <td><p>$rD &lt;- short $rA &lt;&lt; VALUE</p></td>
-<td><p>Binary left-shift</p></td>
+<td><p>Binary left-shift <a class="footnote-reference brackets" href="#note-optional-unit" id="id20" role="doc-noteref"><span class="fn-bracket">[</span>5<span class="fn-bracket">]</span></a></p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-short-ra-lsr-value"><span class="std std-ref">0x.7f. 0x****</span></a></p></td>
 <td><p>$rD &lt;- short $rA &gt;&gt; VALUE</p></td>
-<td><p>Binary right-shift</p></td>
+<td><p>Binary right-shift <a class="footnote-reference brackets" href="#note-optional-unit" id="id21" role="doc-noteref"><span class="fn-bracket">[</span>5<span class="fn-bracket">]</span></a></p></td>
 </tr>
 <tr class="row-odd"><td><p><a class="reference internal" href="isa_details.html#rd-eq-short-ra-asr-value"><span class="std std-ref">0x.8f. 0x****</span></a></p></td>
 <td><p>$rD &lt;- short $rA &gt;&gt;&gt; VALUE</p></td>
-<td><p>Arithmetic right-shift</p></td>
+<td><p>Arithmetic right-shift <a class="footnote-reference brackets" href="#note-optional-unit" id="id22" role="doc-noteref"><span class="fn-bracket">[</span>5<span class="fn-bracket">]</span></a></p></td>
 </tr>
 <tr class="row-even"><td><p><a class="reference internal" href="isa_details.html#rd-eq-short-value-times-ra"><span class="std std-ref">0x.9f. 0x****</span></a></p></td>
 <td><p>$rD &lt;- short VALUE * $rA</p></td>
-<td><p>Type-dependent multiply</p></td>
+<td><p>Type-dependent multiply <a class="footnote-reference brackets" href="#note-optional-unit" id="id23" role="doc-noteref"><span class="fn-bracket">[</span>5<span class="fn-bracket">]</span></a></p></td>
 </tr>
 <tr class="row-odd"><td><p>0x.cf. 0x****</p></td>
 <td><p>see below (stack ops)</p></td>
@@ -1056,7 +1020,7 @@ reg: [
 <p class="admonition-title">Note</p>
 <p>FIELD_E is <em>always</em> sign-extended to 32-bits before applying it to the operation.</p>
 </div>
-<div class="admonition-todo admonition" id="id11">
+<div class="admonition-todo admonition" id="id24">
 <p class="admonition-title">Todo</p>
 <p>We might want to zero-extend for certain operations, such as logical ops.</p>
 </div>
@@ -1066,7 +1030,7 @@ reg: [
 </div>
 </section>
 <section id="zero-compare-conditional-branch-group">
-<h2>Zero-compare conditional branch group<a class="headerlink" href="#zero-compare-conditional-branch-group" title="Permalink to this headline"></a></h2>
+<h2>Zero-compare conditional branch group<a class="headerlink" href="#zero-compare-conditional-branch-group" title="Link to this heading"></a></h2>
 
 <div style="overflow-x:auto">
 <script type="WaveDrom">
@@ -1091,11 +1055,6 @@ reg: [
 </script>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 46%" />
-<col style="width: 40%" />
-<col style="width: 14%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Instruction code</p></th>
 <th class="head"><p>Assembly</p></th>
@@ -1163,7 +1122,7 @@ reg: [
 </div>
 </section>
 <section id="conditional-branch-group">
-<h2>Conditional branch group<a class="headerlink" href="#conditional-branch-group" title="Permalink to this headline"></a></h2>
+<h2>Conditional branch group<a class="headerlink" href="#conditional-branch-group" title="Link to this heading"></a></h2>
 
 <div style="overflow-x:auto">
 <script type="WaveDrom">
@@ -1188,11 +1147,6 @@ reg: [
 </script>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 47%" />
-<col style="width: 40%" />
-<col style="width: 13%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Instruction code</p></th>
 <th class="head"><p>Assembly</p></th>
@@ -1260,7 +1214,7 @@ reg: [
 </div>
 </section>
 <section id="bit-set-test-conditional-branch-group">
-<h2>Bit-set-test conditional branch group<a class="headerlink" href="#bit-set-test-conditional-branch-group" title="Permalink to this headline"></a></h2>
+<h2>Bit-set-test conditional branch group<a class="headerlink" href="#bit-set-test-conditional-branch-group" title="Link to this heading"></a></h2>
 
 <div style="overflow-x:auto">
 <script type="WaveDrom">
@@ -1285,11 +1239,6 @@ reg: [
 </script>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 26%" />
-<col style="width: 56%" />
-<col style="width: 18%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Instruction code</p></th>
 <th class="head"><p>Assembly</p></th>
@@ -1365,7 +1314,7 @@ reg: [
 </div>
 </section>
 <section id="bit-clear-test-conditional-branch-group">
-<h2>Bit-clear-test conditional branch group<a class="headerlink" href="#bit-clear-test-conditional-branch-group" title="Permalink to this headline"></a></h2>
+<h2>Bit-clear-test conditional branch group<a class="headerlink" href="#bit-clear-test-conditional-branch-group" title="Link to this heading"></a></h2>
 
 <div style="overflow-x:auto">
 <script type="WaveDrom">
@@ -1390,11 +1339,6 @@ reg: [
 </script>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 26%" />
-<col style="width: 56%" />
-<col style="width: 18%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Instruction code</p></th>
 <th class="head"><p>Assembly</p></th>
@@ -1470,7 +1414,7 @@ reg: [
 </div>
 </section>
 <section id="stack-group">
-<h2>Stack group<a class="headerlink" href="#stack-group" title="Permalink to this headline"></a></h2>
+<h2>Stack group<a class="headerlink" href="#stack-group" title="Link to this heading"></a></h2>
 <p>While simple stack operations (as in push/pull) are not supported by the ISA, special load/store instructions are provided with small offsets and $r12 ($fp) and $r13 ($sp) as the base register to support a compact form of common stack operations. The supported offset range is -256 to +252 bytes.</p>
 
 <div style="overflow-x:auto">
@@ -1486,11 +1430,6 @@ reg: [
 </script>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 46%" />
-<col style="width: 33%" />
-<col style="width: 21%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Instruction code</p></th>
 <th class="head"><p>Assembly</p></th>
@@ -1522,7 +1461,7 @@ reg: [
 </div>
 </section>
 <section id="indirect-load-store-group">
-<h2>Indirect load/Store group<a class="headerlink" href="#indirect-load-store-group" title="Permalink to this headline"></a></h2>
+<h2>Indirect load/Store group<a class="headerlink" href="#indirect-load-store-group" title="Link to this heading"></a></h2>
 
 <div style="overflow-x:auto">
 <script type="WaveDrom">
@@ -1537,11 +1476,6 @@ reg: [
 </script>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 29%" />
-<col style="width: 30%" />
-<col style="width: 41%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Instruction code</p></th>
 <th class="head"><p>Assembly</p></th>
@@ -1593,7 +1527,7 @@ reg: [
 </table>
 </section>
 <section id="indirect-jump-group">
-<h2>Indirect jump group<a class="headerlink" href="#indirect-jump-group" title="Permalink to this headline"></a></h2>
+<h2>Indirect jump group<a class="headerlink" href="#indirect-jump-group" title="Link to this heading"></a></h2>
 
 <div style="overflow-x:auto">
 <script type="WaveDrom">
@@ -1608,11 +1542,6 @@ reg: [
 </script>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 29%" />
-<col style="width: 29%" />
-<col style="width: 43%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Instruction code</p></th>
 <th class="head"><p>Assembly</p></th>
@@ -1640,7 +1569,7 @@ reg: [
 </table>
 </section>
 <section id="offset-indirect-load-store-group">
-<h2>Offset-indirect load/store group<a class="headerlink" href="#offset-indirect-load-store-group" title="Permalink to this headline"></a></h2>
+<h2>Offset-indirect load/store group<a class="headerlink" href="#offset-indirect-load-store-group" title="Link to this heading"></a></h2>
 
 <div style="overflow-x:auto">
 <script type="WaveDrom">
@@ -1665,11 +1594,6 @@ reg: [
 </script>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 35%" />
-<col style="width: 29%" />
-<col style="width: 36%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Instruction code</p></th>
 <th class="head"><p>Assembly</p></th>
@@ -1725,7 +1649,7 @@ reg: [
 </div>
 </section>
 <section id="offset-indirect-jump-group">
-<h2>Offset-indirect jump group<a class="headerlink" href="#offset-indirect-jump-group" title="Permalink to this headline"></a></h2>
+<h2>Offset-indirect jump group<a class="headerlink" href="#offset-indirect-jump-group" title="Link to this heading"></a></h2>
 
 <div style="overflow-x:auto">
 <script type="WaveDrom">
@@ -1750,11 +1674,6 @@ reg: [
 </script>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 34%" />
-<col style="width: 28%" />
-<col style="width: 38%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Instruction code</p></th>
 <th class="head"><p>Assembly</p></th>
@@ -1786,7 +1705,7 @@ reg: [
 </div>
 </section>
 <section id="absolute-load-store-group">
-<h2>Absolute load/store group<a class="headerlink" href="#absolute-load-store-group" title="Permalink to this headline"></a></h2>
+<h2>Absolute load/store group<a class="headerlink" href="#absolute-load-store-group" title="Link to this heading"></a></h2>
 
 <div style="overflow-x:auto">
 <script type="WaveDrom">
@@ -1821,11 +1740,6 @@ reg: [
 </script>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 39%" />
-<col style="width: 23%" />
-<col style="width: 38%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Instruction code</p></th>
 <th class="head"><p>Assembly</p></th>
@@ -1877,7 +1791,7 @@ reg: [
 </table>
 </section>
 <section id="absolute-jump-group">
-<h2>Absolute jump group<a class="headerlink" href="#absolute-jump-group" title="Permalink to this headline"></a></h2>
+<h2>Absolute jump group<a class="headerlink" href="#absolute-jump-group" title="Link to this heading"></a></h2>
 
 <div style="overflow-x:auto">
 <script type="WaveDrom">
@@ -1912,11 +1826,6 @@ reg: [
 </script>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 38%" />
-<col style="width: 23%" />
-<col style="width: 40%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Instruction code</p></th>
 <th class="head"><p>Assembly</p></th>
@@ -1944,7 +1853,7 @@ reg: [
 </table>
 </section>
 <section id="prefix-instructions">
-<h2>Prefix instructions<a class="headerlink" href="#prefix-instructions" title="Permalink to this headline"></a></h2>
+<h2>Prefix instructions<a class="headerlink" href="#prefix-instructions" title="Link to this heading"></a></h2>
 <p>Prefix instructions can precede any other instruction to modify their behavior.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -1959,7 +1868,7 @@ reg: [
 <p><em>Prefix concatenation</em>: Every processor implementation has a maximum instruction length it supports. In this version of the spec, it’s 64 bits. If an instruction with all its prefixes exceeds this limit, the processor raises an <code class="code docutils literal notranslate"><span class="pre">exc_unknown_inst</span></code> exception, with $tpc pointing to the first prefix instruction. Without this provision it would be possible to create arbitrarily long instruction sequences in TASK mode. That in turn would prevent interrupts from being raised, effectively locking up the system (at least up to the point of exhausting the addressable memory space). The ISA puts further restrictions on what prefix instructions can be cascaded. As a general rule, prefixes of the same kind can appear only once in a prefix cascade.</p>
 </div>
 <section id="type-override">
-<h3>Type override<a class="headerlink" href="#type-override" title="Permalink to this headline"></a></h3>
+<h3>Type override<a class="headerlink" href="#type-override" title="Link to this heading"></a></h3>
 <p>This prefix instruction allows for the changing the way the subsequent operation interprets source operand types. It doesn’t actually change the source register types. The result type that is written into the destination along with its value is the result type obtained after the type overrides.</p>
 
 <div style="overflow-x:auto">
@@ -1975,11 +1884,6 @@ reg: [
 </script>
 </div>
 <table class="docutils align-default">
-<colgroup>
-<col style="width: 34%" />
-<col style="width: 18%" />
-<col style="width: 48%" />
-</colgroup>
 <thead>
 <tr class="row-odd"><th class="head"><p>Instruction code</p></th>
 <th class="head"><p>Assembly</p></th>
@@ -1995,7 +1899,7 @@ reg: [
 </table>
 <p>Type override for $rA (TYPE_A) and $rB (TYPE_B).</p>
 <p>If either TYPE_A or TYPE_B is set to 0xf, the corresponding register type is not overridden: the type from the register file is used during the subsequent operation.</p>
-<div class="admonition-todo admonition" id="id12">
+<div class="admonition-todo admonition" id="id25">
 <p class="admonition-title">Todo</p>
 <p>type overrides are not supported by the toolchain</p>
 </div>

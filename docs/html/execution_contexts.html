@@ -1,22 +1,23 @@
+
+
 <!DOCTYPE html>
-<html class="writer-html5" lang="en" >
+<html class="writer-html5" lang="en" data-content_root="./">
 <head>
-  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+  <meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Task and Scheduler modes &mdash; Brew processor  documentation</title>
-      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
-      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
-  <!--[if lt IE 9]>
-    <script src="_static/js/html5shiv.min.js"></script>
-  <![endif]-->
+      <link rel="stylesheet" type="text/css" href="_static/pygments.css?v=b86133f3" />
+      <link rel="stylesheet" type="text/css" href="_static/css/theme.css?v=9edc463e" />
+
   
-        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-        <script src="_static/jquery.js"></script>
-        <script src="_static/underscore.js"></script>
-        <script src="_static/doctools.js"></script>
-        <script src="_static/default.js"></script>
-        <script src="_static/wavedrom.min.js"></script>
+      <script src="_static/jquery.js?v=5d32c60e"></script>
+      <script src="_static/_sphinx_javascript_frameworks_compat.js?v=2cd50e6c"></script>
+      <script src="_static/documentation_options.js?v=7f41d439"></script>
+      <script src="_static/doctools.js?v=fd6eb6e6"></script>
+      <script src="_static/sphinx_highlight.js?v=6ffebe34"></script>
+      <script src="_static/default.js"></script>
+      <script src="_static/wavedrom.min.js?v=db79c4d1"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -29,11 +30,15 @@
     <nav data-toggle="wy-nav-shift" class="wy-nav-side">
       <div class="wy-side-scroll">
         <div class="wy-side-nav-search" >
-            <a href="index.html" class="icon icon-home"> Brew processor
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            Brew processor
           </a>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
-    <input type="text" name="q" placeholder="Search docs" />
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
     <input type="hidden" name="check_keywords" value="yes" />
     <input type="hidden" name="area" value="default" />
   </form>
@@ -76,7 +81,7 @@
         <div class="rst-content">
           <div role="navigation" aria-label="Page navigation">
   <ul class="wy-breadcrumbs">
-      <li><a href="index.html" class="icon icon-home"></a></li>
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
       <li class="breadcrumb-item active">Task and Scheduler modes</li>
       <li class="wy-breadcrumbs-aside">
       </li>
@@ -87,7 +92,7 @@
            <div itemprop="articleBody">
              
   <section id="task-and-scheduler-modes">
-<h1>Task and Scheduler modes<a class="headerlink" href="#task-and-scheduler-modes" title="Permalink to this headline"></a></h1>
+<h1>Task and Scheduler modes<a class="headerlink" href="#task-and-scheduler-modes" title="Link to this heading"></a></h1>
 <p>There are only two execution contexts: TASK mode and SCHEDULER mode. They roughly correspond to user-space and kernel-space in other architectures, but there are differences that warrant a different naming. There is no concept of rings such as on ia32.</p>
 <p>Each context has its program counter: <code class="code docutils literal notranslate"><span class="pre">$tpc</span></code> for TASK mode and <code class="code docutils literal notranslate"><span class="pre">$spc</span></code> for SCHEDULER mode. The processor updates the appropriate program counter depending on the execution context. Most instructions deal with the ‘program counter of the current context’, which is simply named <code class="code docutils literal notranslate"><span class="pre">$pc</span></code>, which is an alias to either <code class="code docutils literal notranslate"><span class="pre">$tpc</span></code> or <code class="code docutils literal notranslate"><span class="pre">$spc</span></code>.</p>
 <p>There are very limited ways to switch contexts: the processor can enter SCHEDULER mode though interrupts or exceptions (including software interrupts). The only way to enter TASK mode is by the use of the <code class="code docutils literal notranslate"><span class="pre">stm</span></code> instruction.</p>
