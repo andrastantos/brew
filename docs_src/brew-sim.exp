@@ -29,6 +29,22 @@ setup_sim brew
 # No multilib flags are set by default.
 process_multilib_options ""
 
+# A variant for a reduced core (-march=brew-nomul/-noshift/-min, -mno-mul,
+# -mno-shift, e.g. --target_board=brew-sim/-march=brew-min) runs on a
+# simulator configured the same way, so a multiply or shift that slipped
+# through stops the test with SIGILL instead of passing unnoticed.
+set brew_multilib_flags [board_info $board multilib_flags]
+set brew_sim_options ""
+if {[regexp -- {-march=brew-(min|nomul)|-mno-mul} $brew_multilib_flags]} {
+    append brew_sim_options " --no-multiply"
+}
+if {[regexp -- {-march=brew-(min|noshift)|-mno-shift} $brew_multilib_flags]} {
+    append brew_sim_options " --no-shift"
+}
+if {$brew_sim_options ne ""} {
+    set_board_info sim,options $brew_sim_options
+}
+
 # The compiler used to build for this board. This has *nothing* to do
 # with what compiler is tested if we're testing gcc.
 set_board_info compiler "[find_gcc]"

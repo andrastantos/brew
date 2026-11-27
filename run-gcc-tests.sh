@@ -5,11 +5,14 @@
 # Lives in the brew repo; brew-gcc, brew-newlib, brew-gcc-build/ (see
 # build-toolchain.sh) and test-results/ are siblings of brew/.
 #
-# Usage: [FLAVOR=trunk] [PHASES="gcc g++ libstdc++"] [BLD=build-dir] [PREFIX=install-prefix] brew/run-gcc-tests.sh [name]
+# Usage: [FLAVOR=trunk] [PHASES="gcc g++ libstdc++"] [BOARD=board] [BLD=build-dir] [PREFIX=install-prefix] brew/run-gcc-tests.sh [name]
 # FLAVOR=trunk (see build-toolchain.sh) defaults BLD/PREFIX to the trunk flavor's build dir and prefix.
 # The testsuites use the compiler and target libraries in the build tree, not
 # the installed ones; PREFIX only supplies binutils and the simulator.
 # PHASES re-runs a subset into an existing result dir (other results are kept).
+# BOARD picks the DejaGnu board (default brew-sim); a variant such as
+# BOARD=brew-sim/-march=brew-min tests the libraries for reduced cores, on a
+# simulator without the multiplier and shifter (brew/docs_src/brew-sim.exp).
 set -o pipefail
 TOP=$(cd "$(dirname "$0")/.." && pwd)  # the directory holding all the repo checkouts
 case ${FLAVOR:=stable} in stable) SUFFIX= ;; trunk) SUFFIX=-trunk ;; *) echo "unknown FLAVOR: $FLAVOR" >&2; exit 1 ;; esac
@@ -40,7 +43,7 @@ OUT=$TOP/test-results/$NAME
 mkdir -p "$OUT"
 
 PHASES=${PHASES:-gcc g++ libstdc++}
-RTF="--target_board=brew-sim"
+RTF="--target_board=${BOARD:-brew-sim}"
 cd "$BLD"
 STAMP=$OUT/.start-stamp; touch "$STAMP"
 run() { # phase make-args...

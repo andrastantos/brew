@@ -99,6 +99,8 @@ The :code:`CORE_FAMILY` field contains the family of the CPU core. The value of 
 
 .. todo:: need to add CORE_FAMILY coordination table.
 
+.. _csr_capability:
+
 csr_capability
 ^^^^^^^^^^^^^^
 
@@ -106,17 +108,23 @@ csr_capability
 
   {config: {bits: 32}, config: {hspace: 500},
   reg: [
-      { "bits": 31, attr: 0 },
       { "name": "FP_SUPPORT",     "bits": 1 },
+      { "name": "MUL_SUPPORT",    "bits": 1 },
+      { "name": "SHIFT_SUPPORT",  "bits": 1 },
+      { "bits": 29, attr: 0 },
   ]}
 
 This register contains individual capabilities, that are independently defined from the content of the :code:`csr_mach_arch` register. In other words, these are common capabilities that relate to optional features in the Brew spec.
 
-The only such feature for this revision of the spec is float-point support. This is reflected in the :code:`FP_SUPPORT` bit.
+The features for this revision of the spec are:
+
+* :code:`FP_SUPPORT` (bit 0): floating-point support.
+* :code:`MUL_SUPPORT` (bit 1): the multiply instructions (see :ref:`optional instructions<optional_instructions>`).
+* :code:`SHIFT_SUPPORT` (bit 2): the shift instructions (see :ref:`optional instructions<optional_instructions>`).
 
 For all bits, the value '0' means the feature is not implemented, '1' means the feature is available.
 
-The top 31-bits of the register is thus reserved and read as 0 for this revision of the spec.
+The top 29 bits of the register are reserved and read as 0 for this revision of the spec.
 
 csr_fpstat
 ^^^^^^^^^^

@@ -12,6 +12,18 @@ Character       Meaning
 
 Instructions are fully decoded. Any instruction code not explicitly mentioned in the tables below generate an :code:`exc_unknown_inst` exception.
 
+.. _optional_instructions:
+
+Optional instructions
+---------------------
+
+Two groups of instructions are optional, so that small implementations can leave out the units they need:
+
+* Multiplication (the barrel shifter is not needed): :code:`$rD <- $rA * $rB` (0x.9..), :code:`$rD <- VALUE * $rB` (0x.9.f) and :code:`$rD <- short VALUE * $rA` (0x.9f.).
+* Shifts: :code:`<<`, :code:`>>` and :code:`>>>` with a register (0x.6.., 0x.7.., 0x.8..), a 32-bit (0x.6.f, 0x.7.f, 0x.8.f) or a short (0x.6f., 0x.7f., 0x.8f.) operand.
+
+An implementation either implements all instructions of a group or none of them. If a group is not implemented, its instruction codes behave like any other undefined code and raise :code:`exc_unknown_inst`. The :code:`MUL_SUPPORT` and :code:`SHIFT_SUPPORT` bits of :ref:`csr_capability<csr_capability>` tell software which groups are present. Software built for an implementation without them must not use these instructions (with GCC: :code:`-mno-mul` and :code:`-mno-shift`).
+
 Instructions presented here in groups, based on their rough function and encoding similarities.
 
 
@@ -284,10 +296,10 @@ Instruction code                        Assembly                    Operation
 :ref:`0x.3..<rd_eq_ra_and_rb>`          $rD <- $rA & $rB            Bit-wise 'and'
 :ref:`0x.4..<rd_eq_ra_plus_rb>`         $rD <- $rA + $rB            Type-dependent add
 :ref:`0x.5..<rd_eq_ra_minus_rb>`        $rD <- $rA - $rB            Type-dependent subtract
-:ref:`0x.6..<rd_eq_ra_lsl_rb>`          $rD <- $rA << $rB           Binary left-shift
-:ref:`0x.7..<rd_eq_ra_lsr_rb>`          $rD <- $rA >> $rB           Binary right-shift
-:ref:`0x.8..<rd_eq_ra_asr_rb>`          $rD <- $rA >>> $rB          Arithmetic right-shift
-:ref:`0x.9..<rd_eq_ra_times_rb>`        $rD <- $rA * $rB            Type-dependent multiply
+:ref:`0x.6..<rd_eq_ra_lsl_rb>`          $rD <- $rA << $rB           Binary left-shift [#note_optional_unit]_
+:ref:`0x.7..<rd_eq_ra_lsr_rb>`          $rD <- $rA >> $rB           Binary right-shift [#note_optional_unit]_
+:ref:`0x.8..<rd_eq_ra_asr_rb>`          $rD <- $rA >>> $rB          Arithmetic right-shift [#note_optional_unit]_
+:ref:`0x.9..<rd_eq_ra_times_rb>`        $rD <- $rA * $rB            Type-dependent multiply [#note_optional_unit]_
 :ref:`0x.a..<rd_eq_type_rb>`            $rD <- TYPE_NAME $rB        Type conversion
 :ref:`0x.b..<rd_eq_tiny_rb_plus_const>` $rD <- tiny $rB + CONST     Integer add [#note0xXbXX]_
 0x.c..                                  see below (stack ops)
@@ -296,6 +308,8 @@ Instruction code                        Assembly                    Operation
 ======================================= =========================== ============================================
 
 .. [#note0xXbXX] CONST is FIELD_A is one's complement-coded; range is -7...7.
+
+.. [#note_optional_unit] Optional instruction, see :ref:`optional instructions<optional_instructions>`.
 
 .. todo:: The TYPE_NAME instructions is not yet implemented in ESPRESSO
 
@@ -437,10 +451,10 @@ Instruction code                                  Assembly                    Op
 :ref:`0x.3.f 0x**** 0x****<rd_eq_value_and_rb>`   $rD <- VALUE & $rB          Bit-wise 'and'
 :ref:`0x.4.f 0x**** 0x****<rd_eq_value_plus_rb>`  $rD <- VALUE + $rB          Type-dependent add
 :ref:`0x.5.f 0x**** 0x****<rd_eq_value_minus_rb>` $rD <- VALUE - $rB          Type-dependent subtract
-:ref:`0x.6.f 0x**** 0x****<rd_eq_value_lsl_rb>`   $rD <- VALUE << $rB         Binary left-shift
-:ref:`0x.7.f 0x**** 0x****<rd_eq_value_lsr_rb>`   $rD <- VALUE >> $rB         Binary right-shift
-:ref:`0x.8.f 0x**** 0x****<rd_eq_value_asr_rb>`   $rD <- VALUE >>> $rB        Arithmetic right-shift
-:ref:`0x.9.f 0x**** 0x****<rd_eq_value_times_rb>` $rD <- VALUE * $rB          Type-dependent multiply
+:ref:`0x.6.f 0x**** 0x****<rd_eq_value_lsl_rb>`   $rD <- VALUE << $rB         Binary left-shift [#note_optional_unit]_
+:ref:`0x.7.f 0x**** 0x****<rd_eq_value_lsr_rb>`   $rD <- VALUE >> $rB         Binary right-shift [#note_optional_unit]_
+:ref:`0x.8.f 0x**** 0x****<rd_eq_value_asr_rb>`   $rD <- VALUE >>> $rB        Arithmetic right-shift [#note_optional_unit]_
+:ref:`0x.9.f 0x**** 0x****<rd_eq_value_times_rb>` $rD <- VALUE * $rB          Type-dependent multiply [#note_optional_unit]_
 0x.c.f 0x**** 0x****                              see below (stack ops)
 0x.d.f 0x**** 0x****                              see below (stack ops)
 0x.e.f 0x**** 0x****                              see below (mem ops)
@@ -549,10 +563,10 @@ Instruction code                                 Assembly                       
 :ref:`0x.3f. 0x****<rd_eq_short_value_and_ra>`   $rD <- short VALUE & $rA             Bit-wise 'and'
 :ref:`0x.4f. 0x****<rd_eq_short_value_plus_ra>`  $rD <- short VALUE + $rA             Type-dependent add
 :ref:`0x.5f. 0x****<rd_eq_short_value_minus_ra>` $rD <- short VALUE - $rA             Type-dependent subtract
-:ref:`0x.6f. 0x****<rd_eq_short_ra_lsl_value>`   $rD <- short $rA << VALUE            Binary left-shift
-:ref:`0x.7f. 0x****<rd_eq_short_ra_lsr_value>`   $rD <- short $rA >> VALUE            Binary right-shift
-:ref:`0x.8f. 0x****<rd_eq_short_ra_asr_value>`   $rD <- short $rA >>> VALUE           Arithmetic right-shift
-:ref:`0x.9f. 0x****<rd_eq_short_value_times_ra>` $rD <- short VALUE * $rA             Type-dependent multiply
+:ref:`0x.6f. 0x****<rd_eq_short_ra_lsl_value>`   $rD <- short $rA << VALUE            Binary left-shift [#note_optional_unit]_
+:ref:`0x.7f. 0x****<rd_eq_short_ra_lsr_value>`   $rD <- short $rA >> VALUE            Binary right-shift [#note_optional_unit]_
+:ref:`0x.8f. 0x****<rd_eq_short_ra_asr_value>`   $rD <- short $rA >>> VALUE           Arithmetic right-shift [#note_optional_unit]_
+:ref:`0x.9f. 0x****<rd_eq_short_value_times_ra>` $rD <- short VALUE * $rA             Type-dependent multiply [#note_optional_unit]_
 0x.cf. 0x****                                    see below (stack ops)
 0x.df. 0x****                                    see below (stack ops)
 0x.ef. 0x****                                    see below (mem ops)

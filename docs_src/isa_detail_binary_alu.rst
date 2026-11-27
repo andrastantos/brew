@@ -90,7 +90,7 @@ $rD <- $rA << $rB
 
 *Instruction code*: 0x.6..
 
-*Exceptions*: :code:`exc_type`
+*Exceptions*: :code:`exc_type`, :code:`exc_unknown_inst` (if not implemented, see :ref:`optional instructions<optional_instructions>`)
 
 *Type variants*: Yes
 
@@ -107,7 +107,7 @@ $rD <- $rA >> $rB
 
 *Instruction code*: 0x.7..
 
-*Exceptions*: :code:`exc_type`
+*Exceptions*: :code:`exc_type`, :code:`exc_unknown_inst` (if not implemented, see :ref:`optional instructions<optional_instructions>`)
 
 *Type variants*: Yes
 
@@ -123,7 +123,7 @@ $rD <- $rA >>> $rB
 
 *Instruction code*: 0x.8..
 
-*Exceptions*: :code:`exc_type`
+*Exceptions*: :code:`exc_type`, :code:`exc_unknown_inst` (if not implemented, see :ref:`optional instructions<optional_instructions>`)
 
 *Type variants*: Yes
 
@@ -139,7 +139,7 @@ $rD <- $rA * $rB
 
 *Instruction code*: 0x.9..
 
-*Exceptions*: :code:`exc_type`
+*Exceptions*: :code:`exc_type`, :code:`exc_unknown_inst` (if not implemented, see :ref:`optional instructions<optional_instructions>`)
 
 *Type variants*: Yes
 
@@ -295,7 +295,7 @@ $rD <- short $rA << VALUE
 
 *Instruction code*: 0x.6f. 0x****
 
-*Exceptions*: :code:`exc_type`
+*Exceptions*: :code:`exc_type`, :code:`exc_unknown_inst` (if not implemented, see :ref:`optional instructions<optional_instructions>`)
 
 *Type variants*: Yes
 
@@ -311,7 +311,7 @@ $rD <- short $rA >> VALUE
 
 *Instruction code*: 0x.7f. 0x****
 
-*Exceptions*: :code:`exc_type`
+*Exceptions*: :code:`exc_type`, :code:`exc_unknown_inst` (if not implemented, see :ref:`optional instructions<optional_instructions>`)
 
 *Type variants*: Yes
 
@@ -327,7 +327,7 @@ $rD <- short $rA >>> VALUE
 
 *Instruction code*: 0x.8f. 0x****
 
-*Exceptions*: :code:`exc_type`
+*Exceptions*: :code:`exc_type`, :code:`exc_unknown_inst` (if not implemented, see :ref:`optional instructions<optional_instructions>`)
 
 *Type variants*: Yes
 
@@ -343,7 +343,7 @@ $rD <- short VALUE * $rA
 
 *Instruction code*: 0x.9f. 0x****
 
-*Exceptions*: :code:`exc_type`
+*Exceptions*: :code:`exc_type`, :code:`exc_unknown_inst` (if not implemented, see :ref:`optional instructions<optional_instructions>`)
 
 *Type variants*: Yes
 
@@ -463,7 +463,7 @@ $rD <- VALUE << $rB
 
 *Instruction code*: 0x.6.f 0x**** 0x*****
 
-*Exceptions*: :code:`exc_type`
+*Exceptions*: :code:`exc_type`, :code:`exc_unknown_inst` (if not implemented, see :ref:`optional instructions<optional_instructions>`)
 
 *Type variants*: Yes
 
@@ -479,7 +479,7 @@ $rD <- VALUE >> $rB
 
 *Instruction code*: 0x.7.f 0x**** 0x*****
 
-*Exceptions*: :code:`exc_type`
+*Exceptions*: :code:`exc_type`, :code:`exc_unknown_inst` (if not implemented, see :ref:`optional instructions<optional_instructions>`)
 
 *Type variants*: Yes
 
@@ -495,7 +495,7 @@ $rD <- VALUE >>> $rB
 
 *Instruction code*: 0x.8.f 0x**** 0x*****
 
-*Exceptions*: :code:`exc_type`
+*Exceptions*: :code:`exc_type`, :code:`exc_unknown_inst` (if not implemented, see :ref:`optional instructions<optional_instructions>`)
 
 *Type variants*: Yes
 
@@ -511,7 +511,7 @@ $rD <- VALUE * $rB
 
 *Instruction code*: 0x.9.f 0x**** 0x*****
 
-*Exceptions*: :code:`exc_type`
+*Exceptions*: :code:`exc_type`, :code:`exc_unknown_inst` (if not implemented, see :ref:`optional instructions<optional_instructions>`)
 
 *Type variants*: Yes
 
